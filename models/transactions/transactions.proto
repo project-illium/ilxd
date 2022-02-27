@@ -1,0 +1,72 @@
+// Copyright (c) 2022 The illium developers
+// Use of this source code is governed by an MIT
+// license that can be found in the LICENSE file.
+
+syntax = "proto3";
+option go_package = "../transactions";
+
+message Transaction {
+    oneof Tx {
+        StandardTransaction standard_transaction = 1;
+        CoinbaseTransaction coinbase_transaction = 2;
+        StakeTransaction    stake_transaction    = 3;
+        TreasuryTransaction treasury_transaction = 4;
+        MintTransaction     mint_transaction     = 5;
+    }
+}
+
+message Output {
+    bytes commitment       = 1;
+    bytes ephemeral_pubkey = 2;
+    bytes ciphertext       = 3;
+}
+
+message StandardTransaction {
+    repeated Output outputs =   1;
+    uint64 fee                = 2;
+    repeated bytes nullifiers = 3;
+    bytes utxo_root           = 4;
+    bytes proof               = 5;
+}
+
+message CoinbaseTransaction {
+    bytes validator_ID       = 1;
+    uint64 new_coins         = 2;
+    repeated Output outputs  = 3;
+    bytes signature          = 4;
+    bytes proof              = 5;
+}
+
+message StakeTransaction {
+    bytes validator_ID = 1;
+    uint64 amount      = 2;
+    bytes nullifier    = 3;
+    bytes signature    = 4;
+    bytes proof        = 5;
+}
+
+message TreasuryTransaction {
+    uint64 new_coins         = 1;
+    repeated Output outputs  = 2;
+    bytes proposalHash       = 3;
+    bytes proof              = 4;
+}
+
+message MintTransaction {
+    AssetType type            = 1;
+    bytes asset_ID            = 2;
+    bytes documentHash        = 3;
+    uint64 new_tokens         = 4;
+    repeated Output outputs   = 5;
+    uint64 fee                = 6;
+    repeated bytes nullifiers = 7;
+    bytes utxo_root           = 8;
+    bytes mint_key            = 9;
+    bytes signature           = 10;
+    bytes proof               = 11;
+
+    enum AssetType {
+        FIXED_SUPPLY    = 0;
+        VARIABLE_SUPPLY = 1;
+    }
+}

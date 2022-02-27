@@ -1,0 +1,26 @@
+// Copyright (c) 2022 The illium developers
+// Use of this source code is governed by an MIT
+// license that can be found in the LICENSE file.
+
+syntax = "proto3";
+option go_package = "../blocks";
+
+import "transactions.proto";
+
+message BlockHeader {
+    uint32 version       = 1;
+    uint32 height        = 2;
+    bytes parent         = 3;
+    int64 timestamp      = 4;
+    bytes tx_root        = 5;
+    bytes validator_root = 6;
+    bytes nullifier_root = 7;
+    bytes utxo_root      = 8;
+    bytes producer_ID    = 9;
+    bytes signature      = 10;
+}
+
+message Block {
+    BlockHeader header                = 1;
+    repeated Transaction transactions = 2;
+}

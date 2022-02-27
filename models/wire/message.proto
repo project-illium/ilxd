@@ -1,0 +1,16 @@
+// Copyright (c) 2022 The illium developers
+// Use of this source code is governed by an MIT
+// license that can be found in the LICENSE file.
+
+syntax = "proto3";
+option go_package = "../wire";
+
+message MsgAvaRequest {
+    uint32 requestID    = 1;
+    repeated bytes invs = 2;
+}
+
+message MsgAvaResponse {
+    uint32 requestID = 1;
+    bytes votes      = 2;
+}

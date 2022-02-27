@@ -1,0 +1,48 @@
+// Copyright (c) 2022 The illium developers
+// Use of this source code is governed by an MIT
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"github.com/jessevdk/go-flags"
+	"github.com/project-illium/ilxd/repo"
+	"os"
+	"os/signal"
+)
+
+func main() {
+	// Configure the command line parser.
+	var emptyCfg repo.Config
+	parser := flags.NewNamedParser("ilxd", flags.Default)
+	parser.AddGroup("Node Options", "Configuration options for the node", &emptyCfg)
+	if _, err := parser.Parse(); err != nil {
+		log.Fatal(err)
+	}
+
+	// Load the config file. There are three steps to this:
+	// 1. Start with a config populated with default values.
+	// 2. Override the default values with any provided command line options.
+	// 3. Override the first two with any provided config file options.
+	cfg, err := repo.LoadConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Build and start the server.
+	server, err := BuildServer(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Listen for an exit signal and close.
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill)
+	for sig := range c {
+		if sig == os.Kill || sig == os.Interrupt {
+			log.Info("ilxd gracefully shutting down")
+			server.Close()
+			os.Exit(1)
+		}
+	}
+}
