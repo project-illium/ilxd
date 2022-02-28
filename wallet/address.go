@@ -1,4 +1,4 @@
-// Copyright (c) 2022 The illium developers
+// Copyright (c) 2022 Project Illium
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
 
@@ -21,13 +21,13 @@ type Address interface {
 }
 
 type SpendScript struct {
-	threshold uint8
-	pubkeys   []crypto.PubKey
+	Threshold uint8
+	Pubkeys   []crypto.PubKey
 }
 
 func (s *SpendScript) Serialize() ([]byte, error) {
-	ser := []byte{s.threshold}
-	for _, pub := range s.pubkeys {
+	ser := []byte{s.Threshold}
+	for _, pub := range s.Pubkeys {
 		keyBytes, err := pub.Raw()
 		if err != nil {
 			return nil, err
@@ -35,6 +35,14 @@ func (s *SpendScript) Serialize() ([]byte, error) {
 		ser = append(ser, keyBytes...)
 	}
 	return ser, nil
+}
+
+func (s *SpendScript) Hash() ([]byte, error) {
+	ser, err := s.Serialize()
+	if err != nil {
+		return nil, err
+	}
+	return hash.HashFunc(ser), nil
 }
 
 type BasicAddress struct {

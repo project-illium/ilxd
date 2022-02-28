@@ -1,4 +1,4 @@
-// Copyright (c) 2022 The illium developers
+// Copyright (c) 2022 Project Illium
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
 
@@ -24,8 +24,8 @@ func TestBasicAddress(t *testing.T) {
 	}
 
 	ss := SpendScript{
-		threshold: 1,
-		pubkeys:   []crypto.PubKey{pubkey},
+		Threshold: 1,
+		Pubkeys:   []crypto.PubKey{pubkey},
 	}
 
 	addr, err := NewBasicAddress(ss, viewKey.(*Curve25519PublicKey), &params.MainnetParams)

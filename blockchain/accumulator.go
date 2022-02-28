@@ -1,4 +1,4 @@
-// Copyright (c) 2022 The illium developers
+// Copyright (c) 2022 Project Illium
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
 
@@ -6,10 +6,9 @@ package blockchain
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
+	"github.com/project-illium/ilxd/blockchain/utils"
 	"github.com/project-illium/ilxd/models"
-	"github.com/project-illium/ilxd/params/hash"
 )
 
 // InclusionProof is a merkle inclusion proof which proves that
@@ -19,8 +18,8 @@ type InclusionProof struct {
 	Accumulator [][]byte
 	Hashes      [][]byte
 	Flags       uint64
+	Index       uint64
 	last        []byte
-	index       uint64
 }
 
 // Accumulator is a hashed-based cryptographic data structure similar to a
@@ -83,7 +82,7 @@ func NewAccumulator() *Accumulator {
 // to go back and protect previous items after the accumulator has been mutated.
 func (a *Accumulator) Insert(data []byte, protect bool) {
 	a.nElements++
-	n := hashWithIndex(data, a.nElements-1)
+	n := utils.HashWithIndex(data, a.nElements-1)
 
 	// If one of our protected hashes is at acc[0] then it was an
 	// odd number leaf and the very next leaf must be part of its
@@ -93,14 +92,14 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 		c := make([]byte, len(n))
 		copy(c, n)
 		proof.Hashes = append(proof.Hashes, c)
-		proof.last = hashMerkleBranches(a.acc[0], n)
+		proof.last = utils.HashMerkleBranches(a.acc[0], n)
 		proof.Flags = 1
 	}
 
 	if protect {
 		ip := &InclusionProof{
 			ID:    models.NewID(data),
-			index: a.nElements - 1,
+			Index: a.nElements - 1,
 		}
 		a.proofs[models.NewID(n)] = ip
 		a.lookupMap[models.NewID(data)] = ip
@@ -113,14 +112,14 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 			copy(c1, a.acc[0])
 			copy(c2, n)
 			ip.Hashes = append(ip.Hashes, c1)
-			ip.last = hashMerkleBranches(a.acc[0], c2)
+			ip.last = utils.HashMerkleBranches(a.acc[0], c2)
 		}
 	}
 
 	h := 0
 	r := a.acc[h]
 	for r != nil {
-		n = hashMerkleBranches(r, n)
+		n = utils.HashMerkleBranches(r, n)
 
 		// Iterate over all proofs and update them before we prune
 		// branches off the tree.
@@ -133,7 +132,7 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 					copy(c, n)
 
 					proof.Hashes = append(proof.Hashes, c)
-					proof.last = hashMerkleBranches(proof.last, n)
+					proof.last = utils.HashMerkleBranches(proof.last, n)
 
 					f := uint64(1) << uint64(len(proof.Hashes)-1)
 					proof.Flags |= f
@@ -145,7 +144,7 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 					copy(c, a.acc[h+1])
 
 					proof.Hashes = append(proof.Hashes, c)
-					proof.last = hashMerkleBranches(a.acc[h+1], proof.last)
+					proof.last = utils.HashMerkleBranches(a.acc[h+1], proof.last)
 				}
 			}
 		}
@@ -160,7 +159,7 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 // Root returns the root hash of the accumulator. This is not cached
 // and a new hash is calculated each time this method is called.
 func (a *Accumulator) Root() models.ID {
-	return models.NewID(catAndHash(a.acc))
+	return models.NewID(utils.CatAndHash(a.acc))
 }
 
 // GetProof returns an inclusion proof, if it exists, for the provided hash.
@@ -179,7 +178,7 @@ func (a *Accumulator) GetProof(data []byte) (*InclusionProof, error) {
 			acc = append(acc, peakCopy)
 		}
 	}
-	newProof := &InclusionProof{ID: models.NewID(data), Accumulator: acc, Flags: proof.Flags, Hashes: make([][]byte, len(proof.Hashes))}
+	newProof := &InclusionProof{ID: models.NewID(data), Accumulator: acc, Flags: proof.Flags, Hashes: make([][]byte, len(proof.Hashes)), Index: proof.Index}
 	copy(newProof.Hashes, proof.Hashes)
 	return newProof, nil
 }
@@ -194,7 +193,7 @@ func (a *Accumulator) DropProof(data []byte) {
 		return
 	}
 
-	n := hashWithIndex(data, proof.index)
+	n := utils.HashWithIndex(data, proof.Index)
 
 	delete(a.lookupMap, models.NewID(data))
 	delete(a.proofs, models.NewID(n))
@@ -219,27 +218,4 @@ func (a *Accumulator) len() int {
 		}
 	}
 	return l
-}
-
-func nElementsToBytes(n uint64) []byte {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, n)
-	return b
-}
-
-func hashWithIndex(data []byte, index uint64) []byte {
-	d := make([]byte, len(data)+8)
-	copy(d[:8], nElementsToBytes(index))
-	copy(d[8:], data)
-	return hash.HashFunc(d)
-}
-
-func catAndHash(data [][]byte) []byte {
-	combined := make([]byte, 0, hash.HashSize*len(data))
-	for _, peak := range data {
-		peakCopy := make([]byte, len(peak))
-		copy(peakCopy, peak)
-		combined = append(combined, peakCopy...)
-	}
-	return hash.HashFunc(combined)
 }

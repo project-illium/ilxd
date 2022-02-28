@@ -1,4 +1,4 @@
-// Copyright (c) 2022 The illium developers
+// Copyright (c) 2022 Project Illium
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
 
