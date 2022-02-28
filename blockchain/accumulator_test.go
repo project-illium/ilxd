@@ -85,4 +85,8 @@ func TestAccumulator(t *testing.T) {
 	assert.Equal(t, models.NewID(d7), proof7.ID)
 	assert.Equal(t, [][]byte{h8, h56, h1234}, proof7.Hashes)
 	assert.Equal(t, uint64(1), proof7.Flags)
+
+	acc.DropProof(d7)
+	_, err = acc.GetProof(d7)
+	assert.Error(t, err)
 }
