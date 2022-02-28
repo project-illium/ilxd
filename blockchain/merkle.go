@@ -32,7 +32,7 @@ func hashMerkleBranches(left []byte, right []byte) []byte {
 	copy(h[:hash.HashSize], left[:])
 	copy(h[hash.HashSize:], right[:])
 
-	return h[:]
+	return hash.HashFunc(h[:])
 }
 
 // BuildMerkleTreeStore creates a merkle tree from a slice of transactions,
