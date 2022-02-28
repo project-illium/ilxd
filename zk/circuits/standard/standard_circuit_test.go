@@ -7,11 +7,9 @@ package standard
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/wallet"
-
-	//"github.com/btcsuite/btcd/btcec"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
