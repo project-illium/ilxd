@@ -5,14 +5,22 @@
 package blockchain
 
 import (
+	"bytes"
 	"encoding/binary"
+	"errors"
 	"github.com/project-illium/ilxd/models"
 	"github.com/project-illium/ilxd/params/hash"
 )
 
+// InclusionProof is a merkle inclusion proof which proves that
+// a given element is in the set with the given accumulator root.
 type InclusionProof struct {
-	index  uint64
-	hashes [][]byte
+	ID          models.ID
+	Accumulator [][]byte
+	Hashes      [][]byte
+	Flags       uint64
+	last        []byte
+	index       uint64
 }
 
 // Accumulator is a hashed-based cryptographic data structure similar to a
@@ -52,12 +60,15 @@ type Accumulator struct {
 	acc       [][]byte
 	nElements uint64
 	proofs    map[models.ID]*InclusionProof
+	lookupMap map[models.ID]*InclusionProof
 }
 
 // NewAccumulator returns a new Accumulator.
 func NewAccumulator() *Accumulator {
 	return &Accumulator{
 		acc:       make([][]byte, 1),
+		proofs:    make(map[models.ID]*InclusionProof),
+		lookupMap: make(map[models.ID]*InclusionProof),
 		nElements: 0,
 	}
 }
@@ -77,19 +88,29 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 	copy(d[8:], data)
 	n := hash.HashFunc(d)
 
-	for id, proof := range a.proofs {
-		if models.NewID(a.acc[0]) == id {
-			proof.hashes = append(proof.hashes, n)
-		}
+	// If one of our protected hashes is at acc[0] then it was an
+	// odd number leaf and the very next leaf must be part of its
+	// inclusion proof.
+	proof, ok := a.proofs[models.NewID(a.acc[0])]
+	if ok {
+		proof.Hashes = append(proof.Hashes, n)
+		proof.last = hashMerkleBranches(a.acc[0], n)
+		proof.Flags = 1
 	}
 
 	if protect {
 		ip := &InclusionProof{
+			ID:    models.NewID(data),
 			index: a.nElements,
 		}
 		a.proofs[models.NewID(n)] = ip
+		a.lookupMap[models.NewID(data)] = ip
+		// If acc[0] is not nil then this means the new leaf is
+		// and even number and the previous leaf is part of its
+		// inclusion proof.
 		if a.acc[0] != nil {
-			ip.hashes = append(ip.hashes, a.acc[0])
+			ip.Hashes = append(ip.Hashes, a.acc[0])
+			proof.last = hashMerkleBranches(a.acc[0], n)
 		}
 	}
 
@@ -98,18 +119,22 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 	for r != nil {
 		n = hashMerkleBranches(r, n)
 
+		// Iterate over all proofs and update them before we prune
+		// branches off the tree.
 		for _, proof := range a.proofs {
 			h2 := h + 1
-			l := len(proof.hashes)
+			l := len(proof.Hashes)
 			if l > 0 && h2 >= l && h2 < len(a.acc) {
-				// Fixme
-				/*if something {
-					// Right
-					append n to entry
-				} else {
-					// Left
-					append acc[h+1] to entry
-				}*/
+				if !bytes.Equal(proof.last, n) { // Right
+					proof.Hashes = append(proof.Hashes, n)
+					proof.last = hashMerkleBranches(proof.last, n)
+
+					f := 1 << len(proof.Hashes)
+					proof.Flags |= f
+				} else { // Left
+					proof.Hashes = append(proof.Hashes, a.acc[h+1])
+					proof.last = hashMerkleBranches(a.acc[h+1], proof.last)
+				}
 			}
 		}
 
@@ -129,6 +154,44 @@ func (a *Accumulator) Root() models.ID {
 	}
 	root := hash.HashFunc(combined)
 	return models.NewID(root)
+}
+
+// GetProof returns an inclusion proof, if it exists, for the provided hash.
+//
+// This is NOT safe for concurrent access.
+func (a *Accumulator) GetProof(data []byte) (*InclusionProof, error) {
+	proof, ok := a.lookupMap[models.NewID(data)]
+	if !ok {
+		return nil, errors.New("not found")
+	}
+	acc := make([][]byte, 0, len(a.acc))
+	for _, peak := range a.acc {
+		if peak != nil {
+			acc = append(acc, peak)
+		}
+	}
+	newProof := &InclusionProof{ID: models.NewID(data), Accumulator: acc, Flags: proof.Flags}
+	copy(newProof.Hashes, proof.Hashes)
+	return newProof, nil
+}
+
+// DropProof ceases tracking of the inclusion proof for the given
+// element and deletes all tree branches related to the proof.
+//
+// This is NOT safe for concurrent access.
+func (a *Accumulator) DropProof(data []byte) {
+	proof, ok := a.lookupMap[models.NewID(data)]
+	if !ok {
+		return
+	}
+
+	d := make([]byte, len(data)+8)
+	copy(d[:8], nElementsToBytes(proof.index))
+	copy(d[8:], data)
+	n := hash.HashFunc(d)
+
+	delete(a.lookupMap, models.NewID(data))
+	delete(a.proofs, models.NewID(n))
 }
 
 // The Insert method often checks the value of the accumulator element
