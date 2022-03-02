@@ -12,11 +12,11 @@ import (
 )
 
 func HasNetworkKey(ds Datastore) (bool, error) {
-	return ds.Has(context.Background(), datastore.NewKey(Libp2pDatastoreKey))
+	return ds.Has(context.Background(), datastore.NewKey(NetworkKeyDatastoreKey))
 }
 
 func LoadNetworkKey(ds Datastore) (crypto.PrivKey, error) {
-	keyBytes, err := ds.Get(context.Background(), datastore.NewKey(Libp2pDatastoreKey))
+	keyBytes, err := ds.Get(context.Background(), datastore.NewKey(NetworkKeyDatastoreKey))
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func PutNetworkKey(ds Datastore, key crypto.PrivKey) error {
 	if err != nil {
 		return err
 	}
-	return ds.Put(context.Background(), datastore.NewKey(Libp2pDatastoreKey), keyBytes)
+	return ds.Put(context.Background(), datastore.NewKey(NetworkKeyDatastoreKey), keyBytes)
 }
 
 func GenerateNetworkKeypair() (crypto.PrivKey, crypto.PubKey, error) {

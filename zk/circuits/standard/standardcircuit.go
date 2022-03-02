@@ -49,7 +49,7 @@ type PublicParams struct {
 	UTXORoot          []byte
 	SigHash           []byte
 	OutputCommitments [][]byte
-	Nullifiers        [][]byte
+	Nullifiers        [][32]byte
 	Fee               uint64
 	Coinbase          uint64
 	MintID            []byte
@@ -101,7 +101,7 @@ func StandardCircuit(priv PrivateParams, pub PublicParams) bool {
 			nullifierPreimage = append(nullifierPreimage, key...)
 		}
 		calculatedNullifier := hash.HashFunc(nullifierPreimage)
-		if !bytes.Equal(calculatedNullifier, pub.Nullifiers[i]) {
+		if !bytes.Equal(calculatedNullifier, pub.Nullifiers[i][:]) {
 			return false
 		}
 

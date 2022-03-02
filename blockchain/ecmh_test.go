@@ -5,12 +5,9 @@
 package blockchain
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
-	"github.com/project-illium/ilxd/params/hash"
 	"testing"
 )
 
@@ -121,20 +118,4 @@ func BenchmarkMultiset_AddRemove(b *testing.B) {
 			m.Remove(data)
 		}
 	}
-}
-
-func BenchmarkMultiset_Add(b *testing.B) {
-	d := make([]byte, 40)
-	rand.Read(d)
-	b.Run("sha256", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			sha256.Sum256(d)
-		}
-	})
-	b.Run("blake2b", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			hash.HashFunc(d)
-		}
-	})
-
 }

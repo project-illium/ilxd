@@ -43,7 +43,7 @@ func (o *OutputCommitmentPreimage) Commitment() ([]byte, error) {
 }
 
 // CalculateNullifier calculates and returns the nullifier for the given inputs.
-func CalculateNullifier(commitmentIndex uint64, salt [32]byte, threshold uint8, pubkeys ...crypto.PubKey) ([]byte, error) {
+func CalculateNullifier(commitmentIndex uint64, salt [32]byte, threshold uint8, pubkeys ...crypto.PubKey) ([32]byte, error) {
 	indexBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(indexBytes, commitmentIndex)
 
@@ -55,9 +55,12 @@ func CalculateNullifier(commitmentIndex uint64, salt [32]byte, threshold uint8, 
 	for _, pubkey := range pubkeys {
 		raw, err := pubkey.Raw()
 		if err != nil {
-			return nil, err
+			return [32]byte{}, err
 		}
 		ser = append(ser, raw...)
 	}
-	return hash.HashFunc(ser), nil
+	h := hash.HashFunc(ser)
+	var out [32]byte
+	copy(out[:], h)
+	return out, nil
 }

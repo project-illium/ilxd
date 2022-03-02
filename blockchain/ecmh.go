@@ -7,12 +7,10 @@ package blockchain
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/project-illium/ilxd/models"
 	"golang.org/x/crypto/blake2b"
 	"math/big"
-	"sync"
-
-	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
 // Multiset tracks the state of a multiset as used to calculate the ECMH
@@ -23,13 +21,12 @@ import (
 type Multiset struct {
 	curve *secp.KoblitzCurve
 	point *secp.JacobianPoint
-	mtx   sync.RWMutex
 }
 
 // NewMultiset returns an empty multiset. The hash of an empty set
 // is the 32 byte value of zero.
 func NewMultiset(curve *secp.KoblitzCurve) *Multiset {
-	return &Multiset{curve: curve, point: new(secp.JacobianPoint), mtx: sync.RWMutex{}}
+	return &Multiset{curve: curve, point: new(secp.JacobianPoint)}
 }
 
 // NewMultisetFromPoint initializes a new multiset with the given x, y
@@ -45,15 +42,12 @@ func NewMultisetFromPoint(curve *secp.KoblitzCurve, x, y *big.Int) *Multiset {
 	result := new(secp.JacobianPoint)
 	bigAffineToJacobian(x, y, result)
 
-	return &Multiset{curve: curve, point: result, mtx: sync.RWMutex{}}
+	return &Multiset{curve: curve, point: result}
 }
 
 // Add hashes the data onto the curve and updates the state
 // of the multiset.
 func (ms *Multiset) Add(data []byte) {
-	ms.mtx.Lock()
-	defer ms.mtx.Unlock()
-
 	x, y := hashToPoint(ms.curve, data)
 
 	point2 := &secp.JacobianPoint{}
@@ -75,9 +69,6 @@ func (ms *Multiset) Add(data []byte) {
 // elements that were added, you will not get back to the point at
 // infinity (empty set).
 func (ms *Multiset) Remove(data []byte) {
-	ms.mtx.Lock()
-	defer ms.mtx.Unlock()
-
 	if ms.point.X.IsZero() && ms.point.Y.IsZero() {
 		return
 	}
@@ -98,9 +89,6 @@ func (ms *Multiset) Remove(data []byte) {
 // set is the 32 byte value of zero. The hash of a non-empty multiset is the
 // sha256 hash of the 32 byte x value concatenated with the 32 byte y value.
 func (ms *Multiset) Hash() models.ID {
-	ms.mtx.RLock()
-	defer ms.mtx.RUnlock()
-
 	if ms.point.X.IsZero() && ms.point.Y.IsZero() {
 		return models.ID{}
 	}
@@ -118,9 +106,6 @@ func (ms *Multiset) Hash() models.ID {
 
 // Point returns a copy of the x and y coordinates of the current multiset state.
 func (ms *Multiset) Point() (x *big.Int, y *big.Int) {
-	ms.mtx.RLock()
-	defer ms.mtx.RUnlock()
-
 	return jacobianToBigAffine(ms.point)
 }
 

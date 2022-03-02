@@ -8,7 +8,24 @@ import (
 	"github.com/ipfs/go-datastore"
 )
 
-const Libp2pDatastoreKey = "/obx/libp2pkey/"
+const (
+	// NetworkKeyDatastoreKey is the datastore key for the network (libp2p) private key.
+	NetworkKeyDatastoreKey = "/ilxd/libp2pkey/"
+	// ValidatorDatastoreKeyPrefix is the datastore key prefix for the validators.
+	ValidatorDatastoreKeyPrefix = "/ilxd/validator/"
+	// ValidatorSetStateKeyPrefix is the datastore key prefix for the validator set state.
+	ValidatorSetStateKeyPrefix = "/ilxd/validatorsetstate/"
+	// BlockByHeightKeyPrefix is the datastore key prefix for mapping block heights to block IDs.
+	BlockByHeightKeyPrefix = "/ilxd/blockbyheight/"
+	// BlockKeyPrefix is the datastore key prefix for storing block headers by blockID.
+	BlockKeyPrefix = "/ilxd/block/"
+	// TransactionKeyPrefix is the datastore key prefix mapping transactions to txid.
+	TransactionKeyPrefix = "/ilxd/tx/"
+	// BlockTxsKeyPrefix is the datastore key prefix mapping a block ID to a list of txids.
+	BlockTxsKeyPrefix = "/ilxd/blocktxs/"
+	// BlockIndexStateKey is the datastore key used to store the block index best state.
+	BlockIndexStateKey = "/ilxd/blockindex/"
+)
 
 type Datastore interface {
 	datastore.Datastore

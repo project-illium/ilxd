@@ -14,11 +14,11 @@ var ErrIDStrSize = fmt.Errorf("max ID string length is %v bytes", hash.HashSize*
 
 type ID [hash.HashSize]byte
 
-func (id *ID) String() string {
+func (id ID) String() string {
 	return hex.EncodeToString(id[:])
 }
 
-func (id *ID) Bytes() []byte {
+func (id ID) Bytes() []byte {
 	return id[:]
 }
 

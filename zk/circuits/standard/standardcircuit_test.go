@@ -135,7 +135,7 @@ func TestStandardCircuit(t *testing.T) {
 		Coinbase:          0,
 		SigHash:           sigHash,
 		Fee:               10000,
-		Nullifiers:        [][]byte{nullifier},
+		Nullifiers:        [][32]byte{nullifier},
 		MintAmount:        0,
 		MintID:            nil,
 	}
