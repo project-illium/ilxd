@@ -22,8 +22,8 @@ const (
 // ErrBoxDecryption Nacl box decryption failed
 var ErrBoxDecryption = errors.New("failed to decrypt curve25519")
 
-// EncryptOutput encrypts an output with the public key.
-func EncryptOutput(pubKey crypto.PubKey, plaintext []byte) ([]byte, error) {
+// Encrypt encrypts an output with the public key.
+func Encrypt(pubKey crypto.PubKey, plaintext []byte) ([]byte, error) {
 	curve25519PubKey, ok := pubKey.(*Curve25519PublicKey)
 	if !ok {
 		return nil, errors.New("pubkey must be of type Curve25519PublicKey")
@@ -56,8 +56,8 @@ func EncryptOutput(pubKey crypto.PubKey, plaintext []byte) ([]byte, error) {
 	return ciphertext, nil
 }
 
-// DecryptOutput decrypts an output using a private key.
-func DecryptOutput(privKey crypto.PrivKey, ciphertext []byte) ([]byte, error) {
+// Decrypt decrypts an output using a private key.
+func Decrypt(privKey crypto.PrivKey, ciphertext []byte) ([]byte, error) {
 	curve25519PrivKey, ok := privKey.(*Curve25519PrivateKey)
 	if !ok {
 		return nil, errors.New("privkey must be of type Curve25519PrivateKey")

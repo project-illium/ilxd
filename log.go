@@ -7,6 +7,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/project-illium/ilxd/blockchain"
+	"github.com/project-illium/ilxd/consensus"
 	"path"
 	"strings"
 
@@ -120,5 +122,7 @@ func setupLogging(logDir, level string, testnet bool) error {
 	log = zap.S()
 	repo.UpdateLogger()
 	net.UpdateLogger()
+	blockchain.UpdateLogger()
+	consensus.UpdateLogger()
 	return nil
 }

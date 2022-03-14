@@ -6,6 +6,7 @@ package blockchain
 
 import (
 	"github.com/ipfs/go-datastore"
+	"github.com/project-illium/ilxd/blockchain/pb"
 	"github.com/project-illium/ilxd/models"
 	"github.com/project-illium/ilxd/models/blocks"
 	"github.com/project-illium/ilxd/repo"
@@ -32,13 +33,13 @@ func (bn *blockNode) ID() models.ID {
 // Header returns the header for this blocknode. The header is
 // loaded from the database.
 func (bn *blockNode) Header() (*blocks.BlockHeader, error) {
-	return dsFetchHeader(bn.ds, bn.blockID)
+	return pb.dsFetchHeader(bn.ds, bn.blockID)
 }
 
 // Block returns the full block for this blocknode. The block
 // is loaded from the databse.
 func (bn *blockNode) Block() (*blocks.Block, error) {
-	return dsFetchBlock(bn.ds, bn.blockID)
+	return pb.dsFetchBlock(bn.ds, bn.blockID)
 }
 
 // Height returns the height from this node.
@@ -47,7 +48,7 @@ func (bn *blockNode) Height() uint32 {
 }
 
 // Parent returns the parent blocknode for this block. If the
-// parent is cached it will be returned from cache. Otherwise it
+// parent is cached it will be returned from cache. Otherwise, it
 // will be loaded from the db.
 func (bn *blockNode) Parent() (*blockNode, error) {
 	if bn.parent != nil {
@@ -56,7 +57,7 @@ func (bn *blockNode) Parent() (*blockNode, error) {
 	if bn.height == 0 {
 		return nil, nil
 	}
-	parentID, err := dsFetchBlockIDFromHeight(bn.ds, bn.height-1)
+	parentID, err := pb.dsFetchBlockIDFromHeight(bn.ds, bn.height-1)
 	if err != nil {
 		return nil, err
 	}
@@ -72,13 +73,13 @@ func (bn *blockNode) Parent() (*blockNode, error) {
 }
 
 // Child returns the child blocknode for this block. If the
-// child is cached it will be returned from cache. Otherwise it
+// child is cached it will be returned from cache. Otherwise, it
 // will be loaded from the db.
 func (bn *blockNode) Child() (*blockNode, error) {
 	if bn.child != nil {
 		return bn.child, nil
 	}
-	childID, err := dsFetchBlockIDFromHeight(bn.ds, bn.height+1)
+	childID, err := pb.dsFetchBlockIDFromHeight(bn.ds, bn.height+1)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +113,7 @@ func NewBlockIndex(ds repo.Datastore) *blockIndex {
 // Init loads the current index state from the database and
 // fill the cache for quick access.
 func (bi *blockIndex) Init() error {
-	tip, err := dsFetchBlockIndexState(bi.ds)
+	tip, err := pb.dsFetchBlockIndexState(bi.ds)
 	if err != nil {
 		return err
 	}
@@ -137,7 +138,7 @@ func (bi *blockIndex) Tip() *blockNode {
 
 // Commit commits the current tip of the index to the database.
 func (bi *blockIndex) Commit(dbtx datastore.Txn) error {
-	return dsPutBlockIndexState(dbtx, bi.tip)
+	return pb.dsPutBlockIndexState(dbtx, bi.tip)
 }
 
 // ExtendIndex updates the tip of the index with the provided header.
@@ -167,7 +168,7 @@ func (bi *blockIndex) GetNodeByHeight(height uint32) (*blockNode, error) {
 		return node, nil
 	}
 
-	blockID, err := dsFetchBlockIDFromHeight(bi.ds, height)
+	blockID, err := pb.dsFetchBlockIDFromHeight(bi.ds, height)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +202,7 @@ func (bi *blockIndex) GetNodeByID(blockID models.ID) (*blockNode, error) {
 		return node, nil
 	}
 
-	header, err := dsFetchHeader(bi.ds, blockID)
+	header, err := pb.dsFetchHeader(bi.ds, blockID)
 	if err != nil {
 		return nil, err
 	}

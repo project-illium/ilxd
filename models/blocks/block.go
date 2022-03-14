@@ -12,6 +12,9 @@ import (
 	"github.com/project-illium/ilxd/models"
 )
 
+var _ models.Serializable = (*BlockHeader)(nil)
+var _ models.Serializable = (*Block)(nil)
+
 func (h *BlockHeader) ID() models.ID {
 	ser, _ := h.Serialize()
 	return models.NewIDFromData(ser)

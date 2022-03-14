@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
+	"github.com/project-illium/ilxd/models"
 	"github.com/project-illium/ilxd/wallet"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -98,7 +99,7 @@ func TestStandardCircuit(t *testing.T) {
 	sig3, err := priv3.Sign(sigHash)
 	assert.NoError(t, err)
 
-	nullifier, err := wallet.CalculateNullifier(inclusionProof.Index, ocp.Salt, ss.Threshold, ss.Pubkeys...)
+	nullifier, err := models.CalculateNullifier(inclusionProof.Index, ocp.Salt, ss.Threshold, ss.Pubkeys...)
 	assert.NoError(t, err)
 
 	privateParams := PrivateParams{

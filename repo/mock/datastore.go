@@ -9,9 +9,10 @@ import (
 	"errors"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
+	"github.com/project-illium/ilxd/repo"
 )
 
-var _ datastore.TxnDatastore = (*MapDatastore)(nil)
+var _ repo.Datastore = (*MapDatastore)(nil)
 
 type MapDatastore struct {
 	datastore.MapDatastore

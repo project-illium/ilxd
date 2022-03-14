@@ -6,7 +6,6 @@ package wallet
 
 import (
 	"encoding/binary"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/project-illium/ilxd/models"
 	"github.com/project-illium/ilxd/params/hash"
 )
@@ -40,27 +39,4 @@ func (o *OutputCommitmentPreimage) Commitment() ([]byte, error) {
 	ser = append(ser, o.Salt[:]...)
 
 	return hash.HashFunc(ser), nil
-}
-
-// CalculateNullifier calculates and returns the nullifier for the given inputs.
-func CalculateNullifier(commitmentIndex uint64, salt [32]byte, threshold uint8, pubkeys ...crypto.PubKey) ([32]byte, error) {
-	indexBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(indexBytes, commitmentIndex)
-
-	ser := make([]byte, 0, 8+32+1+(len(pubkeys)*32))
-
-	ser = append(ser, indexBytes...)
-	ser = append(ser, salt[:]...)
-	ser = append(ser, threshold)
-	for _, pubkey := range pubkeys {
-		raw, err := pubkey.Raw()
-		if err != nil {
-			return [32]byte{}, err
-		}
-		ser = append(ser, raw...)
-	}
-	h := hash.HashFunc(ser)
-	var out [32]byte
-	copy(out[:], h)
-	return out, nil
 }

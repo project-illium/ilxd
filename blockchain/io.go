@@ -6,6 +6,7 @@ package blockchain
 
 import (
 	"context"
+	"encoding/binary"
 	"github.com/golang/protobuf/proto"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -13,25 +14,9 @@ import (
 	"github.com/project-illium/ilxd/models"
 	"github.com/project-illium/ilxd/models/blocks"
 	"github.com/project-illium/ilxd/repo"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"strconv"
 )
-
-func serializeValidatorCommitment(v *Validator) ([]byte, error) {
-	vProto := &pb.ValidatorCommitment{
-		PeerId:     v.PeerID.Pretty(),
-		TotalStake: v.TotalStake,
-		Nullifiers: make([]*pb.ValidatorCommitment_Nullifier, 0, len(v.Nullifiers)),
-	}
-
-	for v, amt := range v.Nullifiers {
-		vProto.Nullifiers = append(vProto.Nullifiers, &pb.ValidatorCommitment_Nullifier{
-			Hash:   v[:],
-			Amount: amt,
-		})
-	}
-
-	return proto.Marshal(vProto)
-}
 
 func serializeValidator(v *Validator) ([]byte, error) {
 	vProto := &pb.DBValidator{
@@ -42,10 +27,11 @@ func serializeValidator(v *Validator) ([]byte, error) {
 		EpochBLocks:    v.epochBlocks,
 	}
 
-	for v, amt := range v.Nullifiers {
+	for v, stake := range v.Nullifiers {
 		vProto.Nullifiers = append(vProto.Nullifiers, &pb.DBValidator_Nullifier{
-			Hash:   v[:],
-			Amount: amt,
+			Hash:       v[:],
+			Amount:     stake.Amount,
+			Blockstamp: timestamppb.New(stake.Blockstamp),
 		})
 	}
 
@@ -65,16 +51,19 @@ func deserializeValidator(ser []byte) (*Validator, error) {
 	val := &Validator{
 		PeerID:         pid,
 		TotalStake:     vProto.TotalStake,
-		Nullifiers:     make(map[[32]byte]uint64),
+		Nullifiers:     make(map[models.Nullifier]Stake),
 		unclaimedCoins: vProto.UnclaimedCoins,
 		epochBlocks:    vProto.EpochBLocks,
-		isModified:     false,
+		dirty:          false,
 	}
 
 	for _, n := range vProto.Nullifiers {
 		var nullifier [32]byte
 		copy(nullifier[:], n.Hash)
-		val.Nullifiers[nullifier] = n.Amount
+		val.Nullifiers[nullifier] = Stake{
+			Amount:     n.Amount,
+			Blockstamp: n.Blockstamp.AsTime(),
+		}
 	}
 	return val, nil
 }
@@ -103,14 +92,14 @@ func dsFetchHeader(ds repo.Datastore, blockID models.ID) (*blocks.BlockHeader, e
 		return nil, err
 	}
 	var blockHeader blocks.BlockHeader
-	if err := proto.Unmarshal(serialized, &blockHeader); err != nil {
+	if err := blockHeader.Deserialize(serialized); err != nil {
 		return nil, err
 	}
 	return &blockHeader, nil
 }
 
 func dsPutHeader(dbtx datastore.Txn, header *blocks.BlockHeader) error {
-	ser, err := proto.Marshal(header)
+	ser, err := header.Serialize()
 	if err != nil {
 		return err
 	}
@@ -172,4 +161,26 @@ func dsFetchBlockIndexState(ds repo.Datastore) (*blockNode, error) {
 	}
 	node.ds = ds
 	return node, nil
+}
+
+func dsPutValidatorSetConsistencyStatus(ds repo.Datastore, status vsConsistencyStatus) error {
+	b := make([]byte, 2)
+	binary.BigEndian.PutUint16(b, uint16(status))
+	return ds.Put(context.Background(), datastore.NewKey(repo.ValidatorSetConsistencyStatusKey), b)
+}
+
+func dsFetchValidatorSetConsistencyStatus(ds repo.Datastore) (vsConsistencyStatus, error) {
+	b, err := ds.Get(context.Background(), datastore.NewKey(repo.ValidatorSetConsistencyStatusKey))
+	if err != nil {
+		return 0, err
+	}
+	return vsConsistencyStatus(binary.BigEndian.Uint16(b)), nil
+}
+
+func dsFetchValidatorLastFlushHeight(ds repo.Datastore) (uint32, error) {
+	b, err := ds.Get(context.Background(), datastore.NewKey(repo.ValidatorSetLastFlushHeight))
+	if err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint32(b), nil
 }

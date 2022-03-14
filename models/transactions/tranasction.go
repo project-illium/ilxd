@@ -12,6 +12,13 @@ import (
 	"github.com/project-illium/ilxd/models"
 )
 
+var _ models.Serializable = (*Transaction)(nil)
+var _ models.Serializable = (*StandardTransaction)(nil)
+var _ models.Serializable = (*CoinbaseTransaction)(nil)
+var _ models.Serializable = (*StakeTransaction)(nil)
+var _ models.Serializable = (*TreasuryTransaction)(nil)
+var _ models.Serializable = (*MintTransaction)(nil)
+
 func (tx *Transaction) ID() models.ID {
 	if tx.GetStandardTransaction() != nil {
 		ser, _ := tx.Serialize()

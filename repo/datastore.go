@@ -13,8 +13,10 @@ const (
 	NetworkKeyDatastoreKey = "/ilxd/libp2pkey/"
 	// ValidatorDatastoreKeyPrefix is the datastore key prefix for the validators.
 	ValidatorDatastoreKeyPrefix = "/ilxd/validator/"
-	// ValidatorSetStateKeyPrefix is the datastore key prefix for the validator set state.
-	ValidatorSetStateKeyPrefix = "/ilxd/validatorsetstate/"
+	// ValidatorSetLastFlushHeight is the datastore key for last flush height of the validator set.
+	ValidatorSetLastFlushHeight = "/ilxd/validatorsetlastflushheight/"
+	// ValidatorSetConsistencyStatusKey is the datastore key for the validator set flush state.
+	ValidatorSetConsistencyStatusKey = "/ilxd/validatorsetconsistencystatus/"
 	// BlockByHeightKeyPrefix is the datastore key prefix for mapping block heights to block IDs.
 	BlockByHeightKeyPrefix = "/ilxd/blockbyheight/"
 	// BlockKeyPrefix is the datastore key prefix for storing block headers by blockID.
