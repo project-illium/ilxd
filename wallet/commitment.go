@@ -22,7 +22,7 @@ type OutputCommitmentPreimage struct {
 // Commitment serializes and hashes the data in the preimage and
 // returns the hash.
 func (o *OutputCommitmentPreimage) Commitment() ([]byte, error) {
-	serializedSpendScript, err := o.SpendScript.Serialize()
+	spendScript, err := o.SpendScript.Hash()
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func (o *OutputCommitmentPreimage) Commitment() ([]byte, error) {
 	amountBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(amountBytes, o.Amount)
 
-	ser = append(ser, hash.HashFunc(serializedSpendScript)...)
+	ser = append(ser, spendScript...)
 	ser = append(ser, amountBytes...)
 	ser = append(ser, idBytes...)
 	ser = append(ser, o.Salt[:]...)

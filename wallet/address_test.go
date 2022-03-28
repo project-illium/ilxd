@@ -25,7 +25,7 @@ func TestBasicAddress(t *testing.T) {
 
 	ss := SpendScript{
 		Threshold: 1,
-		Pubkeys:   []crypto.PubKey{pubkey},
+		Pubkeys:   []TimedPubkey{{Pubkey: pubkey}},
 	}
 
 	addr, err := NewBasicAddress(ss, viewKey.(*Curve25519PublicKey), &params.MainnetParams)

@@ -7,7 +7,6 @@ package models
 import (
 	"encoding/binary"
 	"encoding/hex"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/project-illium/ilxd/params/hash"
 )
 
@@ -59,21 +58,17 @@ func NewNullifierFromString(n string) (Nullifier, error) {
 }
 
 // CalculateNullifier calculates and returns the nullifier for the given inputs.
-func CalculateNullifier(commitmentIndex uint64, salt [32]byte, threshold uint8, pubkeys ...crypto.PubKey) (Nullifier, error) {
+func CalculateNullifier(commitmentIndex uint64, salt [32]byte, threshold uint8, pubkeys ...[]byte) (Nullifier, error) {
 	indexBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(indexBytes, commitmentIndex)
 
-	ser := make([]byte, 0, 8+32+1+(len(pubkeys)*32))
+	ser := make([]byte, 0, 8+32+1+(len(pubkeys)*40))
 
 	ser = append(ser, indexBytes...)
 	ser = append(ser, salt[:]...)
 	ser = append(ser, threshold)
 	for _, pubkey := range pubkeys {
-		raw, err := pubkey.Raw()
-		if err != nil {
-			return [32]byte{}, err
-		}
-		ser = append(ser, raw...)
+		ser = append(ser, pubkey...)
 	}
 	h := hash.HashFunc(ser)
 	var out [32]byte

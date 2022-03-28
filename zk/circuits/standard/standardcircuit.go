@@ -11,6 +11,7 @@ import (
 	"github.com/project-illium/ilxd/blockchain/utils"
 	"github.com/project-illium/ilxd/params/hash"
 	"math/bits"
+	"time"
 )
 
 var defaultAssetID [32]byte
@@ -46,7 +47,7 @@ type PrivateParams struct {
 }
 
 type PublicParams struct {
-	UTXORoot          []byte
+	TXORoot           []byte
 	SigHash           []byte
 	OutputCommitments [][]byte
 	Nullifiers        [][32]byte
@@ -54,6 +55,7 @@ type PublicParams struct {
 	Coinbase          uint64
 	MintID            []byte
 	MintAmount        uint64
+	Blocktime         time.Time
 }
 
 // This whole function is a placeholder for the actual zk-snark circuit. We enumerate it
@@ -80,12 +82,12 @@ func StandardCircuit(priv PrivateParams, pub PublicParams) bool {
 		outputCommitment := hash.HashFunc(commitmentPreimage)
 
 		// Then validate the merkle proof
-		if !ValidateInclusionProof(outputCommitment, in.CommitmentIndex, in.InclusionProof.Hashes, in.InclusionProof.Flags, in.InclusionProof.Accumulator, pub.UTXORoot) {
+		if !ValidateInclusionProof(outputCommitment, in.CommitmentIndex, in.InclusionProof.Hashes, in.InclusionProof.Flags, in.InclusionProof.Accumulator, pub.TXORoot) {
 			return false
 		}
 
 		// Validate the signature(s)
-		valid, err := ValidateMultiSignature(in.Threshold, in.Pubkeys, in.Signatures, in.SigBitfield, pub.SigHash)
+		valid, err := ValidateMultiSignature(in.Threshold, in.Pubkeys, in.Signatures, in.SigBitfield, pub.SigHash, pub.Blocktime)
 		if !valid || err != nil {
 			return false
 		}
@@ -178,7 +180,7 @@ func ValidateInclusionProof(outputCommitment []byte, commitmentIndex uint64, has
 	for _, a := range accumulator {
 		if bytes.Equal(a, h) {
 			found = true
-			continue
+			break
 		}
 	}
 	if !found {
@@ -190,7 +192,7 @@ func ValidateInclusionProof(outputCommitment []byte, commitmentIndex uint64, has
 	return bytes.Equal(calculatedRoot, root)
 }
 
-func ValidateMultiSignature(threshold uint8, pubkeys [][]byte, signatures [][]byte, sigBitField uint8, sigHash []byte) (bool, error) {
+func ValidateMultiSignature(threshold uint8, pubkeys [][]byte, signatures [][]byte, sigBitField uint8, sigHash []byte, blockTime time.Time) (bool, error) {
 	if len(signatures) > 8 || uint8(len(signatures)) < threshold {
 		return false, nil
 	}
@@ -204,7 +206,12 @@ func ValidateMultiSignature(threshold uint8, pubkeys [][]byte, signatures [][]by
 	for i := 0; i < len(pubkeys); i++ {
 		f := uint8(1 << i)
 		if f&sigBitField > 1 {
-			pubkey, err := crypto.UnmarshalEd25519PublicKey(pubkeys[i])
+			timeLock := binary.BigEndian.Uint64(pubkeys[i][32:])
+			if time.Unix(int64(timeLock), 0).After(blockTime) {
+				return false, nil
+			}
+
+			pubkey, err := crypto.UnmarshalEd25519PublicKey(pubkeys[i][:32])
 			if err != nil {
 				return false, err
 			}

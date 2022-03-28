@@ -7,7 +7,6 @@ package blockchain
 import (
 	"errors"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/project-illium/ilxd/blockchain/pb"
 	"github.com/project-illium/ilxd/models"
 	"github.com/project-illium/ilxd/repo"
 	"sync"
@@ -69,11 +68,11 @@ func NewValidatorSet(ds repo.Datastore) (*ValidatorSet, error) {
 }
 
 func (vs *ValidatorSet) Init(tip *blockNode) error {
-	consistencyStatus, err := pb.dsFetchValidatorSetConsistencyStatus(vs.ds)
+	consistencyStatus, err := dsFetchValidatorSetConsistencyStatus(vs.ds)
 	if err != nil {
 		return err
 	}
-	lastFlushHeight, err := pb.dsFetchValidatorLastFlushHeight(vs.ds)
+	lastFlushHeight, err := dsFetchValidatorLastFlushHeight(vs.ds)
 	if err != nil {
 		return err
 	}

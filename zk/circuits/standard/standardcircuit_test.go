@@ -13,9 +13,14 @@ import (
 	"github.com/project-illium/ilxd/wallet"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestStandardCircuit(t *testing.T) {
+	defaultTime := time.Time{}
+	defaultTimeBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(defaultTimeBytes, uint64(defaultTime.Unix()))
+
 	_, pub1, err := crypto.GenerateEd25519Key(rand.Reader)
 	assert.NoError(t, err)
 	priv2, pub2, err := crypto.GenerateEd25519Key(rand.Reader)
@@ -32,7 +37,17 @@ func TestStandardCircuit(t *testing.T) {
 
 	ss := wallet.SpendScript{
 		Threshold: 2,
-		Pubkeys:   []crypto.PubKey{pub1, pub2, pub3},
+		Pubkeys: []wallet.TimedPubkey{
+			{Pubkey: pub1},
+			{Pubkey: pub2},
+			{Pubkey: pub3},
+		},
+	}
+	pubkeys := make([][]byte, 3)
+	for _, key := range ss.Pubkeys {
+		b, err := key.Serialize()
+		assert.NoError(t, err)
+		pubkeys = append(pubkeys, b)
 	}
 
 	_, pub4, err := crypto.GenerateEd25519Key(rand.Reader)
@@ -40,7 +55,7 @@ func TestStandardCircuit(t *testing.T) {
 
 	ss2 := wallet.SpendScript{
 		Threshold: 1,
-		Pubkeys:   []crypto.PubKey{pub4},
+		Pubkeys:   []wallet.TimedPubkey{{Pubkey: pub4}},
 	}
 
 	outputSpendScript, err := ss2.Hash()
@@ -99,7 +114,7 @@ func TestStandardCircuit(t *testing.T) {
 	sig3, err := priv3.Sign(sigHash)
 	assert.NoError(t, err)
 
-	nullifier, err := models.CalculateNullifier(inclusionProof.Index, ocp.Salt, ss.Threshold, ss.Pubkeys...)
+	nullifier, err := models.CalculateNullifier(inclusionProof.Index, ocp.Salt, ss.Threshold, pubkeys...)
 	assert.NoError(t, err)
 
 	privateParams := PrivateParams{
@@ -111,7 +126,7 @@ func TestStandardCircuit(t *testing.T) {
 				Amount:          ocp.Amount,
 				AssetID:         ocp.AssetID,
 				Threshold:       ss.Threshold,
-				Pubkeys:         [][]byte{raw1, raw2, raw3},
+				Pubkeys:         [][]byte{append(raw1, defaultTimeBytes...), append(raw2, defaultTimeBytes...), append(raw3, defaultTimeBytes...)},
 				CommitmentIndex: inclusionProof.Index,
 				InclusionProof: InclusionProof{
 					Accumulator: inclusionProof.Accumulator,
@@ -131,7 +146,7 @@ func TestStandardCircuit(t *testing.T) {
 	}
 
 	publicParams := PublicParams{
-		UTXORoot:          root[:],
+		TXORoot:           root[:],
 		OutputCommitments: [][]byte{commitment2},
 		Coinbase:          0,
 		SigHash:           sigHash,
@@ -139,6 +154,7 @@ func TestStandardCircuit(t *testing.T) {
 		Nullifiers:        [][32]byte{nullifier},
 		MintAmount:        0,
 		MintID:            nil,
+		Blocktime:         time.Now(),
 	}
 
 	valid := StandardCircuit(privateParams, publicParams)

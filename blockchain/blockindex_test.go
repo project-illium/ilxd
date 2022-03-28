@@ -7,7 +7,6 @@ package blockchain
 import (
 	"context"
 	"crypto/rand"
-	"github.com/project-illium/ilxd/blockchain/pb"
 	"github.com/project-illium/ilxd/models"
 	"github.com/project-illium/ilxd/models/blocks"
 	"github.com/project-illium/ilxd/repo"
@@ -35,11 +34,11 @@ func populateDatabase(ds repo.Datastore) error {
 	}
 
 	prev := randomBlockHeader(0, [32]byte{})
-	if err := pb.dsPutHeader(dbtx, prev); err != nil {
+	if err := dsPutHeader(dbtx, prev); err != nil {
 		return err
 	}
 
-	if err := pb.dsPutBlockIDFromHeight(dbtx, prev.ID(), 0); err != nil {
+	if err := dsPutBlockIDFromHeight(dbtx, prev.ID(), 0); err != nil {
 		return err
 	}
 
@@ -47,18 +46,18 @@ func populateDatabase(ds repo.Datastore) error {
 		header := randomBlockHeader(i, prev.ID())
 		header.Parent = prev.ID().Bytes()
 
-		if err := pb.dsPutHeader(dbtx, header); err != nil {
+		if err := dsPutHeader(dbtx, header); err != nil {
 			return err
 		}
 
-		if err := pb.dsPutBlockIDFromHeight(dbtx, header.ID(), i); err != nil {
+		if err := dsPutBlockIDFromHeight(dbtx, header.ID(), i); err != nil {
 			return err
 		}
 
 		prev = header
 	}
 
-	if err := pb.dsPutBlockIndexState(dbtx, &blockNode{
+	if err := dsPutBlockIndexState(dbtx, &blockNode{
 		ds:      ds,
 		blockID: prev.ID(),
 		height:  5000,
@@ -121,7 +120,7 @@ func TestBlockIndex(t *testing.T) {
 	err = txn.Commit(context.Background())
 	assert.NoError(t, err)
 
-	node, err = pb.dsFetchBlockIndexState(ds)
+	node, err = dsFetchBlockIndexState(ds)
 	assert.NoError(t, err)
 	assert.Equal(t, newHeader.ID(), node.ID())
 	assert.Equal(t, newHeader.Height, node.Height())

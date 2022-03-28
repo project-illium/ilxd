@@ -5,12 +5,14 @@
 package wallet
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/btcsuite/btcd/btcutil/bech32"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/params/hash"
+	"time"
 )
 
 const ScriptHashLength = hash.HashSize
@@ -20,19 +22,37 @@ type Address interface {
 	String() string
 }
 
+type TimedPubkey struct {
+	Pubkey   crypto.PubKey
+	Timelock time.Time
+}
+
+func (t *TimedPubkey) Serialize() ([]byte, error) {
+	keyBytes, err := t.Pubkey.Raw()
+	if err != nil {
+		return nil, err
+	}
+	ts := make([]byte, 8)
+	binary.BigEndian.PutUint64(ts, uint64(t.Timelock.Unix()))
+	ret := make([]byte, 0, len(keyBytes)+8)
+	ret = append(ret, keyBytes...)
+	ret = append(ret, ts...)
+	return ret, nil
+}
+
 type SpendScript struct {
 	Threshold uint8
-	Pubkeys   []crypto.PubKey
+	Pubkeys   []TimedPubkey
 }
 
 func (s *SpendScript) Serialize() ([]byte, error) {
 	ser := []byte{s.Threshold}
-	for _, pub := range s.Pubkeys {
-		keyBytes, err := pub.Raw()
+	for _, key := range s.Pubkeys {
+		b, err := key.Serialize()
 		if err != nil {
 			return nil, err
 		}
-		ser = append(ser, keyBytes...)
+		ser = append(ser, b...)
 	}
 	return ser, nil
 }
