@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/project-illium/ilxd/blockchain/utils"
 	"github.com/project-illium/ilxd/params/hash"
 	"math/bits"
 	"time"
@@ -65,17 +64,17 @@ func StandardCircuit(priv PrivateParams, pub PublicParams) bool {
 	assetIns := make(map[[32]byte]uint64)
 
 	for i, in := range priv.Inputs {
-		// First obtain the hash of the
+		// First obtain the hash of the spendScript.
 		spendScriptPreimage := []byte{in.Threshold}
 		for _, key := range in.Pubkeys {
 			spendScriptPreimage = append(spendScriptPreimage, key...)
 		}
-		spendScript := hash.HashFunc(spendScriptPreimage)
+		spendScriptHash := hash.HashFunc(spendScriptPreimage)
 
 		amountBytes := make([]byte, 8)
 		binary.BigEndian.PutUint64(amountBytes, in.Amount)
 		commitmentPreimage := make([]byte, 0, 32+8+32+32)
-		commitmentPreimage = append(commitmentPreimage, spendScript...)
+		commitmentPreimage = append(commitmentPreimage, spendScriptHash...)
 		commitmentPreimage = append(commitmentPreimage, amountBytes...)
 		commitmentPreimage = append(commitmentPreimage, in.AssetID[:]...)
 		commitmentPreimage = append(commitmentPreimage, in.Salt...)
@@ -162,16 +161,16 @@ func StandardCircuit(priv PrivateParams, pub PublicParams) bool {
 
 func ValidateInclusionProof(outputCommitment []byte, commitmentIndex uint64, hashes [][]byte, flags uint64, accumulator [][]byte, root []byte) bool {
 	// Prepend the output commitment wih the index and hash
-	h := utils.HashWithIndex(outputCommitment, commitmentIndex)
+	h := hash.HashWithIndex(outputCommitment, commitmentIndex)
 
 	// Iterate over the hashes and hash with the previous has
 	// using the flags to determine the ordering.
 	for i := 0; i < len(hashes); i++ {
 		eval := flags & (1 << i)
 		if eval > 0 {
-			h = utils.HashMerkleBranches(h, hashes[i])
+			h = hash.HashMerkleBranches(h, hashes[i])
 		} else {
-			h = utils.HashMerkleBranches(hashes[i], h)
+			h = hash.HashMerkleBranches(hashes[i], h)
 		}
 	}
 
@@ -188,7 +187,7 @@ func ValidateInclusionProof(outputCommitment []byte, commitmentIndex uint64, has
 	}
 
 	// Hash the accumulator and compare to the root
-	calculatedRoot := utils.CatAndHash(accumulator)
+	calculatedRoot := hash.CatAndHash(accumulator)
 	return bytes.Equal(calculatedRoot, root)
 }
 

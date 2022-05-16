@@ -8,15 +8,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/golang/protobuf/proto"
-	"github.com/google/martian/log"
 	ctxio "github.com/jbenet/go-context/io"
 	inet "github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-msgio"
-	"github.com/project-illium/ilxd/models"
-	"github.com/project-illium/ilxd/models/wire"
 	"github.com/project-illium/ilxd/net"
+	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/types/wire"
 	"io"
 	"math/rand"
 	"sync"
@@ -70,7 +69,7 @@ type queryMsg struct {
 }
 
 type newBlockMessage struct {
-	blockID                     models.ID
+	blockID                     types.ID
 	initialAcceptancePreference bool
 	callback                    chan<- Status
 }
@@ -89,10 +88,10 @@ type AvalancheEngine struct {
 	quit    chan struct{}
 	msgChan chan interface{}
 
-	voteRecords    map[models.ID]*VoteRecord
-	rejectedBlocks map[models.ID]struct{}
+	voteRecords    map[types.ID]*VoteRecord
+	rejectedBlocks map[types.ID]struct{}
 	queries        map[string]RequestRecord
-	callbacks      map[models.ID]chan<- Status
+	callbacks      map[types.ID]chan<- Status
 	streams        map[peer.ID]inet.Stream
 	start          time.Time
 
@@ -107,10 +106,10 @@ func NewAvalancheEngine(ctx context.Context, network *net.Network) (*AvalancheEn
 		wg:             sync.WaitGroup{},
 		quit:           make(chan struct{}),
 		msgChan:        make(chan interface{}),
-		voteRecords:    make(map[models.ID]*VoteRecord),
-		rejectedBlocks: make(map[models.ID]struct{}),
+		voteRecords:    make(map[types.ID]*VoteRecord),
+		rejectedBlocks: make(map[types.ID]struct{}),
 		queries:        make(map[string]RequestRecord),
-		callbacks:      make(map[models.ID]chan<- Status),
+		callbacks:      make(map[types.ID]chan<- Status),
 	}, nil
 }
 
@@ -152,7 +151,7 @@ out:
 	eng.wg.Done()
 }
 
-func (eng *AvalancheEngine) NewBlock(blockID models.ID, initialAcceptancePreference bool, callback chan<- Status) {
+func (eng *AvalancheEngine) NewBlock(blockID types.ID, initialAcceptancePreference bool, callback chan<- Status) {
 	eng.start = time.Now()
 	eng.msgChan <- &newBlockMessage{
 		blockID:                     blockID,
@@ -161,7 +160,7 @@ func (eng *AvalancheEngine) NewBlock(blockID models.ID, initialAcceptancePrefere
 	}
 }
 
-func (eng *AvalancheEngine) handleNewBlock(blockID models.ID, initialAcceptancePreference bool, callback chan<- Status) {
+func (eng *AvalancheEngine) handleNewBlock(blockID types.ID, initialAcceptancePreference bool, callback chan<- Status) {
 	_, ok := eng.voteRecords[blockID]
 	if ok {
 		return
@@ -229,7 +228,7 @@ func (eng *AvalancheEngine) handleNewMessage(s inet.Stream) {
 func (eng *AvalancheEngine) handleQuery(req *wire.MsgAvaRequest, respChan chan *wire.MsgAvaResponse) {
 	votes := make([]byte, len(req.Invs))
 	for i, invBytes := range req.Invs {
-		inv := models.NewID(invBytes)
+		inv := types.NewID(invBytes)
 		if eng.alwaysNo {
 			votes[i] = 0x00
 			continue
@@ -384,9 +383,9 @@ func (eng *AvalancheEngine) pollLoop() {
 	go eng.queueMessageToPeer(req, *p)
 }
 
-func (eng *AvalancheEngine) getInvsForNextPoll() []models.ID {
-	var invs []models.ID
-	var toDelete []models.ID
+func (eng *AvalancheEngine) getInvsForNextPoll() []types.ID {
+	var invs []types.ID
+	var toDelete []types.ID
 	for id, r := range eng.voteRecords {
 		// Delete very old inventory that hasn't finalized
 		if time.Since(r.timestamp) > DeleteInventoryAfter {

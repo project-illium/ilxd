@@ -7,15 +7,15 @@ package blockchain
 import (
 	"context"
 	"crypto/rand"
-	"github.com/project-illium/ilxd/models"
-	"github.com/project-illium/ilxd/models/blocks"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/repo/mock"
+	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func randomBlockHeader(height uint32, parent models.ID) *blocks.BlockHeader {
+func randomBlockHeader(height uint32, parent types.ID) *blocks.BlockHeader {
 	r := make([]byte, 32)
 	rand.Read(r)
 

@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
-	"github.com/project-illium/ilxd/models"
+	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/wallet"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -38,9 +38,9 @@ func TestStandardCircuit(t *testing.T) {
 	ss := wallet.SpendScript{
 		Threshold: 2,
 		Pubkeys: []wallet.TimedPubkey{
-			{Pubkey: pub1},
-			{Pubkey: pub2},
-			{Pubkey: pub3},
+			{PubKey: pub1},
+			{PubKey: pub2},
+			{PubKey: pub3},
 		},
 	}
 	pubkeys := make([][]byte, 3)
@@ -55,7 +55,7 @@ func TestStandardCircuit(t *testing.T) {
 
 	ss2 := wallet.SpendScript{
 		Threshold: 1,
-		Pubkeys:   []wallet.TimedPubkey{{Pubkey: pub4}},
+		Pubkeys:   []wallet.TimedPubkey{{PubKey: pub4}},
 	}
 
 	outputSpendScript, err := ss2.Hash()
@@ -71,24 +71,24 @@ func TestStandardCircuit(t *testing.T) {
 	var salt2 [32]byte
 	copy(salt2[:], r2)
 
-	ocp := wallet.OutputCommitmentPreimage{
+	note1 := wallet.SpendNote{
 		SpendScript: ss,
 		AssetID:     [32]byte{},
 		Amount:      1000000,
 		Salt:        salt,
 	}
 
-	commitment, err := ocp.Commitment()
+	commitment, err := note1.Commitment()
 	assert.NoError(t, err)
 
-	ocp2 := wallet.OutputCommitmentPreimage{
+	note2 := wallet.SpendNote{
 		SpendScript: ss2,
 		AssetID:     [32]byte{},
 		Amount:      990000,
 		Salt:        salt2,
 	}
 
-	commitment2, err := ocp2.Commitment()
+	commitment2, err := note2.Commitment()
 	assert.NoError(t, err)
 
 	acc := blockchain.NewAccumulator()
@@ -114,7 +114,7 @@ func TestStandardCircuit(t *testing.T) {
 	sig3, err := priv3.Sign(sigHash)
 	assert.NoError(t, err)
 
-	nullifier, err := models.CalculateNullifier(inclusionProof.Index, ocp.Salt, ss.Threshold, pubkeys...)
+	nullifier, err := types.CalculateNullifier(inclusionProof.Index, note1.Salt, ss.Threshold, pubkeys...)
 	assert.NoError(t, err)
 
 	privateParams := PrivateParams{
@@ -122,9 +122,9 @@ func TestStandardCircuit(t *testing.T) {
 			{
 				Signatures:      [][]byte{sig2, sig3},
 				SigBitfield:     6,
-				Salt:            ocp.Salt[:],
-				Amount:          ocp.Amount,
-				AssetID:         ocp.AssetID,
+				Salt:            note1.Salt[:],
+				Amount:          note1.Amount,
+				AssetID:         note1.AssetID,
 				Threshold:       ss.Threshold,
 				Pubkeys:         [][]byte{append(raw1, defaultTimeBytes...), append(raw2, defaultTimeBytes...), append(raw3, defaultTimeBytes...)},
 				CommitmentIndex: inclusionProof.Index,

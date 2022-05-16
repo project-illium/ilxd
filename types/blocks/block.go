@@ -9,15 +9,15 @@ import (
 	"bytes"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
-	"github.com/project-illium/ilxd/models"
+	"github.com/project-illium/ilxd/types"
 )
 
-var _ models.Serializable = (*BlockHeader)(nil)
-var _ models.Serializable = (*Block)(nil)
+var _ types.Serializable = (*BlockHeader)(nil)
+var _ types.Serializable = (*Block)(nil)
 
-func (h *BlockHeader) ID() models.ID {
+func (h *BlockHeader) ID() types.ID {
 	ser, _ := h.Serialize()
-	return models.NewIDFromData(ser)
+	return types.NewIDFromData(ser)
 }
 
 func (h *BlockHeader) Serialize() ([]byte, error) {
@@ -55,7 +55,7 @@ func (h *BlockHeader) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (h *Block) ID() models.ID {
+func (h *Block) ID() types.ID {
 	return h.Header.ID()
 }
 

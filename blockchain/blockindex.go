@@ -6,9 +6,9 @@ package blockchain
 
 import (
 	"github.com/ipfs/go-datastore"
-	"github.com/project-illium/ilxd/models"
-	"github.com/project-illium/ilxd/models/blocks"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/types/blocks"
 )
 
 const blockIndexCacheSize = 1000
@@ -18,14 +18,14 @@ const blockIndexCacheSize = 1000
 // possible to traverse the chain back and forward from this blocknode.
 type blockNode struct {
 	ds      repo.Datastore
-	blockID models.ID
+	blockID types.ID
 	height  uint32
 	parent  *blockNode
 	child   *blockNode
 }
 
 // ID returns the block ID of this blocknode.
-func (bn *blockNode) ID() models.ID {
+func (bn *blockNode) ID() types.ID {
 	return bn.blockID
 }
 
@@ -96,7 +96,7 @@ func (bn *blockNode) Child() (*blockNode, error) {
 type blockIndex struct {
 	ds            repo.Datastore
 	tip           *blockNode
-	cacheByID     map[models.ID]*blockNode
+	cacheByID     map[types.ID]*blockNode
 	cacheByHeight map[uint32]*blockNode
 }
 
@@ -104,7 +104,7 @@ type blockIndex struct {
 func NewBlockIndex(ds repo.Datastore) *blockIndex {
 	return &blockIndex{
 		ds:            ds,
-		cacheByID:     make(map[models.ID]*blockNode),
+		cacheByID:     make(map[types.ID]*blockNode),
 		cacheByHeight: make(map[uint32]*blockNode),
 	}
 }
@@ -195,7 +195,7 @@ func (bi *blockIndex) GetNodeByHeight(height uint32) (*blockNode, error) {
 // GetNodeByID returns a blockNode for the provided ID. It will be
 // returned from cache if it exists, otherwise it will be loaded from the
 // database.
-func (bi *blockIndex) GetNodeByID(blockID models.ID) (*blockNode, error) {
+func (bi *blockIndex) GetNodeByID(blockID types.ID) (*blockNode, error) {
 	node, ok := bi.cacheByID[blockID]
 	if ok {
 		return node, nil

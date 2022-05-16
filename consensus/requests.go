@@ -5,18 +5,18 @@
 package consensus
 
 import (
-	"github.com/project-illium/ilxd/models"
+	"github.com/project-illium/ilxd/types"
 	"time"
 )
 
 // RequestRecord is a poll request for more votes
 type RequestRecord struct {
 	timestamp int64
-	invs      []models.ID
+	invs      []types.ID
 }
 
 // NewRequestRecord creates a new RequestRecord
-func NewRequestRecord(timestamp int64, invs []models.ID) RequestRecord {
+func NewRequestRecord(timestamp int64, invs []types.ID) RequestRecord {
 	return RequestRecord{timestamp, invs}
 }
 
@@ -26,8 +26,8 @@ func (r RequestRecord) GetTimestamp() int64 {
 }
 
 // GetInvs returns the poll Invs for the request
-func (r RequestRecord) GetInvs() map[models.ID]bool {
-	m := make(map[models.ID]bool)
+func (r RequestRecord) GetInvs() map[types.ID]bool {
+	m := make(map[types.ID]bool)
 	for _, inv := range r.invs {
 		m[inv] = true
 	}

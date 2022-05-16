@@ -7,14 +7,14 @@ package blockchain
 import (
 	"bytes"
 	"errors"
-	"github.com/project-illium/ilxd/blockchain/utils"
-	"github.com/project-illium/ilxd/models"
+	"github.com/project-illium/ilxd/params/hash"
+	"github.com/project-illium/ilxd/types"
 )
 
 // InclusionProof is a merkle inclusion proof which proves that
 // a given element is in the set with the given accumulator root.
 type InclusionProof struct {
-	ID          models.ID
+	ID          types.ID
 	Accumulator [][]byte
 	Hashes      [][]byte
 	Flags       uint64
@@ -58,16 +58,16 @@ type InclusionProof struct {
 type Accumulator struct {
 	acc       [][]byte
 	nElements uint64
-	proofs    map[models.ID]*InclusionProof
-	lookupMap map[models.ID]*InclusionProof
+	proofs    map[types.ID]*InclusionProof
+	lookupMap map[types.ID]*InclusionProof
 }
 
 // NewAccumulator returns a new Accumulator.
 func NewAccumulator() *Accumulator {
 	return &Accumulator{
 		acc:       make([][]byte, 1),
-		proofs:    make(map[models.ID]*InclusionProof),
-		lookupMap: make(map[models.ID]*InclusionProof),
+		proofs:    make(map[types.ID]*InclusionProof),
+		lookupMap: make(map[types.ID]*InclusionProof),
 		nElements: 0,
 	}
 }
@@ -82,27 +82,27 @@ func NewAccumulator() *Accumulator {
 // to go back and protect previous items after the accumulator has been mutated.
 func (a *Accumulator) Insert(data []byte, protect bool) {
 	a.nElements++
-	n := utils.HashWithIndex(data, a.nElements-1)
+	n := hash.HashWithIndex(data, a.nElements-1)
 
 	// If one of our protected hashes is at acc[0] then it was an
 	// odd number leaf and the very next leaf must be part of its
 	// inclusion proof.
-	proof, ok := a.proofs[models.NewID(a.acc[0])]
+	proof, ok := a.proofs[types.NewID(a.acc[0])]
 	if ok {
 		c := make([]byte, len(n))
 		copy(c, n)
 		proof.Hashes = append(proof.Hashes, c)
-		proof.last = utils.HashMerkleBranches(a.acc[0], n)
+		proof.last = hash.HashMerkleBranches(a.acc[0], n)
 		proof.Flags = 1
 	}
 
 	if protect {
 		ip := &InclusionProof{
-			ID:    models.NewID(data),
+			ID:    types.NewID(data),
 			Index: a.nElements - 1,
 		}
-		a.proofs[models.NewID(n)] = ip
-		a.lookupMap[models.NewID(data)] = ip
+		a.proofs[types.NewID(n)] = ip
+		a.lookupMap[types.NewID(data)] = ip
 		// If acc[0] is not nil then this means the new leaf is
 		// and even number and the previous leaf is part of its
 		// inclusion proof.
@@ -112,14 +112,14 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 			copy(c1, a.acc[0])
 			copy(c2, n)
 			ip.Hashes = append(ip.Hashes, c1)
-			ip.last = utils.HashMerkleBranches(a.acc[0], c2)
+			ip.last = hash.HashMerkleBranches(a.acc[0], c2)
 		}
 	}
 
 	h := 0
 	r := a.acc[h]
 	for r != nil {
-		n = utils.HashMerkleBranches(r, n)
+		n = hash.HashMerkleBranches(r, n)
 
 		// Iterate over all proofs and update them before we prune
 		// branches off the tree.
@@ -132,7 +132,7 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 					copy(c, n)
 
 					proof.Hashes = append(proof.Hashes, c)
-					proof.last = utils.HashMerkleBranches(proof.last, n)
+					proof.last = hash.HashMerkleBranches(proof.last, n)
 
 					f := uint64(1) << uint64(len(proof.Hashes)-1)
 					proof.Flags |= f
@@ -144,7 +144,7 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 					copy(c, a.acc[h+1])
 
 					proof.Hashes = append(proof.Hashes, c)
-					proof.last = utils.HashMerkleBranches(a.acc[h+1], proof.last)
+					proof.last = hash.HashMerkleBranches(a.acc[h+1], proof.last)
 				}
 			}
 		}
@@ -158,15 +158,15 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 
 // Root returns the root hash of the accumulator. This is not cached
 // and a new hash is calculated each time this method is called.
-func (a *Accumulator) Root() models.ID {
-	return models.NewID(utils.CatAndHash(a.acc))
+func (a *Accumulator) Root() types.ID {
+	return types.NewID(hash.CatAndHash(a.acc))
 }
 
 // GetProof returns an inclusion proof, if it exists, for the provided hash.
 //
 // This is NOT safe for concurrent access.
 func (a *Accumulator) GetProof(data []byte) (*InclusionProof, error) {
-	proof, ok := a.lookupMap[models.NewID(data)]
+	proof, ok := a.lookupMap[types.NewID(data)]
 	if !ok {
 		return nil, errors.New("not found")
 	}
@@ -178,7 +178,7 @@ func (a *Accumulator) GetProof(data []byte) (*InclusionProof, error) {
 			acc = append(acc, peakCopy)
 		}
 	}
-	newProof := &InclusionProof{ID: models.NewID(data), Accumulator: acc, Flags: proof.Flags, Hashes: make([][]byte, len(proof.Hashes)), Index: proof.Index}
+	newProof := &InclusionProof{ID: types.NewID(data), Accumulator: acc, Flags: proof.Flags, Hashes: make([][]byte, len(proof.Hashes)), Index: proof.Index}
 	copy(newProof.Hashes, proof.Hashes)
 	return newProof, nil
 }
@@ -188,15 +188,15 @@ func (a *Accumulator) GetProof(data []byte) (*InclusionProof, error) {
 //
 // This is NOT safe for concurrent access.
 func (a *Accumulator) DropProof(data []byte) {
-	proof, ok := a.lookupMap[models.NewID(data)]
+	proof, ok := a.lookupMap[types.NewID(data)]
 	if !ok {
 		return
 	}
 
-	n := utils.HashWithIndex(data, proof.Index)
+	n := hash.HashWithIndex(data, proof.Index)
 
-	delete(a.lookupMap, models.NewID(data))
-	delete(a.proofs, models.NewID(n))
+	delete(a.lookupMap, types.NewID(data))
+	delete(a.proofs, types.NewID(n))
 }
 
 // The Insert method often checks the value of the accumulator element

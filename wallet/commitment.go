@@ -6,37 +6,36 @@ package wallet
 
 import (
 	"encoding/binary"
-	"github.com/project-illium/ilxd/models"
 	"github.com/project-illium/ilxd/params/hash"
+	"github.com/project-illium/ilxd/types"
 )
 
-// OutputCommitmentPreimage holds all the data that makes up an output
-// commitment.
-type OutputCommitmentPreimage struct {
+// SpendNote holds all the data that makes up an output commitment.
+type SpendNote struct {
 	SpendScript SpendScript
 	Amount      uint64
-	AssetID     models.ID
+	AssetID     types.ID
 	Salt        [32]byte
 }
 
-// Commitment serializes and hashes the data in the preimage and
+// Commitment serializes and hashes the data in the note and
 // returns the hash.
-func (o *OutputCommitmentPreimage) Commitment() ([]byte, error) {
-	spendScript, err := o.SpendScript.Hash()
+func (s *SpendNote) Commitment() ([]byte, error) {
+	spendScript, err := s.SpendScript.Hash()
 	if err != nil {
 		return nil, err
 	}
 
 	ser := make([]byte, 0, 32+8+32+32)
 
-	idBytes := o.AssetID.Bytes()
+	idBytes := s.AssetID.Bytes()
 	amountBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(amountBytes, o.Amount)
+	binary.BigEndian.PutUint64(amountBytes, s.Amount)
 
 	ser = append(ser, spendScript...)
 	ser = append(ser, amountBytes...)
 	ser = append(ser, idBytes...)
-	ser = append(ser, o.Salt[:]...)
+	ser = append(ser, s.Salt[:]...)
 
 	return hash.HashFunc(ser), nil
 }

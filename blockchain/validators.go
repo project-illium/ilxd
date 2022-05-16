@@ -5,12 +5,21 @@
 package blockchain
 
 import (
+	"context"
 	"errors"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/project-illium/ilxd/models"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/types"
 	"sync"
 	"time"
+)
+
+const (
+	// TODO: decide on a value for this
+	maxValidatorCacheSize = 10000
+
+	// TODO: decide on a value for this
+	maxTimeBetweenFlushes = time.Minute * 15
 )
 
 // Validator Set consistency status (VSCS) codes are used to indicate the
@@ -20,11 +29,11 @@ type vsConsistencyStatus uint8
 const (
 	// vscsEmpty is used as a return value to indicate that no status was
 	// stored.  The zero value should not be stored in the database.
-	vscsEmpty vsConsistencyStatus = 0
+	vscsEmpty vsConsistencyStatus = iota
 
 	// vscsConsistent indicates that the validator set is consistent with the
 	// last flush hash stored in the database.
-	vscsConsistent = iota
+	vscsConsistent
 
 	// vscsFlushOngoing indicates a flush is ongoing. If a node states with this
 	// state it means it must have crashed in the middle of a flush.
@@ -32,6 +41,21 @@ const (
 
 	// vscsNbCodes is the number of valid utxo consistency status codes.
 	vscsNbCodes
+)
+
+type flushMode uint8
+
+const (
+	// flushRequired is used to signal that a validator set flush must take place.
+	flushRequired flushMode = iota
+
+	// flushIfNeeded is used when a flush is not immediately required. If this flag
+	// is used the flush will take place whenever the cache goes over the set threshold.
+	flushIfNeeded
+
+	// flushPeriodic will flush if a certain time interval has passed since the last
+	// flush.
+	flushPeriodic
 )
 
 type Stake struct {
@@ -42,7 +66,7 @@ type Stake struct {
 type Validator struct {
 	PeerID         peer.ID
 	TotalStake     uint64
-	Nullifiers     map[models.Nullifier]Stake
+	Nullifiers     map[types.Nullifier]Stake
 	unclaimedCoins uint64
 	epochBlocks    uint32
 	dirty          bool
@@ -51,8 +75,10 @@ type Validator struct {
 type ValidatorSet struct {
 	ds           repo.Datastore
 	validators   map[peer.ID]*Validator
-	nullifierMap map[models.Nullifier]*Validator
+	nullifierMap map[types.Nullifier]*Validator
 	toDelete     map[peer.ID]struct{}
+	dirty        bool
+	lastFlush    time.Time
 	mtx          sync.RWMutex
 }
 
@@ -60,7 +86,7 @@ func NewValidatorSet(ds repo.Datastore) (*ValidatorSet, error) {
 	vs := &ValidatorSet{
 		ds:           ds,
 		validators:   make(map[peer.ID]*Validator),
-		nullifierMap: make(map[models.Nullifier]*Validator),
+		nullifierMap: make(map[types.Nullifier]*Validator),
 		toDelete:     make(map[peer.ID]struct{}),
 		mtx:          sync.RWMutex{},
 	}
@@ -121,7 +147,7 @@ func (vs *ValidatorSet) GetValidator(id peer.ID) (*Validator, error) {
 	return cpy, nil
 }
 
-func (vs *ValidatorSet) NullifierExists(nullifier models.Nullifier) bool {
+func (vs *ValidatorSet) NullifierExists(nullifier types.Nullifier) bool {
 	vs.mtx.RLock()
 	defer vs.mtx.RUnlock()
 
@@ -130,20 +156,20 @@ func (vs *ValidatorSet) NullifierExists(nullifier models.Nullifier) bool {
 }
 
 // Commit merges the view into the ValidatorSet.
-func (vs *ValidatorSet) Commit(view *ValidatorViewpoint, flush bool) {
+func (vs *ValidatorSet) Commit(update *ValidatorUpdate, flushMode flushMode) error {
 	vs.mtx.Lock()
 	defer vs.mtx.Unlock()
 
 	modified := make(map[peer.ID]*Validator)
-	addedNullifiers := make(map[models.Nullifier]*Validator)
-	deletedNullifiers := make(map[models.Nullifier]struct{})
-	for validatorID, entry := range view.entries {
+	addedNullifiers := make(map[types.Nullifier]*Validator)
+	deletedNullifiers := make(map[types.Nullifier]struct{})
+	for validatorID, entry := range update.entries {
 		var newVal Validator
 		validator, ok := vs.validators[validatorID]
 		if !ok {
 			newVal = Validator{
 				PeerID:     validatorID,
-				Nullifiers: make(map[models.Nullifier]Stake),
+				Nullifiers: make(map[types.Nullifier]Stake),
 				dirty:      true,
 			}
 		} else {
@@ -152,7 +178,7 @@ func (vs *ValidatorSet) Commit(view *ValidatorViewpoint, flush bool) {
 		for n, amount := range entry.addedNullifiers {
 			newVal.Nullifiers[n] = Stake{
 				Amount:     amount,
-				Blockstamp: view.blockstamp,
+				Blockstamp: update.blockstamp,
 			}
 			newVal.TotalStake += amount
 			addedNullifiers[n] = &newVal
@@ -169,6 +195,7 @@ func (vs *ValidatorSet) Commit(view *ValidatorViewpoint, flush bool) {
 		newVal.epochBlocks += entry.epochBlocks
 		newVal.dirty = true
 		modified[validatorID] = &newVal
+		vs.dirty = true
 	}
 
 	for id, valNew := range modified {
@@ -186,9 +213,78 @@ func (vs *ValidatorSet) Commit(view *ValidatorViewpoint, flush bool) {
 	for n := range deletedNullifiers {
 		delete(vs.nullifierMap, n)
 	}
+
+	return vs.flush(flushMode, update.blockHeight)
 }
 
-func (vs *ValidatorSet) flush() error {
+func (vs *ValidatorSet) Flush(mode flushMode, chainHeight uint32) error {
+	vs.mtx.Lock()
+	defer vs.mtx.Unlock()
+
+	return vs.flush(mode, chainHeight)
+}
+
+func (vs *ValidatorSet) flush(mode flushMode, chainHeight uint32) error {
+	switch mode {
+	case flushRequired:
+		return vs.flushToDisk(chainHeight)
+	case flushIfNeeded:
+		if len(vs.validators)+len(vs.toDelete) > maxValidatorCacheSize {
+
+		}
+		return nil
+	case flushPeriodic:
+		if vs.lastFlush.Add(maxTimeBetweenFlushes).Before(time.Now()) {
+			return vs.flushToDisk(chainHeight)
+		}
+		return nil
+	default:
+		return errors.New("unknown flushmode")
+	}
+}
+
+func (vs *ValidatorSet) flushToDisk(chainHeight uint32) error {
+	if !vs.dirty {
+		return nil
+	}
+	if err := dsPutValidatorSetConsistencyStatus(vs.ds, vscsFlushOngoing); err != nil {
+		return err
+	}
+	dbtx, err := vs.ds.NewTransaction(context.Background(), false)
+	if err != nil {
+		return err
+	}
+	defer dbtx.Discard(context.Background())
+	for _, val := range vs.validators {
+		if val.dirty {
+			if err := dsPutValidator(dbtx, val); err != nil {
+				return err
+			}
+		}
+	}
+	for id := range vs.toDelete {
+		if err := dsDeleteValidator(dbtx, id); err != nil {
+			return err
+		}
+	}
+
+	if err := dsPutValidatorLastFlushHeight(dbtx, chainHeight); err != nil {
+		return err
+	}
+
+	if err := dbtx.Commit(context.Background()); err != nil {
+		return err
+	}
+
+	if err := dsPutValidatorSetConsistencyStatus(vs.ds, vscsConsistent); err != nil {
+		return err
+	}
+
+	for _, val := range vs.validators {
+		val.dirty = false
+	}
+	vs.dirty = false
+
 	return nil
 }
 
@@ -197,7 +293,7 @@ func copyValidator(dest *Validator, src *Validator) {
 	dest.TotalStake = src.TotalStake
 	dest.epochBlocks = src.epochBlocks
 	dest.unclaimedCoins = src.unclaimedCoins
-	dest.Nullifiers = make(map[models.Nullifier]Stake)
+	dest.Nullifiers = make(map[types.Nullifier]Stake)
 	for k, v := range src.Nullifiers {
 		dest.Nullifiers[k] = v
 	}

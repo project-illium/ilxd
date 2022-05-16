@@ -9,30 +9,30 @@ import (
 	"bytes"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
-	"github.com/project-illium/ilxd/models"
+	"github.com/project-illium/ilxd/types"
 )
 
-var _ models.Serializable = (*Transaction)(nil)
-var _ models.Serializable = (*StandardTransaction)(nil)
-var _ models.Serializable = (*CoinbaseTransaction)(nil)
-var _ models.Serializable = (*StakeTransaction)(nil)
-var _ models.Serializable = (*TreasuryTransaction)(nil)
-var _ models.Serializable = (*MintTransaction)(nil)
+var _ types.Serializable = (*Transaction)(nil)
+var _ types.Serializable = (*StandardTransaction)(nil)
+var _ types.Serializable = (*CoinbaseTransaction)(nil)
+var _ types.Serializable = (*StakeTransaction)(nil)
+var _ types.Serializable = (*TreasuryTransaction)(nil)
+var _ types.Serializable = (*MintTransaction)(nil)
 
-func (tx *Transaction) ID() models.ID {
+func (tx *Transaction) ID() types.ID {
 	if tx.GetStandardTransaction() != nil {
 		ser, _ := tx.Serialize()
-		return models.NewIDFromData(ser)
+		return types.NewIDFromData(ser)
 	}
 	if tx.GetCoinbaseTransaction() != nil {
 		ser, _ := tx.Serialize()
-		return models.NewIDFromData(ser)
+		return types.NewIDFromData(ser)
 	}
 	if tx.GetStakeTransaction() != nil {
 		ser, _ := tx.Serialize()
-		return models.NewIDFromData(ser)
+		return types.NewIDFromData(ser)
 	}
-	return models.ID{}
+	return types.ID{}
 }
 
 func (tx *Transaction) Serialize() ([]byte, error) {
@@ -70,9 +70,9 @@ func (tx *Transaction) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (tx *StandardTransaction) ID() models.ID {
+func (tx *StandardTransaction) ID() types.ID {
 	ser, _ := tx.Serialize()
-	return models.NewIDFromData(ser)
+	return types.NewIDFromData(ser)
 }
 
 func (tx *StandardTransaction) Serialize() ([]byte, error) {
@@ -110,9 +110,9 @@ func (tx *StandardTransaction) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (tx *CoinbaseTransaction) ID() models.ID {
+func (tx *CoinbaseTransaction) ID() types.ID {
 	ser, _ := tx.Serialize()
-	return models.NewIDFromData(ser)
+	return types.NewIDFromData(ser)
 }
 
 func (tx *CoinbaseTransaction) Serialize() ([]byte, error) {
@@ -150,9 +150,9 @@ func (tx *CoinbaseTransaction) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (tx *StakeTransaction) ID() models.ID {
+func (tx *StakeTransaction) ID() types.ID {
 	ser, _ := tx.Serialize()
-	return models.NewIDFromData(ser)
+	return types.NewIDFromData(ser)
 }
 
 func (tx *StakeTransaction) Serialize() ([]byte, error) {
@@ -190,9 +190,9 @@ func (tx *StakeTransaction) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (tx *TreasuryTransaction) ID() models.ID {
+func (tx *TreasuryTransaction) ID() types.ID {
 	ser, _ := tx.Serialize()
-	return models.NewIDFromData(ser)
+	return types.NewIDFromData(ser)
 }
 
 func (tx *TreasuryTransaction) Serialize() ([]byte, error) {
@@ -230,9 +230,9 @@ func (tx *TreasuryTransaction) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (tx *MintTransaction) ID() models.ID {
+func (tx *MintTransaction) ID() types.ID {
 	ser, _ := tx.Serialize()
-	return models.NewIDFromData(ser)
+	return types.NewIDFromData(ser)
 }
 
 func (tx *MintTransaction) Serialize() ([]byte, error) {

@@ -8,8 +8,9 @@ import (
 	"context"
 	"crypto/rand"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
-	"github.com/project-illium/ilxd/models"
 	"github.com/project-illium/ilxd/net"
+	"github.com/project-illium/ilxd/params"
+	"github.com/project-illium/ilxd/types"
 	"sync"
 	"testing"
 )
@@ -31,6 +32,7 @@ func TestAvalancheEngine(t *testing.T) {
 		}
 		network, err := net.NewNetwork(context.Background(), []net.Option{
 			net.WithHost(host),
+			net.Params(&params.RegestParams),
 		}...)
 		if err != nil {
 			t.Fatal(err)
@@ -64,7 +66,7 @@ func TestAvalancheEngine(t *testing.T) {
 			continue
 		}
 
-		engine.NewBlock(models.NewID(b), i >= numNoVotes, chans[i])
+		engine.NewBlock(types.NewID(b), i >= numNoVotes, chans[i])
 	}
 
 	var wg sync.WaitGroup

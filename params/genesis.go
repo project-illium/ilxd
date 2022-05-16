@@ -5,8 +5,8 @@
 package params
 
 import (
-	"github.com/project-illium/ilxd/models/blocks"
-	"github.com/project-illium/ilxd/models/transactions"
+	"github.com/project-illium/ilxd/types/blocks"
+	"github.com/project-illium/ilxd/types/transactions"
 	"math"
 	"time"
 )

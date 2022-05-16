@@ -23,17 +23,20 @@ type Address interface {
 }
 
 type TimedPubkey struct {
-	Pubkey   crypto.PubKey
-	Timelock time.Time
+	crypto.PubKey
+	timelock time.Time
 }
 
+func (t *TimedPubkey) Timelock() time.Time {
+	return t.timelock
+}
 func (t *TimedPubkey) Serialize() ([]byte, error) {
-	keyBytes, err := t.Pubkey.Raw()
+	keyBytes, err := t.Raw()
 	if err != nil {
 		return nil, err
 	}
 	ts := make([]byte, 8)
-	binary.BigEndian.PutUint64(ts, uint64(t.Timelock.Unix()))
+	binary.BigEndian.PutUint64(ts, uint64(t.timelock.Unix()))
 	ret := make([]byte, 0, len(keyBytes)+8)
 	ret = append(ret, keyBytes...)
 	ret = append(ret, ts...)

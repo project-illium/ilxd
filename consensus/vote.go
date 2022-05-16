@@ -6,7 +6,7 @@ package consensus
 
 import (
 	"fmt"
-	"github.com/project-illium/ilxd/models"
+	"github.com/project-illium/ilxd/types"
 	"strconv"
 	"time"
 )
@@ -49,7 +49,7 @@ const (
 
 // VoteRecord keeps track of a series of votes for a target
 type VoteRecord struct {
-	blockID          models.ID
+	blockID          types.ID
 	votes            uint16
 	consider         uint16
 	confidence       uint16
@@ -60,7 +60,7 @@ type VoteRecord struct {
 
 // NewVoteRecord instantiates a new base record for voting on a target
 // `accepted` indicates whether or not the initial state should be acceptance
-func NewVoteRecord(blockID models.ID, accepted bool) *VoteRecord {
+func NewVoteRecord(blockID types.ID, accepted bool) *VoteRecord {
 	return &VoteRecord{blockID: blockID, confidence: boolToUint16(accepted), timestamp: time.Now()}
 }
 
