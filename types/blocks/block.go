@@ -10,6 +10,7 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/types/transactions"
 )
 
 var _ types.Serializable = (*BlockHeader)(nil)
@@ -55,8 +56,26 @@ func (h *BlockHeader) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (h *Block) ID() types.ID {
-	return h.Header.ID()
+func (b *Block) ID() types.ID {
+	return b.Header.ID()
+}
+
+func (b *Block) Nullifiers() []types.Nullifier {
+	nullifiers := make([]types.Nullifier, 0, len(b.Transactions))
+	for _, t := range b.Transactions {
+		switch tx := t.GetTx().(type) {
+		case *transactions.Transaction_StandardTransaction:
+			for _, n := range tx.StandardTransaction.Nullifiers {
+				nullifiers = append(nullifiers, types.NewNullifier(n))
+			}
+		case *transactions.Transaction_MintTransaction:
+			for _, n := range tx.MintTransaction.Nullifiers {
+				nullifiers = append(nullifiers, types.NewNullifier(n))
+			}
+
+		}
+	}
+	return nullifiers
 }
 
 func (b *Block) Serialize() ([]byte, error) {

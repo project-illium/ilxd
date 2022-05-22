@@ -10,6 +10,8 @@ import (
 	"github.com/project-illium/ilxd/params/hash"
 )
 
+const NullifierSize = hash.HashSize
+
 type Nullifier [hash.HashSize]byte
 
 func (n Nullifier) String() string {

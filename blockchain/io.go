@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"github.com/golang/protobuf/proto"
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/project-illium/ilxd/blockchain/pb"
 	"github.com/project-illium/ilxd/repo"
@@ -163,18 +164,18 @@ func dsFetchBlockIndexState(ds repo.Datastore) (*blockNode, error) {
 	return node, nil
 }
 
-func dsPutValidatorSetConsistencyStatus(ds repo.Datastore, status vsConsistencyStatus) error {
+func dsPutValidatorSetConsistencyStatus(ds repo.Datastore, status setConsistencyStatus) error {
 	b := make([]byte, 2)
 	binary.BigEndian.PutUint16(b, uint16(status))
 	return ds.Put(context.Background(), datastore.NewKey(repo.ValidatorSetConsistencyStatusKey), b)
 }
 
-func dsFetchValidatorSetConsistencyStatus(ds repo.Datastore) (vsConsistencyStatus, error) {
+func dsFetchValidatorSetConsistencyStatus(ds repo.Datastore) (setConsistencyStatus, error) {
 	b, err := ds.Get(context.Background(), datastore.NewKey(repo.ValidatorSetConsistencyStatusKey))
 	if err != nil {
 		return 0, err
 	}
-	return vsConsistencyStatus(binary.BigEndian.Uint16(b)), nil
+	return setConsistencyStatus(binary.BigEndian.Uint16(b)), nil
 }
 
 func dsPutValidatorLastFlushHeight(dbtx datastore.Txn, height uint32) error {
@@ -201,4 +202,87 @@ func dsPutValidator(dbtx datastore.Txn, v *Validator) error {
 
 func dsDeleteValidator(dbtx datastore.Txn, id peer.ID) error {
 	return dbtx.Delete(context.Background(), datastore.NewKey(repo.ValidatorDatastoreKeyPrefix+id.Pretty()))
+}
+
+func dsFetchValidators(ds repo.Datastore) ([]*Validator, error) {
+	q := query.Query{
+		Prefix: repo.ValidatorDatastoreKeyPrefix,
+	}
+
+	results, err := ds.Query(context.Background(), q)
+	if err != nil {
+		return nil, err
+	}
+
+	var validators []*Validator
+	for result, ok := results.NextSync(); ok; result, ok = results.NextSync() {
+		validator, err := deserializeValidator(result.Value)
+		if err != nil {
+			return nil, err
+		}
+		validators = append(validators, validator)
+	}
+	return validators, nil
+}
+
+func dsPutNullifierSetConsistencyStatus(ds repo.Datastore, status setConsistencyStatus) error {
+	b := make([]byte, 2)
+	binary.BigEndian.PutUint16(b, uint16(status))
+	return ds.Put(context.Background(), datastore.NewKey(repo.NullifierSetConsistencyStatusKey), b)
+}
+
+func dsFetchNullifierSetConsistencyStatus(ds repo.Datastore) (setConsistencyStatus, error) {
+	b, err := ds.Get(context.Background(), datastore.NewKey(repo.NullifierSetConsistencyStatusKey))
+	if err == datastore.ErrNotFound {
+		return scsEmpty, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	return setConsistencyStatus(binary.BigEndian.Uint16(b)), nil
+}
+
+func dsPutNullifierLastFlushHeight(dbtx datastore.Txn, height uint32) error {
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, height)
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.NullifierSetLastFlushHeight), b)
+}
+
+func dsFetchNullifierLastFlushHeight(ds repo.Datastore) (uint32, error) {
+	b, err := ds.Get(context.Background(), datastore.NewKey(repo.NullifierSetLastFlushHeight))
+	if err == datastore.ErrNotFound {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint32(b), nil
+}
+
+func dsNullifierExists(ds repo.Datastore, nullifier types.Nullifier) (bool, error) {
+	_, err := ds.Get(context.Background(), datastore.NewKey(repo.NullifierKeyPrefix+nullifier.String()))
+	if err == datastore.ErrNotFound {
+		return false, nil
+	} else if err == nil {
+		return true, nil
+	}
+	return false, err
+}
+
+func dsPutNullifiers(dbtx datastore.Txn, nullifiers []types.Nullifier) error {
+	for _, n := range nullifiers {
+		if err := dbtx.Put(context.Background(), datastore.NewKey(repo.NullifierKeyPrefix+n.String()), []byte{}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func dsDeleteNullifiers(dbtx datastore.Txn, nullifiers []types.Nullifier) error {
+	for _, n := range nullifiers {
+		if err := dbtx.Delete(context.Background(), datastore.NewKey(repo.NullifierKeyPrefix+n.String())); err != nil {
+			return err
+		}
+	}
+	return nil
 }

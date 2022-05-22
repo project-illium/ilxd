@@ -10,6 +10,8 @@ import (
 	"github.com/project-illium/ilxd/types"
 )
 
+const CommitmentLen = 32
+
 // SpendNote holds all the data that makes up an output commitment.
 type SpendNote struct {
 	SpendScript SpendScript

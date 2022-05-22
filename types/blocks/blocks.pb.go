@@ -11,7 +11,7 @@
 package blocks
 
 import (
-	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/ilxd/models/transactions"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

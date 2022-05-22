@@ -25,7 +25,7 @@ message StandardTransaction {
     repeated Output outputs =   1;
     uint64 fee                = 2;
     repeated bytes nullifiers = 3;
-    bytes utxo_root           = 4;
+    bytes txo_root            = 4;
     bytes proof               = 5;
 }
 
@@ -60,7 +60,7 @@ message MintTransaction {
     repeated Output outputs   = 5;
     uint64 fee                = 6;
     repeated bytes nullifiers = 7;
-    bytes utxo_root           = 8;
+    bytes txo_root            = 8;
     bytes mint_key            = 9;
     bytes signature           = 10;
     bytes proof               = 11;

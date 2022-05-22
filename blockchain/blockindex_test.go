@@ -15,6 +15,18 @@ import (
 	"testing"
 )
 
+func mockBlockIndex(ds repo.Datastore, nBlocks int) (*blockIndex, error) {
+	err := populateDatabase(ds, nBlocks)
+	if err != nil {
+		return nil, err
+	}
+	blockIndex := NewBlockIndex(ds)
+	if err := blockIndex.Init(); err != nil {
+		return nil, err
+	}
+	return blockIndex, nil
+}
+
 func randomBlockHeader(height uint32, parent types.ID) *blocks.BlockHeader {
 	r := make([]byte, 32)
 	rand.Read(r)
@@ -27,7 +39,7 @@ func randomBlockHeader(height uint32, parent types.ID) *blocks.BlockHeader {
 	return header
 }
 
-func populateDatabase(ds repo.Datastore) error {
+func populateDatabase(ds repo.Datastore, nBlocks int) error {
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	if err != nil {
 		return err
@@ -42,7 +54,7 @@ func populateDatabase(ds repo.Datastore) error {
 		return err
 	}
 
-	for i := uint32(1); i < 5000; i++ {
+	for i := uint32(1); i < uint32(nBlocks); i++ {
 		header := randomBlockHeader(i, prev.ID())
 		header.Parent = prev.ID().Bytes()
 
@@ -72,7 +84,7 @@ func TestBlockIndex(t *testing.T) {
 	// Create a new memory datastore and populate it with
 	// 5000 block headers.
 	ds := mock.NewMapDatastore()
-	err := populateDatabase(ds)
+	err := populateDatabase(ds, 5000)
 	assert.NoError(t, err)
 
 	// Initialize the index

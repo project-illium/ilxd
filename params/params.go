@@ -64,4 +64,5 @@ var RegestParams = NetworkParams{
 		"/ip6/::/udp/9003/quic",
 	},
 	AddressPrefix: "reg",
+	GenesisBlock:  MainnetGenesisBlock,
 }

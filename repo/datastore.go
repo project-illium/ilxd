@@ -27,6 +27,12 @@ const (
 	BlockTxsKeyPrefix = "/ilxd/blocktxs/"
 	// BlockIndexStateKey is the datastore key used to store the block index best state.
 	BlockIndexStateKey = "/ilxd/blockindex/"
+	// NullifierKeyPrefix is the datastore key prefix for storing nullifiers in the nullifier set.
+	NullifierKeyPrefix = "/ilxd/nullifier/"
+	// NullifierSetLastFlushHeight is the datastore key for last flush height of the validator set.
+	NullifierSetLastFlushHeight = "/ilxd/nullifiersetlastflushheight/"
+	// NullifierSetConsistencyStatusKey is the datastore key for the validator set flush state.
+	NullifierSetConsistencyStatusKey = "/ilxd/nullifiersetconsistencystatus/"
 )
 
 type Datastore interface {

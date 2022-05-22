@@ -22,8 +22,8 @@ type ValidatorEntry struct {
 // This view needs to be committed to the ValidatorSet for the
 // changes to apply.
 type ValidatorUpdate struct {
-	entries    map[peer.ID]*ValidatorEntry
-	blockstamp time.Time
+	entries     map[peer.ID]*ValidatorEntry
+	blockstamp  time.Time
 	blockHeight uint32
 }
 

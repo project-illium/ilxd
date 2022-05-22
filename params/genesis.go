@@ -39,5 +39,16 @@ var MainnetGenesisBlock = blocks.Block{
 				},
 			},
 		},
+		{
+			Tx: &transactions.Transaction_StakeTransaction{
+				StakeTransaction: &transactions.StakeTransaction{
+					Validator_ID: []byte{0x00}, //TODO
+					Amount:       0,
+					Nullifier:    []byte{0xff},
+					Signature:    nil,
+					Proof:        nil,
+				},
+			},
+		},
 	},
 }

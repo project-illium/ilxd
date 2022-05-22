@@ -51,11 +51,6 @@ func nextPowerOfTwo(n int) int {
 // are calculated by concatenating the left node with itself before hashing.
 // Since this function uses nodes that are pointers to the hashes, empty nodes
 // will be nil.
-//
-// The additional bool parameter indicates if we are generating the merkle tree
-// using witness transactions id's rather than regular transactions id's. This
-// also presents an additional case wherein the wtxid of the coinbase transactions
-// is the zeroHash.
 func BuildMerkleTreeStore(data [][]byte) [][]byte {
 	// Calculate how many entries are required to hold the binary merkle
 	// tree as a linear array and create an array of that size.
