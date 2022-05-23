@@ -25,10 +25,10 @@ func TestBasicAddress(t *testing.T) {
 
 	ss := SpendScript{
 		Threshold: 1,
-		Pubkeys:   []TimedPubkey{{PubKey: pubkey}},
+		Pubkeys:   []*TimeLockedPubkey{{PubKey: pubkey}},
 	}
 
-	addr, err := NewBasicAddress(ss, viewKey.(*Curve25519PublicKey), &params.MainnetParams)
+	addr, err := NewBasicAddress(ss, viewKey, &params.MainnetParams)
 	if err != nil {
 		t.Fatal(err)
 	}

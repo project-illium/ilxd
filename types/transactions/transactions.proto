@@ -41,21 +41,22 @@ message StakeTransaction {
     bytes validator_ID = 1;
     uint64 amount      = 2;
     bytes nullifier    = 3;
-    bytes signature    = 4;
-    bytes proof        = 5;
+    bytes txo_root     = 4;
+    bytes signature    = 5;
+    bytes proof        = 6;
 }
 
 message TreasuryTransaction {
-    uint64 new_coins         = 1;
+    uint64 amount            = 1;
     repeated Output outputs  = 2;
-    bytes proposalHash       = 3;
+    bytes proposal_hash      = 3;
     bytes proof              = 4;
 }
 
 message MintTransaction {
     AssetType type            = 1;
     bytes asset_ID            = 2;
-    bytes documentHash        = 3;
+    bytes document_hash       = 3;
     uint64 new_tokens         = 4;
     repeated Output outputs   = 5;
     uint64 fee                = 6;

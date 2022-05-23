@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
+	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 )
 
@@ -37,6 +38,14 @@ func (tx *Transaction) ID() types.ID {
 
 func (tx *Transaction) Serialize() ([]byte, error) {
 	return proto.Marshal(tx)
+}
+
+func (tx *Transaction) SerializedSize() (int, error) {
+	ser, err := proto.Marshal(tx)
+	if err != nil {
+		return 0, err
+	}
+	return len(ser), nil
 }
 
 func (tx *Transaction) Deserialize(data []byte) error {
@@ -88,6 +97,18 @@ func (tx *StandardTransaction) Deserialize(data []byte) error {
 	return nil
 }
 
+func (tx *StandardTransaction) SigHash() ([]byte, error) {
+	cpy := proto.Clone(tx)
+	cpy.(*StandardTransaction).Proof = nil
+
+	b, err := proto.Marshal(cpy)
+	if err != nil {
+		return nil, err
+	}
+
+	return hash.HashFunc(b), nil
+}
+
 func (tx *StandardTransaction) MarshalJSON() ([]byte, error) {
 	m := jsonpb.Marshaler{
 		Indent: "    ",
@@ -126,6 +147,19 @@ func (tx *CoinbaseTransaction) Deserialize(data []byte) error {
 	}
 	tx = newTx
 	return nil
+}
+
+func (tx *CoinbaseTransaction) SigHash() ([]byte, error) {
+	cpy := proto.Clone(tx)
+	cpy.(*CoinbaseTransaction).Signature = nil
+	cpy.(*CoinbaseTransaction).Proof = nil
+
+	b, err := proto.Marshal(cpy)
+	if err != nil {
+		return nil, err
+	}
+
+	return hash.HashFunc(b), nil
 }
 
 func (tx *CoinbaseTransaction) MarshalJSON() ([]byte, error) {
@@ -168,6 +202,19 @@ func (tx *StakeTransaction) Deserialize(data []byte) error {
 	return nil
 }
 
+func (tx *StakeTransaction) SigHash() ([]byte, error) {
+	cpy := proto.Clone(tx)
+	cpy.(*StakeTransaction).Signature = nil
+	cpy.(*StakeTransaction).Proof = nil
+
+	b, err := proto.Marshal(cpy)
+	if err != nil {
+		return nil, err
+	}
+
+	return hash.HashFunc(b), nil
+}
+
 func (tx *StakeTransaction) MarshalJSON() ([]byte, error) {
 	m := jsonpb.Marshaler{
 		Indent: "    ",
@@ -208,6 +255,18 @@ func (tx *TreasuryTransaction) Deserialize(data []byte) error {
 	return nil
 }
 
+func (tx *TreasuryTransaction) SigHash() ([]byte, error) {
+	cpy := proto.Clone(tx)
+	cpy.(*TreasuryTransaction).Proof = nil
+
+	b, err := proto.Marshal(cpy)
+	if err != nil {
+		return nil, err
+	}
+
+	return hash.HashFunc(b), nil
+}
+
 func (tx *TreasuryTransaction) MarshalJSON() ([]byte, error) {
 	m := jsonpb.Marshaler{
 		Indent: "    ",
@@ -246,6 +305,19 @@ func (tx *MintTransaction) Deserialize(data []byte) error {
 	}
 	tx = newTx
 	return nil
+}
+
+func (tx *MintTransaction) SigHash() ([]byte, error) {
+	cpy := proto.Clone(tx)
+	cpy.(*MintTransaction).Signature = nil
+	cpy.(*MintTransaction).Proof = nil
+
+	b, err := proto.Marshal(cpy)
+	if err != nil {
+		return nil, err
+	}
+
+	return hash.HashFunc(b), nil
 }
 
 func (tx *MintTransaction) MarshalJSON() ([]byte, error) {

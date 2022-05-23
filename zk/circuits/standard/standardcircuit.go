@@ -7,11 +7,15 @@ package standard
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/project-illium/ilxd/params/hash"
+	"math"
 	"math/bits"
 	"time"
 )
+
+var ErrIntegerOverflow = errors.New("integer overflow")
 
 var defaultAssetID [32]byte
 
@@ -49,7 +53,7 @@ type PublicParams struct {
 	TXORoot           []byte
 	SigHash           []byte
 	OutputCommitments [][]byte
-	Nullifiers        [][32]byte
+	Nullifiers        [][]byte
 	Fee               uint64
 	Coinbase          uint64
 	MintID            []byte
@@ -59,8 +63,19 @@ type PublicParams struct {
 
 // This whole function is a placeholder for the actual zk-snark circuit. We enumerate it
 // here to give an approximate idea of what the circuit will do.
-func StandardCircuit(priv PrivateParams, pub PublicParams) bool {
-	inVal := uint64(0)
+func StandardCircuit(privateParams, publicParams interface{}) bool {
+	priv, ok := privateParams.(*PrivateParams)
+	if !ok {
+		return false
+	}
+	pub, ok := publicParams.(*PublicParams)
+	if !ok {
+		return false
+	}
+	var (
+		inVal = uint64(0)
+		err   error
+	)
 	assetIns := make(map[[32]byte]uint64)
 
 	for i, in := range priv.Inputs {
@@ -108,9 +123,15 @@ func StandardCircuit(priv PrivateParams, pub PublicParams) bool {
 
 		// Total up the input amounts
 		if in.AssetID == defaultAssetID {
-			inVal += in.Amount
+			inVal, err = AddUint64(inVal, in.Amount)
+			if err != nil {
+				return false
+			}
 		} else {
-			assetIns[in.AssetID] += in.Amount
+			assetIns[in.AssetID], err = AddUint64(assetIns[in.AssetID], in.Amount)
+			if err != nil {
+				return false
+			}
 		}
 	}
 
@@ -134,14 +155,29 @@ func StandardCircuit(priv PrivateParams, pub PublicParams) bool {
 		}
 
 		if out.AssetID == defaultAssetID {
-			outVal += out.Amount
+			outVal, err = AddUint64(outVal, out.Amount)
+			if err != nil {
+				return false
+			}
 		} else {
-			assetOuts[out.AssetID] += out.Amount
+			assetOuts[out.AssetID], err = AddUint64(assetOuts[out.AssetID], out.Amount)
+			if err != nil {
+				return false
+			}
 		}
 	}
 
 	// Verify the transactions is not spending more than it is allowed to
-	if outVal+pub.Fee > inVal+pub.Coinbase {
+	totalOut, err := AddUint64(outVal, pub.Fee)
+	if err != nil {
+		return false
+	}
+	totalIn, err := AddUint64(inVal, pub.Coinbase)
+	if err != nil {
+		return false
+	}
+
+	if totalOut > totalIn {
 		return false
 	}
 
@@ -149,7 +185,10 @@ func StandardCircuit(priv PrivateParams, pub PublicParams) bool {
 	for assetID, outVal := range assetOuts {
 		inVal := assetIns[assetID]
 		if bytes.Equal(assetID[:], pub.MintID) {
-			inVal += pub.MintAmount
+			inVal, err = AddUint64(inVal, pub.MintAmount)
+			if err != nil {
+				return false
+			}
 		}
 		if outVal > inVal {
 			return false
@@ -225,4 +264,11 @@ func ValidateMultiSignature(threshold uint8, pubkeys [][]byte, signatures [][]by
 	}
 
 	return true, nil
+}
+
+func AddUint64(a, b uint64) (uint64, error) {
+	if b > 0 && a > math.MaxUint64-b {
+		return 0, ErrIntegerOverflow
+	}
+	return a + b, nil
 }

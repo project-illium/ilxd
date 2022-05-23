@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
+	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 )
@@ -25,6 +26,14 @@ func (h *BlockHeader) Serialize() ([]byte, error) {
 	return proto.Marshal(h)
 }
 
+func (h *BlockHeader) SerializedSize() (int, error) {
+	ser, err := proto.Marshal(h)
+	if err != nil {
+		return 0, err
+	}
+	return len(ser), nil
+}
+
 func (h *BlockHeader) Deserialize(data []byte) error {
 	newHeader := &BlockHeader{}
 	if err := proto.Unmarshal(data, newHeader); err != nil {
@@ -32,6 +41,18 @@ func (h *BlockHeader) Deserialize(data []byte) error {
 	}
 	h = newHeader
 	return nil
+}
+
+func (h *BlockHeader) SigHash() ([]byte, error) {
+	cpy := proto.Clone(h)
+	cpy.(*BlockHeader).Signature = nil
+
+	b, err := proto.Marshal(cpy)
+	if err != nil {
+		return nil, err
+	}
+
+	return hash.HashFunc(b), nil
 }
 
 func (h *BlockHeader) MarshalJSON() ([]byte, error) {
@@ -80,6 +101,14 @@ func (b *Block) Nullifiers() []types.Nullifier {
 
 func (b *Block) Serialize() ([]byte, error) {
 	return proto.Marshal(b)
+}
+
+func (b *Block) SerializedSize() (int, error) {
+	ser, err := proto.Marshal(b)
+	if err != nil {
+		return 0, err
+	}
+	return len(ser), nil
 }
 
 func (b *Block) Deserialize(data []byte) error {

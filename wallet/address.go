@@ -22,15 +22,22 @@ type Address interface {
 	String() string
 }
 
-type TimedPubkey struct {
+type TimeLockedPubkey struct {
 	crypto.PubKey
 	timelock time.Time
 }
 
-func (t *TimedPubkey) Timelock() time.Time {
+func NewTimeLockedPubkey(pubkey crypto.PubKey, timelock time.Time) *TimeLockedPubkey {
+	return &TimeLockedPubkey{
+		PubKey:   pubkey,
+		timelock: timelock,
+	}
+}
+
+func (t *TimeLockedPubkey) Timelock() time.Time {
 	return t.timelock
 }
-func (t *TimedPubkey) Serialize() ([]byte, error) {
+func (t *TimeLockedPubkey) Serialize() ([]byte, error) {
 	keyBytes, err := t.Raw()
 	if err != nil {
 		return nil, err
@@ -45,7 +52,7 @@ func (t *TimedPubkey) Serialize() ([]byte, error) {
 
 type SpendScript struct {
 	Threshold uint8
-	Pubkeys   []TimedPubkey
+	Pubkeys   []*TimeLockedPubkey
 }
 
 func (s *SpendScript) Serialize() ([]byte, error) {
@@ -106,7 +113,7 @@ func (a *BasicAddress) ViewKey() crypto.PubKey {
 }
 
 func (a *BasicAddress) EncodeAddress() string {
-	keyBytes, err := crypto.MarshalPublicKey(a.viewKey)
+	keyBytes, err := a.viewKey.Raw()
 	if err != nil {
 		return ""
 	}
@@ -151,7 +158,7 @@ func DecodeAddress(addr string, params *params.NetworkParams) (Address, error) {
 	var h2 [32]byte
 	copy(h2[:], regrouped[:ScriptHashLength])
 
-	pub, err := crypto.UnmarshalPublicKey(regrouped[ScriptHashLength:])
+	pub, err := UnmarshalCurve25519PublicKey(regrouped[ScriptHashLength:])
 	if err != nil {
 		return nil, err
 	}

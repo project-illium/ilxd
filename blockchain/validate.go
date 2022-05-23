@@ -6,7 +6,6 @@ package blockchain
 
 import (
 	"bytes"
-	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/project-illium/ilxd/params/hash"
@@ -14,12 +13,17 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/wallet"
+	"time"
 )
 
 const (
 	PubkeyLen = 32
 
 	CipherTextLen = 176
+
+	MaxProposalHashLen = 68
+
+	MaxTransactionSize = 1000000
 )
 
 // BehaviorFlags is a bitmask defining tweaks to the normal behavior when
@@ -76,12 +80,12 @@ func (b *Blockchain) validateHeader(header *blocks.BlockHeader, flags BehaviorFl
 	}
 
 	if !flags.HasFlag(BFFastAdd) {
-		headerDigest, err := hashHeaderForSignature(header)
+		sigHash, err := header.SigHash()
 		if err != nil {
 			return err
 		}
 
-		valid, err := producerPubkey.Verify(headerDigest, header.Signature)
+		valid, err := producerPubkey.Verify(sigHash, header.Signature)
 		if !valid {
 			return ruleError(ErrInvalidHeaderSignature, "invalid signature in header")
 		}
@@ -121,16 +125,8 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 	for _, t := range blk.GetTransactions() {
 		switch tx := t.Tx.(type) {
 		case *transactions.Transaction_CoinbaseTransaction:
-			for _, out := range tx.CoinbaseTransaction.Outputs {
-				if len(out.Commitment) != wallet.CommitmentLen {
-					return ruleError(ErrInvalidTx, "invalid commitment")
-				}
-				if len(out.EphemeralPubkey) != PubkeyLen {
-					return ruleError(ErrInvalidTx, "ephem pubkey invalid len")
-				}
-				if len(out.Ciphertext) != CipherTextLen {
-					return ruleError(ErrInvalidTx, "ciphertext invalid len")
-				}
+			if err := validateOutputs(tx.CoinbaseTransaction.Outputs); err != nil {
+				return err
 			}
 
 			validatorID, err := peer.IDFromBytes(tx.CoinbaseTransaction.Validator_ID)
@@ -144,7 +140,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			}
 
 			if !flags.HasFlag(BFFastAdd) {
-				sigHash, err := hashCoinbaseForSignature(tx.CoinbaseTransaction)
+				sigHash, err := tx.CoinbaseTransaction.SigHash()
 				if err != nil {
 					return err
 				}
@@ -156,6 +152,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 					return err
 				}
 			}
+			// TODO: validate amount against validator set
 		case *transactions.Transaction_StakeTransaction:
 			if tx.StakeTransaction.Nullifier == nil {
 				return ruleError(ErrInvalidTx, "stake transaction missing nullifier")
@@ -172,7 +169,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			}
 
 			if !flags.HasFlag(BFFastAdd) {
-				sigHash, err := hashStakeForSignature(tx.StakeTransaction)
+				sigHash, err := tx.StakeTransaction.SigHash()
 				if err != nil {
 					return err
 				}
@@ -186,18 +183,10 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			}
 		case *transactions.Transaction_StandardTransaction:
 			if len(tx.StandardTransaction.Nullifiers) == 0 {
-				return ruleError(ErrInvalidTx, "standard transaction missing nullifier(s)")
+				return ruleError(ErrInvalidTx, "transaction missing nullifier(s)")
 			}
-			for _, out := range tx.StandardTransaction.Outputs {
-				if len(out.Commitment) != wallet.CommitmentLen {
-					return ruleError(ErrInvalidTx, "invalid commitment")
-				}
-				if len(out.EphemeralPubkey) != PubkeyLen {
-					return ruleError(ErrInvalidTx, "ephem pubkey invalid len")
-				}
-				if len(out.Ciphertext) != CipherTextLen {
-					return ruleError(ErrInvalidTx, "ciphertext invalid len")
-				}
+			if err := validateOutputs(tx.StandardTransaction.Outputs); err != nil {
+				return err
 			}
 			for _, n := range tx.StandardTransaction.Nullifiers {
 				nullifier := types.NewNullifier(n)
@@ -214,20 +203,13 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 
 				blockNullifiers[nullifier] = true
 			}
+			// TODO: validate tx root
 		case *transactions.Transaction_MintTransaction:
 			if len(tx.MintTransaction.Nullifiers) == 0 {
-				return ruleError(ErrInvalidTx, "mint transaction missing nullifier(s)")
+				return ruleError(ErrInvalidTx, "transaction missing nullifier(s)")
 			}
-			for _, out := range tx.MintTransaction.Outputs {
-				if len(out.Commitment) != wallet.CommitmentLen {
-					return ruleError(ErrInvalidTx, "invalid commitment")
-				}
-				if len(out.EphemeralPubkey) != PubkeyLen {
-					return ruleError(ErrInvalidTx, "ephem pubkey invalid len")
-				}
-				if len(out.Ciphertext) != CipherTextLen {
-					return ruleError(ErrInvalidTx, "ciphertext invalid len")
-				}
+			if err := validateOutputs(tx.MintTransaction.Outputs); err != nil {
+				return err
 			}
 			for _, n := range tx.MintTransaction.Nullifiers {
 				nullifier := types.NewNullifier(n)
@@ -264,7 +246,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			}
 
 			if !flags.HasFlag(BFFastAdd) {
-				sigHash, err := hashMintForSignature(tx.MintTransaction)
+				sigHash, err := tx.MintTransaction.SigHash()
 				if err != nil {
 					return err
 				}
@@ -276,19 +258,22 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 					return err
 				}
 			}
+			// TODO: validate tx root
 		case *transactions.Transaction_TreasuryTransaction:
-			for _, out := range tx.TreasuryTransaction.Outputs {
-				if len(out.Commitment) != wallet.CommitmentLen {
-					return ruleError(ErrInvalidTx, "invalid commitment")
-				}
-				if len(out.EphemeralPubkey) != PubkeyLen {
-					return ruleError(ErrInvalidTx, "ephem pubkey invalid len")
-				}
-				if len(out.Ciphertext) != CipherTextLen {
-					return ruleError(ErrInvalidTx, "ciphertext invalid len")
-				}
+			if err := validateOutputs(tx.TreasuryTransaction.Outputs); err != nil {
+				return err
+			}
+			if len(tx.TreasuryTransaction.ProposalHash) > MaxProposalHashLen {
+				return ruleError(ErrInvalidTx, "treasury proposal hash too long")
 			}
 			// TODO: validate treasury amount
+		}
+		size, err := t.SerializedSize()
+		if err != nil {
+			return err
+		}
+		if size > MaxTransactionSize {
+			return ruleError(ErrInvalidTx, "transaction too large")
 		}
 	}
 
@@ -298,56 +283,27 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 		}
 	}
 
+	if !flags.HasFlag(BFFastAdd) {
+		validator := NewProofValidator(time.Unix(blk.Header.Timestamp, 0))
+		if err := validator.Validate(blk.Transactions); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-// TODO: this should go into wallet package.
-func hashMintForSignature(tx *transactions.MintTransaction) ([]byte, error) {
-	cpy := proto.Clone(tx)
-	cpy.(*transactions.MintTransaction).Signature = nil
-
-	b, err := proto.Marshal(cpy)
-	if err != nil {
-		return nil, err
+func validateOutputs(outputs []*transactions.Output) error {
+	for _, out := range outputs {
+		if len(out.Commitment) != wallet.CommitmentLen {
+			return ruleError(ErrInvalidTx, "invalid commitment")
+		}
+		if len(out.EphemeralPubkey) != PubkeyLen {
+			return ruleError(ErrInvalidTx, "ephem pubkey invalid len")
+		}
+		if len(out.Ciphertext) != CipherTextLen {
+			return ruleError(ErrInvalidTx, "ciphertext invalid len")
+		}
 	}
-
-	return hash.HashFunc(b), nil
-}
-
-// TODO: this should go into wallet package.
-func hashStakeForSignature(tx *transactions.StakeTransaction) ([]byte, error) {
-	cpy := proto.Clone(tx)
-	cpy.(*transactions.StakeTransaction).Signature = nil
-
-	b, err := proto.Marshal(cpy)
-	if err != nil {
-		return nil, err
-	}
-
-	return hash.HashFunc(b), nil
-}
-
-// TODO: this should go into wallet package.
-func hashCoinbaseForSignature(tx *transactions.CoinbaseTransaction) ([]byte, error) {
-	cpy := proto.Clone(tx)
-	cpy.(*transactions.CoinbaseTransaction).Signature = nil
-
-	b, err := proto.Marshal(cpy)
-	if err != nil {
-		return nil, err
-	}
-
-	return hash.HashFunc(b), nil
-}
-
-func hashHeaderForSignature(header *blocks.BlockHeader) ([]byte, error) {
-	cpy := proto.Clone(header)
-	cpy.(*blocks.BlockHeader).Signature = nil
-
-	b, err := proto.Marshal(cpy)
-	if err != nil {
-		return nil, err
-	}
-
-	return hash.HashFunc(b), nil
+	return nil
 }
