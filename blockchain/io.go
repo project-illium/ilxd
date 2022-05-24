@@ -107,6 +107,28 @@ func dsPutHeader(dbtx datastore.Txn, header *blocks.BlockHeader) error {
 	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+header.ID().String()), ser)
 }
 
+func dsBlockExists(ds repo.Datastore, blockID types.ID) (bool, error) {
+	return ds.Has(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+blockID.String()))
+}
+
+func dsPutBlock(dbtx datastore.Txn, blk *blocks.Block) error {
+	serializedHeader, err := blk.Header.Serialize()
+	if err != nil {
+		return err
+	}
+	if err := dbtx.Put(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+blk.ID().String()), serializedHeader); err != nil {
+		return err
+	}
+	txns := &pb.DBTxs{
+		Transactions: blk.Transactions,
+	}
+	serializedTxs, err := proto.Marshal(txns)
+	if err != nil {
+		return err
+	}
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockTxsKeyPrefix+blk.ID().String()), serializedTxs)
+}
+
 func dsFetchBlock(ds repo.Datastore, blockID types.ID) (*blocks.Block, error) {
 	serializedHeader, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+blockID.String()))
 	if err != nil {
@@ -225,48 +247,8 @@ func dsFetchValidators(ds repo.Datastore) ([]*Validator, error) {
 	return validators, nil
 }
 
-func dsPutNullifierSetConsistencyStatus(ds repo.Datastore, status setConsistencyStatus) error {
-	b := make([]byte, 2)
-	binary.BigEndian.PutUint16(b, uint16(status))
-	return ds.Put(context.Background(), datastore.NewKey(repo.NullifierSetConsistencyStatusKey), b)
-}
-
-func dsFetchNullifierSetConsistencyStatus(ds repo.Datastore) (setConsistencyStatus, error) {
-	b, err := ds.Get(context.Background(), datastore.NewKey(repo.NullifierSetConsistencyStatusKey))
-	if err == datastore.ErrNotFound {
-		return scsEmpty, nil
-	}
-	if err != nil {
-		return 0, err
-	}
-	return setConsistencyStatus(binary.BigEndian.Uint16(b)), nil
-}
-
-func dsPutNullifierLastFlushHeight(dbtx datastore.Txn, height uint32) error {
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, height)
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.NullifierSetLastFlushHeight), b)
-}
-
-func dsFetchNullifierLastFlushHeight(ds repo.Datastore) (uint32, error) {
-	b, err := ds.Get(context.Background(), datastore.NewKey(repo.NullifierSetLastFlushHeight))
-	if err == datastore.ErrNotFound {
-		return 0, nil
-	}
-	if err != nil {
-		return 0, err
-	}
-	return binary.BigEndian.Uint32(b), nil
-}
-
 func dsNullifierExists(ds repo.Datastore, nullifier types.Nullifier) (bool, error) {
-	_, err := ds.Get(context.Background(), datastore.NewKey(repo.NullifierKeyPrefix+nullifier.String()))
-	if err == datastore.ErrNotFound {
-		return false, nil
-	} else if err == nil {
-		return true, nil
-	}
-	return false, err
+	return ds.Has(context.Background(), datastore.NewKey(repo.NullifierKeyPrefix+nullifier.String()))
 }
 
 func dsPutNullifiers(dbtx datastore.Txn, nullifiers []types.Nullifier) error {
@@ -278,25 +260,31 @@ func dsPutNullifiers(dbtx datastore.Txn, nullifiers []types.Nullifier) error {
 	return nil
 }
 
-func dsDeleteNullifiers(dbtx datastore.Txn, nullifiers []types.Nullifier) error {
-	for _, n := range nullifiers {
-		if err := dbtx.Delete(context.Background(), datastore.NewKey(repo.NullifierKeyPrefix+n.String())); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func dsPutTxoSetRoot(dbtx datastore.Txn, txoRoot types.ID) error {
 	return dbtx.Put(context.Background(), datastore.NewKey(repo.TxoRootKeyPrefix+txoRoot.String()), []byte{})
 }
 
 func dsTxoSetRootExists(ds repo.Datastore, txoRoot types.ID) (bool, error) {
-	_, err := ds.Get(context.Background(), datastore.NewKey(repo.TxoRootKeyPrefix+txoRoot.String()))
+	return ds.Has(context.Background(), datastore.NewKey(repo.TxoRootKeyPrefix+txoRoot.String()))
+}
+
+func dsPutTreasuryBalance(dbtx datastore.Txn, balance uint64) error {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, balance)
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey), b)
+}
+
+func dsFetchTreasuryBalance(ds repo.Datastore) (uint64, error) {
+	balance, err := ds.Get(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey))
 	if err == datastore.ErrNotFound {
-		return false, nil
-	} else if err == nil {
-		return true, nil
+		return 0, nil
+	} else if err != nil {
+		return 0, err
 	}
-	return false, err
+
+	return binary.BigEndian.Uint64(balance), nil
+}
+
+func dsPutAccumulatorToDisk(accumulator *Accumulator, dbtx datastore.Txn) error {
+
 }

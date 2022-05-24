@@ -29,12 +29,10 @@ const (
 	BlockIndexStateKey = "/ilxd/blockindex/"
 	// NullifierKeyPrefix is the datastore key prefix for storing nullifiers in the nullifier set.
 	NullifierKeyPrefix = "/ilxd/nullifier/"
-	// NullifierSetLastFlushHeight is the datastore key for last flush height of the validator set.
-	NullifierSetLastFlushHeight = "/ilxd/nullifiersetlastflushheight/"
-	// NullifierSetConsistencyStatusKey is the datastore key for the validator set flush state.
-	NullifierSetConsistencyStatusKey = "/ilxd/nullifiersetconsistencystatus/"
 	// TxoRootKeyPrefix is the datastore key prefix for storing a txo root in the database.
 	TxoRootKeyPrefix = "/ilxd/txoroot/"
+	// TreasuryBalanceKey is the key for storing the balance of the treasury in the database.
+	TreasuryBalanceKey = "/ilxd/treasury/"
 )
 
 type Datastore interface {

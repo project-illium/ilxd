@@ -203,6 +203,77 @@ func (x *DBBlockNode) GetHeight() uint32 {
 	return 0
 }
 
+type DBAccumulator struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Accumulator [][]byte                        `protobuf:"bytes,1,rep,name=accumulator,proto3" json:"accumulator,omitempty"`
+	NElements   uint64                          `protobuf:"varint,2,opt,name=nElements,proto3" json:"nElements,omitempty"`
+	Proofs      []*DBAccumulator_InclusionProof `protobuf:"bytes,3,rep,name=proofs,proto3" json:"proofs,omitempty"`
+	LookupMap   []*DBAccumulator_InclusionProof `protobuf:"bytes,4,rep,name=lookupMap,proto3" json:"lookupMap,omitempty"`
+}
+
+func (x *DBAccumulator) Reset() {
+	*x = DBAccumulator{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_db_models_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DBAccumulator) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DBAccumulator) ProtoMessage() {}
+
+func (x *DBAccumulator) ProtoReflect() protoreflect.Message {
+	mi := &file_db_models_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DBAccumulator.ProtoReflect.Descriptor instead.
+func (*DBAccumulator) Descriptor() ([]byte, []int) {
+	return file_db_models_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *DBAccumulator) GetAccumulator() [][]byte {
+	if x != nil {
+		return x.Accumulator
+	}
+	return nil
+}
+
+func (x *DBAccumulator) GetNElements() uint64 {
+	if x != nil {
+		return x.NElements
+	}
+	return 0
+}
+
+func (x *DBAccumulator) GetProofs() []*DBAccumulator_InclusionProof {
+	if x != nil {
+		return x.Proofs
+	}
+	return nil
+}
+
+func (x *DBAccumulator) GetLookupMap() []*DBAccumulator_InclusionProof {
+	if x != nil {
+		return x.LookupMap
+	}
+	return nil
+}
+
 type DBValidator_Nullifier struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -216,7 +287,7 @@ type DBValidator_Nullifier struct {
 func (x *DBValidator_Nullifier) Reset() {
 	*x = DBValidator_Nullifier{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_db_models_proto_msgTypes[3]
+		mi := &file_db_models_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -229,7 +300,7 @@ func (x *DBValidator_Nullifier) String() string {
 func (*DBValidator_Nullifier) ProtoMessage() {}
 
 func (x *DBValidator_Nullifier) ProtoReflect() protoreflect.Message {
-	mi := &file_db_models_proto_msgTypes[3]
+	mi := &file_db_models_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -262,6 +333,85 @@ func (x *DBValidator_Nullifier) GetAmount() uint64 {
 func (x *DBValidator_Nullifier) GetBlockstamp() *timestamp.Timestamp {
 	if x != nil {
 		return x.Blockstamp
+	}
+	return nil
+}
+
+type DBAccumulator_InclusionProof struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Id     []byte   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Index  uint64   `protobuf:"varint,2,opt,name=index,proto3" json:"index,omitempty"`
+	Hashes [][]byte `protobuf:"bytes,3,rep,name=hashes,proto3" json:"hashes,omitempty"`
+	Flags  uint64   `protobuf:"varint,4,opt,name=flags,proto3" json:"flags,omitempty"`
+	Last   []byte   `protobuf:"bytes,5,opt,name=last,proto3" json:"last,omitempty"`
+}
+
+func (x *DBAccumulator_InclusionProof) Reset() {
+	*x = DBAccumulator_InclusionProof{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_db_models_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DBAccumulator_InclusionProof) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DBAccumulator_InclusionProof) ProtoMessage() {}
+
+func (x *DBAccumulator_InclusionProof) ProtoReflect() protoreflect.Message {
+	mi := &file_db_models_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DBAccumulator_InclusionProof.ProtoReflect.Descriptor instead.
+func (*DBAccumulator_InclusionProof) Descriptor() ([]byte, []int) {
+	return file_db_models_proto_rawDescGZIP(), []int{3, 0}
+}
+
+func (x *DBAccumulator_InclusionProof) GetId() []byte {
+	if x != nil {
+		return x.Id
+	}
+	return nil
+}
+
+func (x *DBAccumulator_InclusionProof) GetIndex() uint64 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+func (x *DBAccumulator_InclusionProof) GetHashes() [][]byte {
+	if x != nil {
+		return x.Hashes
+	}
+	return nil
+}
+
+func (x *DBAccumulator_InclusionProof) GetFlags() uint64 {
+	if x != nil {
+		return x.Flags
+	}
+	return 0
+}
+
+func (x *DBAccumulator_InclusionProof) GetLast() []byte {
+	if x != nil {
+		return x.Last
 	}
 	return nil
 }
@@ -301,7 +451,27 @@ var file_db_models_proto_rawDesc = []byte{
 	0x64, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x49, 0x44, 0x18, 0x01, 0x20,
 	0x01, 0x28, 0x0c, 0x52, 0x07, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x49, 0x44, 0x12, 0x16, 0x0a, 0x06,
 	0x68, 0x65, 0x69, 0x67, 0x68, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x06, 0x68, 0x65,
-	0x69, 0x67, 0x68, 0x74, 0x42, 0x07, 0x5a, 0x05, 0x2e, 0x2e, 0x2f, 0x70, 0x62, 0x62, 0x06, 0x70,
+	0x69, 0x67, 0x68, 0x74, 0x22, 0xbd, 0x02, 0x0a, 0x0d, 0x44, 0x42, 0x41, 0x63, 0x63, 0x75, 0x6d,
+	0x75, 0x6c, 0x61, 0x74, 0x6f, 0x72, 0x12, 0x20, 0x0a, 0x0b, 0x61, 0x63, 0x63, 0x75, 0x6d, 0x75,
+	0x6c, 0x61, 0x74, 0x6f, 0x72, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x0b, 0x61, 0x63, 0x63,
+	0x75, 0x6d, 0x75, 0x6c, 0x61, 0x74, 0x6f, 0x72, 0x12, 0x1c, 0x0a, 0x09, 0x6e, 0x45, 0x6c, 0x65,
+	0x6d, 0x65, 0x6e, 0x74, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x09, 0x6e, 0x45, 0x6c,
+	0x65, 0x6d, 0x65, 0x6e, 0x74, 0x73, 0x12, 0x35, 0x0a, 0x06, 0x70, 0x72, 0x6f, 0x6f, 0x66, 0x73,
+	0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1d, 0x2e, 0x44, 0x42, 0x41, 0x63, 0x63, 0x75, 0x6d,
+	0x75, 0x6c, 0x61, 0x74, 0x6f, 0x72, 0x2e, 0x49, 0x6e, 0x63, 0x6c, 0x75, 0x73, 0x69, 0x6f, 0x6e,
+	0x50, 0x72, 0x6f, 0x6f, 0x66, 0x52, 0x06, 0x70, 0x72, 0x6f, 0x6f, 0x66, 0x73, 0x12, 0x3b, 0x0a,
+	0x09, 0x6c, 0x6f, 0x6f, 0x6b, 0x75, 0x70, 0x4d, 0x61, 0x70, 0x18, 0x04, 0x20, 0x03, 0x28, 0x0b,
+	0x32, 0x1d, 0x2e, 0x44, 0x42, 0x41, 0x63, 0x63, 0x75, 0x6d, 0x75, 0x6c, 0x61, 0x74, 0x6f, 0x72,
+	0x2e, 0x49, 0x6e, 0x63, 0x6c, 0x75, 0x73, 0x69, 0x6f, 0x6e, 0x50, 0x72, 0x6f, 0x6f, 0x66, 0x52,
+	0x09, 0x6c, 0x6f, 0x6f, 0x6b, 0x75, 0x70, 0x4d, 0x61, 0x70, 0x1a, 0x78, 0x0a, 0x0e, 0x49, 0x6e,
+	0x63, 0x6c, 0x75, 0x73, 0x69, 0x6f, 0x6e, 0x50, 0x72, 0x6f, 0x6f, 0x66, 0x12, 0x0e, 0x0a, 0x02,
+	0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x02, 0x69, 0x64, 0x12, 0x14, 0x0a, 0x05,
+	0x69, 0x6e, 0x64, 0x65, 0x78, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x05, 0x69, 0x6e, 0x64,
+	0x65, 0x78, 0x12, 0x16, 0x0a, 0x06, 0x68, 0x61, 0x73, 0x68, 0x65, 0x73, 0x18, 0x03, 0x20, 0x03,
+	0x28, 0x0c, 0x52, 0x06, 0x68, 0x61, 0x73, 0x68, 0x65, 0x73, 0x12, 0x14, 0x0a, 0x05, 0x66, 0x6c,
+	0x61, 0x67, 0x73, 0x18, 0x04, 0x20, 0x01, 0x28, 0x04, 0x52, 0x05, 0x66, 0x6c, 0x61, 0x67, 0x73,
+	0x12, 0x12, 0x0a, 0x04, 0x6c, 0x61, 0x73, 0x74, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x04,
+	0x6c, 0x61, 0x73, 0x74, 0x42, 0x07, 0x5a, 0x05, 0x2e, 0x2e, 0x2f, 0x70, 0x62, 0x62, 0x06, 0x70,
 	0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
@@ -317,24 +487,28 @@ func file_db_models_proto_rawDescGZIP() []byte {
 	return file_db_models_proto_rawDescData
 }
 
-var file_db_models_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_db_models_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_db_models_proto_goTypes = []interface{}{
-	(*DBValidator)(nil),              // 0: DBValidator
-	(*DBTxs)(nil),                    // 1: DBTxs
-	(*DBBlockNode)(nil),              // 2: DBBlockNode
-	(*DBValidator_Nullifier)(nil),    // 3: DBValidator.Nullifier
-	(*transactions.Transaction)(nil), // 4: Transaction
-	(*timestamp.Timestamp)(nil),      // 5: google.protobuf.Timestamp
+	(*DBValidator)(nil),                  // 0: DBValidator
+	(*DBTxs)(nil),                        // 1: DBTxs
+	(*DBBlockNode)(nil),                  // 2: DBBlockNode
+	(*DBAccumulator)(nil),                // 3: DBAccumulator
+	(*DBValidator_Nullifier)(nil),        // 4: DBValidator.Nullifier
+	(*DBAccumulator_InclusionProof)(nil), // 5: DBAccumulator.InclusionProof
+	(*transactions.Transaction)(nil),     // 6: Transaction
+	(*timestamp.Timestamp)(nil),          // 7: google.protobuf.Timestamp
 }
 var file_db_models_proto_depIdxs = []int32{
-	3, // 0: DBValidator.nullifiers:type_name -> DBValidator.Nullifier
-	4, // 1: DBTxs.transactions:type_name -> Transaction
-	5, // 2: DBValidator.Nullifier.blockstamp:type_name -> google.protobuf.Timestamp
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 0: DBValidator.nullifiers:type_name -> DBValidator.Nullifier
+	6, // 1: DBTxs.transactions:type_name -> Transaction
+	5, // 2: DBAccumulator.proofs:type_name -> DBAccumulator.InclusionProof
+	5, // 3: DBAccumulator.lookupMap:type_name -> DBAccumulator.InclusionProof
+	7, // 4: DBValidator.Nullifier.blockstamp:type_name -> google.protobuf.Timestamp
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_db_models_proto_init() }
@@ -380,7 +554,31 @@ func file_db_models_proto_init() {
 			}
 		}
 		file_db_models_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DBAccumulator); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_db_models_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*DBValidator_Nullifier); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_db_models_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DBAccumulator_InclusionProof); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -398,7 +596,7 @@ func file_db_models_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_db_models_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

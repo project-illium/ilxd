@@ -26,3 +26,18 @@ message DBBlockNode {
         bytes blockID = 1;
         uint32 height = 2;
 }
+
+message DBAccumulator {
+        repeated bytes accumulator        = 1;
+        uint64 nElements                  = 2;
+        repeated InclusionProof proofs    = 3;
+        repeated InclusionProof lookupMap = 4;
+
+        message InclusionProof {
+                bytes id = 1;
+                uint64 index = 2;
+                repeated bytes hashes = 3;
+                uint64 flags = 4;
+                bytes last = 5;
+        }
+}

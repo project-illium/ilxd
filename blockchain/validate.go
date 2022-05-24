@@ -40,6 +40,11 @@ const (
 	// checks.
 	BFNoDupBlockCheck
 
+	// BFNoValidation is used to signal that this block has already been
+	// validated and is known to be good and does not need to be validated
+	// again.
+	BFNoValidation
+
 	// BFNone is a convenience value to specifically indicate no flags.
 	BFNone BehaviorFlags = 0
 )
@@ -49,25 +54,27 @@ func (behaviorFlags BehaviorFlags) HasFlag(flag BehaviorFlags) bool {
 	return behaviorFlags&flag == flag
 }
 
-func (b *Blockchain) validateHeader(header *blocks.BlockHeader, flags BehaviorFlags) error {
-	prevBlock, err := b.index.GetNodeByID(types.NewID(header.Parent))
-	if err != nil {
-		return ruleError(ErrDoesNotConnect, "parent block not found in chain")
+func (b *Blockchain) checkBlockContext(header *blocks.BlockHeader) error {
+	tip := b.index.Tip()
+	if header.Height != tip.Height()+1 {
+		return ruleError(ErrDoesNotConnect, "block does not extend tip")
 	}
-
-	if header.Height != prevBlock.height+1 {
-		return ruleError(ErrInvalidHeight, "header height is invalid")
+	if types.NewID(header.Parent) != tip.ID() {
+		return ruleError(ErrDoesNotConnect, "block does not extend tip")
 	}
-
-	prevHeader, err := prevBlock.Header()
+	prevHeader, err := tip.Header()
 	if err != nil {
 		return err
 	}
-
 	if header.Timestamp <= prevHeader.Timestamp {
 		return ruleError(ErrInvalidTimestamp, "timestamp is too early")
 	}
 
+	// TODO: verifying a block ID at a checkpoint height matches the checkpoint ID will be done here.
+	return nil
+}
+
+func (b *Blockchain) validateHeader(header *blocks.BlockHeader, flags BehaviorFlags) error {
 	producerID, err := peer.IDFromBytes(header.Producer_ID)
 	if err != nil {
 		return ruleError(ErrInvalidProducer, "block producer ID does not decode")
@@ -133,7 +140,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			if err != nil {
 				return ruleError(ErrInvalidTx, "coinbase tx validator ID does not decode")
 			}
-			validator, err := b.vs.GetValidator(validatorID)
+			validator, err := b.validatorSet.GetValidator(validatorID)
 			if err != nil {
 				return ruleError(ErrInvalidTx, "validator does not exist in validator set")
 			}
@@ -146,7 +153,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			}
 			stakeTransactions = append(stakeTransactions, tx.StakeTransaction)
 			sigsToValidate = append(sigsToValidate, t)
-			exists, err := b.trs.Exists(types.NewID(tx.StakeTransaction.TxoRoot))
+			exists, err := b.txoRootSet.Exists(types.NewID(tx.StakeTransaction.TxoRoot))
 			if err != nil {
 				return err
 			}
@@ -165,7 +172,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				if blockNullifiers[nullifier] {
 					return ruleError(ErrDoubleSpend, "block contains duplicate nullifier")
 				}
-				exists, err := b.ns.NullifierExists(nullifier)
+				exists, err := b.nullifierSet.NullifierExists(nullifier)
 				if err != nil {
 					return err
 				}
@@ -175,7 +182,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 
 				blockNullifiers[nullifier] = true
 			}
-			exists, err := b.trs.Exists(types.NewID(tx.StandardTransaction.TxoRoot))
+			exists, err := b.txoRootSet.Exists(types.NewID(tx.StandardTransaction.TxoRoot))
 			if err != nil {
 				return err
 			}
@@ -194,7 +201,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				if blockNullifiers[nullifier] {
 					return ruleError(ErrDoubleSpend, "block contains duplicate nullifier")
 				}
-				exists, err := b.ns.NullifierExists(nullifier)
+				exists, err := b.nullifierSet.NullifierExists(nullifier)
 				if err != nil {
 					return err
 				}
@@ -219,7 +226,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			}
 
 			sigsToValidate = append(sigsToValidate, t)
-			exists, err := b.trs.Exists(types.NewID(tx.MintTransaction.TxoRoot))
+			exists, err := b.txoRootSet.Exists(types.NewID(tx.MintTransaction.TxoRoot))
 			if err != nil {
 				return err
 			}
@@ -233,7 +240,14 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			if len(tx.TreasuryTransaction.ProposalHash) > MaxProposalHashLen {
 				return ruleError(ErrInvalidTx, "treasury proposal hash too long")
 			}
-			// TODO: validate treasury amount
+
+			balance, err := dsFetchTreasuryBalance(b.ds)
+			if err != nil {
+				return err
+			}
+			if tx.TreasuryTransaction.Amount > balance {
+				return ruleError(ErrInvalidTx, "treasury tx amount exceeds treasury balance")
+			}
 		}
 		size, err := t.SerializedSize()
 		if err != nil {

@@ -229,25 +229,16 @@ func (bi *blockIndex) GetNodeByID(blockID types.ID) (*blockNode, error) {
 func (bi *blockIndex) limitCache() {
 	if len(bi.cacheByID) > blockIndexCacheSize {
 		for id, node := range bi.cacheByID {
-			if node.parent != nil {
-				node.parent.child = nil
-			}
-			if node.child != nil {
-				node.child.parent = nil
-			}
-
+			node.parent.child = nil
+			node.child.parent = nil
 			delete(bi.cacheByID, id)
 			break
 		}
 	}
 	if len(bi.cacheByHeight) > blockIndexCacheSize {
 		for height, node := range bi.cacheByHeight {
-			if node.parent != nil {
-				node.parent.child = nil
-			}
-			if node.child != nil {
-				node.child.parent = nil
-			}
+			node.parent.child = nil
+			node.child.parent = nil
 			delete(bi.cacheByHeight, height)
 			break
 		}
