@@ -21,10 +21,13 @@ const (
 )
 
 type Blockchain struct {
-	ds    repo.Datastore
-	index *blockIndex
-	vs    *ValidatorSet
-	ns    *NullifierSet
+	ds         repo.Datastore
+	index      *blockIndex
+	vs         *ValidatorSet
+	ns         *NullifierSet
+	trs        *TxoRootSet
+	sigCache   *SigCache
+	proofCache *ProofCache
 }
 
 func NewBlockchain(ds repo.Datastore) *Blockchain {

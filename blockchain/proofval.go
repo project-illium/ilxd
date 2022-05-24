@@ -5,6 +5,7 @@
 package blockchain
 
 import (
+	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/ilxd/zk/circuits/stake"
@@ -13,20 +14,22 @@ import (
 	"time"
 )
 
-func ValidateTransactionProof(tx *transactions.Transaction, blockTime time.Time) error {
-	validator := NewProofValidator(blockTime)
+func ValidateTransactionProof(tx *transactions.Transaction, blockTime time.Time, proofCache *ProofCache) error {
+	validator := NewProofValidator(blockTime, proofCache)
 	return validator.Validate([]*transactions.Transaction{tx})
 }
 
 type proofValidator struct {
+	proofCache *ProofCache
 	workChan   chan *transactions.Transaction
 	resultChan chan error
 	done       chan struct{}
 	blockTime  time.Time
 }
 
-func NewProofValidator(blockTime time.Time) *proofValidator {
+func NewProofValidator(blockTime time.Time, proofCache *ProofCache) *proofValidator {
 	return &proofValidator{
+		proofCache: proofCache,
 		workChan:   make(chan *transactions.Transaction),
 		resultChan: make(chan error),
 		done:       make(chan struct{}),
@@ -36,6 +39,10 @@ func NewProofValidator(blockTime time.Time) *proofValidator {
 
 func (p *proofValidator) Validate(txs []*transactions.Transaction) error {
 	defer close(p.done)
+
+	if len(txs) == 0 {
+		return nil
+	}
 
 	maxGoRoutines := runtime.NumCPU() * 3
 	if maxGoRoutines <= 0 {
@@ -91,6 +98,14 @@ func (p *proofValidator) validateHandler() {
 					MintAmount:        0,
 					Blocktime:         p.blockTime,
 				}
+
+				proofHash := types.NewIDFromData(tx.StandardTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.StandardTransaction.Proof)
+				if exists {
+					p.resultChan <- nil
+					break
+				}
+
 				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.StandardTransaction.Proof)
 				if err != nil {
 					p.resultChan <- err
@@ -100,6 +115,7 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
 					break
 				}
+				p.proofCache.Add(proofHash, tx.StandardTransaction.Proof)
 				p.resultChan <- nil
 			case *transactions.Transaction_CoinbaseTransaction:
 				sigHash, err := tx.CoinbaseTransaction.SigHash()
@@ -122,6 +138,13 @@ func (p *proofValidator) validateHandler() {
 					MintAmount:        0,
 					Blocktime:         p.blockTime,
 				}
+
+				proofHash := types.NewIDFromData(tx.CoinbaseTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.CoinbaseTransaction.Proof)
+				if exists {
+					p.resultChan <- nil
+					break
+				}
 				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.CoinbaseTransaction.Proof)
 				if err != nil {
 					p.resultChan <- err
@@ -131,6 +154,7 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
 					break
 				}
+				p.proofCache.Add(proofHash, tx.CoinbaseTransaction.Proof)
 				p.resultChan <- nil
 			case *transactions.Transaction_TreasuryTransaction:
 				sigHash, err := tx.TreasuryTransaction.SigHash()
@@ -153,6 +177,12 @@ func (p *proofValidator) validateHandler() {
 					MintAmount:        0,
 					Blocktime:         p.blockTime,
 				}
+				proofHash := types.NewIDFromData(tx.TreasuryTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.TreasuryTransaction.Proof)
+				if exists {
+					p.resultChan <- nil
+					break
+				}
 				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.TreasuryTransaction.Proof)
 				if err != nil {
 					p.resultChan <- err
@@ -162,6 +192,7 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
 					break
 				}
+				p.proofCache.Add(proofHash, tx.TreasuryTransaction.Proof)
 				p.resultChan <- nil
 			case *transactions.Transaction_MintTransaction:
 				sigHash, err := tx.MintTransaction.SigHash()
@@ -184,6 +215,12 @@ func (p *proofValidator) validateHandler() {
 					MintAmount:        tx.MintTransaction.NewTokens,
 					Blocktime:         p.blockTime,
 				}
+				proofHash := types.NewIDFromData(tx.MintTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.MintTransaction.Proof)
+				if exists {
+					p.resultChan <- nil
+					break
+				}
 				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.MintTransaction.Proof)
 				if err != nil {
 					p.resultChan <- err
@@ -193,6 +230,7 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
 					break
 				}
+				p.proofCache.Add(proofHash, tx.MintTransaction.Proof)
 				p.resultChan <- nil
 			case *transactions.Transaction_StakeTransaction:
 				sigHash, err := tx.StakeTransaction.SigHash()
@@ -207,6 +245,12 @@ func (p *proofValidator) validateHandler() {
 					Nullifier: tx.StakeTransaction.Nullifier,
 					Blocktime: p.blockTime,
 				}
+				proofHash := types.NewIDFromData(tx.StakeTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.StakeTransaction.Proof)
+				if exists {
+					p.resultChan <- nil
+					break
+				}
 				valid, err := zk.ValidateSnark(stake.StakeCircuit, &params, tx.StakeTransaction.Proof)
 				if err != nil {
 					p.resultChan <- err
@@ -216,6 +260,7 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
 					break
 				}
+				p.proofCache.Add(proofHash, tx.StakeTransaction.Proof)
 				p.resultChan <- nil
 			}
 		case <-p.done:

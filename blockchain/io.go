@@ -286,3 +286,17 @@ func dsDeleteNullifiers(dbtx datastore.Txn, nullifiers []types.Nullifier) error 
 	}
 	return nil
 }
+
+func dsPutTxoSetRoot(dbtx datastore.Txn, txoRoot types.ID) error {
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.TxoRootKeyPrefix+txoRoot.String()), []byte{})
+}
+
+func dsTxoSetRootExists(ds repo.Datastore, txoRoot types.ID) (bool, error) {
+	_, err := ds.Get(context.Background(), datastore.NewKey(repo.TxoRootKeyPrefix+txoRoot.String()))
+	if err == datastore.ErrNotFound {
+		return false, nil
+	} else if err == nil {
+		return true, nil
+	}
+	return false, err
+}

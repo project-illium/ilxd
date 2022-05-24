@@ -33,6 +33,8 @@ const (
 	NullifierSetLastFlushHeight = "/ilxd/nullifiersetlastflushheight/"
 	// NullifierSetConsistencyStatusKey is the datastore key for the validator set flush state.
 	NullifierSetConsistencyStatusKey = "/ilxd/nullifiersetconsistencystatus/"
+	// TxoRootKeyPrefix is the datastore key prefix for storing a txo root in the database.
+	TxoRootKeyPrefix = "/ilxd/txoroot/"
 )
 
 type Datastore interface {

@@ -6,7 +6,6 @@ package blockchain
 
 import (
 	"bytes"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
@@ -119,7 +118,8 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 
 	var (
 		blockNullifiers   = make(map[types.Nullifier]bool)
-		stakeTransactions []*transactions.StakeTransaction
+		stakeTransactions = make([]*transactions.StakeTransaction, 0, len(blk.Transactions))
+		sigsToValidate    = make([]*transactions.Transaction, 0, len(blk.Transactions))
 	)
 
 	for _, t := range blk.GetTransactions() {
@@ -128,58 +128,30 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			if err := validateOutputs(tx.CoinbaseTransaction.Outputs); err != nil {
 				return err
 			}
-
+			sigsToValidate = append(sigsToValidate, t)
 			validatorID, err := peer.IDFromBytes(tx.CoinbaseTransaction.Validator_ID)
 			if err != nil {
-				return ruleError(ErrInvalidTx, "coinbase validator ID does not decode")
+				return ruleError(ErrInvalidTx, "coinbase tx validator ID does not decode")
 			}
-
-			validatorPubkey, err := validatorID.ExtractPublicKey()
+			validator, err := b.vs.GetValidator(validatorID)
 			if err != nil {
-				return ruleError(ErrInvalidTx, "coinbase validator pubkey invalid")
+				return ruleError(ErrInvalidTx, "validator does not exist in validator set")
 			}
-
-			if !flags.HasFlag(BFFastAdd) {
-				sigHash, err := tx.CoinbaseTransaction.SigHash()
-				if err != nil {
-					return err
-				}
-				valid, err := validatorPubkey.Verify(sigHash, tx.CoinbaseTransaction.Signature)
-				if !valid {
-					return ruleError(ErrInvalidTx, "invalid signature on coinbase tx")
-				}
-				if err != nil {
-					return err
-				}
+			if tx.CoinbaseTransaction.NewCoins > validator.unclaimedCoins {
+				return ruleError(ErrInvalidTx, "coinbase transaction creates too many coins")
 			}
-			// TODO: validate amount against validator set
 		case *transactions.Transaction_StakeTransaction:
 			if tx.StakeTransaction.Nullifier == nil {
 				return ruleError(ErrInvalidTx, "stake transaction missing nullifier")
 			}
 			stakeTransactions = append(stakeTransactions, tx.StakeTransaction)
-			validatorID, err := peer.IDFromBytes(tx.StakeTransaction.Validator_ID)
+			sigsToValidate = append(sigsToValidate, t)
+			exists, err := b.trs.Exists(types.NewID(tx.StakeTransaction.TxoRoot))
 			if err != nil {
-				return ruleError(ErrInvalidTx, "stake tx validator ID does not decode")
+				return err
 			}
-
-			validatorPubkey, err := validatorID.ExtractPublicKey()
-			if err != nil {
-				return ruleError(ErrInvalidTx, "stake tx validator pubkey invalid")
-			}
-
-			if !flags.HasFlag(BFFastAdd) {
-				sigHash, err := tx.StakeTransaction.SigHash()
-				if err != nil {
-					return err
-				}
-				valid, err := validatorPubkey.Verify(sigHash, tx.StakeTransaction.Signature)
-				if !valid {
-					return ruleError(ErrInvalidTx, "invalid signature on stake tx")
-				}
-				if err != nil {
-					return err
-				}
+			if !exists {
+				return ruleError(ErrInvalidTx, "txo root does not exist in chain")
 			}
 		case *transactions.Transaction_StandardTransaction:
 			if len(tx.StandardTransaction.Nullifiers) == 0 {
@@ -203,7 +175,13 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 
 				blockNullifiers[nullifier] = true
 			}
-			// TODO: validate tx root
+			exists, err := b.trs.Exists(types.NewID(tx.StandardTransaction.TxoRoot))
+			if err != nil {
+				return err
+			}
+			if !exists {
+				return ruleError(ErrInvalidTx, "txo root does not exist in chain")
+			}
 		case *transactions.Transaction_MintTransaction:
 			if len(tx.MintTransaction.Nullifiers) == 0 {
 				return ruleError(ErrInvalidTx, "transaction missing nullifier(s)")
@@ -240,25 +218,14 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				return ruleError(ErrUnknownTxEnum, "unknown mint transaction type")
 			}
 
-			mintPubkey, err := crypto.UnmarshalPublicKey(tx.MintTransaction.MintKey)
+			sigsToValidate = append(sigsToValidate, t)
+			exists, err := b.trs.Exists(types.NewID(tx.MintTransaction.TxoRoot))
 			if err != nil {
-				return ruleError(ErrInvalidTx, "mint tx mint pubkey invalid")
+				return err
 			}
-
-			if !flags.HasFlag(BFFastAdd) {
-				sigHash, err := tx.MintTransaction.SigHash()
-				if err != nil {
-					return err
-				}
-				valid, err := mintPubkey.Verify(sigHash, tx.MintTransaction.Signature)
-				if !valid {
-					return ruleError(ErrInvalidTx, "invalid signature on mint tx")
-				}
-				if err != nil {
-					return err
-				}
+			if !exists {
+				return ruleError(ErrInvalidTx, "txo root does not exist in chain")
 			}
-			// TODO: validate tx root
 		case *transactions.Transaction_TreasuryTransaction:
 			if err := validateOutputs(tx.TreasuryTransaction.Outputs); err != nil {
 				return err
@@ -284,8 +251,12 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 	}
 
 	if !flags.HasFlag(BFFastAdd) {
-		validator := NewProofValidator(time.Unix(blk.Header.Timestamp, 0))
-		if err := validator.Validate(blk.Transactions); err != nil {
+		proofValidator := NewProofValidator(time.Unix(blk.Header.Timestamp, 0), b.proofCache)
+		if err := proofValidator.Validate(blk.Transactions); err != nil {
+			return err
+		}
+		sigValidator := NewSigValidator(b.sigCache)
+		if err := sigValidator.Validate(blk.Transactions); err != nil {
 			return err
 		}
 	}
