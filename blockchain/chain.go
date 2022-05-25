@@ -22,15 +22,12 @@ const (
 	// flushPeriodic will flush if a certain time interval has passed since the last
 	// flush.
 	flushPeriodic
-
-	// flushIfNeeded will flush if the cache goes over the max size in memeory.
-	flushIfNeeded
 )
 
 type Blockchain struct {
 	ds                repo.Datastore
 	index             *blockIndex
-	accumulator       *Accumulator
+	accumulatorDB     *AccumulatorDB
 	validatorSet      *ValidatorSet
 	nullifierSet      *NullifierSet
 	txoRootSet        *TxoRootSet
@@ -70,7 +67,7 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 			return err
 		}
 		if exists {
-			return AssertError(ErrDuplicateBlock)
+			return ruleError(ErrDuplicateBlock, "duplicate block")
 		}
 	}
 
@@ -89,9 +86,10 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	if err := dsPutBlock(dbtx, blk); err != nil {
 		return err
 	}
-
-	b.index.ExtendIndex(blk.Header)
-	if err := b.index.Commit(dbtx); err != nil {
+	if err := dsPutBlockIDFromHeight(dbtx, blk.ID(), blk.Header.Height); err != nil {
+		return err
+	}
+	if err := dsPutBlockIndexState(dbtx, &blockNode{blockID: blk.ID(), height: blk.Header.Height}); err != nil {
 		return err
 	}
 
@@ -99,30 +97,37 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		return err
 	}
 
-	accumulatorCpy := *b.accumulator
+	accumulator := b.accumulatorDB.Accumulator()
 
+	treasuryWidthdrawl := uint64(0)
 	for _, t := range blk.Transactions {
 		switch tx := t.GetTx().(type) {
 		case *transactions.Transaction_StandardTransaction:
 			for _, out := range tx.StandardTransaction.Outputs {
-				accumulatorCpy.Insert(out.Commitment, false)
+				accumulator.Insert(out.Commitment, false)
 			}
 		case *transactions.Transaction_CoinbaseTransaction:
 			for _, out := range tx.CoinbaseTransaction.Outputs {
-				accumulatorCpy.Insert(out.Commitment, false)
+				accumulator.Insert(out.Commitment, false)
 			}
 		case *transactions.Transaction_MintTransaction:
 			for _, out := range tx.MintTransaction.Outputs {
-				accumulatorCpy.Insert(out.Commitment, false)
+				accumulator.Insert(out.Commitment, false)
 			}
 		case *transactions.Transaction_TreasuryTransaction:
+			treasuryWidthdrawl += tx.TreasuryTransaction.Amount
 			for _, out := range tx.TreasuryTransaction.Outputs {
-				accumulatorCpy.Insert(out.Commitment, false)
+				accumulator.Insert(out.Commitment, false)
 			}
 		}
 	}
+	if treasuryWidthdrawl > 0 {
+		if err := dsDebitTreasury(dbtx, treasuryWidthdrawl); err != nil {
+			return err
+		}
+	}
 
-	if err := b.txoRootSet.Add(dbtx, accumulatorCpy.Root()); err != nil {
+	if err := b.txoRootSet.Add(dbtx, accumulator.Root()); err != nil {
 		return err
 	}
 
@@ -130,15 +135,22 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		return err
 	}
 
+	b.index.ExtendIndex(blk.Header)
+
+	// The following commits the changes to memory atomically so we don't need to worry about
+	// rolling back the changes if the rest of this function errors. The only possible error is
+	// an error flushing to disk, which we will just log. Any errors we should be able to repair
+	// later.
 	if err := b.validatorSet.CommitBlock(blk, flushPeriodic); err != nil {
-		return err
+		log.Errorf("Commit Block: Error flushing validator set: %s", err.Error())
 	}
 
-	// TODO: commit accumulator to disk
+	if err := b.accumulatorDB.Commit(accumulator, blk.Header.Height, flushPeriodic); err != nil {
+		log.Errorf("Commit Block: Error flushing accumulator: %s", err.Error())
+	}
+
 	// TODO: update indexers
-	// TODO: put the txoroot to the disk
-	// TODO: commit changes to the treasury
-	// TODO: commit balance changes if epoch
+	// TODO: commit unclaimed coins changes if epoch
 	// TODO: notify subscribers of new block
 
 	return nil

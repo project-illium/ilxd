@@ -54,19 +54,7 @@ func (ns *NullifierSet) AddNullifiers(dbtx datastore.Txn, nullifiers []types.Nul
 	ns.mtx.Lock()
 	defer ns.mtx.Unlock()
 
-	if err := dsPutNullifiers(dbtx, nullifiers); err != nil {
-		return err
-	}
-
-	if ns.maxEntries <= 0 {
-		return nil
-	}
-
-	ns.limitCache(len(nullifiers))
-	for _, n := range nullifiers {
-		ns.cachedEntries[n] = true
-	}
-	return nil
+	return dsPutNullifiers(dbtx, nullifiers)
 }
 
 func (ns *NullifierSet) limitCache(newEntries int) {

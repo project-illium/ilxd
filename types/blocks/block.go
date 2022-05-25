@@ -99,6 +99,31 @@ func (b *Block) Nullifiers() []types.Nullifier {
 	return nullifiers
 }
 
+func (b *Block) Outputs() []*transactions.Output {
+	outputs := make([]*transactions.Output, 0, len(b.Transactions))
+	for _, t := range b.Transactions {
+		switch tx := t.GetTx().(type) {
+		case *transactions.Transaction_StandardTransaction:
+			for _, out := range tx.StandardTransaction.Outputs {
+				outputs = append(outputs, out)
+			}
+		case *transactions.Transaction_CoinbaseTransaction:
+			for _, out := range tx.CoinbaseTransaction.Outputs {
+				outputs = append(outputs, out)
+			}
+		case *transactions.Transaction_MintTransaction:
+			for _, out := range tx.MintTransaction.Outputs {
+				outputs = append(outputs, out)
+			}
+		case *transactions.Transaction_TreasuryTransaction:
+			for _, out := range tx.TreasuryTransaction.Outputs {
+				outputs = append(outputs, out)
+			}
+		}
+	}
+	return outputs
+}
+
 func (b *Block) Serialize() ([]byte, error) {
 	return proto.Marshal(b)
 }

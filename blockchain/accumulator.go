@@ -199,6 +199,47 @@ func (a *Accumulator) DropProof(data []byte) {
 	delete(a.proofs, types.NewID(n))
 }
 
+// Clone returns a copy of the accumulator. Modifications to the copy will not
+// affect the original.
+func (a *Accumulator) Clone() *Accumulator {
+	acc := make([][]byte, len(a.acc))
+	copy(acc, a.acc)
+
+	proofs := make(map[types.ID]*InclusionProof)
+	for key, proof := range a.proofs {
+		i := InclusionProof{
+			ID:    proof.ID,
+			Flags: proof.Flags,
+			Index: proof.Index,
+			last:  nil,
+		}
+		copy(i.Accumulator, proof.Accumulator)
+		copy(i.Hashes, proof.Hashes)
+		copy(i.last, proof.last)
+		proofs[key] = &i
+	}
+	lookupMap := make(map[types.ID]*InclusionProof)
+	for key, proof := range a.lookupMap {
+		i := InclusionProof{
+			ID:    proof.ID,
+			Flags: proof.Flags,
+			Index: proof.Index,
+			last:  nil,
+		}
+		copy(i.Accumulator, proof.Accumulator)
+		copy(i.Hashes, proof.Hashes)
+		copy(i.last, proof.last)
+		lookupMap[key] = &i
+	}
+
+	return &Accumulator{
+		acc:       acc,
+		nElements: a.nElements,
+		proofs:    proofs,
+		lookupMap: lookupMap,
+	}
+}
+
 // The Insert method often checks the value of the accumulator element
 // at index len(acc) which would cause an index out of range panic. So
 // This function not only adds the data to the accumulator, but increases

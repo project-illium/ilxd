@@ -17,6 +17,10 @@ const (
 	ValidatorSetLastFlushHeight = "/ilxd/validatorsetlastflushheight/"
 	// ValidatorSetConsistencyStatusKey is the datastore key for the validator set flush state.
 	ValidatorSetConsistencyStatusKey = "/ilxd/validatorsetconsistencystatus/"
+	// AccumulatorConsistencyStatusKey is the datastore key for the accumulator flush state.
+	AccumulatorConsistencyStatusKey = "/ilxd/accumulatorconsistencystatus/"
+	// AccumulatorLastFlushHeight is the datastore key for last flush height of the accumulator.
+	AccumulatorLastFlushHeight = "/ilxd/accumulatorlastflushheight/"
 	// BlockByHeightKeyPrefix is the datastore key prefix for mapping block heights to block IDs.
 	BlockByHeightKeyPrefix = "/ilxd/blockbyheight/"
 	// BlockKeyPrefix is the datastore key prefix for storing block headers by blockID.
@@ -31,8 +35,10 @@ const (
 	NullifierKeyPrefix = "/ilxd/nullifier/"
 	// TxoRootKeyPrefix is the datastore key prefix for storing a txo root in the database.
 	TxoRootKeyPrefix = "/ilxd/txoroot/"
-	// TreasuryBalanceKey is the key for storing the balance of the treasury in the database.
+	// TreasuryBalanceKey is the datastire key for storing the balance of the treasury in the database.
 	TreasuryBalanceKey = "/ilxd/treasury/"
+	// AccumulatorStateKey is the datastore key for storing the accumulator state.
+	AccumulatorStateKey = "ilxd/accumulator/"
 )
 
 type Datastore interface {

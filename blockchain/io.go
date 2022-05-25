@@ -7,6 +7,7 @@ package blockchain
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
@@ -16,7 +17,6 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"strconv"
 )
 
 func serializeValidator(v *Validator) ([]byte, error) {
@@ -87,6 +87,71 @@ func deserializeBlockNode(ser []byte) (*blockNode, error) {
 	}, nil
 }
 
+func serializeAccumulator(accumulator *Accumulator) ([]byte, error) {
+	proofs := make([]*pb.DBAccumulator_InclusionProof, 0, len(accumulator.proofs))
+	for id, p := range accumulator.proofs {
+		proofs = append(proofs, &pb.DBAccumulator_InclusionProof{
+			Key:    id.Bytes(),
+			Id:     p.ID.Bytes(),
+			Index:  p.Index,
+			Hashes: p.Hashes,
+			Flags:  p.Flags,
+			Last:   p.last,
+		})
+	}
+	lookUpMap := make([]*pb.DBAccumulator_InclusionProof, 0, len(accumulator.lookupMap))
+	for id, p := range accumulator.lookupMap {
+		lookUpMap = append(lookUpMap, &pb.DBAccumulator_InclusionProof{
+			Key:    id.Bytes(),
+			Id:     p.ID.Bytes(),
+			Index:  p.Index,
+			Hashes: p.Hashes,
+			Flags:  p.Flags,
+			Last:   p.last,
+		})
+	}
+	dbAcc := &pb.DBAccumulator{
+		Accumulator: accumulator.acc,
+		NElements:   accumulator.nElements,
+		Proofs:      proofs,
+		LookupMap:   lookUpMap,
+	}
+
+	return proto.Marshal(dbAcc)
+}
+
+func deserializeAccumulator(ser []byte) (*Accumulator, error) {
+	var dbAcc pb.DBAccumulator
+	if err := proto.Unmarshal(ser, &dbAcc); err != nil {
+		return nil, err
+	}
+	acc := &Accumulator{
+		acc:       dbAcc.Accumulator,
+		nElements: dbAcc.NElements,
+		proofs:    make(map[types.ID]*InclusionProof),
+		lookupMap: make(map[types.ID]*InclusionProof),
+	}
+	for _, entry := range dbAcc.Proofs {
+		acc.proofs[types.NewID(entry.Key)] = &InclusionProof{
+			ID:     types.NewID(entry.Id),
+			Hashes: entry.Hashes,
+			Flags:  entry.Flags,
+			Index:  entry.Index,
+			last:   entry.Last,
+		}
+	}
+	for _, entry := range dbAcc.LookupMap {
+		acc.lookupMap[types.NewID(entry.Key)] = &InclusionProof{
+			ID:     types.NewID(entry.Id),
+			Hashes: entry.Hashes,
+			Flags:  entry.Flags,
+			Index:  entry.Index,
+			last:   entry.Last,
+		}
+	}
+	return acc, nil
+}
+
 func dsFetchHeader(ds repo.Datastore, blockID types.ID) (*blocks.BlockHeader, error) {
 	serialized, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+blockID.String()))
 	if err != nil {
@@ -154,7 +219,7 @@ func dsFetchBlock(ds repo.Datastore, blockID types.ID) (*blocks.Block, error) {
 }
 
 func dsFetchBlockIDFromHeight(ds repo.Datastore, height uint32) (types.ID, error) {
-	blockIDBytes, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockByHeightKeyPrefix+strconv.Itoa(int(height))))
+	blockIDBytes, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))))
 	if err != nil {
 		return types.ID{}, err
 	}
@@ -162,7 +227,7 @@ func dsFetchBlockIDFromHeight(ds repo.Datastore, height uint32) (types.ID, error
 }
 
 func dsPutBlockIDFromHeight(dbtx datastore.Txn, blockID types.ID, height uint32) error {
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockByHeightKeyPrefix+strconv.Itoa(int(height))), blockID[:])
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))), blockID[:])
 }
 
 func dsPutBlockIndexState(dbtx datastore.Txn, node *blockNode) error {
@@ -268,10 +333,17 @@ func dsTxoSetRootExists(ds repo.Datastore, txoRoot types.ID) (bool, error) {
 	return ds.Has(context.Background(), datastore.NewKey(repo.TxoRootKeyPrefix+txoRoot.String()))
 }
 
-func dsPutTreasuryBalance(dbtx datastore.Txn, balance uint64) error {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, balance)
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey), b)
+func dsDebitTreasury(dbtx datastore.Txn, amount uint64) error {
+	balanceBytes, err := dbtx.Get(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey))
+	if err != nil {
+		return err
+	}
+	balance := binary.BigEndian.Uint64(balanceBytes)
+	balance -= amount
+
+	newBalance := make([]byte, 8)
+	binary.BigEndian.PutUint64(newBalance, balance)
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey), newBalance)
 }
 
 func dsFetchTreasuryBalance(ds repo.Datastore) (uint64, error) {
@@ -285,6 +357,46 @@ func dsFetchTreasuryBalance(ds repo.Datastore) (uint64, error) {
 	return binary.BigEndian.Uint64(balance), nil
 }
 
-func dsPutAccumulatorToDisk(accumulator *Accumulator, dbtx datastore.Txn) error {
+func dsPutAccumulator(dbtx datastore.Txn, accumulator *Accumulator) error {
+	ser, err := serializeAccumulator(accumulator)
+	if err != nil {
+		return err
+	}
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.AccumulatorStateKey), ser)
+}
 
+func dsFetchAccumulator(ds repo.Datastore) (*Accumulator, error) {
+	ser, err := ds.Get(context.Background(), datastore.NewKey(repo.AccumulatorStateKey))
+	if err != nil {
+		return nil, err
+	}
+	return deserializeAccumulator(ser)
+}
+
+func dsPutAccumulatorConsistencyStatus(ds repo.Datastore, status setConsistencyStatus) error {
+	b := make([]byte, 2)
+	binary.BigEndian.PutUint16(b, uint16(status))
+	return ds.Put(context.Background(), datastore.NewKey(repo.AccumulatorConsistencyStatusKey), b)
+}
+
+func dsFetchAccumulatorSetConsistencyStatus(ds repo.Datastore) (setConsistencyStatus, error) {
+	b, err := ds.Get(context.Background(), datastore.NewKey(repo.AccumulatorConsistencyStatusKey))
+	if err != nil {
+		return 0, err
+	}
+	return setConsistencyStatus(binary.BigEndian.Uint16(b)), nil
+}
+
+func dsPutAccumulatorLastFlushHeight(dbtx datastore.Txn, height uint32) error {
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, height)
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.AccumulatorLastFlushHeight), b)
+}
+
+func dsFetchAccumulatorLastFlushHeight(ds repo.Datastore) (uint32, error) {
+	b, err := ds.Get(context.Background(), datastore.NewKey(repo.AccumulatorLastFlushHeight))
+	if err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint32(b), nil
 }

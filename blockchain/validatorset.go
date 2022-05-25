@@ -183,6 +183,14 @@ func (vs *ValidatorSet) NullifierExists(nullifier types.Nullifier) bool {
 	return ok
 }
 
+func (vs *ValidatorSet) TotalStaked() uint64 {
+	total := uint64(0)
+	for _, val := range vs.validators {
+		total += val.TotalStake
+	}
+	return total
+}
+
 // CommitBlock commits the changes to the validator set found in the block into the set.
 // This function is fully atomic, if an error is returned, not changes are committed.
 // It is expected that the block is fully validated before calling this method.

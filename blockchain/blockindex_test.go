@@ -72,7 +72,7 @@ func populateDatabase(ds repo.Datastore, nBlocks int) error {
 	if err := dsPutBlockIndexState(dbtx, &blockNode{
 		ds:      ds,
 		blockID: prev.ID(),
-		height:  5000,
+		height:  uint32(nBlocks - 1),
 	}); err != nil {
 		return err
 	}
@@ -98,6 +98,9 @@ func TestBlockIndex(t *testing.T) {
 	for i := 0; i < 5000; i++ {
 		node, err = node.Parent()
 		assert.NoError(t, err)
+		if node.height == 0 {
+			break
+		}
 	}
 
 	// Traverse forward from genesis to tip
@@ -118,22 +121,8 @@ func TestBlockIndex(t *testing.T) {
 
 	// Create new header and extend the index
 	newHeader := randomBlockHeader(5001, index.Tip().ID())
+
 	index.ExtendIndex(newHeader)
-
+	assert.Equal(t, newHeader.Height, index.Tip().height)
 	assert.Equal(t, newHeader.ID(), index.Tip().ID())
-
-	// Commit the new tip and check the db updated correctly
-	txn, err := ds.NewTransaction(context.Background(), false)
-	assert.NoError(t, err)
-
-	err = index.Commit(txn)
-	assert.NoError(t, err)
-
-	err = txn.Commit(context.Background())
-	assert.NoError(t, err)
-
-	node, err = dsFetchBlockIndexState(ds)
-	assert.NoError(t, err)
-	assert.Equal(t, newHeader.ID(), node.ID())
-	assert.Equal(t, newHeader.Height, node.Height())
 }

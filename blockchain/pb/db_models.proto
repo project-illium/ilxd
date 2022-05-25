@@ -34,10 +34,11 @@ message DBAccumulator {
         repeated InclusionProof lookupMap = 4;
 
         message InclusionProof {
-                bytes id = 1;
-                uint64 index = 2;
-                repeated bytes hashes = 3;
-                uint64 flags = 4;
-                bytes last = 5;
+                bytes key             = 1;
+                bytes id              = 2;
+                uint64 index          = 3;
+                repeated bytes hashes = 4;
+                uint64 flags          = 5;
+                bytes last            = 6;
         }
 }

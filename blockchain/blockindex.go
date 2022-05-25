@@ -5,10 +5,10 @@
 package blockchain
 
 import (
-	"github.com/ipfs/go-datastore"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
+	"sync"
 )
 
 const blockIndexCacheSize = 1000
@@ -98,6 +98,7 @@ type blockIndex struct {
 	tip           *blockNode
 	cacheByID     map[types.ID]*blockNode
 	cacheByHeight map[uint32]*blockNode
+	mtx           sync.RWMutex
 }
 
 // NewBlockIndex returns a new blockIndex.
@@ -106,6 +107,7 @@ func NewBlockIndex(ds repo.Datastore) *blockIndex {
 		ds:            ds,
 		cacheByID:     make(map[types.ID]*blockNode),
 		cacheByHeight: make(map[uint32]*blockNode),
+		mtx:           sync.RWMutex{},
 	}
 }
 
@@ -132,18 +134,18 @@ func (bi *blockIndex) Init() error {
 
 // Tip returns the blocknode at the tip of the chain.
 func (bi *blockIndex) Tip() *blockNode {
+	bi.mtx.RLock()
+	defer bi.mtx.RUnlock()
+
 	return bi.tip
 }
 
-// Commit commits the current tip of the index to the database.
-func (bi *blockIndex) Commit(dbtx datastore.Txn) error {
-	return dsPutBlockIndexState(dbtx, bi.tip)
-}
-
-// ExtendIndex updates the tip of the index with the provided header.
-// This does NOT commit the change to the database. For that you must
-// call Commit().
+// ExtendIndex extends the in-memory index and sets the header
+// as the new tip.
 func (bi *blockIndex) ExtendIndex(header *blocks.BlockHeader) {
+	bi.mtx.Lock()
+	defer bi.mtx.Unlock()
+
 	node := &blockNode{
 		ds:      bi.ds,
 		blockID: header.ID(),
@@ -162,6 +164,9 @@ func (bi *blockIndex) ExtendIndex(header *blocks.BlockHeader) {
 // returned from cache if it exists, otherwise it will be loaded from the
 // database.
 func (bi *blockIndex) GetNodeByHeight(height uint32) (*blockNode, error) {
+	bi.mtx.RLock()
+	defer bi.mtx.RUnlock()
+
 	node, ok := bi.cacheByHeight[height]
 	if ok {
 		return node, nil
@@ -196,6 +201,9 @@ func (bi *blockIndex) GetNodeByHeight(height uint32) (*blockNode, error) {
 // returned from cache if it exists, otherwise it will be loaded from the
 // database.
 func (bi *blockIndex) GetNodeByID(blockID types.ID) (*blockNode, error) {
+	bi.mtx.RLock()
+	defer bi.mtx.RUnlock()
+
 	node, ok := bi.cacheByID[blockID]
 	if ok {
 		return node, nil
