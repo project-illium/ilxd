@@ -6,10 +6,11 @@ package blockchain
 
 import (
 	"context"
+	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
-	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"math"
 	"sync"
 )
 
@@ -25,15 +26,15 @@ const (
 )
 
 type Blockchain struct {
-	ds                repo.Datastore
-	index             *blockIndex
-	accumulatorDB     *AccumulatorDB
-	validatorSet      *ValidatorSet
-	nullifierSet      *NullifierSet
-	txoRootSet        *TxoRootSet
-	sigCache          *SigCache
-	proofCache        *ProofCache
-	treasuryWhitelist map[types.ID]bool
+	params        *params.NetworkParams
+	ds            repo.Datastore
+	index         *blockIndex
+	accumulatorDB *AccumulatorDB
+	validatorSet  *ValidatorSet
+	nullifierSet  *NullifierSet
+	txoRootSet    *TxoRootSet
+	sigCache      *SigCache
+	proofCache    *ProofCache
 
 	stateLock sync.RWMutex
 }
@@ -75,6 +76,11 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		if err := b.validateBlock(blk, flags); err != nil {
 			return err
 		}
+	}
+
+	prevHeader, err := b.index.Tip().Header()
+	if err != nil {
+		return err
 	}
 
 	dbtx, err := b.ds.NewTransaction(context.Background(), false)
@@ -131,6 +137,22 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		return err
 	}
 
+	prevEpoch := (prevHeader.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
+	blkEpoch := (blk.Header.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
+	var validatorReward uint64
+	if blkEpoch > prevEpoch {
+		coinbase := calculateNextCoinbaseDistribution(b.params, blkEpoch)
+		if err := dsIncrementCurrentSupply(dbtx, coinbase); err != nil {
+			return err
+		}
+
+		treasuryCredit := coinbase / (100 / uint64(b.params.TreasuryPercentage))
+		if err := dsCreditTreasury(dbtx, treasuryCredit); err != nil {
+			return err
+		}
+
+		validatorReward = coinbase - treasuryCredit
+	}
 	if err := dbtx.Commit(context.Background()); err != nil {
 		return err
 	}
@@ -141,7 +163,7 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	// rolling back the changes if the rest of this function errors. The only possible error is
 	// an error flushing to disk, which we will just log. Any errors we should be able to repair
 	// later.
-	if err := b.validatorSet.CommitBlock(blk, flushPeriodic); err != nil {
+	if err := b.validatorSet.CommitBlock(blk, validatorReward, flushPeriodic); err != nil {
 		log.Errorf("Commit Block: Error flushing validator set: %s", err.Error())
 	}
 
@@ -150,8 +172,22 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	}
 
 	// TODO: update indexers
-	// TODO: commit unclaimed coins changes if epoch
 	// TODO: notify subscribers of new block
 
 	return nil
+}
+
+func calculateNextCoinbaseDistribution(params *params.NetworkParams, epoch int64) uint64 {
+	if epoch > params.InitialDistributionPeriods {
+		a := float64(params.TargetDistribution) * params.LongTermInflationRate
+		return uint64(a * math.Pow(1.0+params.LongTermInflationRate, float64(epoch-params.InitialDistributionPeriods)))
+	}
+
+	return uint64((params.AValue * math.Pow(1.0-params.DecayFactor, float64(epoch))) + (float64(params.TargetDistribution) * (params.LongTermInflationRate * params.RValue)))
+}
+
+func calculateNextValidatorReward(params *params.NetworkParams, epoch int64) uint64 {
+	coinbase := calculateNextCoinbaseDistribution(params, epoch)
+	treasuryCredit := coinbase / (100 / uint64(params.TreasuryPercentage))
+	return coinbase - treasuryCredit
 }

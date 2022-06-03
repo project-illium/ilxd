@@ -6,12 +6,18 @@ package main
 
 import (
 	"github.com/jessevdk/go-flags"
+	"github.com/project-illium/ilxd/limits"
 	"github.com/project-illium/ilxd/repo"
 	"os"
 	"os/signal"
 )
 
 func main() {
+	// Up some limits.
+	if err := limits.SetLimits(); err != nil {
+		log.Fatalf("failed to set limits: %v\n", err)
+	}
+
 	// Configure the command line parser.
 	var emptyCfg repo.Config
 	parser := flags.NewNamedParser("ilxd", flags.Default)

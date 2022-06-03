@@ -346,6 +346,19 @@ func dsDebitTreasury(dbtx datastore.Txn, amount uint64) error {
 	return dbtx.Put(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey), newBalance)
 }
 
+func dsCreditTreasury(dbtx datastore.Txn, amount uint64) error {
+	balanceBytes, err := dbtx.Get(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey))
+	if err != nil {
+		return err
+	}
+	balance := binary.BigEndian.Uint64(balanceBytes)
+	balance += amount
+
+	newBalance := make([]byte, 8)
+	binary.BigEndian.PutUint64(newBalance, balance)
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey), newBalance)
+}
+
 func dsFetchTreasuryBalance(ds repo.Datastore) (uint64, error) {
 	balance, err := ds.Get(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey))
 	if err == datastore.ErrNotFound {
@@ -399,4 +412,29 @@ func dsFetchAccumulatorLastFlushHeight(ds repo.Datastore) (uint32, error) {
 		return 0, err
 	}
 	return binary.BigEndian.Uint32(b), nil
+}
+
+func dsPutCurrentSupply(dbtx datastore.Txn, currentSupply uint64) error {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, currentSupply)
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.CoinSupplyKey), b)
+}
+
+func dsIncrementCurrentSupply(dbtx datastore.Txn, newCoins uint64) error {
+	currentSupply, err := dsFetchCurrentSupply(dbtx)
+	if err != nil {
+		return err
+	}
+
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, currentSupply+newCoins)
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.CoinSupplyKey), b)
+}
+
+func dsFetchCurrentSupply(dbtx datastore.Txn) (uint64, error) {
+	b, err := dbtx.Get(context.Background(), datastore.NewKey(repo.CoinSupplyKey))
+	if err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint64(b), nil
 }

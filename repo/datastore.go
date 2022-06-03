@@ -38,7 +38,9 @@ const (
 	// TreasuryBalanceKey is the datastire key for storing the balance of the treasury in the database.
 	TreasuryBalanceKey = "/ilxd/treasury/"
 	// AccumulatorStateKey is the datastore key for storing the accumulator state.
-	AccumulatorStateKey = "ilxd/accumulator/"
+	AccumulatorStateKey = "/ilxd/accumulator/"
+	// CoinSupplyKey is the datastore key for storing the current supply of coins.
+	CoinSupplyKey = "/ilxd/coinsupply/"
 )
 
 type Datastore interface {

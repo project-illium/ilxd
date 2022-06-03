@@ -11,6 +11,15 @@ import (
 	"time"
 )
 
+// MainnetGenesisBlock is the genesis block for the mainnet.
+//
+// Technically this is not a valid block and would not pass the normal validation
+// rules. The reason for this is because the genesis block needs to do two things
+// ― create new coins and stake them. Without at least one validator created in the
+// genesis block the chain cannot move forward. Normally however, a stake transaction
+// cannot stake a coinbase created in the same block since the stake's zk-snark proof
+// must make use of the block's txoRoot which isn't known until after the block is
+// connected.
 var MainnetGenesisBlock = blocks.Block{
 	Header: &blocks.BlockHeader{
 		Producer_ID: []byte{0x00}, //TODO

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
@@ -58,6 +59,7 @@ type Validator struct {
 }
 
 type ValidatorSet struct {
+	params       *params.NetworkParams
 	ds           repo.Datastore
 	validators   map[peer.ID]*Validator
 	nullifierMap map[types.Nullifier]*Validator
@@ -67,8 +69,9 @@ type ValidatorSet struct {
 	mtx          sync.RWMutex
 }
 
-func NewValidatorSet(ds repo.Datastore) (*ValidatorSet, error) {
+func NewValidatorSet(params *params.NetworkParams, ds repo.Datastore) (*ValidatorSet, error) {
 	vs := &ValidatorSet{
+		params:       params,
 		ds:           ds,
 		validators:   make(map[peer.ID]*Validator),
 		nullifierMap: make(map[types.Nullifier]*Validator),
@@ -128,7 +131,28 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 				if err != nil {
 					return err
 				}
-				if err := vs.CommitBlock(blk, flushPeriodic); err != nil {
+
+				validatorReward := uint64(0)
+
+				if blk.Header.Height > 0 {
+					parent, err := node.Parent()
+					if err != nil {
+						return err
+					}
+					prevHeader, err := parent.Header()
+					if err != nil {
+						return err
+					}
+
+					prevEpoch := (prevHeader.Timestamp - vs.params.GenesisBlock.Header.Timestamp) / vs.params.EpochLength
+					blkEpoch := (blk.Header.Timestamp - vs.params.GenesisBlock.Header.Timestamp) / vs.params.EpochLength
+
+					if blkEpoch > prevEpoch {
+						validatorReward = calculateNextValidatorReward(vs.params, blkEpoch)
+					}
+				}
+
+				if err := vs.CommitBlock(blk, validatorReward, flushPeriodic); err != nil {
 					return err
 				}
 				if node.height == tip.height {
@@ -184,6 +208,13 @@ func (vs *ValidatorSet) NullifierExists(nullifier types.Nullifier) bool {
 }
 
 func (vs *ValidatorSet) TotalStaked() uint64 {
+	vs.mtx.RLock()
+	defer vs.mtx.RUnlock()
+
+	return vs.totalStaked()
+}
+
+func (vs *ValidatorSet) totalStaked() uint64 {
 	total := uint64(0)
 	for _, val := range vs.validators {
 		total += val.TotalStake
@@ -194,7 +225,7 @@ func (vs *ValidatorSet) TotalStaked() uint64 {
 // CommitBlock commits the changes to the validator set found in the block into the set.
 // This function is fully atomic, if an error is returned, not changes are committed.
 // It is expected that the block is fully validated before calling this method.
-func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, flushMode flushMode) error {
+func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, flushMode flushMode) error {
 	vs.mtx.Lock()
 	defer vs.mtx.Unlock()
 
@@ -321,6 +352,13 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, flushMode flushMode) erro
 		if len(val.Nullifiers) == 0 {
 			vs.toDelete[val.PeerID] = struct{}{}
 			delete(vs.validators, val.PeerID)
+		}
+	}
+
+	if validatorReward > 0 {
+		totalStaked := vs.totalStaked()
+		for _, val := range vs.validators {
+			val.unclaimedCoins = validatorReward / (totalStaked / val.TotalStake)
 		}
 	}
 
