@@ -6,8 +6,10 @@ package blockchain
 
 import (
 	"context"
+	"github.com/project-illium/ilxd/blockchain/indexers"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"math"
@@ -25,6 +27,47 @@ const (
 	flushPeriodic
 )
 
+// Config specifies the blockchain configuration.
+type Config struct {
+	// ChainParams identifies which chain parameters the chain is associated
+	// with.
+	//
+	// This field is required.
+	Params *params.NetworkParams
+
+	// Datastore is an implementation of the repo.Datastore interface
+	//
+	// This field is required.
+	Datastore repo.Datastore
+
+	// SigCache caches signature validation so we don't need to expend
+	// extra CPU to validate signatures more than once.
+	//
+	// This field is required.
+	SigCache *SigCache
+
+	// ProofCache caches proof validation so we don't need to expend
+	// extra CPU to validate zk-snark proofs more than once.
+	//
+	// This field is required.
+	ProofCache *ProofCache
+
+	// Indexers is a list of indexers to initialize the chain with.
+	// These indexers will be notified whenever a new block is connected.
+	Indexers []indexers.Indexer
+
+	// MaxNullifiers is the maximum amount of nullifiers to hold in memory
+	// for fast access.
+	MaxNullifiers uint
+
+	// MaxTxoRoots is the maximum amount of TxoRoots to hold in memory for
+	// fast access.
+	MaxTxoRoots uint
+}
+
+// Blockchain is a class which handles all the functionality needed for maintaining
+// the state of the chain. This includes validating blocks, connecting blocks to the
+// chain and saving state to the database.
 type Blockchain struct {
 	params        *params.NetworkParams
 	ds            repo.Datastore
@@ -35,12 +78,61 @@ type Blockchain struct {
 	txoRootSet    *TxoRootSet
 	sigCache      *SigCache
 	proofCache    *ProofCache
+	indexManager  *indexers.IndexManager
 
+	// stateLock protects concurrent access to the chain state
 	stateLock sync.RWMutex
 }
 
-func NewBlockchain(ds repo.Datastore) *Blockchain {
-	return &Blockchain{}
+// NewBlockchain returns a fully initialized blockchain.
+func NewBlockchain(config *Config) (*Blockchain, error) {
+	if config == nil {
+		return nil, AssertError("NewBlockchain: blockchain config cannot be nil")
+	}
+	if config.Params == nil {
+		return nil, AssertError("NewBlockchain: params cannot be nil")
+	}
+	if config.Datastore == nil {
+		return nil, AssertError("NewBlockchain: datastore cannot be nil")
+	}
+	if config.SigCache == nil {
+		return nil, AssertError("NewBlockchain: sig cache cannot be nil")
+	}
+	if config.ProofCache == nil {
+		return nil, AssertError("NewBlockchain: proof cache cannot be nil")
+	}
+
+	b := &Blockchain{
+		params:        config.Params,
+		ds:            config.Datastore,
+		index:         NewBlockIndex(config.Datastore),
+		accumulatorDB: NewAccumulatorDB(config.Datastore),
+		validatorSet:  NewValidatorSet(config.Params, config.Datastore),
+		nullifierSet:  NewNullifierSet(config.Datastore, config.MaxNullifiers),
+		txoRootSet:    NewTxoRootSet(config.Datastore, config.MaxTxoRoots),
+		indexManager:  indexers.NewIndexManager(config.Datastore, config.Indexers),
+		sigCache:      config.SigCache,
+		proofCache:    config.ProofCache,
+		stateLock:     sync.RWMutex{},
+	}
+
+	if err := b.index.Init(); err != nil {
+		return nil, err
+	}
+
+	if err := b.accumulatorDB.Init(b.index.Tip()); err != nil {
+		return nil, err
+	}
+
+	if err := b.validatorSet.Init(b.index.Tip()); err != nil {
+		return nil, err
+	}
+
+	if err := b.indexManager.Init(b.index.Tip().Height(), b.GetBlockByHeight); err != nil {
+		return nil, err
+	}
+
+	return b, nil
 }
 
 func (b *Blockchain) CheckConnectBlock(blk *blocks.Block) error {
@@ -153,6 +245,10 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 
 		validatorReward = coinbase - treasuryCredit
 	}
+
+	if err := b.indexManager.ConnectBlock(dbtx, blk); err != nil {
+		return err
+	}
 	if err := dbtx.Commit(context.Background()); err != nil {
 		return err
 	}
@@ -171,10 +267,31 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		log.Errorf("Commit Block: Error flushing accumulator: %s", err.Error())
 	}
 
-	// TODO: update indexers
 	// TODO: notify subscribers of new block
 
 	return nil
+}
+
+func (b *Blockchain) GetBlockByHeight(height uint32) (*blocks.Block, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	node, err := b.index.GetNodeByHeight(height)
+	if err != nil {
+		return nil, err
+	}
+	return node.Block()
+}
+
+func (b *Blockchain) GetBlockByID(blockID types.ID) (*blocks.Block, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	node, err := b.index.GetNodeByID(blockID)
+	if err != nil {
+		return nil, err
+	}
+	return node.Block()
 }
 
 func calculateNextCoinbaseDistribution(params *params.NetworkParams, epoch int64) uint64 {

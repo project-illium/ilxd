@@ -69,7 +69,7 @@ type ValidatorSet struct {
 	mtx          sync.RWMutex
 }
 
-func NewValidatorSet(params *params.NetworkParams, ds repo.Datastore) (*ValidatorSet, error) {
+func NewValidatorSet(params *params.NetworkParams, ds repo.Datastore) *ValidatorSet {
 	vs := &ValidatorSet{
 		params:       params,
 		ds:           ds,
@@ -78,7 +78,7 @@ func NewValidatorSet(params *params.NetworkParams, ds repo.Datastore) (*Validato
 		toDelete:     make(map[peer.ID]struct{}),
 		mtx:          sync.RWMutex{},
 	}
-	return vs, nil
+	return vs
 }
 
 func (vs *ValidatorSet) Init(tip *blockNode) error {
@@ -118,12 +118,12 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 				err  error
 			)
 			for {
+				if node.height == lastFlushHeight+1 {
+					break
+				}
 				node, err = tip.Parent()
 				if err != nil {
 					return err
-				}
-				if node.height == lastFlushHeight {
-					break
 				}
 			}
 			for {

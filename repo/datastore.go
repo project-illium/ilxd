@@ -25,8 +25,6 @@ const (
 	BlockByHeightKeyPrefix = "/ilxd/blockbyheight/"
 	// BlockKeyPrefix is the datastore key prefix for storing block headers by blockID.
 	BlockKeyPrefix = "/ilxd/block/"
-	// TransactionKeyPrefix is the datastore key prefix mapping transactions to txid.
-	TransactionKeyPrefix = "/ilxd/tx/"
 	// BlockTxsKeyPrefix is the datastore key prefix mapping a block ID to a list of txids.
 	BlockTxsKeyPrefix = "/ilxd/blocktxs/"
 	// BlockIndexStateKey is the datastore key used to store the block index best state.
@@ -41,6 +39,10 @@ const (
 	AccumulatorStateKey = "/ilxd/accumulator/"
 	// CoinSupplyKey is the datastore key for storing the current supply of coins.
 	CoinSupplyKey = "/ilxd/coinsupply/"
+	// IndexerHeightKeyPrefix is the datastore key prefix for mapping indexers to sync heights.
+	IndexerHeightKeyPrefix = "/ilxd/indexerheight/"
+	// IndexKeyPrefix is the datastore key used by each indexer. This must be extended to use.
+	IndexKeyPrefix = "/ilxd/index/"
 )
 
 type Datastore interface {

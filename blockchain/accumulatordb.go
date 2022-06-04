@@ -58,13 +58,14 @@ func (adb *AccumulatorDB) Init(tip *blockNode) error {
 				err  error
 			)
 			for {
+				if node.height == lastFlushHeight+1 {
+					break
+				}
 				node, err = tip.Parent()
 				if err != nil {
 					return err
 				}
-				if node.height == lastFlushHeight {
-					break
-				}
+
 			}
 			for {
 				blk, err := node.Block()
