@@ -37,9 +37,18 @@ func (im *IndexManager) Init(tipHeight uint32, getBlock GetBlockFunc) error {
 	}
 	for _, indexer := range im.indexers {
 		height, err := dsFetchIndexHeight(dbtx, indexer)
-		if err != nil {
+		if err == datastore.ErrNotFound { // New index
+			genesis, err := getBlock(0)
+			if err != nil {
+				return err
+			}
+			if err := indexer.ConnectBlock(dbtx, genesis); err != nil {
+				return err
+			}
+		} else if err != nil {
 			return err
 		}
+
 		if height < tipHeight {
 			for n := height + 1; n <= tipHeight; n++ {
 				blk, err := getBlock(n)
@@ -80,9 +89,6 @@ func dsPutIndexerHeight(dbtx datastore.Txn, indexer Indexer, height uint32) erro
 
 func dsFetchIndexHeight(dbtx datastore.Txn, indexer Indexer) (uint32, error) {
 	heightBytes, err := dbtx.Get(context.Background(), datastore.NewKey(repo.IndexerHeightKeyPrefix+indexer.Key()))
-	if err == datastore.ErrNotFound {
-		return 0, nil
-	}
 	if err != nil {
 		return 0, err
 	}

@@ -112,6 +112,8 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		libp2p.Peerstore(pstore),
 
 		libp2p.DisableRelay(),
+
+		libp2p.EnableHolePunching(),
 	)
 
 	if !cfg.disableNatPortMap {

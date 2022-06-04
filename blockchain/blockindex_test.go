@@ -13,6 +13,7 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func mockBlockIndex(ds repo.Datastore, nBlocks int) (*blockIndex, error) {
@@ -35,6 +36,7 @@ func randomBlockHeader(height uint32, parent types.ID) *blocks.BlockHeader {
 		Version: 1,
 		Height:  height,
 		Parent:  parent[:],
+		TxRoot:  r,
 	}
 	return header
 }
@@ -46,6 +48,7 @@ func populateDatabase(ds repo.Datastore, nBlocks int) error {
 	}
 
 	prev := randomBlockHeader(0, [32]byte{})
+	prev.Timestamp = time.Now().Unix()
 	if err := dsPutHeader(dbtx, prev); err != nil {
 		return err
 	}
@@ -57,7 +60,7 @@ func populateDatabase(ds repo.Datastore, nBlocks int) error {
 	for i := uint32(1); i < uint32(nBlocks); i++ {
 		header := randomBlockHeader(i, prev.ID())
 		header.Parent = prev.ID().Bytes()
-
+		header.Timestamp = prev.Timestamp + 1
 		if err := dsPutHeader(dbtx, header); err != nil {
 			return err
 		}
