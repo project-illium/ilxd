@@ -13,38 +13,40 @@ import (
 	"testing"
 )
 
-func TestNullifierSet(t *testing.T) {
+func TestTxoRootSet(t *testing.T) {
 	ds := mock.NewMapDatastore()
-	ns := NewNullifierSet(ds, 5)
+	txo := NewTxoRootSet(ds, 5)
 
-	nullifiers := make([]types.Nullifier, 10)
-	for i := range nullifiers {
+	txoRoots := make([]types.ID, 10)
+	for i := range txoRoots {
 		b := make([]byte, 32)
 		rand.Read(b)
-		nullifiers[i] = types.NewNullifier(b)
+		txoRoots[i] = types.NewID(b)
 	}
 
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 
-	err = ns.AddNullifiers(dbtx, nullifiers)
-	assert.NoError(t, err)
+	for _, r := range txoRoots {
+		err = txo.AddRoot(dbtx, r)
+		assert.NoError(t, err)
+	}
 
 	err = dbtx.Commit(context.Background())
 	assert.NoError(t, err)
 
-	for _, n := range nullifiers {
-		exists, err := ns.NullifierExists(n)
+	for _, n := range txoRoots {
+		exists, err := txo.Exists(n)
 		assert.NoError(t, err)
 		assert.True(t, exists)
 	}
 
-	assert.EqualValues(t, 5, len(ns.cachedEntries))
+	assert.EqualValues(t, 5, len(txo.cache))
 
 	for i := 0; i < 10; i++ {
 		b := make([]byte, 32)
 		rand.Read(b)
-		exists, err := ns.NullifierExists(types.NewNullifier(b))
+		exists, err := txo.Exists(types.NewID(b))
 		assert.NoError(t, err)
 		assert.False(t, exists)
 	}

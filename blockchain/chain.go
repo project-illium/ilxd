@@ -225,7 +225,7 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		}
 	}
 
-	if err := b.txoRootSet.Add(dbtx, accumulator.Root()); err != nil {
+	if err := b.txoRootSet.AddRoot(dbtx, accumulator.Root()); err != nil {
 		return err
 	}
 

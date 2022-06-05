@@ -16,7 +16,7 @@ import (
 )
 
 func TestAvalancheEngine(t *testing.T) {
-	mocknet := mocknet.New(context.Background())
+	mocknet := mocknet.New()
 	numNodes := 150
 	numNoVotes := 0
 	numAlwaysNoVotes := 0

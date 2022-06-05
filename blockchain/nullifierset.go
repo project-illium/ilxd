@@ -11,6 +11,7 @@ import (
 	"sync"
 )
 
+// NullifierSet provides cached access to the nullifier set database.
 type NullifierSet struct {
 	ds            repo.Datastore
 	cachedEntries map[types.Nullifier]bool
@@ -18,6 +19,8 @@ type NullifierSet struct {
 	mtx           sync.RWMutex
 }
 
+// NewNullifierSet returns a new NullifierSet. maxEntries controls how
+// much memory is used for cache purposes.
 func NewNullifierSet(ds repo.Datastore, maxEntries uint) *NullifierSet {
 	return &NullifierSet{
 		ds:            ds,
@@ -27,6 +30,14 @@ func NewNullifierSet(ds repo.Datastore, maxEntries uint) *NullifierSet {
 	}
 }
 
+// NullifierExists returns whether or not the nullifier exists in the
+// nullifier set. If the entry is cached we'll return from memory, otherwise
+// we have to check the disk.
+//
+// After determining if the nullifier exists we'll update the cache with the
+// value. This is useful, for example, if the mempool checks the existence of
+// the nullifier, we cache it, then the blockchain doesn't need to hit the disk
+// a second time when validating the block.
 func (ns *NullifierSet) NullifierExists(nullifier types.Nullifier) (bool, error) {
 	ns.mtx.Lock()
 	defer ns.mtx.Unlock()
@@ -50,9 +61,21 @@ func (ns *NullifierSet) NullifierExists(nullifier types.Nullifier) (bool, error)
 	return exists, nil
 }
 
+// AddNullifiers adds the nullifiers to the database using the provided
+// database transaction.
 func (ns *NullifierSet) AddNullifiers(dbtx datastore.Txn, nullifiers []types.Nullifier) error {
 	ns.mtx.Lock()
 	defer ns.mtx.Unlock()
+
+	// We're just going to delete the cached entry here rather than
+	// update the cache. The reason for this it's unlikely we'll need
+	// to check if the nullifier exists again after adding it (this would
+	// only happen in a double spend). We also want to avoid having an
+	// incorrect value in the cache in case rollback was called on the
+	// database transaction.
+	for _, n := range nullifiers {
+		delete(ns.cachedEntries, n)
+	}
 
 	return dsPutNullifiers(dbtx, nullifiers)
 }

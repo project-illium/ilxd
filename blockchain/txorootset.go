@@ -38,7 +38,7 @@ func (t *TxoRootSet) Exists(txoRoot types.ID) (bool, error) {
 	return dsTxoSetRootExists(t.ds, txoRoot)
 }
 
-func (t *TxoRootSet) Add(dbtx datastore.Txn, txoRoot types.ID) error {
+func (t *TxoRootSet) AddRoot(dbtx datastore.Txn, txoRoot types.ID) error {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 
