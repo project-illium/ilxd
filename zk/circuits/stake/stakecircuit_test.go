@@ -94,7 +94,6 @@ func TestStakeCircuit(t *testing.T) {
 	assert.NoError(t, err)
 
 	privateParams := &stake.PrivateParams{
-		Amount:          note1.Amount,
 		AssetID:         note1.AssetID[:],
 		Salt:            note1.Salt[:],
 		CommitmentIndex: inclusionProof.Index,

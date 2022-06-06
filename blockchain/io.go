@@ -259,6 +259,9 @@ func dsPutValidatorSetConsistencyStatus(ds repo.Datastore, status setConsistency
 
 func dsFetchValidatorSetConsistencyStatus(ds repo.Datastore) (setConsistencyStatus, error) {
 	b, err := ds.Get(context.Background(), datastore.NewKey(repo.ValidatorSetConsistencyStatusKey))
+	if err == datastore.ErrNotFound {
+		return scsEmpty, nil
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -273,6 +276,9 @@ func dsPutValidatorLastFlushHeight(dbtx datastore.Txn, height uint32) error {
 
 func dsFetchValidatorLastFlushHeight(ds repo.Datastore) (uint32, error) {
 	b, err := ds.Get(context.Background(), datastore.NewKey(repo.ValidatorSetLastFlushHeight))
+	if err == datastore.ErrNotFound {
+		return 0, nil
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -394,6 +400,9 @@ func dsPutAccumulatorConsistencyStatus(ds repo.Datastore, status setConsistencyS
 
 func dsFetchAccumulatorSetConsistencyStatus(ds repo.Datastore) (setConsistencyStatus, error) {
 	b, err := ds.Get(context.Background(), datastore.NewKey(repo.AccumulatorConsistencyStatusKey))
+	if err == datastore.ErrNotFound {
+		return scsEmpty, nil
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -408,6 +417,9 @@ func dsPutAccumulatorLastFlushHeight(dbtx datastore.Txn, height uint32) error {
 
 func dsFetchAccumulatorLastFlushHeight(ds repo.Datastore) (uint32, error) {
 	b, err := ds.Get(context.Background(), datastore.NewKey(repo.AccumulatorLastFlushHeight))
+	if err == datastore.ErrNotFound {
+		return 0, nil
+	}
 	if err != nil {
 		return 0, err
 	}

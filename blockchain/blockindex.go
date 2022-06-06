@@ -153,7 +153,9 @@ func (bi *blockIndex) ExtendIndex(header *blocks.BlockHeader) {
 		parent:  bi.tip,
 		child:   nil,
 	}
-	bi.tip.child = node
+	if bi.tip != nil {
+		bi.tip.child = node
+	}
 	bi.tip = node
 	bi.cacheByID[node.blockID] = node
 	bi.cacheByHeight[node.height] = node

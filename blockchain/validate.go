@@ -45,6 +45,10 @@ const (
 	// again.
 	BFNoValidation
 
+	// BFGenesisValidation is the flag used to validate the genesis block
+	// using special validation rules.
+	BFGenesisValidation
+
 	// BFNone is a convenience value to specifically indicate no flags.
 	BFNone BehaviorFlags = 0
 )
@@ -70,33 +74,44 @@ func (b *Blockchain) checkBlockContext(header *blocks.BlockHeader) error {
 		return ruleError(ErrInvalidTimestamp, "timestamp is too early")
 	}
 
-	// TODO: verifying a block ID at a checkpoint height matches the checkpoint ID will be done here.
-	return nil
-}
-
-func (b *Blockchain) validateHeader(header *blocks.BlockHeader, flags BehaviorFlags) error {
 	producerID, err := peer.IDFromBytes(header.Producer_ID)
 	if err != nil {
 		return ruleError(ErrInvalidProducer, "block producer ID does not decode")
 	}
 
-	producerPubkey, err := producerID.ExtractPublicKey()
-	if err != nil {
-		return ruleError(ErrInvalidProducer, "block producer pubkey invalid")
+	if !b.validatorSet.ValidatorExists(producerID) {
+		return ruleError(ErrInvalidProducer, "block producer not in validator set")
 	}
 
-	if !flags.HasFlag(BFFastAdd) {
-		sigHash, err := header.SigHash()
+	// TODO: verifying a block ID at a checkpoint height matches the checkpoint ID will be done here.
+	return nil
+}
+
+func (b *Blockchain) validateHeader(header *blocks.BlockHeader, flags BehaviorFlags) error {
+	if !flags.HasFlag(BFGenesisValidation) {
+		producerID, err := peer.IDFromBytes(header.Producer_ID)
 		if err != nil {
-			return err
+			return ruleError(ErrInvalidProducer, "block producer ID does not decode")
 		}
 
-		valid, err := producerPubkey.Verify(sigHash, header.Signature)
-		if !valid {
-			return ruleError(ErrInvalidHeaderSignature, "invalid signature in header")
-		}
+		producerPubkey, err := producerID.ExtractPublicKey()
 		if err != nil {
-			return err
+			return ruleError(ErrInvalidProducer, "block producer pubkey invalid")
+		}
+
+		if !flags.HasFlag(BFFastAdd) {
+			sigHash, err := header.SigHash()
+			if err != nil {
+				return err
+			}
+
+			valid, err := producerPubkey.Verify(sigHash, header.Signature)
+			if !valid {
+				return ruleError(ErrInvalidHeaderSignature, "invalid signature in header")
+			}
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -140,12 +155,14 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			if err != nil {
 				return ruleError(ErrInvalidTx, "coinbase tx validator ID does not decode")
 			}
-			validator, err := b.validatorSet.GetValidator(validatorID)
-			if err != nil {
-				return ruleError(ErrInvalidTx, "validator does not exist in validator set")
-			}
-			if tx.CoinbaseTransaction.NewCoins > validator.unclaimedCoins {
-				return ruleError(ErrInvalidTx, "coinbase transaction creates too many coins")
+			if !flags.HasFlag(BFGenesisValidation) {
+				validator, err := b.validatorSet.GetValidator(validatorID)
+				if err != nil {
+					return ruleError(ErrInvalidTx, "validator does not exist in validator set")
+				}
+				if tx.CoinbaseTransaction.NewCoins > validator.unclaimedCoins {
+					return ruleError(ErrInvalidTx, "coinbase transaction creates too many coins")
+				}
 			}
 		case *transactions.Transaction_StakeTransaction:
 			if tx.StakeTransaction.Nullifier == nil {
@@ -153,14 +170,19 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			}
 			stakeTransactions = append(stakeTransactions, tx.StakeTransaction)
 			sigsToValidate = append(sigsToValidate, t)
-			exists, err := b.txoRootSet.Exists(types.NewID(tx.StakeTransaction.TxoRoot))
-			if err != nil {
-				return err
-			}
-			if !exists {
-				return ruleError(ErrInvalidTx, "txo root does not exist in chain")
+			if !flags.HasFlag(BFGenesisValidation) {
+				exists, err := b.txoRootSet.Exists(types.NewID(tx.StakeTransaction.TxoRoot))
+				if err != nil {
+					return err
+				}
+				if !exists {
+					return ruleError(ErrInvalidTx, "txo root does not exist in chain")
+				}
 			}
 		case *transactions.Transaction_StandardTransaction:
+			if flags.HasFlag(BFGenesisValidation) {
+				return ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
+			}
 			if len(tx.StandardTransaction.Nullifiers) == 0 {
 				return ruleError(ErrInvalidTx, "transaction missing nullifier(s)")
 			}
@@ -190,6 +212,9 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				return ruleError(ErrInvalidTx, "txo root does not exist in chain")
 			}
 		case *transactions.Transaction_MintTransaction:
+			if flags.HasFlag(BFGenesisValidation) {
+				return ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
+			}
 			if len(tx.MintTransaction.Nullifiers) == 0 {
 				return ruleError(ErrInvalidTx, "transaction missing nullifier(s)")
 			}
@@ -234,6 +259,9 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				return ruleError(ErrInvalidTx, "txo root does not exist in chain")
 			}
 		case *transactions.Transaction_TreasuryTransaction:
+			if flags.HasFlag(BFGenesisValidation) {
+				return ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
+			}
 			if err := validateOutputs(tx.TreasuryTransaction.Outputs); err != nil {
 				return err
 			}
@@ -261,6 +289,27 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 	for _, stakeTx := range stakeTransactions {
 		if blockNullifiers[types.NewNullifier(stakeTx.Nullifier)] {
 			return ruleError(ErrBlockStakeSpend, "stake created and spent in the same block")
+		}
+	}
+
+	if flags.HasFlag(BFGenesisValidation) {
+		if len(blk.Transactions) < 2 {
+			return ruleError(ErrInvalidGenesis, "genesis block must at least two txs")
+		}
+		coinbaseTx, ok := blk.Transactions[0].GetTx().(*transactions.Transaction_CoinbaseTransaction)
+		if !ok {
+			return ruleError(ErrInvalidGenesis, "first genesis transaction is not a coinbase")
+		}
+		acc := NewAccumulator()
+		for _, output := range coinbaseTx.CoinbaseTransaction.Outputs {
+			acc.Insert(output.Commitment, false)
+		}
+		txoRoot := acc.Root().Bytes()
+
+		for _, stakeTx := range stakeTransactions {
+			if !bytes.Equal(stakeTx.TxoRoot, txoRoot) {
+				return ruleError(ErrInvalidGenesis, "genesis stake txoroot invalid")
+			}
 		}
 	}
 

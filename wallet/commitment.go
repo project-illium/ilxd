@@ -5,10 +5,13 @@
 package wallet
 
 import (
+	"bytes"
 	"encoding/binary"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 )
+
+var IlliumCoinID = types.NewID(bytes.Repeat([]byte{0x00}, 32))
 
 const CommitmentLen = 32
 

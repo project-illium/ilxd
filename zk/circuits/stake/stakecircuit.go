@@ -13,7 +13,6 @@ import (
 )
 
 type PrivateParams struct {
-	Amount          uint64
 	AssetID         []byte
 	Salt            []byte
 	CommitmentIndex uint64
@@ -50,7 +49,7 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	spendScriptHash := hash.HashFunc(spendScriptPreimage)
 
 	amountBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(amountBytes, priv.Amount)
+	binary.BigEndian.PutUint64(amountBytes, pub.Amount)
 	commitmentPreimage := make([]byte, 0, 32+8+32+32)
 	commitmentPreimage = append(commitmentPreimage, spendScriptHash...)
 	commitmentPreimage = append(commitmentPreimage, amountBytes...)
@@ -81,10 +80,6 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	}
 	calculatedNullifier := hash.HashFunc(nullifierPreimage)
 	if !bytes.Equal(calculatedNullifier, pub.Nullifier) {
-		return false
-	}
-
-	if priv.Amount != pub.Amount {
 		return false
 	}
 

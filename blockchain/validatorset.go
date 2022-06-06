@@ -199,6 +199,14 @@ func (vs *ValidatorSet) GetValidator(id peer.ID) (*Validator, error) {
 	return cpy, nil
 }
 
+func (vs *ValidatorSet) ValidatorExists(id peer.ID) bool {
+	vs.mtx.RLock()
+	defer vs.mtx.RUnlock()
+
+	_, ok := vs.validators[id]
+	return ok
+}
+
 func (vs *ValidatorSet) NullifierExists(nullifier types.Nullifier) bool {
 	vs.mtx.RLock()
 	defer vs.mtx.RUnlock()

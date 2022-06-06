@@ -6,6 +6,7 @@ package blockchain
 
 import (
 	"context"
+	"github.com/ipfs/go-datastore"
 	"github.com/project-illium/ilxd/blockchain/indexers"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
@@ -27,44 +28,6 @@ const (
 	flushPeriodic
 )
 
-// Config specifies the blockchain configuration.
-type Config struct {
-	// ChainParams identifies which chain parameters the chain is associated
-	// with.
-	//
-	// This field is required.
-	Params *params.NetworkParams
-
-	// Datastore is an implementation of the repo.Datastore interface
-	//
-	// This field is required.
-	Datastore repo.Datastore
-
-	// SigCache caches signature validation so we don't need to expend
-	// extra CPU to validate signatures more than once.
-	//
-	// This field is required.
-	SigCache *SigCache
-
-	// ProofCache caches proof validation so we don't need to expend
-	// extra CPU to validate zk-snark proofs more than once.
-	//
-	// This field is required.
-	ProofCache *ProofCache
-
-	// Indexers is a list of indexers to initialize the chain with.
-	// These indexers will be notified whenever a new block is connected.
-	Indexers []indexers.Indexer
-
-	// MaxNullifiers is the maximum amount of nullifiers to hold in memory
-	// for fast access.
-	MaxNullifiers uint
-
-	// MaxTxoRoots is the maximum amount of TxoRoots to hold in memory for
-	// fast access.
-	MaxTxoRoots uint
-}
-
 // Blockchain is a class which handles all the functionality needed for maintaining
 // the state of the chain. This includes validating blocks, connecting blocks to the
 // chain and saving state to the database.
@@ -85,53 +48,56 @@ type Blockchain struct {
 }
 
 // NewBlockchain returns a fully initialized blockchain.
-func NewBlockchain(config *Config) (*Blockchain, error) {
-	if config == nil {
-		return nil, AssertError("NewBlockchain: blockchain config cannot be nil")
+func NewBlockchain(opts ...Option) (*Blockchain, error) {
+	var cfg config
+	for _, opt := range opts {
+		opt(&cfg)
 	}
-	if config.Params == nil {
-		return nil, AssertError("NewBlockchain: params cannot be nil")
-	}
-	if config.Datastore == nil {
-		return nil, AssertError("NewBlockchain: datastore cannot be nil")
-	}
-	if config.SigCache == nil {
-		return nil, AssertError("NewBlockchain: sig cache cannot be nil")
-	}
-	if config.ProofCache == nil {
-		return nil, AssertError("NewBlockchain: proof cache cannot be nil")
+
+	if err := cfg.validate(); err != nil {
+		return nil, err
 	}
 
 	b := &Blockchain{
-		params:        config.Params,
-		ds:            config.Datastore,
-		index:         NewBlockIndex(config.Datastore),
-		accumulatorDB: NewAccumulatorDB(config.Datastore),
-		validatorSet:  NewValidatorSet(config.Params, config.Datastore),
-		nullifierSet:  NewNullifierSet(config.Datastore, config.MaxNullifiers),
-		txoRootSet:    NewTxoRootSet(config.Datastore, config.MaxTxoRoots),
-		indexManager:  indexers.NewIndexManager(config.Datastore, config.Indexers),
-		sigCache:      config.SigCache,
-		proofCache:    config.ProofCache,
+		params:        cfg.params,
+		ds:            cfg.datastore,
+		index:         NewBlockIndex(cfg.datastore),
+		accumulatorDB: NewAccumulatorDB(cfg.datastore),
+		validatorSet:  NewValidatorSet(cfg.params, cfg.datastore),
+		nullifierSet:  NewNullifierSet(cfg.datastore, cfg.maxNullifiers),
+		txoRootSet:    NewTxoRootSet(cfg.datastore, cfg.maxTxoRoots),
+		indexManager:  indexers.NewIndexManager(cfg.datastore, cfg.indexers),
+		sigCache:      cfg.sigCache,
+		proofCache:    cfg.proofCache,
 		stateLock:     sync.RWMutex{},
 	}
 
-	if err := b.index.Init(); err != nil {
+	initialized, err := b.isInitialized()
+	if err != nil {
 		return nil, err
 	}
 
-	if err := b.accumulatorDB.Init(b.index.Tip()); err != nil {
-		return nil, err
-	}
+	if !initialized {
+		if err := b.ConnectBlock(&b.params.GenesisBlock, BFGenesisValidation); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := b.index.Init(); err != nil {
+			return nil, err
+		}
 
-	if err := b.validatorSet.Init(b.index.Tip()); err != nil {
-		return nil, err
-	}
+		if err := b.accumulatorDB.Init(b.index.Tip()); err != nil {
+			return nil, err
+		}
 
-	if err := b.indexManager.Init(b.index.Tip().Height(), b.GetBlockByHeight); err != nil {
-		return nil, err
-	}
+		if err := b.validatorSet.Init(b.index.Tip()); err != nil {
+			return nil, err
+		}
 
+		if err := b.indexManager.Init(b.index.Tip().Height(), b.GetBlockByHeight); err != nil {
+			return nil, err
+		}
+	}
 	return b, nil
 }
 
@@ -150,8 +116,10 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	b.stateLock.Lock()
 	defer b.stateLock.Unlock()
 
-	if err := b.checkBlockContext(blk.Header); err != nil {
-		return err
+	if !flags.HasFlag(BFGenesisValidation) {
+		if err := b.checkBlockContext(blk.Header); err != nil {
+			return err
+		}
 	}
 
 	if !flags.HasFlag(BFNoDupBlockCheck) {
@@ -168,11 +136,6 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		if err := b.validateBlock(blk, flags); err != nil {
 			return err
 		}
-	}
-
-	prevHeader, err := b.index.Tip().Header()
-	if err != nil {
-		return err
 	}
 
 	dbtx, err := b.ds.NewTransaction(context.Background(), false)
@@ -229,21 +192,27 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		return err
 	}
 
-	prevEpoch := (prevHeader.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
-	blkEpoch := (blk.Header.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
 	var validatorReward uint64
-	if blkEpoch > prevEpoch {
-		coinbase := calculateNextCoinbaseDistribution(b.params, blkEpoch)
-		if err := dsIncrementCurrentSupply(dbtx, coinbase); err != nil {
+	if !flags.HasFlag(BFGenesisValidation) {
+		prevHeader, err := b.index.Tip().Header()
+		if err != nil {
 			return err
 		}
+		prevEpoch := (prevHeader.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
+		blkEpoch := (blk.Header.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
+		if blkEpoch > prevEpoch {
+			coinbase := calculateNextCoinbaseDistribution(b.params, blkEpoch)
+			if err := dsIncrementCurrentSupply(dbtx, coinbase); err != nil {
+				return err
+			}
 
-		treasuryCredit := coinbase / (100 / uint64(b.params.TreasuryPercentage))
-		if err := dsCreditTreasury(dbtx, treasuryCredit); err != nil {
-			return err
+			treasuryCredit := coinbase / (100 / uint64(b.params.TreasuryPercentage))
+			if err := dsCreditTreasury(dbtx, treasuryCredit); err != nil {
+				return err
+			}
+
+			validatorReward = coinbase - treasuryCredit
 		}
-
-		validatorReward = coinbase - treasuryCredit
 	}
 
 	if err := b.indexManager.ConnectBlock(dbtx, blk); err != nil {
@@ -292,6 +261,16 @@ func (b *Blockchain) GetBlockByID(blockID types.ID) (*blocks.Block, error) {
 		return nil, err
 	}
 	return node.Block()
+}
+
+func (b *Blockchain) isInitialized() (bool, error) {
+	_, err := dsFetchBlockIDFromHeight(b.ds, 0)
+	if err == datastore.ErrNotFound {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func calculateNextCoinbaseDistribution(params *params.NetworkParams, epoch int64) uint64 {

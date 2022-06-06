@@ -61,3 +61,12 @@ var MainnetGenesisBlock = blocks.Block{
 		},
 	},
 }
+
+var RegtestGenesisBlock = blocks.Block{
+	Header: &blocks.BlockHeader{
+		Height:  0,
+		Parent:  make([]byte, 32),
+		Version: 1,
+	},
+	Transactions: []*transactions.Transaction{},
+}

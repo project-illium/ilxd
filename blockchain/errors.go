@@ -30,6 +30,7 @@ const (
 	ErrDoubleSpend
 	ErrBlockStakeSpend
 	ErrInvalidTx
+	ErrInvalidGenesis
 	ErrUnknownTxEnum
 )
 
@@ -46,6 +47,7 @@ var errorCodeStrings = map[ErrorCode]string{
 	ErrDoubleSpend:            "ErrDoubleSpend",
 	ErrBlockStakeSpend:        "ErrBlockStakeSpend",
 	ErrInvalidTx:              "ErrInvalidTx",
+	ErrInvalidGenesis:         "ErrInvalidGenesis",
 	ErrUnknownTxEnum:          "ErrUnknownTxEnum",
 }
 

@@ -243,7 +243,7 @@ func ValidateMultiSignature(threshold uint8, pubkeys [][]byte, signatures [][]by
 	sigIndex := 0
 	for i := 0; i < len(pubkeys); i++ {
 		f := uint8(1 << i)
-		if f&sigBitField > 1 {
+		if f&sigBitField >= 1 {
 			timeLock := binary.BigEndian.Uint64(pubkeys[i][32:])
 			if time.Unix(int64(timeLock), 0).After(blockTime) {
 				return false, nil
