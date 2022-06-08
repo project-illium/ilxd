@@ -157,11 +157,11 @@ func dsFetchHeader(ds repo.Datastore, blockID types.ID) (*blocks.BlockHeader, er
 	if err != nil {
 		return nil, err
 	}
-	var blockHeader blocks.BlockHeader
+	blockHeader := &blocks.BlockHeader{}
 	if err := blockHeader.Deserialize(serialized); err != nil {
 		return nil, err
 	}
-	return &blockHeader, nil
+	return blockHeader, nil
 }
 
 func dsPutHeader(dbtx datastore.Txn, header *blocks.BlockHeader) error {

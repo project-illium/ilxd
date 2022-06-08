@@ -241,41 +241,45 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 	nullifiersToAdd := make(map[types.Nullifier]peer.ID)
 	nullifiersToDelete := make(map[types.Nullifier]struct{})
 
-	producerID, err := peer.IDFromBytes(blk.Header.Producer_ID)
-	if err != nil {
-		return err
+	if blk.Header.Height > 0 {
+		producerID, err := peer.IDFromBytes(blk.Header.Producer_ID)
+		if err != nil {
+			return err
+		}
+
+		blockProducer, ok := vs.validators[producerID]
+		if !ok {
+			return errors.New("block producer not found in validator set")
+		}
+
+		blockProducerNew := &Validator{}
+		copyValidator(blockProducerNew, blockProducer)
+		blockProducerNew.epochBlocks++
+
+		updates[producerID] = blockProducerNew
 	}
-
-	blockProducer, ok := vs.validators[producerID]
-	if !ok {
-		return errors.New("block producer not found in validator set")
-	}
-
-	blockProducerNew := &Validator{}
-	copyValidator(blockProducerNew, blockProducer)
-	blockProducerNew.epochBlocks++
-
-	updates[producerID] = blockProducerNew
 
 	for _, t := range blk.GetTransactions() {
 		switch tx := t.GetTx().(type) {
 		case *transactions.Transaction_CoinbaseTransaction:
-			validatorID, err := peer.IDFromBytes(tx.CoinbaseTransaction.Validator_ID)
-			if err != nil {
-				return err
-			}
-
-			valNew, ok := updates[validatorID]
-			if !ok {
-				valOld, ok := vs.validators[validatorID]
-				if !ok {
-					return errors.New("coinbase transaction for validator not in set")
+			if blk.Header.Height > 0 {
+				validatorID, err := peer.IDFromBytes(tx.CoinbaseTransaction.Validator_ID)
+				if err != nil {
+					return err
 				}
-				valNew = &Validator{}
-				copyValidator(valNew, valOld)
+
+				valNew, ok := updates[validatorID]
+				if !ok {
+					valOld, ok := vs.validators[validatorID]
+					if !ok {
+						log.Warn("coinbase transaction for validator not in set")
+					}
+					valNew = &Validator{}
+					copyValidator(valNew, valOld)
+				}
+				valNew.unclaimedCoins -= tx.CoinbaseTransaction.NewCoins
+				updates[validatorID] = valNew
 			}
-			valNew.unclaimedCoins -= tx.CoinbaseTransaction.NewCoins
-			updates[validatorID] = valNew
 		case *transactions.Transaction_StakeTransaction:
 			validatorID, err := peer.IDFromBytes(tx.StakeTransaction.Validator_ID)
 			if err != nil {
@@ -286,10 +290,18 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 			if !ok {
 				valOld, ok := vs.validators[validatorID]
 				if !ok {
-					return errors.New("coinbase transaction for validator not in set")
+					valNew = &Validator{
+						PeerID:         validatorID,
+						TotalStake:     0,
+						Nullifiers:     make(map[types.Nullifier]Stake),
+						unclaimedCoins: 0,
+						epochBlocks:    0,
+						dirty:          true,
+					}
+				} else {
+					valNew = &Validator{}
+					copyValidator(valNew, valOld)
 				}
-				valNew = &Validator{}
-				copyValidator(valNew, valOld)
 			}
 			valNew.TotalStake += tx.StakeTransaction.Amount
 			valNew.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)] = Stake{
@@ -344,6 +356,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 	}
 
 	for _, val := range updates {
+		val.dirty = true
 		vs.validators[val.PeerID] = val
 	}
 

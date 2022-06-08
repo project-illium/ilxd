@@ -28,6 +28,7 @@ func DefaultOptions() Option {
 		cfg.spendKey = spendPriv
 		cfg.params = &params.RegestParams
 		cfg.datastore = mock.NewMapDatastore()
+		cfg.nTxsPerBlock = 1
 		cfg.initialCoins = (1 << 60) / 10
 		return nil
 	}

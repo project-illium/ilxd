@@ -65,7 +65,7 @@ type Accumulator struct {
 // NewAccumulator returns a new Accumulator.
 func NewAccumulator() *Accumulator {
 	return &Accumulator{
-		acc:       make([][]byte, 1),
+		acc:       make([][]byte, 2),
 		proofs:    make(map[types.ID]*InclusionProof),
 		lookupMap: make(map[types.ID]*InclusionProof),
 		nElements: 0,
@@ -179,7 +179,11 @@ func (a *Accumulator) GetProof(data []byte) (*InclusionProof, error) {
 		}
 	}
 	newProof := &InclusionProof{ID: types.NewID(data), Accumulator: acc, Flags: proof.Flags, Hashes: make([][]byte, len(proof.Hashes)), Index: proof.Index}
-	copy(newProof.Hashes, proof.Hashes)
+	for i := range proof.Hashes {
+		newProof.Hashes[i] = make([]byte, len(proof.Hashes[i]))
+		copy(newProof.Hashes[i], proof.Hashes[i])
+	}
+
 	return newProof, nil
 }
 
@@ -203,31 +207,54 @@ func (a *Accumulator) DropProof(data []byte) {
 // affect the original.
 func (a *Accumulator) Clone() *Accumulator {
 	acc := make([][]byte, len(a.acc))
-	copy(acc, a.acc)
+	for x := range a.acc {
+		acc[x] = make([]byte, len(a.acc[x]))
+		if a.acc[x] == nil {
+			acc[x] = nil
+		} else {
+			copy(acc[x], a.acc[x])
+		}
+	}
 
 	proofs := make(map[types.ID]*InclusionProof)
 	for key, proof := range a.proofs {
 		i := InclusionProof{
-			ID:    proof.ID,
-			Flags: proof.Flags,
-			Index: proof.Index,
-			last:  nil,
+			ID:          proof.ID,
+			Flags:       proof.Flags,
+			Index:       proof.Index,
+			Accumulator: make([][]byte, len(proof.Accumulator)),
+			Hashes:      make([][]byte, len(proof.Hashes)),
+			last:        make([]byte, len(proof.last)),
 		}
-		copy(i.Accumulator, proof.Accumulator)
-		copy(i.Hashes, proof.Hashes)
+		for x := range proof.Accumulator {
+			i.Accumulator[x] = make([]byte, len(proof.Accumulator[x]))
+			copy(i.Accumulator[x], proof.Accumulator[x])
+		}
+		for x := range proof.Hashes {
+			i.Hashes[x] = make([]byte, len(proof.Hashes[x]))
+			copy(i.Hashes[x], proof.Hashes[x])
+		}
 		copy(i.last, proof.last)
 		proofs[key] = &i
 	}
 	lookupMap := make(map[types.ID]*InclusionProof)
 	for key, proof := range a.lookupMap {
 		i := InclusionProof{
-			ID:    proof.ID,
-			Flags: proof.Flags,
-			Index: proof.Index,
-			last:  nil,
+			ID:          proof.ID,
+			Flags:       proof.Flags,
+			Index:       proof.Index,
+			Accumulator: make([][]byte, len(proof.Accumulator)),
+			Hashes:      make([][]byte, len(proof.Hashes)),
+			last:        make([]byte, len(proof.last)),
 		}
-		copy(i.Accumulator, proof.Accumulator)
-		copy(i.Hashes, proof.Hashes)
+		for x := range proof.Accumulator {
+			i.Accumulator[x] = make([]byte, len(proof.Accumulator[x]))
+			copy(i.Accumulator[x], proof.Accumulator[x])
+		}
+		for x := range proof.Hashes {
+			i.Hashes[x] = make([]byte, len(proof.Hashes[x]))
+			copy(i.Hashes[x], proof.Hashes[x])
+		}
 		copy(i.last, proof.last)
 		lookupMap[key] = &i
 	}

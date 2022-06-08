@@ -20,20 +20,28 @@ var _ types.Serializable = (*StakeTransaction)(nil)
 var _ types.Serializable = (*TreasuryTransaction)(nil)
 var _ types.Serializable = (*MintTransaction)(nil)
 
+func WrapTransaction(tx interface{}) *Transaction {
+	var t isTransaction_Tx
+	switch typ := tx.(type) {
+	case *TreasuryTransaction:
+		t = &Transaction_TreasuryTransaction{TreasuryTransaction: typ}
+	case *StakeTransaction:
+		t = &Transaction_StakeTransaction{StakeTransaction: typ}
+	case *StandardTransaction:
+		t = &Transaction_StandardTransaction{StandardTransaction: typ}
+	case *MintTransaction:
+		t = &Transaction_MintTransaction{MintTransaction: typ}
+	case *CoinbaseTransaction:
+		t = &Transaction_CoinbaseTransaction{CoinbaseTransaction: typ}
+	}
+	return &Transaction{
+		Tx: t,
+	}
+}
+
 func (tx *Transaction) ID() types.ID {
-	if tx.GetStandardTransaction() != nil {
-		ser, _ := tx.Serialize()
-		return types.NewIDFromData(ser)
-	}
-	if tx.GetCoinbaseTransaction() != nil {
-		ser, _ := tx.Serialize()
-		return types.NewIDFromData(ser)
-	}
-	if tx.GetStakeTransaction() != nil {
-		ser, _ := tx.Serialize()
-		return types.NewIDFromData(ser)
-	}
-	return types.ID{}
+	ser, _ := tx.Serialize()
+	return types.NewIDFromData(ser)
 }
 
 func (tx *Transaction) Serialize() ([]byte, error) {

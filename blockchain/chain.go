@@ -187,7 +187,6 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 			return err
 		}
 	}
-
 	if err := b.txoRootSet.AddRoot(dbtx, accumulator.Root()); err != nil {
 		return err
 	}
@@ -239,6 +238,14 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	// TODO: notify subscribers of new block
 
 	return nil
+}
+
+func (b *Blockchain) BestBlock() (types.ID, uint32) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	tip := b.index.Tip()
+	return tip.blockID, tip.height
 }
 
 func (b *Blockchain) GetBlockByHeight(height uint32) (*blocks.Block, error) {

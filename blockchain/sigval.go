@@ -177,6 +177,8 @@ func (s *sigValidator) validateHandler() {
 				}
 				s.sigCache.Add(types.NewID(sigHash), tx.StakeTransaction.Signature, validatorPubkey)
 				s.resultChan <- nil
+			case *transactions.Transaction_StandardTransaction, *transactions.Transaction_TreasuryTransaction:
+				s.resultChan <- nil
 			}
 		case <-s.done:
 			return

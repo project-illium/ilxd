@@ -35,11 +35,17 @@ func (h *BlockHeader) SerializedSize() (int, error) {
 }
 
 func (h *BlockHeader) Deserialize(data []byte) error {
-	newHeader := &BlockHeader{}
-	if err := proto.Unmarshal(data, newHeader); err != nil {
+	newHeader := BlockHeader{}
+	if err := proto.Unmarshal(data, &newHeader); err != nil {
 		return err
 	}
-	h = newHeader
+	h.Timestamp = newHeader.Timestamp
+	h.Height = newHeader.Height
+	h.Signature = newHeader.Signature
+	h.Producer_ID = newHeader.Producer_ID
+	h.TxRoot = newHeader.TxRoot
+	h.Parent = newHeader.Parent
+	h.Version = newHeader.Version
 	return nil
 }
 
@@ -141,7 +147,8 @@ func (b *Block) Deserialize(data []byte) error {
 	if err := proto.Unmarshal(data, newBlock); err != nil {
 		return err
 	}
-	b = newBlock
+	b.Header = newBlock.Header
+	b.Transactions = newBlock.Transactions
 	return nil
 }
 
