@@ -13,6 +13,6 @@ func TestNewTestHarness(t *testing.T) {
 	h, err := NewTestHarness(DefaultOptions())
 	assert.NoError(t, err)
 
-	err = h.GenerateBlocks(1)
+	err = h.GenerateBlocks(15)
 	assert.NoError(t, err)
 }

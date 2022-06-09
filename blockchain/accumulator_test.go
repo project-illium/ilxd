@@ -5,8 +5,11 @@
 package blockchain
 
 import (
+	"bytes"
+	"crypto/rand"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -93,4 +96,90 @@ func TestAccumulator(t *testing.T) {
 	acc.DropProof(d7)
 	_, err = acc.GetProof(d7)
 	assert.Error(t, err)
+}
+
+func TestAccumulator_GetProof(t *testing.T) {
+	a := NewAccumulator()
+	n := 128
+	elements := make([][]byte, 0, n)
+	for i := 0; i < n; i++ {
+		b := make([]byte, 32)
+		rand.Read(b)
+		elements = append(elements, b)
+		a.Insert(b, true)
+
+		// Test proofs as accumulator is growing
+		for _, b := range elements {
+			proof, err := a.GetProof(b)
+			assert.NoError(t, err)
+			assert.True(t, standard.ValidateInclusionProof(proof.ID.Bytes(), proof.Index, proof.Hashes, proof.Flags, proof.Accumulator, a.Root().Bytes()))
+		}
+	}
+}
+
+func TestAccumulator_Clone(t *testing.T) {
+	acc := NewAccumulator()
+
+	assert.True(t, accumulatorDeepEqual(acc, acc.Clone()))
+
+	for i := 0; i < 1000; i++ {
+		b := make([]byte, 32)
+		rand.Read(b)
+		acc.Insert(b, b[0] < 128)
+		assert.True(t, accumulatorDeepEqual(acc, acc.Clone()))
+	}
+}
+
+func accumulatorDeepEqual(a, b *Accumulator) bool {
+	if len(a.acc) != len(b.acc) {
+		return false
+	}
+	if cap(a.acc) != cap(b.acc) {
+		return false
+	}
+	for i := range a.acc {
+		if !bytes.Equal(a.acc[i], b.acc[i]) {
+			return false
+		}
+	}
+	if a.nElements != b.nElements {
+		return false
+	}
+	if !deepEqualProofMap(a.proofs, b.proofs) {
+		return false
+	}
+	if !deepEqualProofMap(a.lookupMap, b.lookupMap) {
+		return false
+	}
+	return true
+}
+
+func deepEqualProofMap(a, b map[types.ID]*InclusionProof) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for ak, av := range a {
+		bv := b[ak]
+		if av.ID != bv.ID {
+			return false
+		}
+		if len(av.Hashes) != len(bv.Hashes) {
+			return false
+		}
+		for i := range av.Hashes {
+			if !bytes.Equal(av.Hashes[i], bv.Hashes[i]) {
+				return false
+			}
+		}
+		if av.Flags != bv.Flags {
+			return false
+		}
+		if av.Index != bv.Index {
+			return false
+		}
+		if !bytes.Equal(av.last, bv.last) {
+			return false
+		}
+	}
+	return true
 }

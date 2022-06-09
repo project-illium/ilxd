@@ -101,7 +101,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 }
 
 func (h *TestHarness) GenerateBlocks(n int) error {
-	blks, err := h.generateBlocks(n)
+	blks, notes, err := h.generateBlocks(n)
 	if err != nil {
 		return err
 	}
@@ -113,5 +113,6 @@ func (h *TestHarness) GenerateBlocks(n int) error {
 			h.acc.Insert(out.Commitment, true)
 		}
 	}
+	h.spendableNotes = notes
 	return nil
 }

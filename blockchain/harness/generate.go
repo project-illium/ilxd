@@ -20,45 +20,54 @@ import (
 	"time"
 )
 
-func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, error) {
+func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nullifier]*SpendableNote, error) {
 	newBlocks := make([]*blocks.Block, 0, nBlocks)
 	acc := h.acc.Clone()
 	fee := uint64(1)
+	nCommitments := acc.NumElements()
+	bestID, bestHeight := h.chain.BestBlock()
+
+	remainingNotes := make(map[types.Nullifier]*SpendableNote)
+	for k, v := range h.spendableNotes {
+		remainingNotes[k] = v
+	}
 
 	for n := 0; n < nBlocks; n++ {
 		outputsPerTx := h.txsPerBlock
 		numTxs := h.txsPerBlock
-		if len(h.spendableNotes) < h.txsPerBlock {
-			outputsPerTx = h.txsPerBlock / len(h.spendableNotes)
-			numTxs = len(h.spendableNotes)
+		if len(remainingNotes) < h.txsPerBlock {
+			outputsPerTx = h.txsPerBlock / len(remainingNotes)
+			numTxs = len(remainingNotes)
 		}
 
-		notes := make([]*SpendableNote, 0, len(h.spendableNotes))
-		for _, note := range h.spendableNotes {
+		notes := make([]*SpendableNote, 0, len(remainingNotes))
+		for _, note := range remainingNotes {
 			notes = append(notes, note)
 		}
 
-		txs := make([]*transactions.Transaction, 0, len(h.spendableNotes))
+		toDelete := make([]types.Nullifier, 0, len(remainingNotes))
+		txs := make([]*transactions.Transaction, 0, len(remainingNotes))
 		for i := 0; i < numTxs; i++ {
 			sn := notes[i]
 
 			commitment, err := sn.Note.Commitment()
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			inclusionProof, err := acc.GetProof(commitment)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			serializedKey, err := sn.Note.SpendScript.Pubkeys[0].Serialize()
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			nullifier, err := types.CalculateNullifier(inclusionProof.Index, sn.Note.Salt, sn.Note.SpendScript.Threshold, serializedKey)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
+			toDelete = append(toDelete, nullifier)
 
 			var (
 				outputs           = make([]*transactions.Output, 0, outputsPerTx)
@@ -67,18 +76,25 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, error) {
 			)
 
 			for x := 0; x < outputsPerTx; x++ {
+				nCommitments++
 				privKey, _, err := crypto.GenerateEd25519Key(rand.Reader)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 
 				var salt [32]byte
 				rand.Read(salt[:])
 
+				outPub := wallet.NewTimeLockedPubkey(privKey.GetPublic(), time.Time{})
+				serializedOutPub, err := outPub.Serialize()
+				if err != nil {
+					return nil, nil, err
+				}
+
 				outputNote := &wallet.SpendNote{
 					SpendScript: wallet.SpendScript{
 						Threshold: 1,
-						Pubkeys:   []*wallet.TimeLockedPubkey{wallet.NewTimeLockedPubkey(privKey.GetPublic(), time.Time{})},
+						Pubkeys:   []*wallet.TimeLockedPubkey{outPub},
 					},
 					Amount:  (sn.Note.Amount / uint64(outputsPerTx)) - fee,
 					AssetID: wallet.IlliumCoinID,
@@ -91,9 +107,19 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, error) {
 
 				outputCommitment, err := outputNote.Commitment()
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				outputCommitments[i] = outputCommitment
+
+				outNullifier, err := types.CalculateNullifier(nCommitments-1, outputNote.Salt, outputNote.SpendScript.Threshold, serializedOutPub)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				remainingNotes[outNullifier] = &SpendableNote{
+					Note:       outputNote,
+					PrivateKey: privKey,
+				}
 
 				outputs = append(outputs, &transactions.Output{
 					Commitment:      outputCommitment,
@@ -111,11 +137,11 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, error) {
 
 			sigHash, err := standardTx.SigHash()
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			sig, err := sn.PrivateKey.Sign(sigHash)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			privateParams := &standard.PrivateParams{
@@ -140,7 +166,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, error) {
 			for _, outNote := range outputNotes {
 				spendScript, err := outNote.Note.SpendScript.Hash()
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				privateParams.Outputs = append(privateParams.Outputs, standard.PrivateOutput{
 					SpendScript: spendScript,
@@ -151,7 +177,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, error) {
 			}
 
 			publicPrams := &standard.PublicParams{
-				TXORoot:           h.acc.Root().Bytes(),
+				TXORoot:           acc.Root().Bytes(),
 				SigHash:           sigHash,
 				OutputCommitments: outputCommitments,
 				Nullifiers:        [][]byte{nullifier.Bytes()},
@@ -161,13 +187,11 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, error) {
 
 			proof, err := zk.CreateSnark(standard.StandardCircuit, privateParams, publicPrams)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			standardTx.Proof = proof
 			txs = append(txs, transactions.WrapTransaction(standardTx))
 		}
-
-		bestID, bestHeight := h.chain.BestBlock()
 
 		txids := make([][]byte, 0, len(txs))
 		for _, tx := range txs {
@@ -187,7 +211,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, error) {
 		}
 		valBytes, err := validator.Marshal()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		blk := &blocks.Block{
@@ -205,20 +229,27 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, error) {
 
 		sigHash, err := blk.Header.SigHash()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		sig, err := networkKey.Sign(sigHash)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		blk.Header.Signature = sig
 
 		newBlocks = append(newBlocks, blk)
+		bestHeight++
+		bestID = blk.ID()
+
 		for _, out := range blk.Outputs() {
 			acc.Insert(out.Commitment, true)
 		}
+
+		for _, del := range toDelete {
+			delete(remainingNotes, del)
+		}
 	}
-	return newBlocks, nil
+	return newBlocks, remainingNotes, nil
 }
 
 func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypto.PrivKey,

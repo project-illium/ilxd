@@ -115,7 +115,7 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 			ip.last = hash.HashMerkleBranches(a.acc[0], c2)
 		}
 	}
-
+	accLen := a.len()
 	h := 0
 	r := a.acc[h]
 	for r != nil {
@@ -126,7 +126,7 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 		for _, proof := range a.proofs {
 			h2 := h + 1
 			l := len(proof.Hashes)
-			if l > 0 && h2 >= l && h2 <= a.len() {
+			if l > 0 && h2 >= l && h2 <= accLen {
 				if !bytes.Equal(proof.last, n) { // Right
 					c := make([]byte, len(n))
 					copy(c, n)
@@ -160,6 +160,11 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 // and a new hash is calculated each time this method is called.
 func (a *Accumulator) Root() types.ID {
 	return types.NewID(hash.CatAndHash(a.acc))
+}
+
+// NumElements returns the current number of elements in the accumulator.
+func (a *Accumulator) NumElements() uint64 {
+	return a.nElements
 }
 
 // GetProof returns an inclusion proof, if it exists, for the provided hash.
@@ -206,7 +211,7 @@ func (a *Accumulator) DropProof(data []byte) {
 // Clone returns a copy of the accumulator. Modifications to the copy will not
 // affect the original.
 func (a *Accumulator) Clone() *Accumulator {
-	acc := make([][]byte, len(a.acc))
+	acc := make([][]byte, len(a.acc), cap(a.acc))
 	for x := range a.acc {
 		acc[x] = make([]byte, len(a.acc[x]))
 		if a.acc[x] == nil {
