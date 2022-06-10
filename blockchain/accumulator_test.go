@@ -108,7 +108,7 @@ func TestAccumulator_GetProof(t *testing.T) {
 		elements = append(elements, b)
 		a.Insert(b, true)
 
-		// Test proofs as accumulator is growing
+		// Test proof validity as accumulator is growing.
 		for _, b := range elements {
 			proof, err := a.GetProof(b)
 			assert.NoError(t, err)
@@ -126,15 +126,14 @@ func TestAccumulator_Clone(t *testing.T) {
 		b := make([]byte, 32)
 		rand.Read(b)
 		acc.Insert(b, b[0] < 128)
+
+		// Test clone is correct as accumulator is growing.
 		assert.True(t, accumulatorDeepEqual(acc, acc.Clone()))
 	}
 }
 
 func accumulatorDeepEqual(a, b *Accumulator) bool {
 	if len(a.acc) != len(b.acc) {
-		return false
-	}
-	if cap(a.acc) != cap(b.acc) {
 		return false
 	}
 	for i := range a.acc {

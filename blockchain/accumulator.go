@@ -65,7 +65,7 @@ type Accumulator struct {
 // NewAccumulator returns a new Accumulator.
 func NewAccumulator() *Accumulator {
 	return &Accumulator{
-		acc:       make([][]byte, 2),
+		acc:       make([][]byte, 1),
 		proofs:    make(map[types.ID]*InclusionProof),
 		lookupMap: make(map[types.ID]*InclusionProof),
 		nElements: 0,
@@ -137,7 +137,7 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 					f := uint64(1) << uint64(len(proof.Hashes)-1)
 					proof.Flags |= f
 				} else { // Left
-					if a.acc[h+1] == nil {
+					if len(a.acc)-1 < h+1 || a.acc[h+1] == nil {
 						continue
 					}
 					c := make([]byte, len(a.acc[h+1]))

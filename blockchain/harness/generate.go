@@ -72,7 +72,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 			var (
 				outputs           = make([]*transactions.Output, 0, outputsPerTx)
 				outputCommitments = make([][]byte, outputsPerTx)
-				outputNotes       = make([]*SpendableNote, outputsPerTx)
+				outputNotes       = make([]*SpendableNote, 0, outputsPerTx)
 			)
 
 			for x := 0; x < outputsPerTx; x++ {
@@ -100,10 +100,10 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 					AssetID: wallet.IlliumCoinID,
 					Salt:    salt,
 				}
-				outputNotes[i] = &SpendableNote{
+				outputNotes = append(outputNotes, &SpendableNote{
 					Note:       outputNote,
 					PrivateKey: privKey,
-				}
+				})
 
 				outputCommitment, err := outputNote.Commitment()
 				if err != nil {

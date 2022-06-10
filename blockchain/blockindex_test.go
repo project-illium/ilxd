@@ -11,6 +11,7 @@ import (
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
+	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -41,6 +42,36 @@ func randomBlockHeader(height uint32, parent types.ID) *blocks.BlockHeader {
 	return header
 }
 
+func randomBlock(header *blocks.BlockHeader, nTxs int) *blocks.Block {
+	txs := make([]*transactions.Transaction, nTxs)
+	c1, c2 := make([]byte, 32), make([]byte, 32)
+	rand.Read(c1)
+	rand.Read(c2)
+	for i := range txs {
+		txs[i] = transactions.WrapTransaction(&transactions.StandardTransaction{
+			Outputs: []*transactions.Output{
+				{
+					Commitment: c1,
+				},
+				{
+					Commitment: c2,
+				},
+			},
+			Fee: 10,
+		})
+	}
+	txids := make([][]byte, 0, len(txs))
+	for _, tx := range txs {
+		txids = append(txids, tx.ID().Bytes())
+	}
+	merkles := BuildMerkleTreeStore(txids)
+	header.TxRoot = merkles[len(merkles)-1]
+	return &blocks.Block{
+		Header:       header,
+		Transactions: txs,
+	}
+}
+
 func populateDatabase(ds repo.Datastore, nBlocks int) error {
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	if err != nil {
@@ -61,7 +92,10 @@ func populateDatabase(ds repo.Datastore, nBlocks int) error {
 		header := randomBlockHeader(i, prev.ID())
 		header.Parent = prev.ID().Bytes()
 		header.Timestamp = prev.Timestamp + 1
-		if err := dsPutHeader(dbtx, header); err != nil {
+
+		blk := randomBlock(header, 5)
+
+		if err := dsPutBlock(dbtx, blk); err != nil {
 			return err
 		}
 

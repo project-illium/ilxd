@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+// AccumulatorDB is responsible for persisting the accumulator on disk.
+// It maintains a memory cache and periodically flushes to disk.
 type AccumulatorDB struct {
 	acc       *Accumulator
 	ds        repo.Datastore
@@ -19,6 +21,7 @@ type AccumulatorDB struct {
 	mtx       sync.RWMutex
 }
 
+// NewAccumulatorDB returns a new AccumulatorDB
 func NewAccumulatorDB(ds repo.Datastore) *AccumulatorDB {
 	return &AccumulatorDB{
 		acc: NewAccumulator(),
@@ -27,6 +30,9 @@ func NewAccumulatorDB(ds repo.Datastore) *AccumulatorDB {
 	}
 }
 
+// Init will initialize the accumulator DB. It will load the accumulator
+// from disk and if it is not currently at the tip of the chain it will
+// roll the accumulator forward until it is up to the tip.
 func (adb *AccumulatorDB) Init(tip *blockNode) error {
 	consistencyStatus, err := dsFetchAccumulatorSetConsistencyStatus(adb.ds)
 	if err != nil {
@@ -43,16 +49,14 @@ func (adb *AccumulatorDB) Init(tip *blockNode) error {
 		if err != nil {
 			return err
 		}
+		adb.lastFlush = time.Now()
 		adb.acc = acc
 		if lastFlushHeight == tip.Height() {
-			// Load validators from disk
-			// Build out the nullifier map
 			// We're good
 			return nil
 		} else if lastFlushHeight < tip.Height() {
 			// Load the missing blocks from disk and
 			// apply any changes to the accumulator.
-			// Build the nullifier map.
 			var (
 				node = tip
 				err  error
@@ -61,7 +65,7 @@ func (adb *AccumulatorDB) Init(tip *blockNode) error {
 				if node.height == lastFlushHeight+1 {
 					break
 				}
-				node, err = tip.Parent()
+				node, err = node.Parent()
 				if err != nil {
 					return err
 				}
@@ -73,6 +77,8 @@ func (adb *AccumulatorDB) Init(tip *blockNode) error {
 					return err
 				}
 				for _, out := range blk.Outputs() {
+					// FIXME: the init function will ultimately need
+					// to take in a list of commitments to protect.
 					adb.acc.Insert(out.Commitment, false)
 				}
 				if node.height == tip.height {
@@ -92,53 +98,19 @@ func (adb *AccumulatorDB) Init(tip *blockNode) error {
 			// has any attached children that we can use
 			// to load the blocks and remove the changes
 			// from the accumulator. Panic?
+			log.Fatal("AccumulatorDB last flush ahead of chain tip. Unable to repair. Use --reindexchainstate")
 		}
 	case scsFlushOngoing:
-		// TODO: what should we do here? Let's hope this never
-		// happens because at present we don't have any way to
-		// rollback the accumulator. The only way to get the
-		// accumulator to the current state is to recalculate
-		// it from genesis.
-	case scsEmpty:
-		// New node. Grab genesis block and start applying
-		// changes up to the tip.
-		var (
-			node = tip
-			err  error
-		)
-		for {
-			node, err = tip.Parent()
-			if err != nil {
-				return err
-			}
-			if node.height == 0 {
-				break
-			}
-		}
-		for {
-			blk, err := node.Block()
-			if err != nil {
-				return err
-			}
-			for _, out := range blk.Outputs() {
-				adb.acc.Insert(out.Commitment, false)
-			}
-			if node.height == tip.height {
-				break
-			}
-			node, err = node.Child()
-			if err != nil {
-				return err
-			}
-		}
-		if err := adb.Flush(flushRequired, tip.height); err != nil {
-			return err
-		}
-
+		// Let's hope this never happens because at present we
+		// don't have any way to rollback the accumulator. The
+		// only way to get the accumulator to the current state
+		// is to recalculate it from genesis.
+		log.Fatal("AccumulatorDB shut down mid flush. Unable to repair. Use --reindexchainstate")
 	}
 	return nil
 }
 
+// Accumulator returns a clone of the current accumulator.
 func (adb *AccumulatorDB) Accumulator() *Accumulator {
 	adb.mtx.RLock()
 	defer adb.mtx.RUnlock()
@@ -146,6 +118,9 @@ func (adb *AccumulatorDB) Accumulator() *Accumulator {
 	return adb.acc.Clone()
 }
 
+// Commit updates the accumulator in memory and flushes the change to disk using the flushMode.
+// This commit is not atomic. If there is an error flushing to disk the memory change will not
+// be rolled back.
 func (adb *AccumulatorDB) Commit(accumulator *Accumulator, chainHeight uint32, mode flushMode) error {
 	adb.mtx.Lock()
 	defer adb.mtx.Unlock()
@@ -155,6 +130,7 @@ func (adb *AccumulatorDB) Commit(accumulator *Accumulator, chainHeight uint32, m
 	return adb.flush(mode, chainHeight)
 }
 
+// Flush will trigger a manual flush of the accumulator DB to disk.
 func (adb *AccumulatorDB) Flush(mode flushMode, chainHeight uint32) error {
 	adb.mtx.Lock()
 	defer adb.mtx.Unlock()
