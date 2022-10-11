@@ -9,11 +9,10 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/types"
-	"github.com/project-illium/ilxd/wallet"
 )
 
 type SpendableNote struct {
-	Note       *wallet.SpendNote
+	Note       *types.SpendNote
 	PrivateKey crypto.PrivKey
 }
 
@@ -64,15 +63,8 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 	if err != nil {
 		return nil, err
 	}
-	pubkeys := make([][]byte, 0, len(spendNote.SpendScript.Pubkeys))
-	for _, key := range spendNote.SpendScript.Pubkeys {
-		ser, err := key.Serialize()
-		if err != nil {
-			return nil, err
-		}
-		pubkeys = append(pubkeys, ser)
-	}
-	nullifier, err := types.CalculateNullifier(proof.Index, spendNote.Salt, spendNote.SpendScript.Threshold, pubkeys...)
+
+	nullifier, err := types.CalculateNullifier(proof.Index, spendNote.Salt, spendNote.UnlockingScript.SnarkVerificationKey, spendNote.UnlockingScript.PublicParams...)
 	if err != nil {
 		return nil, err
 	}

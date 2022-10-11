@@ -57,7 +57,7 @@ func TestStakeCircuit(t *testing.T) {
 	var salt [32]byte
 	copy(salt[:], r)
 
-	note1 := wallet.SpendNote{
+	note1 := types.SpendNote{
 		SpendScript: ss,
 		AssetID:     [32]byte{},
 		Amount:      1000000,

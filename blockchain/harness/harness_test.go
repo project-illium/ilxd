@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewTestHarness(t *testing.T) {
-	h, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(2))
+	h, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(1))
 	assert.NoError(t, err)
 
 	err = h.GenerateBlocks(1000)

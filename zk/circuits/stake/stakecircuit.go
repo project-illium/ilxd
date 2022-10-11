@@ -13,14 +13,14 @@ import (
 )
 
 type PrivateParams struct {
-	AssetID         []byte
-	Salt            []byte
-	CommitmentIndex uint64
-	InclusionProof  standard.InclusionProof
-	Threshold       uint8
-	Pubkeys         [][]byte
-	Signatures      [][]byte
-	SigBitfield     uint8
+	AssetID              [32]byte
+	Salt                 [32]byte
+	State                [32]byte
+	CommitmentIndex      uint64
+	InclusionProof       standard.InclusionProof
+	SnarkVerificationKey []byte
+	UserParams           [][]byte
+	SnarkProof           []byte
 }
 
 type PublicParams struct {
@@ -29,6 +29,13 @@ type PublicParams struct {
 	Amount    uint64
 	Nullifier []byte
 	Blocktime time.Time
+}
+
+type UnlockingSnarkParams struct {
+	InputIndex    int
+	PrivateParams PrivateParams
+	PublicParams  PublicParams
+	UserParams    [][]byte
 }
 
 func StakeCircuit(privateParams, publicParams interface{}) bool {
@@ -42,19 +49,20 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	}
 
 	// First obtain the hash of the spendScript.
-	spendScriptPreimage := []byte{priv.Threshold}
-	for _, key := range priv.Pubkeys {
-		spendScriptPreimage = append(spendScriptPreimage, key...)
+	spendScriptPreimage := priv.SnarkVerificationKey
+	for _, param := range priv.UserParams {
+		spendScriptPreimage = append(spendScriptPreimage, param...)
 	}
 	spendScriptHash := hash.HashFunc(spendScriptPreimage)
 
 	amountBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(amountBytes, pub.Amount)
-	commitmentPreimage := make([]byte, 0, 32+8+32+32)
+	commitmentPreimage := make([]byte, 0, 32+8+32+32+32)
 	commitmentPreimage = append(commitmentPreimage, spendScriptHash...)
 	commitmentPreimage = append(commitmentPreimage, amountBytes...)
 	commitmentPreimage = append(commitmentPreimage, priv.AssetID[:]...)
-	commitmentPreimage = append(commitmentPreimage, priv.Salt...)
+	commitmentPreimage = append(commitmentPreimage, priv.State[:]...)
+	commitmentPreimage = append(commitmentPreimage, priv.Salt[:]...)
 	outputCommitment := hash.HashFunc(commitmentPreimage)
 
 	// Then validate the merkle proof
@@ -62,8 +70,15 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 		return false
 	}
 
-	// Validate the signature(s)
-	valid, err := standard.ValidateMultiSignature(priv.Threshold, priv.Pubkeys, priv.Signatures, priv.SigBitfield, pub.SigHash, pub.Blocktime)
+	// Validate the unlocking snark.
+	unlockingParams := &UnlockingSnarkParams{
+		InputIndex:    0,
+		PrivateParams: *priv,
+		PublicParams:  *pub,
+		UserParams:    priv.UserParams,
+	}
+
+	valid, err := ValidateUnlockingSnark(priv.SnarkVerificationKey, unlockingParams, priv.SnarkProof)
 	if !valid || err != nil {
 		return false
 	}
@@ -71,12 +86,12 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	// Validate that the nullifier is calculated correctly.
 	commitmentIndexBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(commitmentIndexBytes, priv.CommitmentIndex)
-	nullifierPreimage := make([]byte, 0, 8+32+1+(len(priv.Pubkeys)*32))
+	nullifierPreimage := make([]byte, 0, 8+32+100)
 	nullifierPreimage = append(nullifierPreimage, commitmentIndexBytes...)
-	nullifierPreimage = append(nullifierPreimage, priv.Salt...)
-	nullifierPreimage = append(nullifierPreimage, priv.Threshold)
-	for _, key := range priv.Pubkeys {
-		nullifierPreimage = append(nullifierPreimage, key...)
+	nullifierPreimage = append(nullifierPreimage, priv.Salt[:]...)
+	nullifierPreimage = append(nullifierPreimage, priv.SnarkVerificationKey...)
+	for _, param := range priv.UserParams {
+		nullifierPreimage = append(nullifierPreimage, param...)
 	}
 	calculatedNullifier := hash.HashFunc(nullifierPreimage)
 	if !bytes.Equal(calculatedNullifier, pub.Nullifier) {
@@ -84,4 +99,10 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	}
 
 	return true
+}
+
+// ValidateUnlockingSnark is a placeholder. Normally this would be part of the overall circuit to validate
+// the inner snark recursively.
+func ValidateUnlockingSnark(snarkVerificationKey []byte, publicParams *UnlockingSnarkParams, proof []byte) (bool, error) {
+	return true, nil
 }

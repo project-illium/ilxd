@@ -72,7 +72,7 @@ func TestStandardCircuit(t *testing.T) {
 	var salt2 [32]byte
 	copy(salt2[:], r2)
 
-	note1 := wallet.SpendNote{
+	note1 := types.SpendNote{
 		SpendScript: ss,
 		AssetID:     [32]byte{},
 		Amount:      1000000,
@@ -82,7 +82,7 @@ func TestStandardCircuit(t *testing.T) {
 	commitment, err := note1.Commitment()
 	assert.NoError(t, err)
 
-	note2 := wallet.SpendNote{
+	note2 := types.SpendNote{
 		SpendScript: ss2,
 		AssetID:     [32]byte{},
 		Amount:      990000,

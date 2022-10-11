@@ -5,14 +5,13 @@
 package wallet
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/btcsuite/btcd/btcutil/bech32"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/params/hash"
-	"time"
+	"github.com/project-illium/ilxd/types"
 )
 
 const ScriptHashLength = hash.HashSize
@@ -22,59 +21,6 @@ type Address interface {
 	String() string
 }
 
-type TimeLockedPubkey struct {
-	crypto.PubKey
-	timelock time.Time
-}
-
-func NewTimeLockedPubkey(pubkey crypto.PubKey, timelock time.Time) *TimeLockedPubkey {
-	return &TimeLockedPubkey{
-		PubKey:   pubkey,
-		timelock: timelock,
-	}
-}
-
-func (t *TimeLockedPubkey) Timelock() time.Time {
-	return t.timelock
-}
-func (t *TimeLockedPubkey) Serialize() ([]byte, error) {
-	keyBytes, err := t.Raw()
-	if err != nil {
-		return nil, err
-	}
-	ts := make([]byte, 8)
-	binary.BigEndian.PutUint64(ts, uint64(t.timelock.Unix()))
-	ret := make([]byte, 0, len(keyBytes)+8)
-	ret = append(ret, keyBytes...)
-	ret = append(ret, ts...)
-	return ret, nil
-}
-
-type SpendScript struct {
-	Threshold uint8
-	Pubkeys   []*TimeLockedPubkey
-}
-
-func (s *SpendScript) Serialize() ([]byte, error) {
-	ser := []byte{s.Threshold}
-	for _, key := range s.Pubkeys {
-		b, err := key.Serialize()
-		if err != nil {
-			return nil, err
-		}
-		ser = append(ser, b...)
-	}
-	return ser, nil
-}
-
-func (s *SpendScript) Hash() ([]byte, error) {
-	ser, err := s.Serialize()
-	if err != nil {
-		return nil, err
-	}
-	return hash.HashFunc(ser), nil
-}
-
 type BasicAddress struct {
 	params  *params.NetworkParams
 	version byte
@@ -82,19 +28,15 @@ type BasicAddress struct {
 	viewKey crypto.PubKey
 }
 
-func NewBasicAddress(script SpendScript, viewKey crypto.PubKey, params *params.NetworkParams) (*BasicAddress, error) {
+func NewBasicAddress(script types.UnlockingScript, viewKey crypto.PubKey, params *params.NetworkParams) (*BasicAddress, error) {
 	_, ok := viewKey.(*Curve25519PublicKey)
 	if !ok {
 		return nil, errors.New("viewKey must be of type Curve25519PublicKey")
 	}
 
-	ser, err := script.Serialize()
-	if err != nil {
-		return nil, err
-	}
-	h := hash.HashFunc(ser)
+	h := script.Hash()
 	var h2 [32]byte
-	copy(h2[:], h)
+	copy(h2[:], h[:])
 
 	return &BasicAddress{
 		hash:    h2,

@@ -11,7 +11,6 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
-	"github.com/project-illium/ilxd/wallet"
 	"time"
 )
 
@@ -211,6 +210,9 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			if !exists {
 				return ruleError(ErrInvalidTx, "txo root does not exist in chain")
 			}
+			if tx.StandardTransaction.Locktime > blk.Header.Timestamp {
+				return ruleError(ErrInvalidTx, "transaction locktime is ahead of block timestamp")
+			}
 		case *transactions.Transaction_MintTransaction:
 			if flags.HasFlag(BFGenesisValidation) {
 				return ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
@@ -329,7 +331,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 
 func validateOutputs(outputs []*transactions.Output) error {
 	for _, out := range outputs {
-		if len(out.Commitment) != wallet.CommitmentLen {
+		if len(out.Commitment) != types.CommitmentLen {
 			return ruleError(ErrInvalidTx, "invalid commitment")
 		}
 		if len(out.EphemeralPubkey) != PubkeyLen {

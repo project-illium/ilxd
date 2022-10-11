@@ -1,23 +1,24 @@
-// Copyright (c) 2022 Project Illium
+// Copyright (c) 2022 The illium developers
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
 
-package standard
+package smart
 
 import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/project-illium/ilxd/params/hash"
 	"math"
-	"math/bits"
 	"time"
 )
 
 var ErrIntegerOverflow = errors.New("integer overflow")
 
-var defaultAssetID [32]byte
+var (
+	defaultAssetID [32]byte
+	zeroReturnVal  [32]byte
+)
 
 type InclusionProof struct {
 	Hashes      [][]byte
@@ -26,22 +27,29 @@ type InclusionProof struct {
 }
 
 type PrivateInput struct {
-	Amount          uint64
-	Salt            []byte
-	AssetID         [32]byte
-	CommitmentIndex uint64
-	InclusionProof  InclusionProof
-	Threshold       uint8
-	Pubkeys         [][]byte
-	Signatures      [][]byte
-	SigBitfield     uint8
+	Amount               uint64
+	Salt                 [32]byte
+	AssetID              [32]byte
+	State                [32]byte
+	CommitmentIndex      uint64
+	InclusionProof       InclusionProof
+	SnarkVerificationKey []byte
+	UserParams           [][]byte
+	SnarkProof           []byte
 }
 
 type PrivateOutput struct {
-	SpendScript []byte
-	Amount      uint64
-	Salt        []byte
-	AssetID     [32]byte
+	ScriptHash []byte
+	Amount     uint64
+	Salt       [32]byte
+	State      [32]byte
+	AssetID    [32]byte
+}
+
+type PublicOutput struct {
+	Commitment []byte
+	EncKey     []byte
+	CipherText []byte
 }
 
 type PrivateParams struct {
@@ -50,20 +58,27 @@ type PrivateParams struct {
 }
 
 type PublicParams struct {
-	TXORoot           []byte
-	SigHash           []byte
-	OutputCommitments [][]byte
-	Nullifiers        [][]byte
-	Fee               uint64
-	Coinbase          uint64
-	MintID            []byte
-	MintAmount        uint64
-	Blocktime         time.Time
+	TXORoot    []byte
+	SigHash    []byte
+	Outputs    []PublicOutput
+	Nullifiers [][]byte
+	Fee        uint64
+	Coinbase   uint64
+	MintID     []byte
+	MintAmount uint64
+	Locktime   time.Time
+}
+
+type UnlockingSnarkParams struct {
+	InputIndex    int
+	PrivateParams PrivateParams
+	PublicParams  PublicParams
+	UserParams    [][]byte
 }
 
 // This whole function is a placeholder for the actual zk-snark circuit. We enumerate it
 // here to give an approximate idea of what the circuit will do.
-func StandardCircuit(privateParams, publicParams interface{}) bool {
+func SmartCircuit(privateParams, publicParams interface{}) bool {
 	priv, ok := privateParams.(*PrivateParams)
 	if !ok {
 		return false
@@ -80,28 +95,39 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 
 	for i, in := range priv.Inputs {
 		// First obtain the hash of the spendScript.
-		spendScriptPreimage := []byte{in.Threshold}
-		for _, key := range in.Pubkeys {
-			spendScriptPreimage = append(spendScriptPreimage, key...)
+		spendScriptPreimage := in.SnarkVerificationKey
+		for _, param := range in.UserParams {
+			spendScriptPreimage = append(spendScriptPreimage, param...)
 		}
 		spendScriptHash := hash.HashFunc(spendScriptPreimage)
 
+		// Now calculate the commitmentPreimage and commitment hash.
 		amountBytes := make([]byte, 8)
 		binary.BigEndian.PutUint64(amountBytes, in.Amount)
-		commitmentPreimage := make([]byte, 0, 32+8+32+32)
+		commitmentPreimage := make([]byte, 0, 32+8+32+32+32)
 		commitmentPreimage = append(commitmentPreimage, spendScriptHash...)
 		commitmentPreimage = append(commitmentPreimage, amountBytes...)
 		commitmentPreimage = append(commitmentPreimage, in.AssetID[:]...)
-		commitmentPreimage = append(commitmentPreimage, in.Salt...)
+		commitmentPreimage = append(commitmentPreimage, in.State[:]...)
+		commitmentPreimage = append(commitmentPreimage, in.Salt[:]...)
+
 		outputCommitment := hash.HashFunc(commitmentPreimage)
 
-		// Then validate the merkle proof
+		// Then validate the merkle proof using the calculated commitment hash
+		// and provided inclusion proof.
 		if !ValidateInclusionProof(outputCommitment, in.CommitmentIndex, in.InclusionProof.Hashes, in.InclusionProof.Flags, in.InclusionProof.Accumulator, pub.TXORoot) {
 			return false
 		}
 
-		// Validate the signature(s)
-		valid, err := ValidateMultiSignature(in.Threshold, in.Pubkeys, in.Signatures, in.SigBitfield, pub.SigHash, pub.Blocktime)
+		// Validate the unlocking snark.
+		unlockingParams := &UnlockingSnarkParams{
+			InputIndex:    i,
+			PrivateParams: *priv,
+			PublicParams:  *pub,
+			UserParams:    in.UserParams,
+		}
+
+		valid, err := ValidateUnlockingSnark(in.SnarkVerificationKey, unlockingParams, in.SnarkProof)
 		if !valid || err != nil {
 			return false
 		}
@@ -109,12 +135,12 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 		// Validate that the nullifier is calculated correctly.
 		commitmentIndexBytes := make([]byte, 8)
 		binary.BigEndian.PutUint64(commitmentIndexBytes, in.CommitmentIndex)
-		nullifierPreimage := make([]byte, 0, 8+32+1+(len(in.Pubkeys)*32))
+		nullifierPreimage := make([]byte, 0, 8+32+100)
 		nullifierPreimage = append(nullifierPreimage, commitmentIndexBytes...)
-		nullifierPreimage = append(nullifierPreimage, in.Salt...)
-		nullifierPreimage = append(nullifierPreimage, in.Threshold)
-		for _, key := range in.Pubkeys {
-			nullifierPreimage = append(nullifierPreimage, key...)
+		nullifierPreimage = append(nullifierPreimage, in.Salt[:]...)
+		nullifierPreimage = append(nullifierPreimage, in.SnarkVerificationKey...)
+		for _, param := range in.UserParams {
+			nullifierPreimage = append(nullifierPreimage, param...)
 		}
 		calculatedNullifier := hash.HashFunc(nullifierPreimage)
 		if !bytes.Equal(calculatedNullifier, pub.Nullifiers[i][:]) {
@@ -137,7 +163,7 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 
 	outVal := uint64(0)
 	assetOuts := make(map[[32]byte]uint64)
-	if len(priv.Outputs) != len(pub.OutputCommitments) {
+	if len(priv.Outputs) != len(pub.Outputs) {
 		return false
 	}
 	for i, out := range priv.Outputs {
@@ -145,15 +171,18 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 		// actually matches the calculated output commitment. This prevents
 		// someone from putting a different output hash containing a
 		// different amount in the transactions.
-		commitmentPreimage := make([]byte, 0, 32+8+32+32)
+		commitmentPreimage := make([]byte, 0, 32+8+32+32+32)
 		amountBytes := make([]byte, 8)
 		binary.BigEndian.PutUint64(amountBytes, out.Amount)
-		commitmentPreimage = append(commitmentPreimage, out.SpendScript...)
+
+		commitmentPreimage = append(commitmentPreimage, out.ScriptHash...)
 		commitmentPreimage = append(commitmentPreimage, amountBytes...)
 		commitmentPreimage = append(commitmentPreimage, out.AssetID[:]...)
-		commitmentPreimage = append(commitmentPreimage, out.Salt...)
+		commitmentPreimage = append(commitmentPreimage, out.State[:]...)
+		commitmentPreimage = append(commitmentPreimage, out.Salt[:]...)
 		outputCommitment := hash.HashFunc(commitmentPreimage)
-		if !bytes.Equal(outputCommitment, pub.OutputCommitments[i]) {
+
+		if !bytes.Equal(outputCommitment, pub.Outputs[i].Commitment) {
 			return false
 		}
 
@@ -233,39 +262,9 @@ func ValidateInclusionProof(outputCommitment []byte, commitmentIndex uint64, has
 	return bytes.Equal(calculatedRoot, root)
 }
 
-func ValidateMultiSignature(threshold uint8, pubkeys [][]byte, signatures [][]byte, sigBitField uint8, sigHash []byte, blockTime time.Time) (bool, error) {
-	if len(signatures) > 8 || uint8(len(signatures)) < threshold {
-		return false, nil
-	}
-	if bits.OnesCount8(sigBitField) != len(signatures) {
-		return false, nil
-	}
-	if len(pubkeys) > 8 {
-		return false, nil
-	}
-	sigIndex := 0
-	for i := 0; i < len(pubkeys); i++ {
-		f := uint8(1 << i)
-		if f&sigBitField >= 1 {
-			timeLock := binary.BigEndian.Uint64(pubkeys[i][32:])
-			if time.Unix(int64(timeLock), 0).After(blockTime) {
-				return false, nil
-			}
-
-			pubkey, err := crypto.UnmarshalEd25519PublicKey(pubkeys[i][:32])
-			if err != nil {
-				return false, err
-			}
-
-			valid, err := pubkey.Verify(sigHash, signatures[sigIndex])
-			if !valid || err != nil {
-				return false, err
-			}
-
-			sigIndex++
-		}
-	}
-
+// ValidateUnlockingSnark is a placeholder. Normally this would be part of the overall circuit to validate
+// the inner snark recursively.
+func ValidateUnlockingSnark(snarkVerificationKey []byte, publicParams *UnlockingSnarkParams, proof []byte) (bool, error) {
 	return true, nil
 }
 

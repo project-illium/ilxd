@@ -13,8 +13,8 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
-	"github.com/project-illium/ilxd/wallet"
 	"github.com/project-illium/ilxd/zk"
+	"github.com/project-illium/ilxd/zk/circuits/smart"
 	"github.com/project-illium/ilxd/zk/circuits/stake"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"time"
@@ -58,26 +58,33 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 			if err != nil {
 				return nil, nil, err
 			}
-			serializedKey, err := sn.Note.SpendScript.Pubkeys[0].Serialize()
-			if err != nil {
-				return nil, nil, err
-			}
 
-			nullifier, err := types.CalculateNullifier(inclusionProof.Index, sn.Note.Salt, sn.Note.SpendScript.Threshold, serializedKey)
+			nullifier, err := types.CalculateNullifier(inclusionProof.Index, sn.Note.Salt, sn.Note.UnlockingScript.SnarkVerificationKey, sn.Note.UnlockingScript.PublicParams...)
 			if err != nil {
 				return nil, nil, err
 			}
 			toDelete = append(toDelete, nullifier)
 
 			var (
-				outputs           = make([]*transactions.Output, 0, outputsPerTx)
-				outputCommitments = make([][]byte, outputsPerTx)
-				outputNotes       = make([]*SpendableNote, 0, outputsPerTx)
+				outputs     = make([]*transactions.Output, 0, outputsPerTx)
+				outputNotes = make([]*SpendableNote, 0, outputsPerTx)
 			)
 
 			for x := 0; x < outputsPerTx; x++ {
 				nCommitments++
-				privKey, _, err := crypto.GenerateEd25519Key(rand.Reader)
+				privKey, pubKey, err := crypto.GenerateEd25519Key(rand.Reader)
+				if err != nil {
+					return nil, nil, err
+				}
+				pubKeyBytes, err := pubKey.Raw()
+				if err != nil {
+					return nil, nil, err
+				}
+				_, verificationKey, err := crypto.GenerateEd25519Key(rand.Reader)
+				if err != nil {
+					return nil, nil, err
+				}
+				verificationKeyBytes, err := verificationKey.Raw()
 				if err != nil {
 					return nil, nil, err
 				}
@@ -85,20 +92,15 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				var salt [32]byte
 				rand.Read(salt[:])
 
-				outPub := wallet.NewTimeLockedPubkey(privKey.GetPublic(), time.Time{})
-				serializedOutPub, err := outPub.Serialize()
-				if err != nil {
-					return nil, nil, err
-				}
-
-				outputNote := &wallet.SpendNote{
-					SpendScript: wallet.SpendScript{
-						Threshold: 1,
-						Pubkeys:   []*wallet.TimeLockedPubkey{outPub},
+				outputNote := &types.SpendNote{
+					UnlockingScript: types.UnlockingScript{
+						SnarkVerificationKey: verificationKeyBytes,
+						PublicParams:         [][]byte{pubKeyBytes},
 					},
 					Amount:  (sn.Note.Amount / uint64(outputsPerTx)) - fee,
-					AssetID: wallet.IlliumCoinID,
+					AssetID: types.IlliumCoinID,
 					Salt:    salt,
+					State:   [32]byte{},
 				}
 				outputNotes = append(outputNotes, &SpendableNote{
 					Note:       outputNote,
@@ -109,9 +111,8 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				if err != nil {
 					return nil, nil, err
 				}
-				outputCommitments[i] = outputCommitment
 
-				outNullifier, err := types.CalculateNullifier(nCommitments-1, outputNote.Salt, outputNote.SpendScript.Threshold, serializedOutPub)
+				outNullifier, err := types.CalculateNullifier(nCommitments-1, outputNote.Salt, outputNote.UnlockingScript.SnarkVerificationKey, outputNote.UnlockingScript.PublicParams...)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -139,50 +140,77 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 			if err != nil {
 				return nil, nil, err
 			}
-			sig, err := sn.PrivateKey.Sign(sigHash)
+
+			_, verificationKey, err := crypto.GenerateEd25519Key(rand.Reader)
+			if err != nil {
+				return nil, nil, err
+			}
+			_, unlockingPubkey, err := crypto.GenerateEd25519Key(rand.Reader)
 			if err != nil {
 				return nil, nil, err
 			}
 
-			privateParams := &standard.PrivateParams{
-				Inputs: []standard.PrivateInput{
+			verificationKeyBytes, err := verificationKey.Raw()
+			if err != nil {
+				return nil, nil, err
+			}
+			unlockingKeyBytes, err := unlockingPubkey.Raw()
+			if err != nil {
+				return nil, nil, err
+			}
+
+			mockUnlockingProof := make([]byte, 3500)
+			rand.Read(mockUnlockingProof)
+
+			privateParams := &smart.PrivateParams{
+				Inputs: []smart.PrivateInput{
 					{
 						Amount:          sn.Note.Amount,
-						Salt:            sn.Note.Salt[:],
+						Salt:            sn.Note.Salt,
 						AssetID:         sn.Note.AssetID,
+						State:           [32]byte{},
 						CommitmentIndex: inclusionProof.Index,
-						InclusionProof: standard.InclusionProof{
+						InclusionProof: smart.InclusionProof{
 							Hashes:      inclusionProof.Hashes,
 							Flags:       inclusionProof.Flags,
 							Accumulator: inclusionProof.Accumulator,
 						},
-						Threshold:   1,
-						Pubkeys:     [][]byte{serializedKey},
-						Signatures:  [][]byte{sig},
-						SigBitfield: 1,
+						SnarkVerificationKey: verificationKeyBytes,
+						UserParams:           [][]byte{unlockingKeyBytes},
+						SnarkProof:           mockUnlockingProof,
 					},
 				},
 			}
 			for _, outNote := range outputNotes {
-				spendScript, err := outNote.Note.SpendScript.Hash()
-				if err != nil {
-					return nil, nil, err
-				}
-				privateParams.Outputs = append(privateParams.Outputs, standard.PrivateOutput{
-					SpendScript: spendScript,
-					Amount:      outNote.Note.Amount,
-					Salt:        outNote.Note.Salt[:],
-					AssetID:     outNote.Note.AssetID,
+				scriptHash := outNote.Note.UnlockingScript.Hash()
+				privateParams.Outputs = append(privateParams.Outputs, smart.PrivateOutput{
+					State:      [32]byte{},
+					Amount:     outNote.Note.Amount,
+					Salt:       outNote.Note.Salt,
+					AssetID:    outNote.Note.AssetID,
+					ScriptHash: scriptHash[:],
 				})
 			}
 
-			publicPrams := &standard.PublicParams{
-				TXORoot:           acc.Root().Bytes(),
-				SigHash:           sigHash,
-				OutputCommitments: outputCommitments,
-				Nullifiers:        [][]byte{nullifier.Bytes()},
-				Fee:               fee,
-				Blocktime:         time.Now(),
+			publicOutputs := make([]smart.PublicOutput, len(outputNotes))
+			for i, output := range outputs {
+				publicOutputs[i] = smart.PublicOutput{
+					Commitment: output.Commitment,
+					EncKey:     output.EphemeralPubkey,
+					CipherText: output.Ciphertext,
+				}
+			}
+
+			publicPrams := &smart.PublicParams{
+				TXORoot:    acc.Root().Bytes(),
+				SigHash:    sigHash,
+				Outputs:    publicOutputs,
+				Nullifiers: [][]byte{nullifier.Bytes()},
+				Fee:        fee,
+				Coinbase:   0,
+				MintID:     nil,
+				MintAmount: 0,
+				Locktime:   time.Time{},
 			}
 
 			proof, err := zk.CreateSnark(standard.StandardCircuit, privateParams, publicPrams)
@@ -253,34 +281,49 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 }
 
 func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypto.PrivKey,
-	initialCoins uint64, additionalOutputs []*transactions.Output) (*blocks.Block, *wallet.SpendNote, error) {
+	initialCoins uint64, additionalOutputs []*transactions.Output) (*blocks.Block, *types.SpendNote, error) {
 
 	// First we'll create the spend note for the coinbase transaction.
 	// The initial coins will be generated to the spendKey.
 	var salt1 [32]byte
 	rand.Read(salt1[:])
 
-	note1 := &wallet.SpendNote{
-		SpendScript: wallet.SpendScript{
-			Threshold: 1,
-			Pubkeys:   []*wallet.TimeLockedPubkey{wallet.NewTimeLockedPubkey(spendKey.GetPublic(), time.Time{})},
+	_, verificationKey, err := crypto.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
+	verificationKeyBytes, err := verificationKey.Raw()
+	if err != nil {
+		return nil, nil, err
+	}
+	spendPubkeyBytes, err := spendKey.GetPublic().Raw()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	note1 := &types.SpendNote{
+		UnlockingScript: types.UnlockingScript{
+			SnarkVerificationKey: verificationKeyBytes,
+			PublicParams:         [][]byte{spendPubkeyBytes},
 		},
 		Amount:  initialCoins / 2,
-		AssetID: wallet.IlliumCoinID,
+		AssetID: types.IlliumCoinID,
 		Salt:    salt1,
+		State:   [32]byte{},
 	}
 
 	var salt2 [32]byte
 	rand.Read(salt2[:])
 
-	note2 := &wallet.SpendNote{
-		SpendScript: wallet.SpendScript{
-			Threshold: 1,
-			Pubkeys:   []*wallet.TimeLockedPubkey{wallet.NewTimeLockedPubkey(spendKey.GetPublic(), time.Time{})},
+	note2 := &types.SpendNote{
+		UnlockingScript: types.UnlockingScript{
+			SnarkVerificationKey: verificationKeyBytes,
+			PublicParams:         [][]byte{spendPubkeyBytes},
 		},
 		Amount:  initialCoins / 2,
-		AssetID: wallet.IlliumCoinID,
+		AssetID: types.IlliumCoinID,
 		Salt:    salt2,
+		State:   [32]byte{},
 	}
 
 	// Next we're going to start building the coinbase transaction
@@ -333,54 +376,46 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 
 	// Finally we're going to create the zk-snark proof for the coinbase
 	// transaction.
-	spendScriptHash1, err := note1.SpendScript.Hash()
+	spendScriptHash1 := note1.UnlockingScript.Hash()
+	spendScriptHash2 := note2.UnlockingScript.Hash()
+
+	nullifier1, err := types.CalculateNullifier(0, salt1, note1.UnlockingScript.SnarkVerificationKey, note1.UnlockingScript.PublicParams...)
+	if err != nil {
+		return nil, nil, err
+	}
+	nullifier2, err := types.CalculateNullifier(1, salt2, note2.UnlockingScript.SnarkVerificationKey, note2.UnlockingScript.PublicParams...)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	spendScriptHash2, err := note2.SpendScript.Hash()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	serializedPubkey1, err := note1.SpendScript.Pubkeys[0].Serialize()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	serializedPubkey2, err := note1.SpendScript.Pubkeys[0].Serialize()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	nullifier1, err := types.CalculateNullifier(0, salt1, 1, serializedPubkey1)
-	if err != nil {
-		return nil, nil, err
-	}
-	nullifier2, err := types.CalculateNullifier(1, salt2, 1, serializedPubkey2)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	publicParams := &standard.PublicParams{
-		OutputCommitments: [][]byte{commitment1, commitment2},
-		Nullifiers:        [][]byte{nullifier1.Bytes(), nullifier2.Bytes()},
-		Fee:               0,
-		Coinbase:          initialCoins,
-	}
-	privateParams := &standard.PrivateParams{
-		Outputs: []standard.PrivateOutput{
+	publicParams := &smart.PublicParams{
+		Outputs: []smart.PublicOutput{
 			{
-				SpendScript: spendScriptHash1,
-				Amount:      initialCoins / 2,
-				Salt:        note1.Salt[:],
-				AssetID:     note1.AssetID,
+				Commitment: commitment1,
 			},
 			{
-				SpendScript: spendScriptHash2,
-				Amount:      initialCoins / 2,
-				Salt:        note2.Salt[:],
-				AssetID:     note2.AssetID,
+				Commitment: commitment2,
+			},
+		},
+		Nullifiers: [][]byte{nullifier1.Bytes(), nullifier2.Bytes()},
+		Fee:        0,
+		Coinbase:   initialCoins,
+	}
+	privateParams := &smart.PrivateParams{
+		Outputs: []smart.PrivateOutput{
+			{
+				ScriptHash: spendScriptHash1[:],
+				Amount:     initialCoins / 2,
+				Salt:       note1.Salt,
+				AssetID:    note1.AssetID,
+				State:      note1.State,
+			},
+			{
+				ScriptHash: spendScriptHash2[:],
+				Amount:     initialCoins / 2,
+				Salt:       note2.Salt,
+				AssetID:    note2.AssetID,
+				State:      note2.State,
 			},
 		},
 	}
@@ -444,7 +479,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		Nullifier: nullifier1.Bytes(),
 	}
 	privateParams2 := &stake.PrivateParams{
-		AssetID:         wallet.IlliumCoinID[:],
+		AssetID:         types.IlliumCoinID[:],
 		Salt:            salt1[:],
 		CommitmentIndex: 0,
 		InclusionProof: standard.InclusionProof{

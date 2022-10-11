@@ -23,10 +23,11 @@ message Output {
 
 message StandardTransaction {
     repeated Output outputs =   1;
-    uint64 fee                = 2;
-    repeated bytes nullifiers = 3;
-    bytes txo_root            = 4;
-    bytes proof               = 5;
+    repeated bytes nullifiers = 2;
+    bytes txo_root            = 3;
+    int64 locktime            = 4;
+    uint64 fee                = 5;
+    bytes proof               = 6;
 }
 
 message CoinbaseTransaction {
