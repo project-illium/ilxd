@@ -32,7 +32,7 @@ const (
 	AvalancheRequestTimeout = 1 * time.Minute
 
 	// AvalancheFinalizationScore is the confidence score we consider to be final
-	AvalancheFinalizationScore = 256
+	AvalancheFinalizationScore = 128
 
 	// AvalancheTimeStep is the amount of time to wait between event ticks
 	AvalancheTimeStep = time.Millisecond
@@ -45,7 +45,7 @@ const (
 	// query
 	AvalancheMaxElementPoll = 4096
 
-	// DeleteInventoryAfter is the maximum time we'll keep a transaction in memory
+	// DeleteInventoryAfter is the maximum time we'll keep a block in memory
 	// if it hasn't been finalized by avalanche.
 	DeleteInventoryAfter = time.Hour * 6
 )
@@ -95,7 +95,10 @@ type AvalancheEngine struct {
 	streams        map[peer.ID]inet.Stream
 	start          time.Time
 
-	alwaysNo bool
+	alwaysNo    bool
+	flipFlopper bool
+	flipperVote bool
+	printState  bool
 }
 
 func NewAvalancheEngine(ctx context.Context, network *net.Network) (*AvalancheEngine, error) {
@@ -229,10 +232,6 @@ func (eng *AvalancheEngine) handleQuery(req *wire.MsgAvaRequest, respChan chan *
 	votes := make([]byte, len(req.Invs))
 	for i, invBytes := range req.Invs {
 		inv := types.NewID(invBytes)
-		if eng.alwaysNo {
-			votes[i] = 0x00
-			continue
-		}
 
 		if _, exists := eng.rejectedBlocks[inv]; exists {
 			votes[i] = 0x00 // No vote
@@ -241,16 +240,25 @@ func (eng *AvalancheEngine) handleQuery(req *wire.MsgAvaRequest, respChan chan *
 		record, ok := eng.voteRecords[inv]
 		if ok {
 			// We're only going to vote for items we have a record for.
-			vote := byte(0x00) // No vote
+			votes[i] = 0x00 // No vote
 			if record.isPreferred() {
-				vote = 0x01 // Yes vote
+				votes[i] = 0x01 // Yes vote
 			}
-			votes[i] = vote
 		} else {
 			// TODO: we need to download this block from the peer and give it to
 			// the mempool for processing.
 
 			votes[i] = 0x80 // Neutral vote
+		}
+
+		if eng.alwaysNo {
+			votes[i] = 0x00
+			continue
+		}
+
+		if eng.flipFlopper {
+			votes[i] = boolToUint8(eng.flipperVote)
+			eng.flipperVote = !eng.flipperVote
 		}
 	}
 	resp := &wire.MsgAvaResponse{
@@ -278,7 +286,6 @@ func (eng *AvalancheEngine) handleRequestExpiration(key string) {
 }
 
 func (eng *AvalancheEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer peer.ID) {
-
 	var (
 		key  = queryKey(req.RequestID, peer.Pretty())
 		resp = new(wire.MsgAvaResponse)
@@ -335,6 +342,9 @@ func (eng *AvalancheEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 		}
 
 		if !vr.regsiterVote(resp.Votes[i]) {
+			if eng.printState {
+				vr.printState()
+			}
 			// This vote did not provide any extra information
 			continue
 		}
@@ -346,16 +356,23 @@ func (eng *AvalancheEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 		}
 
 		if vr.status() == StatusFinalized || vr.status() == StatusRejected {
-			fmt.Println(time.Since(eng.start))
+			if eng.printState {
+				vr.printState()
+			}
 			callback, ok := eng.callbacks[inv]
 			if ok {
-				callback <- vr.status()
+				go func() {
+					callback <- vr.status()
+				}()
 			}
 		}
 	}
 }
 
 func (eng *AvalancheEngine) pollLoop() {
+	if eng.alwaysNo || eng.flipFlopper {
+		return
+	}
 	invs := eng.getInvsForNextPoll()
 	if len(invs) == 0 {
 		return
@@ -384,8 +401,10 @@ func (eng *AvalancheEngine) pollLoop() {
 }
 
 func (eng *AvalancheEngine) getInvsForNextPoll() []types.ID {
-	var invs []types.ID
-	var toDelete []types.ID
+	var (
+		invs     []types.ID
+		toDelete []types.ID
+	)
 	for id, r := range eng.voteRecords {
 		// Delete very old inventory that hasn't finalized
 		if time.Since(r.timestamp) > DeleteInventoryAfter {

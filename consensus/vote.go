@@ -7,7 +7,6 @@ package consensus
 import (
 	"fmt"
 	"github.com/project-illium/ilxd/types"
-	"strconv"
 	"time"
 )
 
@@ -59,9 +58,9 @@ type VoteRecord struct {
 }
 
 // NewVoteRecord instantiates a new base record for voting on a target
-// `accepted` indicates whether or not the initial state should be acceptance
-func NewVoteRecord(blockID types.ID, accepted bool) *VoteRecord {
-	return &VoteRecord{blockID: blockID, confidence: boolToUint16(accepted), timestamp: time.Now()}
+// `accepted` indicates whether or not the initial state should be preferred
+func NewVoteRecord(blockID types.ID, preferred bool) *VoteRecord {
+	return &VoteRecord{blockID: blockID, confidence: boolToUint16(preferred), timestamp: time.Now()}
 }
 
 // isPreferred returns whether or not the voted state is preferred or not
@@ -82,12 +81,9 @@ func (vr VoteRecord) hasFinalized() bool {
 // regsiterVote adds a new vote for an item and update confidence accordingly.
 // Returns true if the acceptance or finalization state changed.
 func (vr *VoteRecord) regsiterVote(vote uint8) bool {
-	if vote > 1 {
-		return false
-	}
 	vr.totalVotes++
 	vr.votes = (vr.votes << 1) | boolToUint16(vote == 1)
-	vr.consider = (vr.consider << 1) | boolToUint16(int8(vote) >= 0)
+	vr.consider = (vr.consider << 1) | boolToUint16(vote < 2)
 
 	yes := countBits16(vr.votes&vr.consider) > 12
 
@@ -128,9 +124,10 @@ func (vr *VoteRecord) status() (status Status) {
 }
 
 func (vr *VoteRecord) printState() {
-	fmt.Println("Votes: ", strconv.FormatInt(int64(vr.votes), 2))
-	fmt.Println("Consider: ", strconv.FormatInt(int64(vr.consider), 2))
-	fmt.Println("Confidence: ", strconv.FormatInt(int64(vr.confidence), 2))
+	fmt.Printf("Votes: %016b\n", vr.votes)
+	fmt.Printf("Consider: %016b\n", vr.consider)
+	fmt.Printf("Confidence: %016b\n", vr.confidence)
+	fmt.Printf("Total Votes: %d\n", vr.totalVotes)
 	fmt.Println()
 }
 

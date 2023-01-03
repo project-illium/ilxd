@@ -7,11 +7,13 @@ package blockchain
 import (
 	"bytes"
 	"crypto/rand"
+	"fmt"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestAccumulator(t *testing.T) {
@@ -96,6 +98,18 @@ func TestAccumulator(t *testing.T) {
 	acc.DropProof(d7)
 	_, err = acc.GetProof(d7)
 	assert.Error(t, err)
+}
+
+func TestNewProofCache(t *testing.T) {
+	r := make([]byte, 32)
+	rand.Read(r)
+
+	acc := NewAccumulator()
+	start := time.Now()
+	for i := 0; i < 20000; i++ {
+		acc.Insert(r, false)
+	}
+	fmt.Println(time.Since(start))
 }
 
 func TestAccumulator_GetProof(t *testing.T) {

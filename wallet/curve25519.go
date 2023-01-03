@@ -47,6 +47,7 @@ func GenerateCurve25519Key(src io.Reader) (crypto.PrivKey, crypto.PubKey, error)
 
 	var combined [64]byte
 	copy(combined[:32], priv[:])
+	copy(combined[32:], pub[:])
 
 	return &Curve25519PrivateKey{
 			k: &combined,

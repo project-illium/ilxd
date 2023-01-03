@@ -17,6 +17,7 @@ import (
 	"github.com/project-illium/ilxd/zk/circuits/smart"
 	"github.com/project-illium/ilxd/zk/circuits/stake"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
+	"github.com/project-illium/ilxd/zk/scripts/transfer"
 	"time"
 )
 
@@ -141,24 +142,6 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				return nil, nil, err
 			}
 
-			_, verificationKey, err := crypto.GenerateEd25519Key(rand.Reader)
-			if err != nil {
-				return nil, nil, err
-			}
-			_, unlockingPubkey, err := crypto.GenerateEd25519Key(rand.Reader)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			verificationKeyBytes, err := verificationKey.Raw()
-			if err != nil {
-				return nil, nil, err
-			}
-			unlockingKeyBytes, err := unlockingPubkey.Raw()
-			if err != nil {
-				return nil, nil, err
-			}
-
 			mockUnlockingProof := make([]byte, 3500)
 			rand.Read(mockUnlockingProof)
 
@@ -175,8 +158,8 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 							Flags:       inclusionProof.Flags,
 							Accumulator: inclusionProof.Accumulator,
 						},
-						SnarkVerificationKey: verificationKeyBytes,
-						UserParams:           [][]byte{unlockingKeyBytes},
+						SnarkVerificationKey: sn.Note.UnlockingScript.SnarkVerificationKey,
+						UserParams:           sn.Note.UnlockingScript.PublicParams,
 						SnarkProof:           mockUnlockingProof,
 					},
 				},
@@ -213,7 +196,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				Locktime:   time.Time{},
 			}
 
-			proof, err := zk.CreateSnark(standard.StandardCircuit, privateParams, publicPrams)
+			proof, err := zk.CreateSnark(smart.SmartCircuit, privateParams, publicPrams)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -296,7 +279,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	if err != nil {
 		return nil, nil, err
 	}
-	spendPubkeyBytes, err := spendKey.GetPublic().Raw()
+	spendPubkeyBytes, err := crypto.MarshalPublicKey(spendKey.GetPublic())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -420,7 +403,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		},
 	}
 
-	proof, err := zk.CreateSnark(standard.StandardCircuit, privateParams, publicParams)
+	proof, err := zk.CreateSnark(smart.SmartCircuit, privateParams, publicParams)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -467,7 +450,13 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	stakeTx.Signature = sig2
 
 	// And generate the zk-snark proof
+	unlockingParams := &smart.UnlockingSnarkParams{PublicParams: smart.PublicParams{SigHash: sigHash2}, UserParams: [][]byte{spendPubkeyBytes}}
 	sig3, err := spendKey.Sign(sigHash2)
+	if err != nil {
+		return nil, nil, err
+	}
+	unlockingPriv := &transfer.PrivateParams{Signature: sig3}
+	unlockingProof, err := zk.CreateSnark(transfer.TransferScript, unlockingPriv, unlockingParams)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -479,18 +468,18 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		Nullifier: nullifier1.Bytes(),
 	}
 	privateParams2 := &stake.PrivateParams{
-		AssetID:         types.IlliumCoinID[:],
-		Salt:            salt1[:],
+		AssetID:         types.IlliumCoinID,
+		Salt:            salt1,
+		State:           [32]byte{},
 		CommitmentIndex: 0,
 		InclusionProof: standard.InclusionProof{
 			Hashes:      inclusionProof.Hashes,
 			Flags:       inclusionProof.Flags,
 			Accumulator: inclusionProof.Accumulator,
 		},
-		Threshold:   1,
-		Pubkeys:     [][]byte{serializedPubkey1},
-		Signatures:  [][]byte{sig3},
-		SigBitfield: 1,
+		SnarkVerificationKey: verificationKeyBytes,
+		UserParams:           [][]byte{spendPubkeyBytes},
+		SnarkProof:           unlockingProof,
 	}
 
 	proof2, err := zk.CreateSnark(stake.StakeCircuit, privateParams2, publicParams2)
