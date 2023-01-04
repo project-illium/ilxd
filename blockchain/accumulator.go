@@ -33,19 +33,22 @@ type InclusionProof struct {
 //
 // When a new data element is added that would make the tree unbalanced, it
 // is used to start a new tree. Consider the following balanced tree:
-//                            peak0
-//                       /            \
-//                    h12              h34
-//                  /     \          /     \
-//                h1       h2      h3       h4
+//
+//	            peak0
+//	       /            \
+//	    h12              h34
+//	  /     \          /     \
+//	h1       h2      h3       h4
 //
 // When h5 is added it will start a new tree. The follow depicts the state
 // after h5 and h6 are added:
-//                            peak0
-//                       /            \
-//                    h12              h34             peak1
-//                  /     \          /     \         /      \
-//                h1       h2      h3       h4      h5      h6
+//
+//	            peak0
+//	       /            \
+//	    h12              h34             peak1
+//	  /     \          /     \         /      \
+//	h1       h2      h3       h4      h5      h6
+//
 // Notice we have two peaks. And if h7 were added that would form a third peak.
 // The "root" of the entire data structure is the hash of all the peaks,
 // hash(peak0 || peak1) in this case. Whenever two peaks reach the same height,

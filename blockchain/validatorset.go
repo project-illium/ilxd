@@ -6,14 +6,18 @@ package blockchain
 
 import (
 	"context"
+	crand "crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/mroth/weightedrand/v2"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -64,6 +68,7 @@ type ValidatorSet struct {
 	validators   map[peer.ID]*Validator
 	nullifierMap map[types.Nullifier]*Validator
 	toDelete     map[peer.ID]struct{}
+	chooser      *weightedrand.Chooser[peer.ID, uint64]
 	dirty        bool
 	lastFlush    time.Time
 	mtx          sync.RWMutex
@@ -183,7 +188,21 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 		// New node. Grab genesis block and start applying
 		// changes to the validator set up to the tip.
 	}
-	return nil
+
+	b := make([]byte, 8)
+	crand.Read(b)
+	rand.Seed(int64(binary.BigEndian.Uint64(b)))
+
+	choices := make([]weightedrand.Choice[peer.ID, uint64], 0, len(vs.validators))
+	for peerID, validator := range vs.validators {
+		choices = append(choices, weightedrand.NewChoice(peerID, validator.TotalStake))
+	}
+	// The chooser will panic if either:
+	// - The weight is over the max (shouldn't happen as total illium coins fits in a uint64)
+	// - The weight is zero (we will guard this in the method)
+	vs.chooser, _ = weightedrand.NewChooser(choices...)
+
+	return err
 }
 
 func (vs *ValidatorSet) GetValidator(id peer.ID) (*Validator, error) {
@@ -383,7 +402,24 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 		}
 	}
 
+	choices := make([]weightedrand.Choice[peer.ID, uint64], 0, len(vs.validators))
+	for peerID, validator := range vs.validators {
+		choices = append(choices, weightedrand.NewChoice(peerID, validator.TotalStake))
+	}
+	vs.chooser, _ = weightedrand.NewChooser(choices...)
+
 	return vs.flush(flushMode, blk.Header.Height)
+}
+
+func (vs *ValidatorSet) WeightedRandomPeer() peer.ID {
+	vs.mtx.RLock()
+	defer vs.mtx.RUnlock()
+
+	if vs.totalStaked() == 0 {
+		return ""
+	}
+
+	return vs.chooser.Pick()
 }
 
 func (vs *ValidatorSet) Flush(mode flushMode, chainHeight uint32) error {

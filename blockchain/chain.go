@@ -12,7 +12,6 @@ import (
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
-	"github.com/project-illium/ilxd/types/transactions"
 	"math"
 	"sync"
 )
@@ -161,25 +160,9 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	accumulator := b.accumulatorDB.Accumulator()
 
 	treasuryWidthdrawl := uint64(0)
-	for _, t := range blk.Transactions {
-		switch tx := t.GetTx().(type) {
-		case *transactions.Transaction_StandardTransaction:
-			for _, out := range tx.StandardTransaction.Outputs {
-				accumulator.Insert(out.Commitment, false)
-			}
-		case *transactions.Transaction_CoinbaseTransaction:
-			for _, out := range tx.CoinbaseTransaction.Outputs {
-				accumulator.Insert(out.Commitment, false)
-			}
-		case *transactions.Transaction_MintTransaction:
-			for _, out := range tx.MintTransaction.Outputs {
-				accumulator.Insert(out.Commitment, false)
-			}
-		case *transactions.Transaction_TreasuryTransaction:
-			treasuryWidthdrawl += tx.TreasuryTransaction.Amount
-			for _, out := range tx.TreasuryTransaction.Outputs {
-				accumulator.Insert(out.Commitment, false)
-			}
+	for _, tx := range blk.Transactions {
+		for _, out := range tx.Outputs() {
+			accumulator.Insert(out.Commitment, false)
 		}
 	}
 	if treasuryWidthdrawl > 0 {

@@ -44,6 +44,29 @@ func (tx *Transaction) ID() types.ID {
 	return types.NewIDFromData(ser)
 }
 
+func (tx *Transaction) Outputs() []*Output {
+	outputs := make([]*Output, 0, 1)
+	switch tx := tx.GetTx().(type) {
+	case *Transaction_StandardTransaction:
+		for _, out := range tx.StandardTransaction.Outputs {
+			outputs = append(outputs, out)
+		}
+	case *Transaction_CoinbaseTransaction:
+		for _, out := range tx.CoinbaseTransaction.Outputs {
+			outputs = append(outputs, out)
+		}
+	case *Transaction_MintTransaction:
+		for _, out := range tx.MintTransaction.Outputs {
+			outputs = append(outputs, out)
+		}
+	case *Transaction_TreasuryTransaction:
+		for _, out := range tx.TreasuryTransaction.Outputs {
+			outputs = append(outputs, out)
+		}
+	}
+	return outputs
+}
+
 func (tx *Transaction) Serialize() ([]byte, error) {
 	return proto.Marshal(tx)
 }

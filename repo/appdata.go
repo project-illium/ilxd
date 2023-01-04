@@ -17,7 +17,7 @@ import (
 // storing application data for an application.  See AppDataDir for more
 // details.  This unexp properly test the function by
 // forcing an operating system that is not the curreorted version takes an operating system argument
-//// primarily to enable the testing package tontly one.
+// // primarily to enable the testing package tontly one.
 func appDataDir(goos, appName string, roaming bool) string {
 	if appName == "" || appName == "." {
 		return "."
@@ -95,11 +95,12 @@ func appDataDir(goos, appName string, roaming bool) string {
 // (%LOCALAPPDATA%) that is used by default.
 //
 // Example results:
-//  dir := AppDataDir("myapp", false)
-//   POSIX (Linux/BSD): ~/.myapp
-//   Mac OS: $HOME/Library/Application Support/Myapp
-//   Windows: %LOCALAPPDATA%\Myapp
-//   Plan 9: $home/myapp
+//
+//	dir := AppDataDir("myapp", false)
+//	 POSIX (Linux/BSD): ~/.myapp
+//	 Mac OS: $HOME/Library/Application Support/Myapp
+//	 Windows: %LOCALAPPDATA%\Myapp
+//	 Plan 9: $home/myapp
 func AppDataDir(appName string, roaming bool) string {
 	return appDataDir(runtime.GOOS, appName, roaming)
 }

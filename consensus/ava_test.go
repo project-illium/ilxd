@@ -58,7 +58,7 @@ func runTest(numNodes int, numNoVotes int, numAlwaysNoVotes int) (bool, error) {
 			return false, err
 		}
 
-		engine, err := NewAvalancheEngine(context.Background(), network)
+		engine, err := NewAvalancheEngine(context.Background(), network, &MockChooser{network: network})
 		if err != nil {
 			return false, err
 		}

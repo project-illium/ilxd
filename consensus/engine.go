@@ -83,6 +83,7 @@ type registerVotesMsg struct {
 type AvalancheEngine struct {
 	ctx     context.Context
 	network *net.Network
+	chooser WeightedChooser
 	ms      net.MessageSender
 	wg      sync.WaitGroup
 	quit    chan struct{}
@@ -101,10 +102,11 @@ type AvalancheEngine struct {
 	printState  bool
 }
 
-func NewAvalancheEngine(ctx context.Context, network *net.Network) (*AvalancheEngine, error) {
+func NewAvalancheEngine(ctx context.Context, network *net.Network, chooser WeightedChooser) (*AvalancheEngine, error) {
 	return &AvalancheEngine{
 		ctx:            ctx,
 		network:        network,
+		chooser:        chooser,
 		ms:             net.NewMessageSender(network.Host(), AvalancheProtocolID),
 		wg:             sync.WaitGroup{},
 		quit:           make(chan struct{}),
@@ -378,8 +380,8 @@ func (eng *AvalancheEngine) pollLoop() {
 		return
 	}
 
-	p := eng.getRandomPeerToQuery()
-	if p == nil {
+	p := eng.chooser.WeightedRandomPeer()
+	if p == "" {
 		return
 	}
 	requestID := rand.Uint32()
@@ -397,7 +399,7 @@ func (eng *AvalancheEngine) pollLoop() {
 		Invs:      invList,
 	}
 
-	go eng.queueMessageToPeer(req, *p)
+	go eng.queueMessageToPeer(req, p)
 }
 
 func (eng *AvalancheEngine) getInvsForNextPoll() []types.ID {
@@ -435,16 +437,6 @@ func (eng *AvalancheEngine) getInvsForNextPoll() []types.ID {
 	}
 
 	return invs
-}
-
-func (eng *AvalancheEngine) getRandomPeerToQuery() *peer.ID {
-	peers := eng.network.Host().Network().Peers()
-	l := len(peers)
-	if l == 0 {
-		return nil
-	}
-	i := rand.Intn(l)
-	return &peers[i]
 }
 
 func queryKey(requestID uint32, peerID string) string {
