@@ -7,10 +7,9 @@ package stake_test
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/types"
-	"github.com/project-illium/ilxd/wallet"
 	"github.com/project-illium/ilxd/zk/circuits/stake"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/stretchr/testify/assert"
@@ -23,33 +22,28 @@ func TestStakeCircuit(t *testing.T) {
 	defaultTimeBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(defaultTimeBytes, uint64(defaultTime.Unix()))
 
+	_, verificationKey, err := crypto.GenerateEd25519Key(rand.Reader)
+	assert.NoError(t, err)
+	verificationKeyBytes, err := crypto.MarshalPublicKey(verificationKey)
+	assert.NoError(t, err)
 	_, pub1, err := crypto.GenerateEd25519Key(rand.Reader)
 	assert.NoError(t, err)
-	priv2, pub2, err := crypto.GenerateEd25519Key(rand.Reader)
+	pub1bytes, err := crypto.MarshalPublicKey(pub1)
 	assert.NoError(t, err)
-	priv3, pub3, err := crypto.GenerateEd25519Key(rand.Reader)
+	_, pub2, err := crypto.GenerateEd25519Key(rand.Reader)
+	assert.NoError(t, err)
+	pub2bytes, err := crypto.MarshalPublicKey(pub2)
+	assert.NoError(t, err)
+	_, pub3, err := crypto.GenerateEd25519Key(rand.Reader)
+	assert.NoError(t, err)
+	pub3bytes, err := crypto.MarshalPublicKey(pub3)
 	assert.NoError(t, err)
 
-	raw1, err := pub1.Raw()
-	assert.NoError(t, err)
-	raw2, err := pub2.Raw()
-	assert.NoError(t, err)
-	raw3, err := pub3.Raw()
-	assert.NoError(t, err)
+	userParams := [][]byte{{0x02}, pub1bytes, pub2bytes, pub3bytes}
 
-	ss := wallet.SpendScript{
-		Threshold: 2,
-		Pubkeys: []*wallet.TimeLockedPubkey{
-			{PubKey: pub1},
-			{PubKey: pub2},
-			{PubKey: pub3},
-		},
-	}
-	pubkeys := make([][]byte, 3)
-	for _, key := range ss.Pubkeys {
-		b, err := key.Serialize()
-		assert.NoError(t, err)
-		pubkeys = append(pubkeys, b)
+	script := types.UnlockingScript{
+		SnarkVerificationKey: verificationKeyBytes,
+		PublicParams:         userParams,
 	}
 
 	r := make([]byte, 32)
@@ -58,10 +52,10 @@ func TestStakeCircuit(t *testing.T) {
 	copy(salt[:], r)
 
 	note1 := types.SpendNote{
-		SpendScript: ss,
-		AssetID:     [32]byte{},
-		Amount:      1000000,
-		Salt:        salt,
+		UnlockingScript: script,
+		AssetID:         [32]byte{},
+		Amount:          1000000,
+		Salt:            salt,
 	}
 
 	commitment, err := note1.Commitment()
@@ -84,28 +78,25 @@ func TestStakeCircuit(t *testing.T) {
 	sigHash := make([]byte, 32)
 	rand.Read(sigHash)
 
-	sig2, err := priv2.Sign(sigHash)
-	assert.NoError(t, err)
+	fakeSnarkProof := make([]byte, 32)
+	rand.Read(fakeSnarkProof)
 
-	sig3, err := priv3.Sign(sigHash)
-	assert.NoError(t, err)
-
-	nullifier, err := types.CalculateNullifier(inclusionProof.Index, note1.Salt, ss.Threshold, pubkeys...)
+	nullifier, err := types.CalculateNullifier(inclusionProof.Index, note1.Salt, verificationKeyBytes, userParams...)
 	assert.NoError(t, err)
 
 	privateParams := &stake.PrivateParams{
-		AssetID:         note1.AssetID[:],
-		Salt:            note1.Salt[:],
+		AssetID:         note1.AssetID,
+		Salt:            note1.Salt,
+		State:           [32]byte{},
 		CommitmentIndex: inclusionProof.Index,
 		InclusionProof: standard.InclusionProof{
 			Accumulator: inclusionProof.Accumulator,
 			Hashes:      inclusionProof.Hashes,
 			Flags:       inclusionProof.Flags,
 		},
-		Threshold:   ss.Threshold,
-		Pubkeys:     [][]byte{append(raw1, defaultTimeBytes...), append(raw2, defaultTimeBytes...), append(raw3, defaultTimeBytes...)},
-		Signatures:  [][]byte{sig2, sig3},
-		SigBitfield: 6,
+		SnarkVerificationKey: verificationKeyBytes,
+		UserParams:           userParams,
+		SnarkProof:           fakeSnarkProof,
 	}
 
 	publicParams := &stake.PublicParams{

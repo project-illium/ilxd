@@ -7,22 +7,22 @@ package net
 import (
 	"context"
 	"fmt"
-	"github.com/libp2p/go-libp2p-core/peerstore"
-	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-libp2p/core/peerstore"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/project-illium/ilxd/params/hash"
 	"time"
 
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
-	coreconmgr "github.com/libp2p/go-libp2p-core/connmgr"
-	"github.com/libp2p/go-libp2p-core/host"
-	inet "github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/routing"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pb "github.com/libp2p/go-libp2p-pubsub/pb"
+	coreconmgr "github.com/libp2p/go-libp2p/core/connmgr"
+	"github.com/libp2p/go-libp2p/core/host"
+	inet "github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/routing"
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	"github.com/multiformats/go-multiaddr"
@@ -190,10 +190,10 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	}
 
 	connected := func(_ inet.Network, conn inet.Conn) {
-		log.Debugf("Connect to peer %s", conn.RemotePeer().Pretty())
+		log.Debugf("Connect to peer %s", conn.RemotePeer().String())
 	}
 	disconnected := func(_ inet.Network, conn inet.Conn) {
-		log.Debugf("Disconnect from peer %s", conn.RemotePeer().Pretty())
+		log.Debugf("Disconnect from peer %s", conn.RemotePeer().String())
 	}
 
 	notifier := &inet.NotifyBundle{

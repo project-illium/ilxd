@@ -5,8 +5,8 @@
 package multisig
 
 import (
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/project-illium/ilxd/zk/circuits/smart"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"math/bits"
 )
 
@@ -20,7 +20,7 @@ func MultisigScript(privateParams, publicParams interface{}) bool {
 	if !ok {
 		return false
 	}
-	pub, ok := publicParams.(*smart.UnlockingSnarkParams)
+	pub, ok := publicParams.(*standard.UnlockingSnarkParams)
 	if !ok {
 		return false
 	}

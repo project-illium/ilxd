@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	ctxio "github.com/jbenet/go-context/io"
-	inet "github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/protocol"
+	inet "github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-msgio"
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/types"
@@ -289,13 +289,13 @@ func (eng *AvalancheEngine) handleRequestExpiration(key string) {
 
 func (eng *AvalancheEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer peer.ID) {
 	var (
-		key  = queryKey(req.RequestID, peer.Pretty())
+		key  = queryKey(req.RequestID, peer.String())
 		resp = new(wire.MsgAvaResponse)
 	)
 
 	err := eng.ms.SendRequest(eng.ctx, peer, req, resp)
 	if err != nil {
-		log.Errorf("Error reading avalanche response from peer %s", peer.Pretty())
+		log.Errorf("Error reading avalanche response from peer %s", peer.String())
 		eng.msgChan <- &requestExpirationMsg{key}
 		return
 	}
@@ -307,7 +307,7 @@ func (eng *AvalancheEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer pee
 }
 
 func (eng *AvalancheEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResponse) {
-	key := queryKey(resp.RequestID, p.Pretty())
+	key := queryKey(resp.RequestID, p.String())
 
 	r, ok := eng.queries[key]
 	if !ok {
@@ -386,7 +386,7 @@ func (eng *AvalancheEngine) pollLoop() {
 	}
 	requestID := rand.Uint32()
 
-	key := queryKey(requestID, p.Pretty())
+	key := queryKey(requestID, p.String())
 	eng.queries[key] = NewRequestRecord(time.Now().Unix(), invs)
 
 	invList := make([][]byte, 0, len(invs))

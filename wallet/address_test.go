@@ -7,7 +7,7 @@ package wallet
 import (
 	"crypto/rand"
 	"fmt"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
 	"github.com/stretchr/testify/assert"

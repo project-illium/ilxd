@@ -10,7 +10,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/mroth/weightedrand/v2"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"

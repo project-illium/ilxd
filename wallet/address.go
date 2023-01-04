@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/btcsuite/btcd/btcutil/bech32"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"

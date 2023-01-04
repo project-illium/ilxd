@@ -43,8 +43,9 @@ message StakeTransaction {
     uint64 amount      = 2;
     bytes nullifier    = 3;
     bytes txo_root     = 4;
-    bytes signature    = 5;
-    bytes proof        = 6;
+    int64 locktime     = 5;
+    bytes signature    = 6;
+    bytes proof        = 7;
 }
 
 message TreasuryTransaction {
@@ -64,8 +65,9 @@ message MintTransaction {
     repeated bytes nullifiers = 7;
     bytes txo_root            = 8;
     bytes mint_key            = 9;
-    bytes signature           = 10;
-    bytes proof               = 11;
+    int64 locktime            = 10;
+    bytes signature           = 11;
+    bytes proof               = 12;
 
     enum AssetType {
         FIXED_SUPPLY    = 0;

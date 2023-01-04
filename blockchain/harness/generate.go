@@ -6,15 +6,14 @@ package harness
 
 import (
 	"crypto/rand"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
-	"github.com/project-illium/ilxd/zk/circuits/smart"
 	"github.com/project-illium/ilxd/zk/circuits/stake"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/project-illium/ilxd/zk/scripts/transfer"
@@ -145,15 +144,15 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 			mockUnlockingProof := make([]byte, 3500)
 			rand.Read(mockUnlockingProof)
 
-			privateParams := &smart.PrivateParams{
-				Inputs: []smart.PrivateInput{
+			privateParams := &standard.PrivateParams{
+				Inputs: []standard.PrivateInput{
 					{
 						Amount:          sn.Note.Amount,
 						Salt:            sn.Note.Salt,
 						AssetID:         sn.Note.AssetID,
 						State:           [32]byte{},
 						CommitmentIndex: inclusionProof.Index,
-						InclusionProof: smart.InclusionProof{
+						InclusionProof: standard.InclusionProof{
 							Hashes:      inclusionProof.Hashes,
 							Flags:       inclusionProof.Flags,
 							Accumulator: inclusionProof.Accumulator,
@@ -166,7 +165,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 			}
 			for _, outNote := range outputNotes {
 				scriptHash := outNote.Note.UnlockingScript.Hash()
-				privateParams.Outputs = append(privateParams.Outputs, smart.PrivateOutput{
+				privateParams.Outputs = append(privateParams.Outputs, standard.PrivateOutput{
 					State:      [32]byte{},
 					Amount:     outNote.Note.Amount,
 					Salt:       outNote.Note.Salt,
@@ -175,16 +174,16 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				})
 			}
 
-			publicOutputs := make([]smart.PublicOutput, len(outputNotes))
+			publicOutputs := make([]standard.PublicOutput, len(outputNotes))
 			for i, output := range outputs {
-				publicOutputs[i] = smart.PublicOutput{
+				publicOutputs[i] = standard.PublicOutput{
 					Commitment: output.Commitment,
 					EncKey:     output.EphemeralPubkey,
 					CipherText: output.Ciphertext,
 				}
 			}
 
-			publicPrams := &smart.PublicParams{
+			publicPrams := &standard.PublicParams{
 				TXORoot:    acc.Root().Bytes(),
 				SigHash:    sigHash,
 				Outputs:    publicOutputs,
@@ -196,7 +195,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				Locktime:   time.Time{},
 			}
 
-			proof, err := zk.CreateSnark(smart.SmartCircuit, privateParams, publicPrams)
+			proof, err := zk.CreateSnark(standard.StandardCircuit, privateParams, publicPrams)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -371,8 +370,8 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		return nil, nil, err
 	}
 
-	publicParams := &smart.PublicParams{
-		Outputs: []smart.PublicOutput{
+	publicParams := &standard.PublicParams{
+		Outputs: []standard.PublicOutput{
 			{
 				Commitment: commitment1,
 			},
@@ -384,8 +383,8 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		Fee:        0,
 		Coinbase:   initialCoins,
 	}
-	privateParams := &smart.PrivateParams{
-		Outputs: []smart.PrivateOutput{
+	privateParams := &standard.PrivateParams{
+		Outputs: []standard.PrivateOutput{
 			{
 				ScriptHash: spendScriptHash1[:],
 				Amount:     initialCoins / 2,
@@ -403,7 +402,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		},
 	}
 
-	proof, err := zk.CreateSnark(smart.SmartCircuit, privateParams, publicParams)
+	proof, err := zk.CreateSnark(standard.StandardCircuit, privateParams, publicParams)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -450,7 +449,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	stakeTx.Signature = sig2
 
 	// And generate the zk-snark proof
-	unlockingParams := &smart.UnlockingSnarkParams{PublicParams: smart.PublicParams{SigHash: sigHash2}, UserParams: [][]byte{spendPubkeyBytes}}
+	unlockingParams := &standard.UnlockingSnarkParams{PublicParams: standard.PublicParams{SigHash: sigHash2}, UserParams: [][]byte{spendPubkeyBytes}}
 	sig3, err := spendKey.Sign(sigHash2)
 	if err != nil {
 		return nil, nil, err

@@ -8,7 +8,7 @@ import (
 	"context"
 	"crypto/rand"
 	"github.com/ipfs/go-datastore"
-	crypto "github.com/libp2p/go-libp2p-core/crypto"
+	crypto "github.com/libp2p/go-libp2p/core/crypto"
 )
 
 func HasNetworkKey(ds Datastore) (bool, error) {

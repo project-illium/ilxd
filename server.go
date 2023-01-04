@@ -7,7 +7,7 @@ package main
 import (
 	"context"
 	"github.com/ipfs/go-ds-badger"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/net"
 	params "github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
@@ -135,7 +135,7 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) printListenAddrs() {
-	log.Infof("PeerID: %s", s.network.Host().ID().Pretty())
+	log.Infof("PeerID: %s", s.network.Host().ID().String())
 	var lisAddrs []string
 	ifaceAddrs := s.network.Host().Addrs()
 	for _, addr := range ifaceAddrs {

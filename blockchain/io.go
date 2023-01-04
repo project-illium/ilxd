@@ -11,7 +11,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain/pb"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
@@ -21,7 +21,7 @@ import (
 
 func serializeValidator(v *Validator) ([]byte, error) {
 	vProto := &pb.DBValidator{
-		PeerId:         v.PeerID.Pretty(),
+		PeerId:         v.PeerID.String(),
 		TotalStake:     v.TotalStake,
 		Nullifiers:     make([]*pb.DBValidator_Nullifier, 0, len(v.Nullifiers)),
 		UnclaimedCoins: v.unclaimedCoins,
@@ -45,7 +45,7 @@ func deserializeValidator(ser []byte) (*Validator, error) {
 	if err != nil {
 		return nil, err
 	}
-	pid, err := peer.IDFromString(vProto.PeerId)
+	pid, err := peer.Decode(vProto.PeerId)
 	if err != nil {
 		return nil, err
 	}
@@ -290,11 +290,11 @@ func dsPutValidator(dbtx datastore.Txn, v *Validator) error {
 	if err != nil {
 		return err
 	}
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.ValidatorDatastoreKeyPrefix+v.PeerID.Pretty()), ser)
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.ValidatorDatastoreKeyPrefix+v.PeerID.String()), ser)
 }
 
 func dsDeleteValidator(dbtx datastore.Txn, id peer.ID) error {
-	return dbtx.Delete(context.Background(), datastore.NewKey(repo.ValidatorDatastoreKeyPrefix+id.Pretty()))
+	return dbtx.Delete(context.Background(), datastore.NewKey(repo.ValidatorDatastoreKeyPrefix+id.String()))
 }
 
 func dsFetchValidators(ds repo.Datastore) ([]*Validator, error) {

@@ -2,18 +2,19 @@
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
 
-package transfer
+package password
 
 import (
-	"github.com/libp2p/go-libp2p/core/crypto"
+	"bytes"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
+	"golang.org/x/crypto/blake2b"
 )
 
 type PrivateParams struct {
-	Signature []byte
+	Password []byte
 }
 
-func TransferScript(privateParams, publicParams interface{}) bool {
+func PasswordScript(privateParams, publicParams interface{}) bool {
 	priv, ok := privateParams.(*PrivateParams)
 	if !ok {
 		return false
@@ -27,14 +28,7 @@ func TransferScript(privateParams, publicParams interface{}) bool {
 		return false
 	}
 
-	pubkey, err := crypto.UnmarshalPublicKey(pub.UserParams[0])
-	if err != nil {
-		return false
-	}
-
-	valid, err := pubkey.Verify(pub.PublicParams.SigHash, priv.Signature)
-	if err != nil || !valid {
-		return false
-	}
-	return true
+	hash := pub.UserParams[0]
+	calculatedHash := blake2b.Sum256(priv.Password)
+	return bytes.Equal(hash, calculatedHash[:])
 }

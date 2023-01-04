@@ -9,8 +9,8 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	pb "github.com/libp2p/go-libp2p-core/crypto/pb"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	pb "github.com/libp2p/go-libp2p/core/crypto/pb"
 	"golang.org/x/crypto/nacl/box"
 	"io"
 )

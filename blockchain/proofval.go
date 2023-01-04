@@ -83,20 +83,25 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- err
 					break
 				}
-				outputCommitments := make([][]byte, 0, len(tx.StandardTransaction.Outputs))
+				outputs := make([]standard.PublicOutput, 0, len(tx.StandardTransaction.Outputs))
 				for _, out := range tx.StandardTransaction.Outputs {
-					outputCommitments = append(outputCommitments, out.Commitment)
+					outputs = append(outputs, standard.PublicOutput{
+						Commitment: out.Commitment,
+						EncKey:     out.EphemeralPubkey,
+						CipherText: out.Ciphertext,
+					})
 				}
+
 				params := standard.PublicParams{
-					TXORoot:           tx.StandardTransaction.TxoRoot,
-					SigHash:           sigHash,
-					OutputCommitments: outputCommitments,
-					Nullifiers:        tx.StandardTransaction.Nullifiers,
-					Fee:               tx.StandardTransaction.Fee,
-					Coinbase:          0,
-					MintID:            nil,
-					MintAmount:        0,
-					Blocktime:         p.blockTime,
+					TXORoot:    tx.StandardTransaction.TxoRoot,
+					SigHash:    sigHash,
+					Outputs:    outputs,
+					Nullifiers: tx.StandardTransaction.Nullifiers,
+					Fee:        tx.StandardTransaction.Fee,
+					Coinbase:   0,
+					MintID:     nil,
+					MintAmount: 0,
+					Locktime:   time.Unix(tx.StandardTransaction.Locktime, 0),
 				}
 
 				proofHash := types.NewIDFromData(tx.StandardTransaction.Proof)
@@ -123,20 +128,24 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- err
 					break
 				}
-				outputCommitments := make([][]byte, 0, len(tx.CoinbaseTransaction.Outputs))
+				outputs := make([]standard.PublicOutput, 0, len(tx.CoinbaseTransaction.Outputs))
 				for _, out := range tx.CoinbaseTransaction.Outputs {
-					outputCommitments = append(outputCommitments, out.Commitment)
+					outputs = append(outputs, standard.PublicOutput{
+						Commitment: out.Commitment,
+						EncKey:     out.EphemeralPubkey,
+						CipherText: out.Ciphertext,
+					})
 				}
 				params := standard.PublicParams{
-					TXORoot:           nil,
-					SigHash:           sigHash,
-					OutputCommitments: outputCommitments,
-					Nullifiers:        nil,
-					Fee:               0,
-					Coinbase:          tx.CoinbaseTransaction.NewCoins,
-					MintID:            nil,
-					MintAmount:        0,
-					Blocktime:         p.blockTime,
+					TXORoot:    nil,
+					SigHash:    sigHash,
+					Outputs:    outputs,
+					Nullifiers: nil,
+					Fee:        0,
+					Coinbase:   tx.CoinbaseTransaction.NewCoins,
+					MintID:     nil,
+					MintAmount: 0,
+					Locktime:   time.Time{},
 				}
 
 				proofHash := types.NewIDFromData(tx.CoinbaseTransaction.Proof)
@@ -162,20 +171,24 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- err
 					break
 				}
-				outputCommitments := make([][]byte, 0, len(tx.TreasuryTransaction.Outputs))
+				outputs := make([]standard.PublicOutput, 0, len(tx.TreasuryTransaction.Outputs))
 				for _, out := range tx.TreasuryTransaction.Outputs {
-					outputCommitments = append(outputCommitments, out.Commitment)
+					outputs = append(outputs, standard.PublicOutput{
+						Commitment: out.Commitment,
+						EncKey:     out.EphemeralPubkey,
+						CipherText: out.Ciphertext,
+					})
 				}
 				params := standard.PublicParams{
-					TXORoot:           nil,
-					SigHash:           sigHash,
-					OutputCommitments: outputCommitments,
-					Nullifiers:        nil,
-					Fee:               0,
-					Coinbase:          tx.TreasuryTransaction.Amount,
-					MintID:            nil,
-					MintAmount:        0,
-					Blocktime:         p.blockTime,
+					TXORoot:    nil,
+					SigHash:    sigHash,
+					Outputs:    outputs,
+					Nullifiers: nil,
+					Fee:        0,
+					Coinbase:   tx.TreasuryTransaction.Amount,
+					MintID:     nil,
+					MintAmount: 0,
+					Locktime:   time.Time{},
 				}
 				proofHash := types.NewIDFromData(tx.TreasuryTransaction.Proof)
 				exists := p.proofCache.Exists(proofHash, tx.TreasuryTransaction.Proof)
@@ -200,20 +213,24 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- err
 					break
 				}
-				outputCommitments := make([][]byte, 0, len(tx.MintTransaction.Outputs))
+				outputs := make([]standard.PublicOutput, 0, len(tx.MintTransaction.Outputs))
 				for _, out := range tx.MintTransaction.Outputs {
-					outputCommitments = append(outputCommitments, out.Commitment)
+					outputs = append(outputs, standard.PublicOutput{
+						Commitment: out.Commitment,
+						EncKey:     out.EphemeralPubkey,
+						CipherText: out.Ciphertext,
+					})
 				}
 				params := standard.PublicParams{
-					TXORoot:           tx.MintTransaction.TxoRoot,
-					SigHash:           sigHash,
-					OutputCommitments: outputCommitments,
-					Nullifiers:        tx.MintTransaction.Nullifiers,
-					Fee:               tx.MintTransaction.Fee,
-					Coinbase:          0,
-					MintID:            tx.MintTransaction.Asset_ID,
-					MintAmount:        tx.MintTransaction.NewTokens,
-					Blocktime:         p.blockTime,
+					TXORoot:    tx.MintTransaction.TxoRoot,
+					SigHash:    sigHash,
+					Outputs:    outputs,
+					Nullifiers: tx.MintTransaction.Nullifiers,
+					Fee:        tx.MintTransaction.Fee,
+					Coinbase:   0,
+					MintID:     tx.MintTransaction.Asset_ID,
+					MintAmount: tx.MintTransaction.NewTokens,
+					Locktime:   time.Unix(tx.MintTransaction.Locktime, 0),
 				}
 				proofHash := types.NewIDFromData(tx.MintTransaction.Proof)
 				exists := p.proofCache.Exists(proofHash, tx.MintTransaction.Proof)

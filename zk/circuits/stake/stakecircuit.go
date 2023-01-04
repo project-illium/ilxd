@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"github.com/project-illium/ilxd/params/hash"
-	"github.com/project-illium/ilxd/zk/circuits/smart"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"time"
 )
@@ -67,7 +66,7 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	outputCommitment := hash.HashFunc(commitmentPreimage)
 
 	// Then validate the merkle proof
-	if !smart.ValidateInclusionProof(outputCommitment, priv.CommitmentIndex, priv.InclusionProof.Hashes, priv.InclusionProof.Flags, priv.InclusionProof.Accumulator, pub.TXORoot) {
+	if !standard.ValidateInclusionProof(outputCommitment, priv.CommitmentIndex, priv.InclusionProof.Hashes, priv.InclusionProof.Flags, priv.InclusionProof.Accumulator, pub.TXORoot) {
 		return false
 	}
 
