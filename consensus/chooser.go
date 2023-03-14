@@ -11,14 +11,14 @@ import (
 )
 
 type WeightedChooser interface {
-	WeightedRandomPeer() peer.ID
+	WeightedRandomValidator() peer.ID
 }
 
 type MockChooser struct {
 	network *net.Network
 }
 
-func (m *MockChooser) WeightedRandomPeer() peer.ID {
+func (m *MockChooser) WeightedRandomValidator() peer.ID {
 	peers := m.network.Host().Network().Peers()
 	l := len(peers)
 	if l == 0 {

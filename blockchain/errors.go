@@ -66,7 +66,7 @@ func (e ErrorCode) String() string {
 // ascertain the specific reason for the rule violation.
 type RuleError struct {
 	ErrorCode   ErrorCode // Describes the kind of error
-	Description string    // Human readable description of the issue
+	Description string    // Human-readable description of the issue
 }
 
 // Error satisfies the error interface and prints human-readable errors.

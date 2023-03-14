@@ -5,6 +5,7 @@
 package blockchain
 
 import (
+	"fmt"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
@@ -93,6 +94,10 @@ func (bn *blockNode) Child() (*blockNode, error) {
 	return child, nil
 }
 
+// blockIndex tracks the blocknode at the tip of the chain. Since each blocknode
+// links to its parent it is possible to traverse the chain backwards from the tip
+// by iterating over the parents. This index also stores a cache, limited by
+// blockIndexCacheSize, to make lookups by height or ID faster.
 type blockIndex struct {
 	ds            repo.Datastore
 	tip           *blockNode
@@ -119,15 +124,21 @@ func (bi *blockIndex) Init() error {
 		return err
 	}
 	bi.tip = tip
+	parent, err := tip.Parent()
+	if err != nil {
+		return err
+	}
 
-	for i := 0; i < blockIndexCacheSize; i++ {
-		parent, err := tip.Parent()
+	for i := 0; i < blockIndexCacheSize-1; i++ {
+		parent, err = parent.Parent()
 		if err != nil {
 			return err
 		}
 		if parent == nil {
 			break
 		}
+		bi.cacheByID[parent.ID()] = parent
+		bi.cacheByHeight[parent.Height()] = parent
 	}
 	return nil
 }
@@ -237,18 +248,27 @@ func (bi *blockIndex) GetNodeByID(blockID types.ID) (*blockNode, error) {
 }
 
 func (bi *blockIndex) limitCache() {
+	fmt.Println(len(bi.cacheByID), len(bi.cacheByHeight))
 	if len(bi.cacheByID) > blockIndexCacheSize {
 		for id, node := range bi.cacheByID {
-			node.parent.child = nil
-			node.child.parent = nil
+			if node.parent != nil {
+				node.parent.child = nil
+			}
+			if node.child != nil {
+				node.child.parent = nil
+			}
 			delete(bi.cacheByID, id)
 			break
 		}
 	}
 	if len(bi.cacheByHeight) > blockIndexCacheSize {
 		for height, node := range bi.cacheByHeight {
-			node.parent.child = nil
-			node.child.parent = nil
+			if node.parent != nil {
+				node.parent.child = nil
+			}
+			if node.child != nil {
+				node.child.parent = nil
+			}
 			delete(bi.cacheByHeight, height)
 			break
 		}

@@ -152,6 +152,14 @@ func deserializeAccumulator(ser []byte) (*Accumulator, error) {
 	return acc, nil
 }
 
+func dsPutHeader(dbtx datastore.Txn, header *blocks.BlockHeader) error {
+	ser, err := header.Serialize()
+	if err != nil {
+		return err
+	}
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+header.ID().String()), ser)
+}
+
 func dsFetchHeader(ds repo.Datastore, blockID types.ID) (*blocks.BlockHeader, error) {
 	serialized, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+blockID.String()))
 	if err != nil {
@@ -162,14 +170,6 @@ func dsFetchHeader(ds repo.Datastore, blockID types.ID) (*blocks.BlockHeader, er
 		return nil, err
 	}
 	return blockHeader, nil
-}
-
-func dsPutHeader(dbtx datastore.Txn, header *blocks.BlockHeader) error {
-	ser, err := header.Serialize()
-	if err != nil {
-		return err
-	}
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+header.ID().String()), ser)
 }
 
 func dsBlockExists(ds repo.Datastore, blockID types.ID) (bool, error) {
@@ -218,16 +218,16 @@ func dsFetchBlock(ds repo.Datastore, blockID types.ID) (*blocks.Block, error) {
 	}, nil
 }
 
+func dsPutBlockIDFromHeight(dbtx datastore.Txn, blockID types.ID, height uint32) error {
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))), blockID[:])
+}
+
 func dsFetchBlockIDFromHeight(ds repo.Datastore, height uint32) (types.ID, error) {
 	blockIDBytes, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))))
 	if err != nil {
 		return types.ID{}, err
 	}
 	return types.NewID(blockIDBytes), nil
-}
-
-func dsPutBlockIDFromHeight(dbtx datastore.Txn, blockID types.ID, height uint32) error {
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))), blockID[:])
 }
 
 func dsPutBlockIndexState(dbtx datastore.Txn, node *blockNode) error {

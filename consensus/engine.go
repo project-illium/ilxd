@@ -380,7 +380,7 @@ func (eng *AvalancheEngine) pollLoop() {
 		return
 	}
 
-	p := eng.chooser.WeightedRandomPeer()
+	p := eng.chooser.WeightedRandomValidator()
 	if p == "" {
 		return
 	}

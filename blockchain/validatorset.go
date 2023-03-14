@@ -411,7 +411,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 	return vs.flush(flushMode, blk.Header.Height)
 }
 
-func (vs *ValidatorSet) WeightedRandomPeer() peer.ID {
+func (vs *ValidatorSet) WeightedRandomValidator() peer.ID {
 	vs.mtx.RLock()
 	defer vs.mtx.RUnlock()
 

@@ -119,32 +119,37 @@ func (adb *AccumulatorDB) Accumulator() *Accumulator {
 }
 
 // Commit updates the accumulator in memory and flushes the change to disk using the flushMode.
-// This commit is not atomic. If there is an error flushing to disk the memory change will not
-// be rolled back.
+// This commit is atomic. If there is an error flushing to the accumulator state in memory will
+// not change.
 func (adb *AccumulatorDB) Commit(accumulator *Accumulator, chainHeight uint32, mode flushMode) error {
 	adb.mtx.Lock()
 	defer adb.mtx.Unlock()
 
-	adb.acc = accumulator
+	if err := adb.flush(mode, accumulator, chainHeight); err != nil {
+		return err
+	}
 
-	return adb.flush(mode, chainHeight)
+	adb.acc = accumulator
+	return nil
 }
 
 // Flush will trigger a manual flush of the accumulator DB to disk.
+//
+// This is safe for concurrent access
 func (adb *AccumulatorDB) Flush(mode flushMode, chainHeight uint32) error {
 	adb.mtx.Lock()
 	defer adb.mtx.Unlock()
 
-	return adb.flush(mode, chainHeight)
+	return adb.flush(mode, adb.acc, chainHeight)
 }
 
-func (adb *AccumulatorDB) flush(mode flushMode, chainHeight uint32) error {
+func (adb *AccumulatorDB) flush(mode flushMode, acc *Accumulator, chainHeight uint32) error {
 	switch mode {
 	case flushRequired:
-		return adb.flushToDisk(chainHeight)
+		return adb.flushToDisk(acc, chainHeight)
 	case flushPeriodic:
 		if adb.lastFlush.Add(maxTimeBetweenFlushes).Before(time.Now()) {
-			return adb.flushToDisk(chainHeight)
+			return adb.flushToDisk(acc, chainHeight)
 		}
 		return nil
 	default:
@@ -152,7 +157,7 @@ func (adb *AccumulatorDB) flush(mode flushMode, chainHeight uint32) error {
 	}
 }
 
-func (adb *AccumulatorDB) flushToDisk(chainHeight uint32) error {
+func (adb *AccumulatorDB) flushToDisk(acc *Accumulator, chainHeight uint32) error {
 	if err := dsPutAccumulatorConsistencyStatus(adb.ds, scsFlushOngoing); err != nil {
 		return err
 	}
@@ -162,7 +167,7 @@ func (adb *AccumulatorDB) flushToDisk(chainHeight uint32) error {
 	}
 	defer dbtx.Discard(context.Background())
 
-	if err := dsPutAccumulator(dbtx, adb.acc); err != nil {
+	if err := dsPutAccumulator(dbtx, acc); err != nil {
 		return err
 	}
 

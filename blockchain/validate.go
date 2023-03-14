@@ -178,6 +178,9 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 					return ruleError(ErrInvalidTx, "txo root does not exist in chain")
 				}
 			}
+			if tx.StakeTransaction.Locktime > blk.Header.Timestamp {
+				return ruleError(ErrInvalidTx, "transaction locktime is ahead of block timestamp")
+			}
 		case *transactions.Transaction_StandardTransaction:
 			if flags.HasFlag(BFGenesisValidation) {
 				return ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
@@ -259,6 +262,9 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			}
 			if !exists {
 				return ruleError(ErrInvalidTx, "txo root does not exist in chain")
+			}
+			if tx.MintTransaction.Locktime > blk.Header.Timestamp {
+				return ruleError(ErrInvalidTx, "transaction locktime is ahead of block timestamp")
 			}
 		case *transactions.Transaction_TreasuryTransaction:
 			if flags.HasFlag(BFGenesisValidation) {

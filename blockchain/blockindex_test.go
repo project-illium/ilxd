@@ -17,6 +17,12 @@ import (
 	"time"
 )
 
+func randomID() types.ID {
+	r := make([]byte, 32)
+	rand.Read(r)
+	return types.NewID(r)
+}
+
 func mockBlockIndex(ds repo.Datastore, nBlocks int) (*blockIndex, error) {
 	err := populateDatabase(ds, nBlocks)
 	if err != nil {
@@ -30,31 +36,27 @@ func mockBlockIndex(ds repo.Datastore, nBlocks int) (*blockIndex, error) {
 }
 
 func randomBlockHeader(height uint32, parent types.ID) *blocks.BlockHeader {
-	r := make([]byte, 32)
-	rand.Read(r)
-
+	txRoot := randomID()
 	header := &blocks.BlockHeader{
 		Version: 1,
 		Height:  height,
 		Parent:  parent[:],
-		TxRoot:  r,
+		TxRoot:  txRoot[:],
 	}
 	return header
 }
 
 func randomBlock(header *blocks.BlockHeader, nTxs int) *blocks.Block {
 	txs := make([]*transactions.Transaction, nTxs)
-	c1, c2 := make([]byte, 32), make([]byte, 32)
-	rand.Read(c1)
-	rand.Read(c2)
+	c1, c2 := randomID(), randomID()
 	for i := range txs {
 		txs[i] = transactions.WrapTransaction(&transactions.StandardTransaction{
 			Outputs: []*transactions.Output{
 				{
-					Commitment: c1,
+					Commitment: c1[:],
 				},
 				{
-					Commitment: c2,
+					Commitment: c2[:],
 				},
 			},
 			Fee: 10,
@@ -146,15 +148,20 @@ func TestBlockIndex(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	// Test get by height
-	header, err := index.GetNodeByHeight(4000)
+	// Test get by height from cache
+	header, err := index.GetNodeByHeight(900)
 	assert.NoError(t, err)
-	assert.Equal(t, uint32(4000), header.Height())
+	assert.Equal(t, uint32(900), header.Height())
 
 	// Test get by ID
 	header2, err := index.GetNodeByID(header.blockID)
 	assert.NoError(t, err)
 	assert.Equal(t, header.blockID, header2.blockID)
+
+	// Test not from cache by height
+	header, err = index.GetNodeByHeight(4000)
+	assert.NoError(t, err)
+	assert.Equal(t, uint32(4000), header.Height())
 
 	// Create new header and extend the index
 	newHeader := randomBlockHeader(5001, index.Tip().ID())
