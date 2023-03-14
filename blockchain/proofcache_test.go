@@ -3,3 +3,26 @@
 // license that can be found in the LICENSE file.
 
 package blockchain
+
+import (
+	"crypto/rand"
+	"github.com/project-illium/ilxd/params/hash"
+	"github.com/project-illium/ilxd/types"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func TestProofCache(t *testing.T) {
+	max := 10
+	cache := NewProofCache(uint(max))
+
+	for i := 0; i < 11; i++ {
+		proof := make([]byte, 64)
+		rand.Read(proof)
+
+		proofHash := hash.HashFunc(proof)
+		cache.Add(types.NewID(proofHash), proof)
+		assert.True(t, cache.Exists(types.NewID(proofHash), proof))
+		assert.LessOrEqual(t, len(cache.validProofs), max)
+	}
+}
