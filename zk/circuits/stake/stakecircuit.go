@@ -28,7 +28,7 @@ type PublicParams struct {
 	SigHash   []byte
 	Amount    uint64
 	Nullifier []byte
-	Blocktime time.Time
+	Locktime  time.Time
 }
 
 type UnlockingSnarkParams struct {

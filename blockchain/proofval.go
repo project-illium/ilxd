@@ -14,8 +14,8 @@ import (
 	"time"
 )
 
-func ValidateTransactionProof(tx *transactions.Transaction, blockTime time.Time, proofCache *ProofCache) error {
-	validator := NewProofValidator(blockTime, proofCache)
+func ValidateTransactionProof(tx *transactions.Transaction, proofCache *ProofCache) error {
+	validator := NewProofValidator(proofCache)
 	return validator.Validate([]*transactions.Transaction{tx})
 }
 
@@ -24,16 +24,14 @@ type proofValidator struct {
 	workChan   chan *transactions.Transaction
 	resultChan chan error
 	done       chan struct{}
-	blockTime  time.Time
 }
 
-func NewProofValidator(blockTime time.Time, proofCache *ProofCache) *proofValidator {
+func NewProofValidator(proofCache *ProofCache) *proofValidator {
 	return &proofValidator{
 		proofCache: proofCache,
 		workChan:   make(chan *transactions.Transaction),
 		resultChan: make(chan error),
 		done:       make(chan struct{}),
-		blockTime:  blockTime,
 	}
 }
 
@@ -260,7 +258,7 @@ func (p *proofValidator) validateHandler() {
 					SigHash:   sigHash,
 					Amount:    tx.StakeTransaction.Amount,
 					Nullifier: tx.StakeTransaction.Nullifier,
-					Blocktime: p.blockTime,
+					Locktime:  time.Unix(tx.StakeTransaction.Locktime, 0),
 				}
 				proofHash := types.NewIDFromData(tx.StakeTransaction.Proof)
 				exists := p.proofCache.Exists(proofHash, tx.StakeTransaction.Proof)

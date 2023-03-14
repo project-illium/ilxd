@@ -67,11 +67,11 @@ func TestSigValidator(t *testing.T) {
 	assert.NoError(t, err)
 
 	coinbaseTx.Validator_ID = nil
-	err = ValidateTransactionSig(transactions.WrapTransaction(coinbaseTx), sigCache)
+	err = ValidateTransactionSig(transactions.WrapTransaction(coinbaseTx), NewSigCache(10))
 	assert.Error(t, err)
 
 	coinbaseTx.Validator_ID = validatorIDBytes
 	coinbaseTx.Signature = nil
-	err = ValidateTransactionSig(transactions.WrapTransaction(coinbaseTx), sigCache)
+	err = ValidateTransactionSig(transactions.WrapTransaction(coinbaseTx), NewSigCache(10))
 	assert.Error(t, err)
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
-	"time"
 )
 
 const (
@@ -322,7 +321,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 	}
 
 	if !flags.HasFlag(BFFastAdd) {
-		proofValidator := NewProofValidator(time.Unix(blk.Header.Timestamp, 0), b.proofCache)
+		proofValidator := NewProofValidator(b.proofCache)
 		if err := proofValidator.Validate(blk.Transactions); err != nil {
 			return err
 		}
