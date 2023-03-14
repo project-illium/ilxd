@@ -76,7 +76,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				if err != nil {
 					return nil, nil, err
 				}
-				pubKeyBytes, err := pubKey.Raw()
+				pubKeyBytes, err := crypto.MarshalPublicKey(pubKey)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -84,7 +84,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				if err != nil {
 					return nil, nil, err
 				}
-				verificationKeyBytes, err := verificationKey.Raw()
+				verificationKeyBytes, err := crypto.MarshalPublicKey(verificationKey)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -274,7 +274,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	if err != nil {
 		return nil, nil, err
 	}
-	verificationKeyBytes, err := verificationKey.Raw()
+	verificationKeyBytes, err := crypto.MarshalPublicKey(verificationKey)
 	if err != nil {
 		return nil, nil, err
 	}

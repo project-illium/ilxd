@@ -5,7 +5,6 @@
 package blockchain
 
 import (
-	"fmt"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
@@ -248,7 +247,6 @@ func (bi *blockIndex) GetNodeByID(blockID types.ID) (*blockNode, error) {
 }
 
 func (bi *blockIndex) limitCache() {
-	fmt.Println(len(bi.cacheByID), len(bi.cacheByHeight))
 	if len(bi.cacheByID) > blockIndexCacheSize {
 		for id, node := range bi.cacheByID {
 			if node.parent != nil {

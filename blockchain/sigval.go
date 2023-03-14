@@ -112,9 +112,13 @@ func (s *sigValidator) validateHandler() {
 				s.sigCache.Add(types.NewID(sigHash), tx.CoinbaseTransaction.Signature, validatorPubkey)
 				s.resultChan <- nil
 			case *transactions.Transaction_MintTransaction:
-				mintKey, err := crypto.UnmarshalEd25519PublicKey(tx.MintTransaction.MintKey)
+				mintKey, err := crypto.UnmarshalPublicKey(tx.MintTransaction.MintKey)
 				if err != nil {
 					s.resultChan <- ruleError(ErrInvalidTx, "mint tx pubkey invalid")
+					break
+				}
+				if mintKey.Type() != crypto.Ed25519 {
+					s.resultChan <- ruleError(ErrInvalidTx, "mint tx pubkey not ed25519")
 					break
 				}
 
