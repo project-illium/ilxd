@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/golang/protobuf/proto"
-	"github.com/ipfs/go-datastore"
+	datastore "github.com/ipfs/go-datastore"
 	"github.com/project-illium/ilxd/blockchain/pb"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"

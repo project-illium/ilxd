@@ -7,7 +7,7 @@ package mock
 import (
 	"context"
 	"errors"
-	"github.com/ipfs/go-datastore"
+	datastore "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/project-illium/ilxd/repo"
 )

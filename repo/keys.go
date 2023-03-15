@@ -7,7 +7,7 @@ package repo
 import (
 	"context"
 	"crypto/rand"
-	"github.com/ipfs/go-datastore"
+	datastore "github.com/ipfs/go-datastore"
 	crypto "github.com/libp2p/go-libp2p/core/crypto"
 )
 

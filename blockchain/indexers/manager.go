@@ -7,7 +7,7 @@ package indexers
 import (
 	"context"
 	"encoding/binary"
-	"github.com/ipfs/go-datastore"
+	datastore "github.com/ipfs/go-datastore"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types/blocks"
 )

@@ -20,7 +20,7 @@ import (
 // cannot stake a coinbase created in the same block since the stake's zk-snark proof
 // must make use of the block's txoRoot which isn't known until after the block is
 // connected.
-var MainnetGenesisBlock = blocks.Block{
+var MainnetGenesisBlock = &blocks.Block{
 	Header: &blocks.BlockHeader{
 		Producer_ID: []byte{0x00}, //TODO
 		Height:      0,
@@ -62,7 +62,7 @@ var MainnetGenesisBlock = blocks.Block{
 	},
 }
 
-var RegtestGenesisBlock = blocks.Block{
+var RegtestGenesisBlock = &blocks.Block{
 	Header: &blocks.BlockHeader{
 		Height:  0,
 		Parent:  make([]byte, 32),

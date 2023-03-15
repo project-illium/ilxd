@@ -12,7 +12,7 @@ import (
 	"github.com/project-illium/ilxd/params/hash"
 	"time"
 
-	"github.com/libp2p/go-libp2p"
+	libp2p "github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"

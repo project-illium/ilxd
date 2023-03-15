@@ -5,12 +5,10 @@
 package transactions
 
 import (
-	"bufio"
-	"bytes"
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 var _ types.Serializable = (*Transaction)(nil)
@@ -48,21 +46,13 @@ func (tx *Transaction) Outputs() []*Output {
 	outputs := make([]*Output, 0, 1)
 	switch tx := tx.GetTx().(type) {
 	case *Transaction_StandardTransaction:
-		for _, out := range tx.StandardTransaction.Outputs {
-			outputs = append(outputs, out)
-		}
+		outputs = append(outputs, tx.StandardTransaction.Outputs...)
 	case *Transaction_CoinbaseTransaction:
-		for _, out := range tx.CoinbaseTransaction.Outputs {
-			outputs = append(outputs, out)
-		}
+		outputs = append(outputs, tx.CoinbaseTransaction.Outputs...)
 	case *Transaction_MintTransaction:
-		for _, out := range tx.MintTransaction.Outputs {
-			outputs = append(outputs, out)
-		}
+		outputs = append(outputs, tx.MintTransaction.Outputs...)
 	case *Transaction_TreasuryTransaction:
-		for _, out := range tx.TreasuryTransaction.Outputs {
-			outputs = append(outputs, out)
-		}
+		outputs = append(outputs, tx.TreasuryTransaction.Outputs...)
 	}
 	return outputs
 }
@@ -89,21 +79,20 @@ func (tx *Transaction) Deserialize(data []byte) error {
 }
 
 func (tx *Transaction) MarshalJSON() ([]byte, error) {
-	m := jsonpb.Marshaler{
+	m := protojson.MarshalOptions{
 		Indent: "    ",
 	}
-	var buf bytes.Buffer
-	err := m.Marshal(bufio.NewWriter(&buf), tx)
+	b, err := m.Marshal(tx)
 	if err != nil {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return b, nil
 }
 
 func (tx *Transaction) UnmarshalJSON(data []byte) error {
 	newTx := &Transaction{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(data), newTx); err != nil {
+	if err := protojson.Unmarshal(data, newTx); err != nil {
 		return err
 	}
 	tx = newTx
@@ -141,21 +130,20 @@ func (tx *StandardTransaction) SigHash() ([]byte, error) {
 }
 
 func (tx *StandardTransaction) MarshalJSON() ([]byte, error) {
-	m := jsonpb.Marshaler{
+	m := protojson.MarshalOptions{
 		Indent: "    ",
 	}
-	var buf bytes.Buffer
-	err := m.Marshal(bufio.NewWriter(&buf), tx)
+	b, err := m.Marshal(tx)
 	if err != nil {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return b, nil
 }
 
 func (tx *StandardTransaction) UnmarshalJSON(data []byte) error {
 	newTx := &StandardTransaction{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(data), newTx); err != nil {
+	if err := protojson.Unmarshal(data, newTx); err != nil {
 		return err
 	}
 	tx = newTx
@@ -194,21 +182,20 @@ func (tx *CoinbaseTransaction) SigHash() ([]byte, error) {
 }
 
 func (tx *CoinbaseTransaction) MarshalJSON() ([]byte, error) {
-	m := jsonpb.Marshaler{
+	m := protojson.MarshalOptions{
 		Indent: "    ",
 	}
-	var buf bytes.Buffer
-	err := m.Marshal(bufio.NewWriter(&buf), tx)
+	b, err := m.Marshal(tx)
 	if err != nil {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return b, nil
 }
 
 func (tx *CoinbaseTransaction) UnmarshalJSON(data []byte) error {
 	newTx := &CoinbaseTransaction{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(data), newTx); err != nil {
+	if err := protojson.Unmarshal(data, newTx); err != nil {
 		return err
 	}
 	tx = newTx
@@ -247,21 +234,20 @@ func (tx *StakeTransaction) SigHash() ([]byte, error) {
 }
 
 func (tx *StakeTransaction) MarshalJSON() ([]byte, error) {
-	m := jsonpb.Marshaler{
+	m := protojson.MarshalOptions{
 		Indent: "    ",
 	}
-	var buf bytes.Buffer
-	err := m.Marshal(bufio.NewWriter(&buf), tx)
+	b, err := m.Marshal(tx)
 	if err != nil {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return b, nil
 }
 
 func (tx *StakeTransaction) UnmarshalJSON(data []byte) error {
 	newTx := &StakeTransaction{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(data), newTx); err != nil {
+	if err := protojson.Unmarshal(data, newTx); err != nil {
 		return err
 	}
 	tx = newTx
@@ -299,21 +285,20 @@ func (tx *TreasuryTransaction) SigHash() ([]byte, error) {
 }
 
 func (tx *TreasuryTransaction) MarshalJSON() ([]byte, error) {
-	m := jsonpb.Marshaler{
+	m := protojson.MarshalOptions{
 		Indent: "    ",
 	}
-	var buf bytes.Buffer
-	err := m.Marshal(bufio.NewWriter(&buf), tx)
+	b, err := m.Marshal(tx)
 	if err != nil {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return b, nil
 }
 
 func (tx *TreasuryTransaction) UnmarshalJSON(data []byte) error {
 	newTx := &TreasuryTransaction{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(data), newTx); err != nil {
+	if err := protojson.Unmarshal(data, newTx); err != nil {
 		return err
 	}
 	tx = newTx
@@ -352,21 +337,20 @@ func (tx *MintTransaction) SigHash() ([]byte, error) {
 }
 
 func (tx *MintTransaction) MarshalJSON() ([]byte, error) {
-	m := jsonpb.Marshaler{
+	m := protojson.MarshalOptions{
 		Indent: "    ",
 	}
-	var buf bytes.Buffer
-	err := m.Marshal(bufio.NewWriter(&buf), tx)
+	b, err := m.Marshal(tx)
 	if err != nil {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return b, nil
 }
 
 func (tx *MintTransaction) UnmarshalJSON(data []byte) error {
 	newTx := &MintTransaction{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(data), newTx); err != nil {
+	if err := protojson.Unmarshal(data, newTx); err != nil {
 		return err
 	}
 	tx = newTx

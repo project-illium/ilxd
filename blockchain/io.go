@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/golang/protobuf/proto"
-	"github.com/ipfs/go-datastore"
+	datastore "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain/pb"

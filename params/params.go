@@ -29,7 +29,7 @@ type NetworkParams struct {
 	// GenesisBlock defines the first block in the network. This
 	// block must have a coinbase and stake transaction for the
 	// network to move forward.
-	GenesisBlock blocks.Block
+	GenesisBlock *blocks.Block
 
 	// SeedAddrs are used to connect to the network for the first
 	// time. After first start up new peer addresses are stored in

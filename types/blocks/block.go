@@ -5,13 +5,11 @@
 package blocks
 
 import (
-	"bufio"
-	"bytes"
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 var _ types.Serializable = (*BlockHeader)(nil)
@@ -62,21 +60,20 @@ func (h *BlockHeader) SigHash() ([]byte, error) {
 }
 
 func (h *BlockHeader) MarshalJSON() ([]byte, error) {
-	m := jsonpb.Marshaler{
+	m := protojson.MarshalOptions{
 		Indent: "    ",
 	}
-	var buf bytes.Buffer
-	err := m.Marshal(bufio.NewWriter(&buf), h)
+	b, err := m.Marshal(h)
 	if err != nil {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return b, nil
 }
 
 func (h *BlockHeader) UnmarshalJSON(data []byte) error {
 	newHeader := &BlockHeader{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(data), newHeader); err != nil {
+	if err := protojson.Unmarshal(data, newHeader); err != nil {
 		return err
 	}
 	h = newHeader
@@ -136,21 +133,20 @@ func (b *Block) Deserialize(data []byte) error {
 }
 
 func (b *Block) MarshalJSON() ([]byte, error) {
-	m := jsonpb.Marshaler{
+	m := protojson.MarshalOptions{
 		Indent: "    ",
 	}
-	var buf bytes.Buffer
-	err := m.Marshal(bufio.NewWriter(&buf), b)
+	buf, err := m.Marshal(b)
 	if err != nil {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return buf, nil
 }
 
 func (b *Block) UnmarshalJSON(data []byte) error {
 	newBlock := &Block{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(data), newBlock); err != nil {
+	if err := protojson.Unmarshal(data, newBlock); err != nil {
 		return err
 	}
 	b = newBlock

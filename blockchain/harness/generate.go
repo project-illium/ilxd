@@ -503,5 +503,5 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	genesis.Header.TxRoot = merkles[len(merkles)-1]
 	genesis.Header.Timestamp = time.Now().Unix()
 
-	return &genesis, note2, nil
+	return genesis, note2, nil
 }

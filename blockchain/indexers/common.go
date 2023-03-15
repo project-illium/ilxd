@@ -5,7 +5,7 @@
 package indexers
 
 import (
-	"github.com/ipfs/go-datastore"
+	datastore "github.com/ipfs/go-datastore"
 	"github.com/project-illium/ilxd/types/blocks"
 )
 

@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/btcsuite/btcd/btcutil v1.1.0
 	github.com/gcash/bchutil v0.0.0-20210113190856-6ea28dff4000
+	github.com/go-test/deep v1.1.0
 	github.com/golang/protobuf v1.5.2
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger v0.3.0
@@ -47,7 +48,6 @@ require (
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/gcash/bchd v0.17.2-0.20201218180520-5708823e0e99 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
-	github.com/go-test/deep v1.1.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/mock v1.6.0 // indirect
@@ -58,7 +58,6 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/huin/goupnp v1.0.3 // indirect
-	github.com/iden3/go-iden3-crypto v0.0.13 // indirect
 	github.com/ipfs/go-cid v0.3.2 // indirect
 	github.com/ipfs/go-ipfs-util v0.0.2 // indirect
 	github.com/ipfs/go-ipns v0.2.0 // indirect

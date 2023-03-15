@@ -17,7 +17,6 @@ var ErrIntegerOverflow = errors.New("integer overflow")
 
 var (
 	defaultAssetID [32]byte
-	zeroReturnVal  [32]byte
 )
 
 type InclusionProof struct {

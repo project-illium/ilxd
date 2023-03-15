@@ -6,7 +6,7 @@ package main
 
 import (
 	"context"
-	"github.com/ipfs/go-ds-badger"
+	badger "github.com/ipfs/go-ds-badger"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/net"
 	params "github.com/project-illium/ilxd/params"
