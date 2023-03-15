@@ -83,7 +83,7 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 		if err := dsInitCurrentSupply(b.ds); err != nil {
 			return nil, err
 		}
-		if err := b.ConnectBlock(&b.params.GenesisBlock, BFGenesisValidation); err != nil {
+		if err := b.ConnectBlock(b.params.GenesisBlock, BFGenesisValidation); err != nil {
 			return nil, err
 		}
 	} else {

@@ -45,11 +45,14 @@ func mockBlockIndex(ds repo.Datastore, nBlocks int) (*blockIndex, error) {
 
 func randomBlockHeader(height uint32, parent types.ID) *blocks.BlockHeader {
 	txRoot := randomID()
+	producer := randomPeerID()
+	producerBytes, _ := producer.Marshal()
 	header := &blocks.BlockHeader{
-		Version: 1,
-		Height:  height,
-		Parent:  parent[:],
-		TxRoot:  txRoot[:],
+		Version:     1,
+		Height:      height,
+		Parent:      parent[:],
+		TxRoot:      txRoot[:],
+		Producer_ID: producerBytes,
 	}
 	return header
 }

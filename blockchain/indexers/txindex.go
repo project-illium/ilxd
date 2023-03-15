@@ -8,13 +8,13 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"github.com/golang/protobuf/proto"
 	datastore "github.com/ipfs/go-datastore"
 	"github.com/project-illium/ilxd/blockchain/pb"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"google.golang.org/protobuf/proto"
 )
 
 var _ Indexer = (*TxIndex)(nil)

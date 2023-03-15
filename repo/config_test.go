@@ -5,18 +5,15 @@
 package repo
 
 import (
-	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 )
 
 func TestCreateDefaultConfigFile(t *testing.T) {
 	// Setup a temporary directory
-	tmpDir, err := ioutil.TempDir("", "bchd")
-	if err != nil {
-		t.Fatalf("Failed creating a temporary directory: %v", err)
-	}
+	tmpDir := path.Join(os.TempDir(), "ilxd")
 	testpath := filepath.Join(tmpDir, "test.conf")
 
 	// Clean-up
@@ -25,12 +22,12 @@ func TestCreateDefaultConfigFile(t *testing.T) {
 		os.Remove(tmpDir)
 	}()
 
-	err = createDefaultConfigFile(testpath, false)
+	err := createDefaultConfigFile(testpath, false)
 	if err != nil {
 		t.Fatalf("Failed to create a default config file: %v", err)
 	}
 
-	_, err = ioutil.ReadFile(testpath)
+	_, err = os.ReadFile(testpath)
 	if err != nil {
 		t.Fatalf("Failed to read generated default config file: %v", err)
 	}

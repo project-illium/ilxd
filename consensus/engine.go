@@ -7,7 +7,6 @@ package consensus
 import (
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	ctxio "github.com/jbenet/go-context/io"
 	inet "github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -16,6 +15,7 @@ import (
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/wire"
+	"google.golang.org/protobuf/proto"
 	"io"
 	"math/rand"
 	"sync"

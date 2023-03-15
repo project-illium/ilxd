@@ -50,7 +50,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg.params.GenesisBlock = *genesis
+	cfg.params.GenesisBlock = genesis
 	for _, output := range genesis.Outputs() {
 		harness.acc.Insert(output.Commitment, true)
 	}

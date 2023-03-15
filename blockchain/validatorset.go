@@ -398,7 +398,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 	if validatorReward > 0 {
 		totalStaked := vs.totalStaked()
 		for _, val := range vs.validators {
-			val.unclaimedCoins = validatorReward / (totalStaked / val.TotalStake)
+			val.unclaimedCoins = uint64(float64(validatorReward) / (float64(totalStaked) / float64(val.TotalStake)))
 		}
 	}
 
