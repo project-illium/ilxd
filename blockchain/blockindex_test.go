@@ -7,6 +7,8 @@ package blockchain
 import (
 	"context"
 	"crypto/rand"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
@@ -21,6 +23,12 @@ func randomID() types.ID {
 	r := make([]byte, 32)
 	rand.Read(r)
 	return types.NewID(r)
+}
+
+func randomPeerID() peer.ID {
+	_, pk, _ := crypto.GenerateEd25519Key(rand.Reader)
+	id, _ := peer.IDFromPublicKey(pk)
+	return id
 }
 
 func mockBlockIndex(ds repo.Datastore, nBlocks int) (*blockIndex, error) {

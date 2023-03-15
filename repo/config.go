@@ -12,7 +12,6 @@ import (
 	"github.com/gcash/bchutil"
 	"github.com/jessevdk/go-flags"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"path"
@@ -249,10 +248,10 @@ func genCertPair(certFile, keyFile string, externalIPs []string) error {
 	}
 
 	// Write cert and key files.
-	if err = ioutil.WriteFile(certFile, cert, 0666); err != nil {
+	if err = os.WriteFile(certFile, cert, 0666); err != nil {
 		return err
 	}
-	if err = ioutil.WriteFile(keyFile, key, 0600); err != nil {
+	if err = os.WriteFile(keyFile, key, 0600); err != nil {
 		os.Remove(certFile)
 		return err
 	}

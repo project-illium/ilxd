@@ -250,7 +250,7 @@ func (vs *ValidatorSet) totalStaked() uint64 {
 }
 
 // CommitBlock commits the changes to the validator set found in the block into the set.
-// This function is fully atomic, if an error is returned, not changes are committed.
+// This function is fully atomic, if an error is returned, no changes are committed.
 // It is expected that the block is fully validated before calling this method.
 func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, flushMode flushMode) error {
 	vs.mtx.Lock()

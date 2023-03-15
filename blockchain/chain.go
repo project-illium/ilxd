@@ -81,6 +81,14 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 			return nil, err
 		}
 	} else {
+		if err := dsInitTreasury(b.ds); err != nil {
+			return nil, err
+		}
+
+		if err := dsInitCurrentSupply(b.ds); err != nil {
+			return nil, err
+		}
+
 		if err := b.index.Init(); err != nil {
 			return nil, err
 		}
@@ -175,7 +183,11 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	}
 
 	var validatorReward uint64
-	if !flags.HasFlag(BFGenesisValidation) {
+	if flags.HasFlag(BFGenesisValidation) {
+		if err := dsIncrementCurrentSupply(dbtx, blk.Transactions[0].GetCoinbaseTransaction().NewCoins); err != nil {
+			return err
+		}
+	} else {
 		prevHeader, err := b.index.Tip().Header()
 		if err != nil {
 			return err

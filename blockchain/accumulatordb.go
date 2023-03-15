@@ -34,7 +34,7 @@ func NewAccumulatorDB(ds repo.Datastore) *AccumulatorDB {
 // from disk and if it is not currently at the tip of the chain it will
 // roll the accumulator forward until it is up to the tip.
 func (adb *AccumulatorDB) Init(tip *blockNode) error {
-	consistencyStatus, err := dsFetchAccumulatorSetConsistencyStatus(adb.ds)
+	consistencyStatus, err := dsFetchAccumulatorConsistencyStatus(adb.ds)
 	if err != nil {
 		return err
 	}

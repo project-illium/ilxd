@@ -352,6 +352,11 @@ func dsDebitTreasury(dbtx datastore.Txn, amount uint64) error {
 	return dbtx.Put(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey), newBalance)
 }
 
+func dsInitTreasury(ds datastore.Datastore) error {
+	zero := make([]byte, 8)
+	return ds.Put(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey), zero)
+}
+
 func dsCreditTreasury(dbtx datastore.Txn, amount uint64) error {
 	balanceBytes, err := dbtx.Get(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey))
 	if err != nil {
@@ -398,7 +403,7 @@ func dsPutAccumulatorConsistencyStatus(ds repo.Datastore, status setConsistencyS
 	return ds.Put(context.Background(), datastore.NewKey(repo.AccumulatorConsistencyStatusKey), b)
 }
 
-func dsFetchAccumulatorSetConsistencyStatus(ds repo.Datastore) (setConsistencyStatus, error) {
+func dsFetchAccumulatorConsistencyStatus(ds repo.Datastore) (setConsistencyStatus, error) {
 	b, err := ds.Get(context.Background(), datastore.NewKey(repo.AccumulatorConsistencyStatusKey))
 	if err == datastore.ErrNotFound {
 		return scsEmpty, nil
@@ -426,12 +431,6 @@ func dsFetchAccumulatorLastFlushHeight(ds repo.Datastore) (uint32, error) {
 	return binary.BigEndian.Uint32(b), nil
 }
 
-func dsPutCurrentSupply(dbtx datastore.Txn, currentSupply uint64) error {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, currentSupply)
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.CoinSupplyKey), b)
-}
-
 func dsIncrementCurrentSupply(dbtx datastore.Txn, newCoins uint64) error {
 	currentSupply, err := dsFetchCurrentSupply(dbtx)
 	if err != nil {
@@ -441,6 +440,11 @@ func dsIncrementCurrentSupply(dbtx datastore.Txn, newCoins uint64) error {
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, currentSupply+newCoins)
 	return dbtx.Put(context.Background(), datastore.NewKey(repo.CoinSupplyKey), b)
+}
+
+func dsInitCurrentSupply(ds datastore.Datastore) error {
+	zero := make([]byte, 8)
+	return ds.Put(context.Background(), datastore.NewKey(repo.CoinSupplyKey), zero)
 }
 
 func dsFetchCurrentSupply(dbtx datastore.Txn) (uint64, error) {

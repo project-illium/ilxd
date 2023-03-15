@@ -34,7 +34,7 @@ func TestAccumulatorDB_Commit(t *testing.T) {
 	assert.NoError(t, err)
 	assert.EqualValues(t, 1, lastFlushHeight)
 
-	cs, err := dsFetchAccumulatorSetConsistencyStatus(ds)
+	cs, err := dsFetchAccumulatorConsistencyStatus(ds)
 	assert.NoError(t, err)
 	assert.EqualValues(t, scsConsistent, cs)
 
@@ -59,7 +59,7 @@ func TestAccumulatorDB_Commit(t *testing.T) {
 	assert.NoError(t, err)
 	assert.EqualValues(t, 1, lastFlushHeight)
 
-	cs, err = dsFetchAccumulatorSetConsistencyStatus(ds)
+	cs, err = dsFetchAccumulatorConsistencyStatus(ds)
 	assert.NoError(t, err)
 	assert.EqualValues(t, scsConsistent, cs)
 
@@ -114,7 +114,7 @@ func TestAccumulatorDB_Init(t *testing.T) {
 	assert.NoError(t, err)
 	assert.EqualValues(t, 9, lastFlushHeight)
 
-	cs, err := dsFetchAccumulatorSetConsistencyStatus(ds)
+	cs, err := dsFetchAccumulatorConsistencyStatus(ds)
 	assert.NoError(t, err)
 	assert.EqualValues(t, scsConsistent, cs)
 

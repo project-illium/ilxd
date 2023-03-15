@@ -135,7 +135,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	for i, pid := range pstore.Peers() {
 		pi := pstore.PeerInfo(pid)
 		host.Connect(ctx, pi)
-		if i < 50 {
+		if i > 50 {
 			break
 		}
 	}
