@@ -104,7 +104,6 @@ func TestStakeCircuit(t *testing.T) {
 		SigHash:   sigHash,
 		Amount:    note1.Amount,
 		Nullifier: nullifier[:],
-		Blocktime: time.Now(),
 	}
 
 	valid := stake.StakeCircuit(privateParams, publicParams)

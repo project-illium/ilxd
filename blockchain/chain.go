@@ -77,18 +77,16 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 	}
 
 	if !initialized {
+		if err := dsInitTreasury(b.ds); err != nil {
+			return nil, err
+		}
+		if err := dsInitCurrentSupply(b.ds); err != nil {
+			return nil, err
+		}
 		if err := b.ConnectBlock(&b.params.GenesisBlock, BFGenesisValidation); err != nil {
 			return nil, err
 		}
 	} else {
-		if err := dsInitTreasury(b.ds); err != nil {
-			return nil, err
-		}
-
-		if err := dsInitCurrentSupply(b.ds); err != nil {
-			return nil, err
-		}
-
 		if err := b.index.Init(); err != nil {
 			return nil, err
 		}
