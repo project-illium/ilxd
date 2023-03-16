@@ -68,5 +68,34 @@ var RegtestGenesisBlock = &blocks.Block{
 		Parent:  make([]byte, 32),
 		Version: 1,
 	},
-	Transactions: []*transactions.Transaction{},
+	Transactions: []*transactions.Transaction{
+		{
+			Tx: &transactions.Transaction_CoinbaseTransaction{
+				CoinbaseTransaction: &transactions.CoinbaseTransaction{
+					Validator_ID: []byte{0x00}, //TODO
+					NewCoins:     math.MaxUint64 / 10,
+					Outputs: []*transactions.Output{
+						{
+							Commitment:      []byte{0x00}, //TODO
+							EphemeralPubkey: []byte{0x00}, //TODO
+							Ciphertext:      []byte{0x00}, //TODO
+						},
+					},
+					Signature: []byte{0x00}, //TODO
+					Proof:     []byte{0x00}, //TODO
+				},
+			},
+		},
+		{
+			Tx: &transactions.Transaction_StakeTransaction{
+				StakeTransaction: &transactions.StakeTransaction{
+					Validator_ID: []byte{0x00, 0x24, 0x80, 0x10, 0x12, 0x20, 0xBD, 0xF2, 0xBD, 0x81, 0xA1, 0x5B, 0x99, 0xBF, 0xF0, 0x75, 0x94, 0x9B, 0x4E, 0x34, 0x46, 0xF8, 0xC6, 0x2B, 0xF8, 0xB5, 0x85, 0x70, 0x35, 0xCC, 0x8A, 0x8A, 0xFF, 0x97, 0x7E, 0x8E, 0x14, 0xFC}, //TODO
+					Amount:       0,
+					Nullifier:    []byte{0xff},
+					Signature:    nil,
+					Proof:        nil,
+				},
+			},
+		},
+	},
 }

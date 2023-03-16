@@ -109,12 +109,9 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 			}
 		}
 		if lastFlushHeight == tip.Height() {
-			// Load validators from disk
-			// Build out the nullifier map
 			// We're good
 			return nil
 		} else if lastFlushHeight < tip.Height() {
-			// Load validators from disk
 			// Load the missing blocks from disk and
 			// apply any changes to the validator set.
 			// Build the nullifier map.
@@ -126,7 +123,7 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 				if node.height == lastFlushHeight+1 {
 					break
 				}
-				node, err = tip.Parent()
+				node, err = node.Parent()
 				if err != nil {
 					return err
 				}
@@ -177,16 +174,34 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 			// has any attached children that we can use
 			// to load the blocks and remove the validator
 			// changes from the set. Panic?
+			log.Fatal("Validator set last flush height ahead of blockchain tip")
 		}
 	case scsFlushOngoing:
-		// Load the validators from disk
-		// Iterate over all the blocks after lastFlushHeight
-		// and remove any changes that may have been applied.
-		// Traverse the blocks forward from lastFlushHeight to
-		// the tip and apply the changes.
+		// Unfortunately we can't recover from this without rebuilding
+		// from genesis.
+		log.Warn("Reconstructing validator set after unclean shutdown. This may take a while.")
+		dbtx, err := vs.ds.NewTransaction(context.Background(), false)
+		if err != nil {
+			return err
+		}
+		if err := dsDeleteValidatorSet(dbtx); err != nil {
+			return err
+		}
+		if err := dsPutValidatorLastFlushHeight(dbtx, 0); err != nil {
+			return err
+		}
+		if err := dbtx.Commit(context.Background()); err != nil {
+			return err
+		}
+		if err := dsPutValidatorSetConsistencyStatus(vs.ds, scsEmpty); err != nil {
+			return err
+		}
+		if err := vs.CommitBlock(vs.params.GenesisBlock, 0, flushRequired); err != nil {
+			return err
+		}
+		return vs.Init(tip)
 	case scsEmpty:
-		// New node. Grab genesis block and start applying
-		// changes to the validator set up to the tip.
+		// Nothing to do here
 	}
 
 	b := make([]byte, 8)
@@ -267,15 +282,12 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 		}
 
 		blockProducer, ok := vs.validators[producerID]
-		if !ok {
-			return errors.New("block producer not found in validator set")
+		if ok {
+			blockProducerNew := &Validator{}
+			copyValidator(blockProducerNew, blockProducer)
+			blockProducerNew.epochBlocks++
+			updates[producerID] = blockProducerNew
 		}
-
-		blockProducerNew := &Validator{}
-		copyValidator(blockProducerNew, blockProducer)
-		blockProducerNew.epochBlocks++
-
-		updates[producerID] = blockProducerNew
 	}
 
 	for _, t := range blk.GetTransactions() {
@@ -291,7 +303,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 				if !ok {
 					valOld, ok := vs.validators[validatorID]
 					if !ok {
-						log.Warn("coinbase transaction for validator not in set")
+						log.Warn("Coinbase transaction for validator not in set")
 					}
 					valNew = &Validator{}
 					copyValidator(valNew, valOld)
@@ -376,6 +388,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 
 	for _, val := range updates {
 		val.dirty = true
+		vs.dirty = true
 		vs.validators[val.PeerID] = val
 	}
 
@@ -402,11 +415,13 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 		}
 	}
 
-	choices := make([]weightedrand.Choice[peer.ID, uint64], 0, len(vs.validators))
-	for peerID, validator := range vs.validators {
-		choices = append(choices, weightedrand.NewChoice(peerID, validator.TotalStake))
+	if len(updates) > 0 || len(nullifiersToAdd) > 0 || len(nullifiersToDelete) > 0 {
+		choices := make([]weightedrand.Choice[peer.ID, uint64], 0, len(vs.validators))
+		for peerID, validator := range vs.validators {
+			choices = append(choices, weightedrand.NewChoice(peerID, validator.TotalStake))
+		}
+		vs.chooser, _ = weightedrand.NewChooser(choices...)
 	}
-	vs.chooser, _ = weightedrand.NewChooser(choices...)
 
 	return vs.flush(flushMode, blk.Header.Height)
 }

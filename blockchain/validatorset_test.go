@@ -15,10 +15,11 @@ import (
 )
 
 func TestValidatorSet_CommitBlock(t *testing.T) {
-	vs := NewValidatorSet(&params.MainnetParams, mock.NewMapDatastore())
+	ds := mock.NewMapDatastore()
+	vs := NewValidatorSet(&params.RegestParams, ds)
 
-	// We can't commit a block signed by a block producer not already in the
-	// set. So we have to first add one.
+	// Let's add a block producer so we can check epoch
+	// blocks returns correctly.
 	producerID := randomPeerID()
 	producerNullifier := randomID()
 	producerIDBytes, err := producerID.Marshal()
@@ -77,7 +78,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	_, ok = vs.nullifierMap[types.NewNullifier(nullifier[:])]
 	assert.True(t, ok)
 
-	// Now commit a block a block that spends the nullifier and creates a new one
+	// Now commit a block that spends the nullifier and creates a new one
 	// This block will also increase the validator rewards as well.
 	valID2 := randomPeerID()
 	valIDBytes2, err := valID2.Marshal()
@@ -143,4 +144,63 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	// Make sure the producer was removed
 	_, err = vs.GetValidator(producerID)
 	assert.Error(t, err)
+}
+
+func TestValidatorSet_Init(t *testing.T) {
+	ds := mock.NewMapDatastore()
+	err := populateDatabase(ds, 5000)
+	assert.NoError(t, err)
+
+	index := NewBlockIndex(ds)
+	err = index.Init()
+	assert.NoError(t, err)
+
+	// Init with empty consistency state
+	vs := NewValidatorSet(&params.RegestParams, mock.NewMapDatastore())
+	assert.NoError(t, vs.Init(index.Tip()))
+
+	// Init with flush height at genesis
+	vs = NewValidatorSet(&params.RegestParams, mock.NewMapDatastore())
+	assert.NoError(t, vs.CommitBlock(params.RegestParams.GenesisBlock, 0, flushRequired))
+	assert.NoError(t, vs.Init(index.Tip()))
+
+	// Set status to flush ongoing and re-init
+	assert.NoError(t, dsPutValidatorSetConsistencyStatus(vs.ds, scsFlushOngoing))
+	assert.NoError(t, vs.Init(index.Tip()))
+}
+
+func TestValidatorSetMethods(t *testing.T) {
+	ds := mock.NewMapDatastore()
+	vs := NewValidatorSet(&params.RegestParams, ds)
+
+	// Commit a block that creates a new validator
+	valID := randomPeerID()
+	valIDBytes, err := valID.Marshal()
+	assert.NoError(t, err)
+	nullifier := randomID()
+	blk := randomBlock(randomBlockHeader(1, randomID()), 1)
+	blk.Transactions[0] = transactions.WrapTransaction(&transactions.StakeTransaction{
+		Validator_ID: valIDBytes,
+		Amount:       100000,
+		Nullifier:    nullifier[:],
+	})
+	assert.NoError(t, vs.CommitBlock(blk, 0, flushRequired))
+
+	ret, err := vs.GetValidator(valID)
+	assert.NoError(t, err)
+	assert.Equal(t, valID, ret.PeerID)
+
+	assert.True(t, vs.ValidatorExists(valID))
+	assert.True(t, vs.NullifierExists(types.NewNullifier(nullifier[:])))
+
+	val2ID := randomPeerID()
+	null2 := randomID()
+	_, err = vs.GetValidator(val2ID)
+	assert.Error(t, err)
+	assert.False(t, vs.ValidatorExists(val2ID))
+	assert.False(t, vs.NullifierExists(types.NewNullifier(null2[:])))
+
+	assert.Equal(t, uint64(100000), vs.TotalStaked())
+
+	assert.Equal(t, valID, vs.WeightedRandomValidator())
 }

@@ -37,6 +37,7 @@ func NewProofValidator(proofCache *ProofCache) *proofValidator {
 
 func (p *proofValidator) Validate(txs []*transactions.Transaction) error {
 	defer close(p.done)
+	defer close(p.resultChan)
 
 	if len(txs) == 0 {
 		return nil

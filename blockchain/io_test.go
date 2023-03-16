@@ -135,6 +135,21 @@ func TestPutGetDeleteValidator(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(validators))
 
+	dbtx, err = ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
+	assert.NoError(t, dsPutValidator(dbtx, validator))
+	assert.NoError(t, dbtx.Commit(context.Background()))
+	validators, err = dsFetchValidators(ds)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(validators))
+
+	dbtx, err = ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
+	assert.NoError(t, dsDeleteValidatorSet(dbtx))
+	validators, err = dsFetchValidators(ds)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(validators))
+
 }
 
 func TestPutExistsNullifiers(t *testing.T) {

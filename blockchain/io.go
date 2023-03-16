@@ -293,6 +293,28 @@ func dsPutValidator(dbtx datastore.Txn, v *Validator) error {
 	return dbtx.Put(context.Background(), datastore.NewKey(repo.ValidatorDatastoreKeyPrefix+v.PeerID.String()), ser)
 }
 
+func dsDeleteValidatorSet(dbtx datastore.Txn) error {
+	q := query.Query{
+		Prefix: repo.ValidatorDatastoreKeyPrefix,
+	}
+
+	results, err := dbtx.Query(context.Background(), q)
+	if err != nil {
+		return err
+	}
+
+	for result, ok := results.NextSync(); ok; result, ok = results.NextSync() {
+		validator, err := deserializeValidator(result.Value)
+		if err != nil {
+			return err
+		}
+		if err := dbtx.Delete(context.Background(), datastore.NewKey(repo.ValidatorDatastoreKeyPrefix+validator.PeerID.String())); err != nil {
+			return err
+		}
+	}
+	return dbtx.Commit(context.Background())
+}
+
 func dsDeleteValidator(dbtx datastore.Txn, id peer.ID) error {
 	return dbtx.Delete(context.Background(), datastore.NewKey(repo.ValidatorDatastoreKeyPrefix+id.String()))
 }
