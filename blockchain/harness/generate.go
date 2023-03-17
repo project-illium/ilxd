@@ -125,7 +125,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				outputs = append(outputs, &transactions.Output{
 					Commitment:      outputCommitment,
 					EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-					Ciphertext:      make([]byte, blockchain.CipherTextLen),
+					Ciphertext:      make([]byte, blockchain.CiphertextLen),
 				})
 			}
 			standardTx := &transactions.StandardTransaction{
@@ -203,11 +203,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 			txs = append(txs, transactions.WrapTransaction(standardTx))
 		}
 
-		txids := make([][]byte, 0, len(txs))
-		for _, tx := range txs {
-			txids = append(txids, tx.ID().Bytes())
-		}
-		merkles := blockchain.BuildMerkleTreeStore(txids)
+		merkles := blockchain.BuildMerkleTreeStore(txs)
 
 		h.timeSource++
 
@@ -333,12 +329,12 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 			{
 				Commitment:      commitment1,
 				EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-				Ciphertext:      make([]byte, blockchain.CipherTextLen),
+				Ciphertext:      make([]byte, blockchain.CiphertextLen),
 			},
 			{
 				Commitment:      commitment2,
 				EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-				Ciphertext:      make([]byte, blockchain.CipherTextLen),
+				Ciphertext:      make([]byte, blockchain.CiphertextLen),
 			},
 		},
 	}
@@ -495,11 +491,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	}
 
 	// And create the genesis merkle root
-	txids := make([][]byte, 0, len(genesis.Transactions))
-	for _, tx := range genesis.Transactions {
-		txids = append(txids, tx.ID().Bytes())
-	}
-	merkles := blockchain.BuildMerkleTreeStore(txids)
+	merkles := blockchain.BuildMerkleTreeStore(genesis.Transactions)
 	genesis.Header.TxRoot = merkles[len(merkles)-1]
 	genesis.Header.Timestamp = time.Now().Unix()
 

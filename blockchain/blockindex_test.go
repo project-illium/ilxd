@@ -73,11 +73,7 @@ func randomBlock(header *blocks.BlockHeader, nTxs int) *blocks.Block {
 			Fee: 10,
 		})
 	}
-	txids := make([][]byte, 0, len(txs))
-	for _, tx := range txs {
-		txids = append(txids, tx.ID().Bytes())
-	}
-	merkles := BuildMerkleTreeStore(txids)
+	merkles := BuildMerkleTreeStore(txs)
 	header.TxRoot = merkles[len(merkles)-1]
 	return &blocks.Block{
 		Header:       header,

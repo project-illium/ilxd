@@ -48,7 +48,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	}
 
 	// Setup up badger datastore
-	ds, err := badger.NewDatastore(config.DataDir, nil)
+	ds, err := badger.NewDatastore(config.DataDir, &badger.DefaultOptions)
 	if err != nil {
 		return nil, err
 	}

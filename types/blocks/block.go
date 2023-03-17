@@ -110,6 +110,14 @@ func (b *Block) Outputs() []*transactions.Output {
 	return outputs
 }
 
+func (b *Block) Txids() []types.ID {
+	txids := make([]types.ID, 0, len(b.Transactions))
+	for _, t := range b.Transactions {
+		txids = append(txids, t.ID())
+	}
+	return txids
+}
+
 func (b *Block) Serialize() ([]byte, error) {
 	return proto.Marshal(b)
 }

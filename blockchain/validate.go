@@ -11,12 +11,15 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"time"
 )
 
 const (
 	PubkeyLen = 32
 
-	CipherTextLen = 176
+	CiphertextLen = 176
+
+	AssetIDLen = 32
 
 	MaxProposalHashLen = 68
 
@@ -59,10 +62,10 @@ func (behaviorFlags BehaviorFlags) HasFlag(flag BehaviorFlags) bool {
 func (b *Blockchain) checkBlockContext(header *blocks.BlockHeader) error {
 	tip := b.index.Tip()
 	if header.Height != tip.Height()+1 {
-		return ruleError(ErrDoesNotConnect, "block does not extend tip")
+		return ruleError(ErrDoesNotConnect, "block height does not extend tip")
 	}
 	if types.NewID(header.Parent) != tip.ID() {
-		return ruleError(ErrDoesNotConnect, "block does not extend tip")
+		return ruleError(ErrDoesNotConnect, "block parent does not extend tip")
 	}
 	prevHeader, err := tip.Header()
 	if err != nil {
@@ -102,7 +105,6 @@ func (b *Blockchain) validateHeader(header *blocks.BlockHeader, flags BehaviorFl
 			if err != nil {
 				return err
 			}
-
 			valid, err := producerPubkey.Verify(sigHash, header.Signature)
 			if !valid {
 				return ruleError(ErrInvalidHeaderSignature, "invalid signature in header")
@@ -124,12 +126,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 		return ruleError(ErrEmptyBlock, "block contains zero transactions")
 	}
 
-	txids := make([][]byte, 0, len(blk.Transactions))
-	for _, tx := range blk.Transactions {
-		txids = append(txids, tx.ID().Bytes())
-	}
-
-	merkles := BuildMerkleTreeStore(txids)
+	merkles := BuildMerkleTreeStore(blk.Transactions)
 	calculatedTxRoot := merkles[len(merkles)-1]
 
 	if !bytes.Equal(calculatedTxRoot, blk.Header.TxRoot) {
@@ -139,16 +136,14 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 	var (
 		blockNullifiers   = make(map[types.Nullifier]bool)
 		stakeTransactions = make([]*transactions.StakeTransaction, 0, len(blk.Transactions))
-		sigsToValidate    = make([]*transactions.Transaction, 0, len(blk.Transactions))
 	)
 
 	for _, t := range blk.GetTransactions() {
+		if err := CheckTransactionSanity(t, time.Unix(blk.Header.Timestamp, 0)); err != nil {
+			return err
+		}
 		switch tx := t.Tx.(type) {
 		case *transactions.Transaction_CoinbaseTransaction:
-			if err := validateOutputs(tx.CoinbaseTransaction.Outputs); err != nil {
-				return err
-			}
-			sigsToValidate = append(sigsToValidate, t)
 			validatorID, err := peer.IDFromBytes(tx.CoinbaseTransaction.Validator_ID)
 			if err != nil {
 				return ruleError(ErrInvalidTx, "coinbase tx validator ID does not decode")
@@ -163,11 +158,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				}
 			}
 		case *transactions.Transaction_StakeTransaction:
-			if tx.StakeTransaction.Nullifier == nil {
-				return ruleError(ErrInvalidTx, "stake transaction missing nullifier")
-			}
 			stakeTransactions = append(stakeTransactions, tx.StakeTransaction)
-			sigsToValidate = append(sigsToValidate, t)
 			if !flags.HasFlag(BFGenesisValidation) {
 				exists, err := b.txoRootSet.Exists(types.NewID(tx.StakeTransaction.TxoRoot))
 				if err != nil {
@@ -177,18 +168,9 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 					return ruleError(ErrInvalidTx, "txo root does not exist in chain")
 				}
 			}
-			if tx.StakeTransaction.Locktime > blk.Header.Timestamp {
-				return ruleError(ErrInvalidTx, "transaction locktime is ahead of block timestamp")
-			}
 		case *transactions.Transaction_StandardTransaction:
 			if flags.HasFlag(BFGenesisValidation) {
 				return ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
-			}
-			if len(tx.StandardTransaction.Nullifiers) == 0 {
-				return ruleError(ErrInvalidTx, "transaction missing nullifier(s)")
-			}
-			if err := validateOutputs(tx.StandardTransaction.Outputs); err != nil {
-				return err
 			}
 			for _, n := range tx.StandardTransaction.Nullifiers {
 				nullifier := types.NewNullifier(n)
@@ -212,18 +194,9 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			if !exists {
 				return ruleError(ErrInvalidTx, "txo root does not exist in chain")
 			}
-			if tx.StandardTransaction.Locktime > blk.Header.Timestamp {
-				return ruleError(ErrInvalidTx, "transaction locktime is ahead of block timestamp")
-			}
 		case *transactions.Transaction_MintTransaction:
 			if flags.HasFlag(BFGenesisValidation) {
 				return ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
-			}
-			if len(tx.MintTransaction.Nullifiers) == 0 {
-				return ruleError(ErrInvalidTx, "transaction missing nullifier(s)")
-			}
-			if err := validateOutputs(tx.MintTransaction.Outputs); err != nil {
-				return err
 			}
 			for _, n := range tx.MintTransaction.Nullifiers {
 				nullifier := types.NewNullifier(n)
@@ -240,21 +213,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 
 				blockNullifiers[nullifier] = true
 			}
-			switch tx.MintTransaction.Type {
-			case transactions.MintTransaction_FIXED_SUPPLY:
-				expectedAssetID := hash.HashFunc(tx.MintTransaction.Nullifiers[0])
-				if !bytes.Equal(tx.MintTransaction.Asset_ID, expectedAssetID) {
-					return ruleError(ErrInvalidTx, "fixed supply mint transaction invalid assetID")
-				}
-			case transactions.MintTransaction_VARIABLE_SUPPLY:
-				if !bytes.Equal(tx.MintTransaction.Asset_ID, tx.MintTransaction.MintKey) {
-					return ruleError(ErrInvalidTx, "variable supply mint transaction invalid assetID")
-				}
-			default:
-				return ruleError(ErrUnknownTxEnum, "unknown mint transaction type")
-			}
 
-			sigsToValidate = append(sigsToValidate, t)
 			exists, err := b.txoRootSet.Exists(types.NewID(tx.MintTransaction.TxoRoot))
 			if err != nil {
 				return err
@@ -262,15 +221,9 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			if !exists {
 				return ruleError(ErrInvalidTx, "txo root does not exist in chain")
 			}
-			if tx.MintTransaction.Locktime > blk.Header.Timestamp {
-				return ruleError(ErrInvalidTx, "transaction locktime is ahead of block timestamp")
-			}
 		case *transactions.Transaction_TreasuryTransaction:
 			if flags.HasFlag(BFGenesisValidation) {
 				return ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
-			}
-			if err := validateOutputs(tx.TreasuryTransaction.Outputs); err != nil {
-				return err
 			}
 			if len(tx.TreasuryTransaction.ProposalHash) > MaxProposalHashLen {
 				return ruleError(ErrInvalidTx, "treasury proposal hash too long")
@@ -334,7 +287,94 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 	return nil
 }
 
+func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) error {
+	if t.Tx == nil {
+		return ruleError(ErrInvalidTx, "missing inner protobuf transaction")
+	}
+	switch tx := t.Tx.(type) {
+	case *transactions.Transaction_CoinbaseTransaction:
+		if err := validateOutputs(tx.CoinbaseTransaction.Outputs); err != nil {
+			return err
+		}
+		_, err := peer.IDFromBytes(tx.CoinbaseTransaction.Validator_ID)
+		if err != nil {
+			return ruleError(ErrInvalidTx, "coinbase tx validator ID does not decode")
+		}
+	case *transactions.Transaction_StakeTransaction:
+		if tx.StakeTransaction.Nullifier == nil {
+			return ruleError(ErrInvalidTx, "stake transaction missing nullifier")
+		}
+		_, err := peer.IDFromBytes(tx.StakeTransaction.Validator_ID)
+		if err != nil {
+			return ruleError(ErrInvalidTx, "coinbase tx validator ID does not decode")
+		}
+		if tx.StakeTransaction.Locktime > blockTime.Unix() {
+			return ruleError(ErrInvalidTx, "transaction locktime is ahead of block timestamp")
+		}
+	case *transactions.Transaction_StandardTransaction:
+		if len(tx.StandardTransaction.Nullifiers) == 0 {
+			return ruleError(ErrInvalidTx, "transaction missing nullifier(s)")
+		}
+		if err := validateOutputs(tx.StandardTransaction.Outputs); err != nil {
+			return err
+		}
+		if tx.StandardTransaction.Locktime > blockTime.Unix() {
+			return ruleError(ErrInvalidTx, "transaction locktime is ahead of block timestamp")
+		}
+	case *transactions.Transaction_MintTransaction:
+		if len(tx.MintTransaction.Nullifiers) == 0 {
+			return ruleError(ErrInvalidTx, "transaction missing nullifier(s)")
+		}
+		if err := validateOutputs(tx.MintTransaction.Outputs); err != nil {
+			return err
+		}
+		if len(tx.MintTransaction.Asset_ID) != AssetIDLen {
+			return ruleError(ErrInvalidTx, "invalid asset ID")
+		}
+		if len(tx.MintTransaction.MintKey) != PubkeyLen {
+			return ruleError(ErrInvalidTx, "invalid mint key")
+		}
+		switch tx.MintTransaction.Type {
+		case transactions.MintTransaction_FIXED_SUPPLY:
+			expectedAssetID := hash.HashFunc(tx.MintTransaction.Nullifiers[0])
+			if !bytes.Equal(tx.MintTransaction.Asset_ID, expectedAssetID) {
+				return ruleError(ErrInvalidTx, "fixed supply mint transaction invalid assetID")
+			}
+		case transactions.MintTransaction_VARIABLE_SUPPLY:
+			if bytes.Equal(tx.MintTransaction.Asset_ID, types.IlliumCoinID[:]) {
+				return ruleError(ErrInvalidTx, "variable supply mint transaction uses illium assetID")
+			}
+			if !bytes.Equal(tx.MintTransaction.Asset_ID, tx.MintTransaction.MintKey) {
+				return ruleError(ErrInvalidTx, "variable supply mint transaction invalid assetID")
+			}
+		default:
+			return ruleError(ErrUnknownTxEnum, "unknown mint transaction type")
+		}
+		if tx.MintTransaction.Locktime > blockTime.Unix() {
+			return ruleError(ErrInvalidTx, "transaction locktime is ahead of block timestamp")
+		}
+	case *transactions.Transaction_TreasuryTransaction:
+		if err := validateOutputs(tx.TreasuryTransaction.Outputs); err != nil {
+			return err
+		}
+		if len(tx.TreasuryTransaction.ProposalHash) > MaxProposalHashLen {
+			return ruleError(ErrInvalidTx, "treasury proposal hash too long")
+		}
+	}
+	size, err := t.SerializedSize()
+	if err != nil {
+		return err
+	}
+	if size > MaxTransactionSize {
+		return ruleError(ErrInvalidTx, "transaction too large")
+	}
+	return nil
+}
+
 func validateOutputs(outputs []*transactions.Output) error {
+	if len(outputs) == 0 {
+		return ruleError(ErrInvalidTx, "transaction has no outputs")
+	}
 	for _, out := range outputs {
 		if len(out.Commitment) != types.CommitmentLen {
 			return ruleError(ErrInvalidTx, "invalid commitment")
@@ -342,7 +382,7 @@ func validateOutputs(outputs []*transactions.Output) error {
 		if len(out.EphemeralPubkey) != PubkeyLen {
 			return ruleError(ErrInvalidTx, "ephem pubkey invalid len")
 		}
-		if len(out.Ciphertext) != CipherTextLen {
+		if len(out.Ciphertext) != CiphertextLen {
 			return ruleError(ErrInvalidTx, "ciphertext invalid len")
 		}
 	}

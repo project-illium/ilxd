@@ -13,7 +13,9 @@ import (
 )
 
 // AccumulatorDB is responsible for persisting the accumulator on disk.
-// It maintains a memory cache and periodically flushes to disk.
+// It maintains a memory cache and periodically flushes to disk. This will
+// speed up writes as we don't have to write to disk every block but
+// rather only periodically.
 type AccumulatorDB struct {
 	acc       *Accumulator
 	ds        repo.Datastore

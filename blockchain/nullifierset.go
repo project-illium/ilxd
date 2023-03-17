@@ -62,7 +62,9 @@ func (ns *NullifierSet) NullifierExists(nullifier types.Nullifier) (bool, error)
 }
 
 // AddNullifiers adds the nullifiers to the database using the provided
-// database transaction.
+// database transaction. There is no caching of these writes as the
+// nullifiers will never be deleted or mutated so we have to incure the
+// write penalty at some point.
 func (ns *NullifierSet) AddNullifiers(dbtx datastore.Txn, nullifiers []types.Nullifier) error {
 	ns.mtx.Lock()
 	defer ns.mtx.Unlock()

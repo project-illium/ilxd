@@ -6,6 +6,7 @@ package blockchain
 
 import (
 	"github.com/project-illium/ilxd/params/hash"
+	"github.com/project-illium/ilxd/types/transactions"
 	"math"
 )
 
@@ -51,17 +52,17 @@ func nextPowerOfTwo(n int) int {
 // are calculated by concatenating the left node with itself before hashing.
 // Since this function uses nodes that are pointers to the hashes, empty nodes
 // will be nil.
-func BuildMerkleTreeStore(data [][]byte) [][]byte {
+func BuildMerkleTreeStore(txs []*transactions.Transaction) [][]byte {
 	// Calculate how many entries are required to hold the binary merkle
 	// tree as a linear array and create an array of that size.
-	nextPoT := nextPowerOfTwo(len(data))
+	nextPoT := nextPowerOfTwo(len(txs))
 	arraySize := nextPoT*2 - 1
 	merkles := make([][]byte, arraySize)
 
 	// Create the base transactions hashes and populate the array with them.
-	for i, d := range data {
-		h := hash.HashFunc(d)
-		merkles[i] = h
+	for i, d := range txs {
+		txid := d.ID()
+		merkles[i] = txid[:]
 	}
 
 	// Start the array offset after the last transactions and adjusted to the

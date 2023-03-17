@@ -198,12 +198,12 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 				return err
 			}
 
-			treasuryCredit := coinbase / (100 / uint64(b.params.TreasuryPercentage))
-			if err := dsCreditTreasury(dbtx, treasuryCredit); err != nil {
+			treasuryCredit := float64(coinbase) / (float64(100) / b.params.TreasuryPercentage)
+			if err := dsCreditTreasury(dbtx, uint64(treasuryCredit)); err != nil {
 				return err
 			}
 
-			validatorReward = coinbase - treasuryCredit
+			validatorReward = coinbase - uint64(treasuryCredit)
 		}
 	}
 
@@ -284,6 +284,6 @@ func calculateNextCoinbaseDistribution(params *params.NetworkParams, epoch int64
 
 func calculateNextValidatorReward(params *params.NetworkParams, epoch int64) uint64 {
 	coinbase := calculateNextCoinbaseDistribution(params, epoch)
-	treasuryCredit := coinbase / (100 / uint64(params.TreasuryPercentage))
-	return coinbase - treasuryCredit
+	treasuryCredit := float64(coinbase) / (float64(100) / params.TreasuryPercentage)
+	return coinbase - uint64(treasuryCredit)
 }

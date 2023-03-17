@@ -10,7 +10,6 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"runtime"
-	"time"
 )
 
 func ValidateTransactionSig(tx *transactions.Transaction, sigCache *SigCache) error {
@@ -23,7 +22,6 @@ type sigValidator struct {
 	workChan   chan *transactions.Transaction
 	resultChan chan error
 	done       chan struct{}
-	blockTime  time.Time
 }
 
 func NewSigValidator(sigCache *SigCache) *sigValidator {
