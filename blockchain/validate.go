@@ -135,7 +135,10 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 
 	var (
 		blockNullifiers   = make(map[types.Nullifier]bool)
+		blockCoinbases    = make(map[peer.ID]bool)
 		stakeTransactions = make([]*transactions.StakeTransaction, 0, len(blk.Transactions))
+
+		treasuryBalance *uint64
 	)
 
 	for _, t := range blk.GetTransactions() {
@@ -149,13 +152,17 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				return ruleError(ErrInvalidTx, "coinbase tx validator ID does not decode")
 			}
 			if !flags.HasFlag(BFGenesisValidation) {
+				if blockCoinbases[validatorID] {
+					return ruleError(ErrDuplicateCoinbase, "more than one coinbase per validator")
+				}
 				validator, err := b.validatorSet.GetValidator(validatorID)
 				if err != nil {
 					return ruleError(ErrInvalidTx, "validator does not exist in validator set")
 				}
-				if tx.CoinbaseTransaction.NewCoins > validator.unclaimedCoins {
-					return ruleError(ErrInvalidTx, "coinbase transaction creates too many coins")
+				if tx.CoinbaseTransaction.NewCoins != validator.unclaimedCoins {
+					return ruleError(ErrInvalidTx, "coinbase transaction creates invalid number of coins")
 				}
+				blockCoinbases[validatorID] = true
 			}
 		case *transactions.Transaction_StakeTransaction:
 			stakeTransactions = append(stakeTransactions, tx.StakeTransaction)
@@ -225,17 +232,18 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			if flags.HasFlag(BFGenesisValidation) {
 				return ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
 			}
-			if len(tx.TreasuryTransaction.ProposalHash) > MaxProposalHashLen {
-				return ruleError(ErrInvalidTx, "treasury proposal hash too long")
+			if treasuryBalance == nil {
+				balance, err := dsFetchTreasuryBalance(b.ds)
+				if err != nil {
+					return err
+				}
+				treasuryBalance = &balance
 			}
 
-			balance, err := dsFetchTreasuryBalance(b.ds)
-			if err != nil {
-				return err
-			}
-			if tx.TreasuryTransaction.Amount > balance {
+			if tx.TreasuryTransaction.Amount > *treasuryBalance {
 				return ruleError(ErrInvalidTx, "treasury tx amount exceeds treasury balance")
 			}
+			*treasuryBalance -= tx.TreasuryTransaction.Amount
 		}
 		size, err := t.SerializedSize()
 		if err != nil {

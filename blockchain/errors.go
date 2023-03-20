@@ -28,6 +28,7 @@ const (
 	ErrEmptyBlock
 	ErrInvalidTxRoot
 	ErrDoubleSpend
+	ErrDuplicateCoinbase
 	ErrBlockStakeSpend
 	ErrInvalidTx
 	ErrInvalidGenesis
@@ -45,6 +46,7 @@ var errorCodeStrings = map[ErrorCode]string{
 	ErrEmptyBlock:             "ErrEmptyBlock",
 	ErrInvalidTxRoot:          "ErrInvalidTxRoot",
 	ErrDoubleSpend:            "ErrDoubleSpend",
+	ErrDuplicateCoinbase:      "ErrDuplicateCoinbase",
 	ErrBlockStakeSpend:        "ErrBlockStakeSpend",
 	ErrInvalidTx:              "ErrInvalidTx",
 	ErrInvalidGenesis:         "ErrInvalidGenesis",

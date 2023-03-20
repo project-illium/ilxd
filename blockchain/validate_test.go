@@ -6,6 +6,7 @@ package blockchain
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -206,9 +207,17 @@ func TestCheckBlockContext(t *testing.T) {
 func TestValidateBlock(t *testing.T) {
 	ds := mock.NewMapDatastore()
 	b := Blockchain{
+		ds:           ds,
+		proofCache:   NewProofCache(30),
 		txoRootSet:   NewTxoRootSet(ds, 10),
 		nullifierSet: NewNullifierSet(ds, 10),
+		validatorSet: NewValidatorSet(&params.RegestParams, ds),
 	}
+	assert.NoError(t, dsInitTreasury(ds))
+	dbtx, err := ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
+	assert.NoError(t, dsCreditTreasury(dbtx, 10000))
+	assert.NoError(t, dbtx.Commit(context.Background()))
 
 	// Build valid block
 	header := randomBlockHeader(1, randomID())
@@ -228,10 +237,28 @@ func TestValidateBlock(t *testing.T) {
 	}
 
 	var (
-		txoRoot   = randomID()
-		nullifier = randomID()
+		txoRoot      = randomID()
+		txoRoot2     = randomID()
+		nullifier    = randomID()
+		nullifier2   = randomID()
+		validatorID  = randomPeerID()
+		validatorID2 = randomPeerID()
 	)
+	validatorIDBytes, err := validatorID.Marshal()
+	assert.NoError(t, err)
+	validatorID2Bytes, err := validatorID2.Marshal()
+	assert.NoError(t, err)
 	b.txoRootSet.cache[txoRoot] = true
+	b.nullifierSet.cachedEntries[types.NewNullifier(nullifier2[:])] = true
+
+	b.validatorSet.validators[validatorID] = &Validator{
+		PeerID:         validatorID,
+		unclaimedCoins: 10000,
+	}
+
+	acc := NewAccumulator()
+	acc.Insert(make([]byte, types.CommitmentLen), false)
+	root := acc.Root()
 
 	signHeader := func(header *blocks.BlockHeader) (*blocks.BlockHeader, error) {
 		sigHash, err := header.SigHash()
@@ -312,7 +339,7 @@ func TestValidateBlock(t *testing.T) {
 			expectedErr: ruleError(ErrInvalidGenesis, ""),
 		},
 		{
-			name: "standard transaction no nullifiers",
+			name: "standard transaction valid",
 			block: func(blk *blocks.Block) (*blocks.Block, error) {
 				blk.Transactions = []*transactions.Transaction{
 					transactions.WrapTransaction(&transactions.StandardTransaction{
@@ -323,7 +350,7 @@ func TestValidateBlock(t *testing.T) {
 								Ciphertext:      make([]byte, CiphertextLen),
 							},
 						},
-						Nullifiers: [][]byte{},
+						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
 					}),
 				}
@@ -338,7 +365,756 @@ func TestValidateBlock(t *testing.T) {
 				return blk, nil
 			},
 			flags:       BFNone,
+			expectedErr: nil,
+		},
+		{
+			name: "standard transaction nullifier already in block",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.StandardTransaction{
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot[:],
+					}),
+					transactions.WrapTransaction(&transactions.StandardTransaction{
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot[:],
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFNone,
+			expectedErr: ruleError(ErrDoubleSpend, ""),
+		},
+		{
+			name: "standard transaction nullifier already in nullifier set",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.StandardTransaction{
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Nullifiers: [][]byte{nullifier2[:]},
+						TxoRoot:    txoRoot[:],
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFNone,
+			expectedErr: ruleError(ErrDoubleSpend, ""),
+		},
+		{
+			name: "standard transaction txo root doesn't exist in set",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.StandardTransaction{
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot2[:],
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFNone,
 			expectedErr: ruleError(ErrInvalidTx, ""),
+		},
+		{
+			name: "stake transaction valid",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.StakeTransaction{
+						Validator_ID: validatorIDBytes,
+						Nullifier:    nullifier.Bytes(),
+						TxoRoot:      txoRoot[:],
+						Locktime:     time.Time{}.Unix(),
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: nil,
+		},
+		{
+			name: "stake transaction txo root doesn't exist in set",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.StakeTransaction{
+						Validator_ID: validatorIDBytes,
+						Nullifier:    nullifier.Bytes(),
+						TxoRoot:      txoRoot2[:],
+						Locktime:     time.Time{}.Unix(),
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: ruleError(ErrInvalidTx, ""),
+		},
+		{
+			name: "staked nullifier spent in same block",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.StakeTransaction{
+						Validator_ID: validatorIDBytes,
+						Nullifier:    nullifier.Bytes(),
+						TxoRoot:      txoRoot[:],
+						Locktime:     time.Time{}.Unix(),
+					}),
+					transactions.WrapTransaction(&transactions.StandardTransaction{
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot[:],
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: ruleError(ErrBlockStakeSpend, ""),
+		},
+		{
+			name: "mint transaction during genesis validation",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.MintTransaction{
+						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot[:],
+						Asset_ID:   bytes.Repeat([]byte{0x11}, 32),
+						Locktime:   time.Time{}.Unix(),
+						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFGenesisValidation,
+			expectedErr: ruleError(ErrInvalidGenesis, ""),
+		},
+		{
+			name: "mint transaction valid",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.MintTransaction{
+						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot[:],
+						Asset_ID:   bytes.Repeat([]byte{0x11}, 32),
+						Locktime:   time.Time{}.Unix(),
+						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: nil,
+		},
+		{
+			name: "mint transaction nullifier already in block",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.MintTransaction{
+						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot[:],
+						Asset_ID:   bytes.Repeat([]byte{0x11}, 32),
+						Locktime:   time.Time{}.Unix(),
+						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
+					}),
+					transactions.WrapTransaction(&transactions.MintTransaction{
+						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Asset_ID:   bytes.Repeat([]byte{0x11}, 32),
+						Locktime:   time.Time{}.Unix(),
+						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot[:],
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFNone,
+			expectedErr: ruleError(ErrDoubleSpend, ""),
+		},
+		{
+			name: "mint transaction nullifier already in nullifier set",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.MintTransaction{
+						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Asset_ID:   bytes.Repeat([]byte{0x11}, 32),
+						Locktime:   time.Time{}.Unix(),
+						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
+						Nullifiers: [][]byte{nullifier2[:]},
+						TxoRoot:    txoRoot[:],
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFNone,
+			expectedErr: ruleError(ErrDoubleSpend, ""),
+		},
+		{
+			name: "mint transaction txo root doesn't exist in set",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.MintTransaction{
+						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Asset_ID:   bytes.Repeat([]byte{0x11}, 32),
+						Locktime:   time.Time{}.Unix(),
+						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot2[:],
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFNone,
+			expectedErr: ruleError(ErrInvalidTx, ""),
+		},
+		{
+			name: "coinbase transaction valid",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+						Validator_ID: validatorIDBytes,
+						NewCoins:     10000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: nil,
+		},
+		{
+			name: "coinbase transaction incorrect new coins",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+						Validator_ID: validatorIDBytes,
+						NewCoins:     11000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: ruleError(ErrInvalidTx, ""),
+		},
+		{
+			name: "coinbase transaction validator doesn't exist",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+						Validator_ID: validatorID2Bytes,
+						NewCoins:     10000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: ruleError(ErrInvalidTx, ""),
+		},
+		{
+			name: "coinbase transaction duplicate validator",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+						Validator_ID: validatorIDBytes,
+						NewCoins:     10000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+					}),
+					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+						Validator_ID: validatorIDBytes,
+						NewCoins:     10000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: ruleError(ErrDuplicateCoinbase, ""),
+		},
+		{
+			name: "treasury transaction during genesis validation",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.TreasuryTransaction{
+						Amount: 10000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						ProposalHash: make([]byte, 32),
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFGenesisValidation,
+			expectedErr: ruleError(ErrInvalidGenesis, ""),
+		},
+		{
+			name: "treasury transaction valid",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.TreasuryTransaction{
+						Amount: 10000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						ProposalHash: make([]byte, 32),
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: nil,
+		},
+		{
+			name: "treasury amount to large",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.TreasuryTransaction{
+						Amount: 11000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						ProposalHash: make([]byte, 32),
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: ruleError(ErrInvalidTx, ""),
+		},
+		{
+			name: "treasury cumulative amount to large",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.TreasuryTransaction{
+						Amount: 8000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						ProposalHash: make([]byte, 32),
+					}),
+					transactions.WrapTransaction(&transactions.TreasuryTransaction{
+						Amount: 3000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						ProposalHash: make([]byte, 32),
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: ruleError(ErrInvalidTx, ""),
+		},
+		{
+			name: "valid genesis",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+						Validator_ID: validatorIDBytes,
+						NewCoins:     10000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+					}),
+					transactions.WrapTransaction(&transactions.StakeTransaction{
+						Validator_ID: validatorIDBytes,
+						Nullifier:    nullifier.Bytes(),
+						TxoRoot:      root[:],
+						Locktime:     time.Time{}.Unix(),
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFGenesisValidation | BFFastAdd,
+			expectedErr: nil,
+		},
+		{
+			name: "genesis invalid root",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+						Validator_ID: validatorIDBytes,
+						NewCoins:     10000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+					}),
+					transactions.WrapTransaction(&transactions.StakeTransaction{
+						Validator_ID: validatorIDBytes,
+						Nullifier:    nullifier.Bytes(),
+						TxoRoot:      txoRoot[:],
+						Locktime:     time.Time{}.Unix(),
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFGenesisValidation | BFFastAdd,
+			expectedErr: ruleError(ErrInvalidGenesis, ""),
+		},
+		{
+			name: "genesis invalid number of txs",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+						Validator_ID: validatorIDBytes,
+						NewCoins:     10000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFGenesisValidation | BFFastAdd,
+			expectedErr: ruleError(ErrInvalidGenesis, ""),
+		},
+		{
+			name: "genesis tx0 not coinbase",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.StakeTransaction{
+						Validator_ID: validatorIDBytes,
+						Nullifier:    nullifier.Bytes(),
+						TxoRoot:      root[:],
+						Locktime:     time.Time{}.Unix(),
+					}),
+					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+						Validator_ID: validatorIDBytes,
+						NewCoins:     10000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFGenesisValidation | BFFastAdd,
+			expectedErr: ruleError(ErrInvalidGenesis, ""),
 		},
 	}
 
