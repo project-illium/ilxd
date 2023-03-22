@@ -35,7 +35,6 @@ func NewSigValidator(sigCache *SigCache) *sigValidator {
 
 func (s *sigValidator) Validate(txs []*transactions.Transaction) error {
 	defer close(s.done)
-	defer close(s.resultChan)
 
 	if len(txs) == 0 {
 		return nil

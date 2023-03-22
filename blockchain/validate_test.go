@@ -1018,6 +1018,42 @@ func TestValidateBlock(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
+			name: "genesis staked coins exceeds coinbase",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+						Validator_ID: validatorIDBytes,
+						NewCoins:     10000,
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+					}),
+					transactions.WrapTransaction(&transactions.StakeTransaction{
+						Validator_ID: validatorIDBytes,
+						Nullifier:    nullifier.Bytes(),
+						TxoRoot:      root[:],
+						Locktime:     time.Time{}.Unix(),
+						Amount:       10001,
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFGenesisValidation | BFFastAdd,
+			expectedErr: ruleError(ErrInvalidGenesis, ""),
+		},
+		{
 			name: "genesis invalid root",
 			block: func(blk *blocks.Block) (*blocks.Block, error) {
 				blk.Transactions = []*transactions.Transaction{

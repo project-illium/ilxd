@@ -165,11 +165,12 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	}
 
 	accumulator := b.accumulatorDB.Accumulator()
-
+	blockCointainsOutputs := false
 	treasuryWidthdrawl := uint64(0)
 	for _, tx := range blk.Transactions {
 		for _, out := range tx.Outputs() {
 			accumulator.Insert(out.Commitment, false)
+			blockCointainsOutputs = true
 		}
 		if treasuryTx, ok := tx.Tx.(*transactions.Transaction_TreasuryTransaction); ok {
 			treasuryWidthdrawl += treasuryTx.TreasuryTransaction.Amount
@@ -180,8 +181,10 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 			return err
 		}
 	}
-	if err := b.txoRootSet.AddRoot(dbtx, accumulator.Root()); err != nil {
-		return err
+	if blockCointainsOutputs {
+		if err := b.txoRootSet.AddRoot(dbtx, accumulator.Root()); err != nil {
+			return err
+		}
 	}
 
 	var validatorReward uint64
@@ -217,6 +220,9 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	if err := dbtx.Commit(context.Background()); err != nil {
 		return err
 	}
+	// Now that we know the disk updated correctly we can update the cache. Ideally this would
+	// be done in a commit hook, but that's a bigger change to the db interface.
+	b.txoRootSet.UpdateCache(accumulator.Root())
 
 	b.index.ExtendIndex(blk.Header)
 
@@ -288,6 +294,6 @@ func calculateNextCoinbaseDistribution(params *params.NetworkParams, epoch int64
 
 func calculateNextValidatorReward(params *params.NetworkParams, epoch int64) uint64 {
 	coinbase := calculateNextCoinbaseDistribution(params, epoch)
-	treasuryCredit := float64(coinbase) / (float64(100) / params.TreasuryPercentage)
+	treasuryCredit := float64(coinbase) * (params.TreasuryPercentage / 100)
 	return coinbase - uint64(treasuryCredit)
 }

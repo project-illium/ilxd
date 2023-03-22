@@ -27,7 +27,7 @@ func NewTxoRootSet(ds repo.Datastore, maxEntires uint) *TxoRootSet {
 	}
 }
 
-func (t *TxoRootSet) Exists(txoRoot types.ID) (bool, error) {
+func (t *TxoRootSet) RootExists(txoRoot types.ID) (bool, error) {
 	t.mtx.RLock()
 	defer t.mtx.RUnlock()
 
@@ -42,13 +42,12 @@ func (t *TxoRootSet) AddRoot(dbtx datastore.Txn, txoRoot types.ID) error {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 
-	err := dsPutTxoSetRoot(dbtx, txoRoot)
-	if err != nil {
-		return err
-	}
+	return dsPutTxoSetRoot(dbtx, txoRoot)
+}
 
+func (t *TxoRootSet) UpdateCache(txoRoot types.ID) {
 	if t.maxEntries <= 0 {
-		return nil
+		return
 	}
 
 	// If adding this new entry will put us over the max number of allowed
@@ -69,5 +68,4 @@ func (t *TxoRootSet) AddRoot(dbtx datastore.Txn, txoRoot types.ID) error {
 		}
 	}
 	t.cache[txoRoot] = true
-	return nil
 }

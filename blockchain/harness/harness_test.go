@@ -5,6 +5,11 @@
 package harness
 
 import (
+	"crypto/rand"
+	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/ilxd/zk"
+	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -14,5 +19,101 @@ func TestNewTestHarness(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = h.GenerateBlocks(1000)
+	assert.NoError(t, err)
+
+	notes := h.SpendableNotes()
+	inCommitment, err := notes[0].Note.Commitment()
+
+	acc := h.Accumulator()
+	proof, err := acc.GetProof(inCommitment)
+	assert.NoError(t, err)
+	root := acc.Root()
+
+	nullifer, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].Note.UnlockingScript.SnarkVerificationKey, notes[0].Note.UnlockingScript.PublicParams...)
+	assert.NoError(t, err)
+
+	var salt [32]byte
+	rand.Read(salt[:])
+	outNote := &SpendableNote{
+		Note: &types.SpendNote{
+			UnlockingScript: types.UnlockingScript{
+				SnarkVerificationKey: notes[0].Note.UnlockingScript.SnarkVerificationKey,
+				PublicParams:         notes[0].Note.UnlockingScript.PublicParams,
+			},
+			Amount:  notes[0].Note.Amount - 10,
+			AssetID: notes[0].Note.AssetID,
+			State:   notes[0].Note.State,
+			Salt:    salt,
+		},
+		PrivateKey: notes[0].PrivateKey,
+	}
+
+	outCommitment, err := outNote.Note.Commitment()
+	assert.NoError(t, err)
+
+	tx := transactions.StandardTransaction{
+		Outputs: []*transactions.Output{
+			{
+				Commitment:      outCommitment,
+				EphemeralPubkey: make([]byte, 32),
+				Ciphertext:      make([]byte, 176),
+			},
+		},
+		Nullifiers: [][]byte{nullifer[:]},
+		TxoRoot:    root[:],
+		Locktime:   0,
+		Fee:        10,
+	}
+
+	sighash, err := tx.SigHash()
+	assert.NoError(t, err)
+
+	scriptHash := outNote.Note.UnlockingScript.Hash()
+
+	privateParams := standard.PrivateParams{
+		Inputs: []standard.PrivateInput{
+			{
+				Amount:          notes[0].Note.Amount,
+				Salt:            notes[0].Note.Salt,
+				AssetID:         notes[0].Note.AssetID,
+				State:           notes[0].Note.State,
+				CommitmentIndex: proof.Index,
+				InclusionProof: standard.InclusionProof{
+					Hashes:      proof.Hashes,
+					Flags:       proof.Flags,
+					Accumulator: proof.Accumulator,
+				},
+				SnarkVerificationKey: notes[0].Note.UnlockingScript.SnarkVerificationKey,
+				UserParams:           notes[0].Note.UnlockingScript.PublicParams,
+				SnarkProof:           make([]byte, 100),
+			},
+		},
+		Outputs: []standard.PrivateOutput{
+			{
+				ScriptHash: scriptHash[:],
+				Amount:     outNote.Note.Amount,
+				Salt:       outNote.Note.Salt,
+				State:      outNote.Note.State,
+				AssetID:    outNote.Note.AssetID,
+			},
+		},
+	}
+	publicParams := standard.PublicParams{
+		TXORoot: root[:],
+		SigHash: sighash,
+		Outputs: []standard.PublicOutput{
+			{
+				Commitment: tx.Outputs[0].Commitment,
+				EncKey:     tx.Outputs[0].EphemeralPubkey,
+				CipherText: tx.Outputs[0].Ciphertext,
+			},
+		},
+		Nullifiers: tx.Nullifiers,
+		Fee:        tx.Fee,
+	}
+	tx.Proof, err = zk.CreateSnark(standard.StandardCircuit, &privateParams, &publicParams)
+	assert.NoError(t, err)
+
+	err = h.GenerateBlockWithTransactions([]*transactions.Transaction{transactions.WrapTransaction(&tx)}, []*SpendableNote{outNote})
 	assert.NoError(t, err)
 }

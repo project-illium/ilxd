@@ -34,9 +34,12 @@ func TestTxoRootSet(t *testing.T) {
 
 	err = dbtx.Commit(context.Background())
 	assert.NoError(t, err)
+	for _, r := range txoRoots {
+		txo.UpdateCache(r)
+	}
 
 	for _, n := range txoRoots {
-		exists, err := txo.Exists(n)
+		exists, err := txo.RootExists(n)
 		assert.NoError(t, err)
 		assert.True(t, exists)
 	}
@@ -46,7 +49,7 @@ func TestTxoRootSet(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		b := make([]byte, 32)
 		rand.Read(b)
-		exists, err := txo.Exists(types.NewID(b))
+		exists, err := txo.RootExists(types.NewID(b))
 		assert.NoError(t, err)
 		assert.False(t, exists)
 	}

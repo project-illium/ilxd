@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/types/transactions"
 )
 
 type SpendableNote struct {
@@ -107,4 +108,45 @@ func (h *TestHarness) GenerateBlocks(n int) error {
 	}
 	h.spendableNotes = notes
 	return nil
+}
+
+func (h *TestHarness) GenerateBlockWithTransactions(txs []*transactions.Transaction, createdNotes []*SpendableNote) error {
+	blk, err := h.generateBlockWithTransactions(txs)
+	if err != nil {
+		return err
+	}
+	if err := h.chain.ConnectBlock(blk, blockchain.BFNone); err != nil {
+		return err
+	}
+	for _, out := range blk.Outputs() {
+		h.acc.Insert(out.Commitment, true)
+	}
+	for _, sn := range createdNotes {
+		commitment, err := sn.Note.Commitment()
+		if err != nil {
+			return err
+		}
+		proof, err := h.acc.GetProof(commitment)
+		if err != nil {
+			return err
+		}
+		nullifier, err := types.CalculateNullifier(proof.Index, sn.Note.Salt, sn.Note.UnlockingScript.SnarkVerificationKey, sn.Note.UnlockingScript.PublicParams...)
+		if err != nil {
+			return err
+		}
+		h.spendableNotes[nullifier] = sn
+	}
+	return nil
+}
+
+func (h *TestHarness) SpendableNotes() []*SpendableNote {
+	notes := make([]*SpendableNote, 0, len(h.spendableNotes))
+	for _, sn := range h.spendableNotes {
+		notes = append(notes, sn)
+	}
+	return notes
+}
+
+func (h *TestHarness) Accumulator() *blockchain.Accumulator {
+	return h.acc
 }

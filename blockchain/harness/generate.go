@@ -258,6 +258,54 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 	return newBlocks, remainingNotes, nil
 }
 
+func (h *TestHarness) generateBlockWithTransactions(txs []*transactions.Transaction) (*blocks.Block, error) {
+	bestID, bestHeight := h.chain.BestBlock()
+	merkles := blockchain.BuildMerkleTreeStore(txs)
+
+	h.timeSource++
+
+	var (
+		networkKey crypto.PrivKey
+		validator  peer.ID
+	)
+	for k, v := range h.validators {
+		networkKey = v.networkKey
+		validator = k
+	}
+	valBytes, err := validator.Marshal()
+	if err != nil {
+		return nil, err
+	}
+
+	blk := &blocks.Block{
+		Header: &blocks.BlockHeader{
+			Version:     1,
+			Height:      bestHeight + 1,
+			Parent:      bestID.Bytes(),
+			Timestamp:   h.timeSource,
+			TxRoot:      merkles[len(merkles)-1],
+			Producer_ID: valBytes,
+			Signature:   nil,
+		},
+		Transactions: txs,
+	}
+
+	sigHash, err := blk.Header.SigHash()
+	if err != nil {
+		return nil, err
+	}
+	sig, err := networkKey.Sign(sigHash)
+	if err != nil {
+		return nil, err
+	}
+	blk.Header.Signature = sig
+
+	for _, n := range blk.Nullifiers() {
+		delete(h.spendableNotes, n)
+	}
+	return blk, nil
+}
+
 func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypto.PrivKey,
 	initialCoins uint64, additionalOutputs []*transactions.Output) (*blocks.Block, *types.SpendNote, error) {
 

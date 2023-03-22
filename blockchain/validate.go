@@ -167,7 +167,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 		case *transactions.Transaction_StakeTransaction:
 			stakeTransactions = append(stakeTransactions, tx.StakeTransaction)
 			if !flags.HasFlag(BFGenesisValidation) {
-				exists, err := b.txoRootSet.Exists(types.NewID(tx.StakeTransaction.TxoRoot))
+				exists, err := b.txoRootSet.RootExists(types.NewID(tx.StakeTransaction.TxoRoot))
 				if err != nil {
 					return err
 				}
@@ -194,7 +194,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 
 				blockNullifiers[nullifier] = true
 			}
-			exists, err := b.txoRootSet.Exists(types.NewID(tx.StandardTransaction.TxoRoot))
+			exists, err := b.txoRootSet.RootExists(types.NewID(tx.StandardTransaction.TxoRoot))
 			if err != nil {
 				return err
 			}
@@ -221,7 +221,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				blockNullifiers[nullifier] = true
 			}
 
-			exists, err := b.txoRootSet.Exists(types.NewID(tx.MintTransaction.TxoRoot))
+			exists, err := b.txoRootSet.RootExists(types.NewID(tx.MintTransaction.TxoRoot))
 			if err != nil {
 				return err
 			}
@@ -245,13 +245,6 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			}
 			*treasuryBalance -= tx.TreasuryTransaction.Amount
 		}
-		size, err := t.SerializedSize()
-		if err != nil {
-			return err
-		}
-		if size > MaxTransactionSize {
-			return ruleError(ErrInvalidTx, "transaction too large")
-		}
 	}
 
 	for _, stakeTx := range stakeTransactions {
@@ -274,10 +267,15 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 		}
 		txoRoot := acc.Root().Bytes()
 
+		totalStaked := uint64(0)
 		for _, stakeTx := range stakeTransactions {
 			if !bytes.Equal(stakeTx.TxoRoot, txoRoot) {
 				return ruleError(ErrInvalidGenesis, "genesis stake txoroot invalid")
 			}
+			totalStaked += stakeTx.Amount
+		}
+		if totalStaked > coinbaseTx.CoinbaseTransaction.NewCoins {
+			return ruleError(ErrInvalidGenesis, "genesis total stake larger than coinbase")
 		}
 	}
 
@@ -385,7 +383,7 @@ func validateOutputs(outputs []*transactions.Output) error {
 	}
 	for _, out := range outputs {
 		if len(out.Commitment) != types.CommitmentLen {
-			return ruleError(ErrInvalidTx, "invalid commitment")
+			return ruleError(ErrInvalidTx, "invalid commitment len")
 		}
 		if len(out.EphemeralPubkey) != PubkeyLen {
 			return ruleError(ErrInvalidTx, "ephem pubkey invalid len")
