@@ -59,6 +59,8 @@ func (behaviorFlags BehaviorFlags) HasFlag(flag BehaviorFlags) bool {
 	return behaviorFlags&flag == flag
 }
 
+// checkBlockContext checks that the block connects to the tip of the chain and that
+// the block producer exists in the validator set.
 func (b *Blockchain) checkBlockContext(header *blocks.BlockHeader) error {
 	tip := b.index.Tip()
 	if header.Height != tip.Height()+1 {
@@ -88,6 +90,7 @@ func (b *Blockchain) checkBlockContext(header *blocks.BlockHeader) error {
 	return nil
 }
 
+// validateHeader validates the transaction header. No blockchain context is needed for this validation.
 func (b *Blockchain) validateHeader(header *blocks.BlockHeader, flags BehaviorFlags) error {
 	if !flags.HasFlag(BFGenesisValidation) {
 		producerID, err := peer.IDFromBytes(header.Producer_ID)
@@ -117,6 +120,9 @@ func (b *Blockchain) validateHeader(header *blocks.BlockHeader, flags BehaviorFl
 	return nil
 }
 
+// validateBlock validates that the block is valid according to the consensus rules.
+// BLockchain context is used when validating the block as queries to the validator set,
+// treasury, tx root set, etc are made.
 func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error {
 	if err := b.validateHeader(blk.Header, flags); err != nil {
 		return err
@@ -293,6 +299,8 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 	return nil
 }
 
+// CheckTransactionSanity performs a sanity check on the transaction. No blockchain context
+// is considered by this function.
 func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) error {
 	if t.Tx == nil {
 		return ruleError(ErrInvalidTx, "missing inner protobuf transaction")
@@ -377,6 +385,8 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 	return nil
 }
 
+// validateOutputs makes sure the output fields do not exceed a certain length. Protobuf
+// does not enforce size restrictions so we have to do it here.
 func validateOutputs(outputs []*transactions.Output) error {
 	if len(outputs) == 0 {
 		return ruleError(ErrInvalidTx, "transaction has no outputs")

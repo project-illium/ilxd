@@ -16,12 +16,19 @@ type sigCacheEntry struct {
 	pubKey crypto.PubKey
 }
 
+// SigCache is used to cache the validation of transaction signatures.
+// Transactions are typically validated twice. Once when they enter the
+// mempool and once again when a block is connected to the chain. We
+// cache the validated signatures here to avoid having to redo expensive
+// computation.
 type SigCache struct {
 	sync.RWMutex
 	validSigs  map[types.ID]sigCacheEntry
 	maxEntries uint
 }
 
+// NewSigCache returns an instantiated SigCache. maxEntries can be used
+// to control memory usage.
 func NewSigCache(maxEntries uint) *SigCache {
 	return &SigCache{
 		validSigs:  make(map[types.ID]sigCacheEntry, maxEntries),
@@ -29,6 +36,7 @@ func NewSigCache(maxEntries uint) *SigCache {
 	}
 }
 
+// Exists returns whether the signature exists in the cache.
 func (s *SigCache) Exists(sigHash types.ID, sig []byte, pubKey crypto.PubKey) bool {
 	s.RLock()
 	entry, ok := s.validSigs[sigHash]
@@ -37,6 +45,11 @@ func (s *SigCache) Exists(sigHash types.ID, sig []byte, pubKey crypto.PubKey) bo
 	return ok && entry.pubKey.Equals(pubKey) && bytes.Equal(entry.sig, sig)
 }
 
+// Add will add a new signature to the cache. If the new signature would exceed maxEntries
+// a random signature will be evicted from the cache.
+//
+// NOTE: Signatures should be validated before adding to this cache and only valid
+// signatures should ever be added.
 func (s *SigCache) Add(sigHash types.ID, sig []byte, pubKey crypto.PubKey) {
 	s.Lock()
 	defer s.Unlock()

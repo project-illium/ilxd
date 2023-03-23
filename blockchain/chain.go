@@ -107,6 +107,9 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 	return b, nil
 }
 
+// CheckConnectBlock checks that the block is valid for the current state of the blockchain
+// and that it can be connected to the chain. This method does not change any blockchain
+// state. It merely reads the current state to determine the block validity.
 func (b *Blockchain) CheckConnectBlock(blk *blocks.Block) error {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -118,6 +121,13 @@ func (b *Blockchain) CheckConnectBlock(blk *blocks.Block) error {
 	return b.validateBlock(blk, BFNone)
 }
 
+// ConnectBlock attempts to connect the block to the chain. This method is atomic - if
+// there is any error the state of the chain will be rolled back to the state prior to
+// calling this method.
+//
+// The behavior flags can be used to control which aspects of the block are validated.
+// Make sure the appropriate flags are set when calling this method as otherwise an
+// invalid block could be connected.
 func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err error) {
 	b.stateLock.Lock()
 	defer b.stateLock.Unlock()
@@ -243,6 +253,7 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	return nil
 }
 
+// BestBlock returns the ID and height of the block at the tip of the chain.
 func (b *Blockchain) BestBlock() (types.ID, uint32) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -251,6 +262,7 @@ func (b *Blockchain) BestBlock() (types.ID, uint32) {
 	return tip.blockID, tip.height
 }
 
+// GetBlockByHeight returns the block at the given height. The block will be loaded from disk.
 func (b *Blockchain) GetBlockByHeight(height uint32) (*blocks.Block, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -262,6 +274,7 @@ func (b *Blockchain) GetBlockByHeight(height uint32) (*blocks.Block, error) {
 	return node.Block()
 }
 
+// GetBlockByID returns the block with the given ID. The block will be loaded from disk.
 func (b *Blockchain) GetBlockByID(blockID types.ID) (*blocks.Block, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()

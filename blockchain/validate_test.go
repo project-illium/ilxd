@@ -248,7 +248,7 @@ func TestValidateBlock(t *testing.T) {
 	assert.NoError(t, err)
 	validatorID2Bytes, err := validatorID2.Marshal()
 	assert.NoError(t, err)
-	b.txoRootSet.cache[txoRoot] = true
+	b.txoRootSet.cache[txoRoot] = time.Now()
 	b.nullifierSet.cachedEntries[types.NewNullifier(nullifier2[:])] = true
 
 	b.validatorSet.validators[validatorID] = &Validator{

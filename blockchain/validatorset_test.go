@@ -44,6 +44,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	nullifier := randomID()
 	blk := randomBlock(randomBlockHeader(1, randomID()), 1)
 	blk.Header.Producer_ID = producerIDBytes
+	blk.Header.Timestamp = time.Now().Unix()
 	blk.Transactions[0] = transactions.WrapTransaction(&transactions.StakeTransaction{
 		Validator_ID: valIDBytes,
 		Amount:       100000,
@@ -86,6 +87,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	nullifier2 := randomID()
 	blk2 := randomBlock(randomBlockHeader(2, randomID()), 1)
 	blk2.Header.Producer_ID = producerIDBytes
+	blk2.Header.Timestamp = blk.Header.Timestamp + vs.params.EpochLength + 1
 	blk2.Transactions = []*transactions.Transaction{
 		transactions.WrapTransaction(&transactions.StakeTransaction{
 			Validator_ID: valIDBytes2,
@@ -116,7 +118,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	// Check that the unclaimed coins increased.
 	ret1, err = vs.GetValidator(valID2)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(8000), ret1.unclaimedCoins)
+	assert.Equal(t, uint64(0), ret1.unclaimedCoins) // Zero unclaimed coins because they were created in this block
 
 	ret2, err = vs.GetValidator(producerID)
 	assert.NoError(t, err)
@@ -125,25 +127,22 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	// Create new block that spends a coinbase and a mint
 	blk3 := randomBlock(randomBlockHeader(3, randomID()), 1)
 	blk3.Header.Producer_ID = producerIDBytes
+	blk3.Header.Timestamp = blk2.Header.Timestamp + (vs.params.EpochLength / 2)
 	blk3.Transactions = []*transactions.Transaction{
-		transactions.WrapTransaction(&transactions.CoinbaseTransaction{
-			Validator_ID: valIDBytes2,
-			NewCoins:     8000,
-		}),
 		transactions.WrapTransaction(&transactions.MintTransaction{
 			Nullifiers: [][]byte{producerNullifier[:]},
 		}),
 	}
-	assert.NoError(t, vs.CommitBlock(blk3, 0, flushRequired))
-
-	// Check that unclaimed coins was marked down correctly.
-	ret1, err = vs.GetValidator(valID2)
-	assert.NoError(t, err)
-	assert.Equal(t, uint64(0), ret1.unclaimedCoins)
+	assert.NoError(t, vs.CommitBlock(blk3, 100000, flushRequired))
 
 	// Make sure the producer was removed
 	_, err = vs.GetValidator(producerID)
 	assert.Error(t, err)
+
+	// Check that the new unclaimed coins were prorated correctly.
+	ret1, err = vs.GetValidator(valID2)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(50000), ret1.unclaimedCoins)
 }
 
 func TestValidatorSet_Init(t *testing.T) {

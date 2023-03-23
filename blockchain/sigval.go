@@ -12,11 +12,16 @@ import (
 	"runtime"
 )
 
+// ValidateTransactionSig validates the signature for a single transaction.
+// sigCache must not be nil. The validator will check whether the signature already exists
+// in the cache. If it does the signature will be assumed to be valid. If not it will
+// validate the signature and add the signature to the cache if valid.
 func ValidateTransactionSig(tx *transactions.Transaction, sigCache *SigCache) error {
 	validator := NewSigValidator(sigCache)
 	return validator.Validate([]*transactions.Transaction{tx})
 }
 
+// sigValidator is used to validate transaction signatures in parallel.
 type sigValidator struct {
 	sigCache   *SigCache
 	workChan   chan *transactions.Transaction
@@ -24,6 +29,8 @@ type sigValidator struct {
 	done       chan struct{}
 }
 
+// NewSigValidator returns a new SigValidator.
+// The sigCache must NOT be nil.
 func NewSigValidator(sigCache *SigCache) *sigValidator {
 	return &sigValidator{
 		sigCache:   sigCache,
@@ -33,6 +40,10 @@ func NewSigValidator(sigCache *SigCache) *sigValidator {
 	}
 }
 
+// Validate validates the transactions signatures in parallel for fast validation.
+// If a signature already exists in the sigCache, the validation will be skipped.
+// If a signature is valid and does not exist in the cache, it will be added to the
+// cache.
 func (s *sigValidator) Validate(txs []*transactions.Transaction) error {
 	defer close(s.done)
 

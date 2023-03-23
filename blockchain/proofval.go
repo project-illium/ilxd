@@ -14,11 +14,16 @@ import (
 	"time"
 )
 
+// ValidateTransactionProof validates the zero knowledge proof for a single transaction.
+// proofCache must not be nil. The validator will check whether the proof already exists
+// in the cache. If it does the proof will be assumed to be valid. If not it will
+// validate the proof and add the proof to the cache if valid.
 func ValidateTransactionProof(tx *transactions.Transaction, proofCache *ProofCache) error {
 	validator := NewProofValidator(proofCache)
 	return validator.Validate([]*transactions.Transaction{tx})
 }
 
+// proofValidator is used to validate transaction zero knowledge proofs in parallel.
 type proofValidator struct {
 	proofCache *ProofCache
 	workChan   chan *transactions.Transaction
@@ -26,6 +31,8 @@ type proofValidator struct {
 	done       chan struct{}
 }
 
+// NewProofValidator returns a new ProofValidator.
+// The proofCache must NOT be nil.
 func NewProofValidator(proofCache *ProofCache) *proofValidator {
 	return &proofValidator{
 		proofCache: proofCache,
@@ -35,6 +42,10 @@ func NewProofValidator(proofCache *ProofCache) *proofValidator {
 	}
 }
 
+// Validate validates the transactions proofs in parallel for fast validation.
+// If a proof already exists in the proofCache, the validation will be skipped.
+// If a proof is valid and does not exist in the cache, it will be added to the
+// cache.
 func (p *proofValidator) Validate(txs []*transactions.Transaction) error {
 	defer close(p.done)
 
@@ -76,6 +87,13 @@ func (p *proofValidator) validateHandler() {
 		case t := <-p.workChan:
 			switch tx := t.GetTx().(type) {
 			case *transactions.Transaction_StandardTransaction:
+				proofHash := types.NewIDFromData(tx.StandardTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.StandardTransaction.Proof)
+				if exists {
+					p.resultChan <- nil
+					break
+				}
+
 				sigHash, err := tx.StandardTransaction.SigHash()
 				if err != nil {
 					p.resultChan <- err
@@ -102,13 +120,6 @@ func (p *proofValidator) validateHandler() {
 					Locktime:   time.Unix(tx.StandardTransaction.Locktime, 0),
 				}
 
-				proofHash := types.NewIDFromData(tx.StandardTransaction.Proof)
-				exists := p.proofCache.Exists(proofHash, tx.StandardTransaction.Proof)
-				if exists {
-					p.resultChan <- nil
-					break
-				}
-
 				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.StandardTransaction.Proof)
 				if err != nil {
 					p.resultChan <- err
@@ -121,6 +132,12 @@ func (p *proofValidator) validateHandler() {
 				p.proofCache.Add(proofHash, tx.StandardTransaction.Proof)
 				p.resultChan <- nil
 			case *transactions.Transaction_CoinbaseTransaction:
+				proofHash := types.NewIDFromData(tx.CoinbaseTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.CoinbaseTransaction.Proof)
+				if exists {
+					p.resultChan <- nil
+					break
+				}
 				sigHash, err := tx.CoinbaseTransaction.SigHash()
 				if err != nil {
 					p.resultChan <- err
@@ -145,13 +162,6 @@ func (p *proofValidator) validateHandler() {
 					MintAmount: 0,
 					Locktime:   time.Time{},
 				}
-
-				proofHash := types.NewIDFromData(tx.CoinbaseTransaction.Proof)
-				exists := p.proofCache.Exists(proofHash, tx.CoinbaseTransaction.Proof)
-				if exists {
-					p.resultChan <- nil
-					break
-				}
 				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.CoinbaseTransaction.Proof)
 				if err != nil {
 					p.resultChan <- err
@@ -164,6 +174,12 @@ func (p *proofValidator) validateHandler() {
 				p.proofCache.Add(proofHash, tx.CoinbaseTransaction.Proof)
 				p.resultChan <- nil
 			case *transactions.Transaction_TreasuryTransaction:
+				proofHash := types.NewIDFromData(tx.TreasuryTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.TreasuryTransaction.Proof)
+				if exists {
+					p.resultChan <- nil
+					break
+				}
 				sigHash, err := tx.TreasuryTransaction.SigHash()
 				if err != nil {
 					p.resultChan <- err
@@ -188,12 +204,6 @@ func (p *proofValidator) validateHandler() {
 					MintAmount: 0,
 					Locktime:   time.Time{},
 				}
-				proofHash := types.NewIDFromData(tx.TreasuryTransaction.Proof)
-				exists := p.proofCache.Exists(proofHash, tx.TreasuryTransaction.Proof)
-				if exists {
-					p.resultChan <- nil
-					break
-				}
 				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.TreasuryTransaction.Proof)
 				if err != nil {
 					p.resultChan <- err
@@ -206,6 +216,12 @@ func (p *proofValidator) validateHandler() {
 				p.proofCache.Add(proofHash, tx.TreasuryTransaction.Proof)
 				p.resultChan <- nil
 			case *transactions.Transaction_MintTransaction:
+				proofHash := types.NewIDFromData(tx.MintTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.MintTransaction.Proof)
+				if exists {
+					p.resultChan <- nil
+					break
+				}
 				sigHash, err := tx.MintTransaction.SigHash()
 				if err != nil {
 					p.resultChan <- err
@@ -230,12 +246,6 @@ func (p *proofValidator) validateHandler() {
 					MintAmount: tx.MintTransaction.NewTokens,
 					Locktime:   time.Unix(tx.MintTransaction.Locktime, 0),
 				}
-				proofHash := types.NewIDFromData(tx.MintTransaction.Proof)
-				exists := p.proofCache.Exists(proofHash, tx.MintTransaction.Proof)
-				if exists {
-					p.resultChan <- nil
-					break
-				}
 				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.MintTransaction.Proof)
 				if err != nil {
 					p.resultChan <- err
@@ -248,6 +258,12 @@ func (p *proofValidator) validateHandler() {
 				p.proofCache.Add(proofHash, tx.MintTransaction.Proof)
 				p.resultChan <- nil
 			case *transactions.Transaction_StakeTransaction:
+				proofHash := types.NewIDFromData(tx.StakeTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.StakeTransaction.Proof)
+				if exists {
+					p.resultChan <- nil
+					break
+				}
 				sigHash, err := tx.StakeTransaction.SigHash()
 				if err != nil {
 					p.resultChan <- err
@@ -259,12 +275,6 @@ func (p *proofValidator) validateHandler() {
 					Amount:    tx.StakeTransaction.Amount,
 					Nullifier: tx.StakeTransaction.Nullifier,
 					Locktime:  time.Unix(tx.StakeTransaction.Locktime, 0),
-				}
-				proofHash := types.NewIDFromData(tx.StakeTransaction.Proof)
-				exists := p.proofCache.Exists(proofHash, tx.StakeTransaction.Proof)
-				if exists {
-					p.resultChan <- nil
-					break
 				}
 				valid, err := zk.ValidateSnark(stake.StakeCircuit, &params, tx.StakeTransaction.Proof)
 				if err != nil {

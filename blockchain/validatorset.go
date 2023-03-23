@@ -48,11 +48,15 @@ const (
 	scsNbCodes
 )
 
+// Stake represents a given staked utxo and the time at which it
+// was added to the validator set.
 type Stake struct {
 	Amount     uint64
 	Blockstamp time.Time
 }
 
+// Validator holds all the information about a validator in the ValidatorSet
+// that is needed to validate blocks.
 type Validator struct {
 	PeerID         peer.ID
 	TotalStake     uint64
@@ -62,6 +66,13 @@ type Validator struct {
 	dirty          bool
 }
 
+// ValidatorSet maintains the current state of the set of validators in
+// the network.
+//
+// We maintain a memory cache and periodically flush changes to disk.
+// This is done because a change to the set may cancel out a previous
+// change and committing one to disk only to have to go to disk and undo
+// the change would increase overhead.
 type ValidatorSet struct {
 	params       *params.NetworkParams
 	ds           repo.Datastore
@@ -74,6 +85,7 @@ type ValidatorSet struct {
 	mtx          sync.RWMutex
 }
 
+// NewValidatorSet returns a new, uninitialized, ValidatorSet.
 func NewValidatorSet(params *params.NetworkParams, ds repo.Datastore) *ValidatorSet {
 	vs := &ValidatorSet{
 		params:       params,
@@ -86,6 +98,11 @@ func NewValidatorSet(params *params.NetworkParams, ds repo.Datastore) *Validator
 	return vs
 }
 
+// Init initializes the validator set. We check to make sure that the set is consistent
+// with the tip of the blockchain. In the event of a hard shutdown or shutdown in the middle
+// of a flush, the state could be inconsistent. If this is the case, Init will attempt
+// to repair the validator set. Depending on the severity of the problem, repair could
+// take a while as we may need to rebuild the set from genesis.
 func (vs *ValidatorSet) Init(tip *blockNode) error {
 	consistencyStatus, err := dsFetchValidatorSetConsistencyStatus(vs.ds)
 	if err != nil {
@@ -212,14 +229,19 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 	for peerID, validator := range vs.validators {
 		choices = append(choices, weightedrand.NewChoice(peerID, validator.TotalStake))
 	}
-	// The chooser will panic if either:
-	// - The weight is over the max (shouldn't happen as total illium coins fits in a uint64)
-	// - The weight is zero (we will guard this in the method)
+	// The chooser errors and returns nil when either:
+	// - The total weight exceeds a MaxInt64 (The total coins in the network
+	//   won't exceed this value for 105 years).
+	// - There are zero validators.
+	//
+	// So we just ignore the error here and let it be nil if there are zero validators.
+	// In the WeightedRandomValidator() method we will check for nil before accessing it.
 	vs.chooser, _ = weightedrand.NewChooser(choices...)
 
 	return err
 }
 
+// GetValidator returns the validator given the ID.
 func (vs *ValidatorSet) GetValidator(id peer.ID) (*Validator, error) {
 	vs.mtx.RLock()
 	defer vs.mtx.RUnlock()
@@ -233,6 +255,7 @@ func (vs *ValidatorSet) GetValidator(id peer.ID) (*Validator, error) {
 	return cpy, nil
 }
 
+// ValidatorExists returns whether the validator exists in the set.
 func (vs *ValidatorSet) ValidatorExists(id peer.ID) bool {
 	vs.mtx.RLock()
 	defer vs.mtx.RUnlock()
@@ -241,6 +264,7 @@ func (vs *ValidatorSet) ValidatorExists(id peer.ID) bool {
 	return ok
 }
 
+// NullifierExists returns whether or not a nullifier exists in the set.
 func (vs *ValidatorSet) NullifierExists(nullifier types.Nullifier) bool {
 	vs.mtx.RLock()
 	defer vs.mtx.RUnlock()
@@ -249,6 +273,9 @@ func (vs *ValidatorSet) NullifierExists(nullifier types.Nullifier) bool {
 	return ok
 }
 
+// TotalStaked returns the total staked by all validators.
+//
+// This method is safe for concurrent access.
 func (vs *ValidatorSet) TotalStaked() uint64 {
 	vs.mtx.RLock()
 	defer vs.mtx.RUnlock()
@@ -256,6 +283,9 @@ func (vs *ValidatorSet) TotalStaked() uint64 {
 	return vs.totalStaked()
 }
 
+// totalStaked returns the total staked by all validators.
+//
+// This method is NOT safe for concurrent access.
 func (vs *ValidatorSet) totalStaked() uint64 {
 	total := uint64(0)
 	for _, val := range vs.validators {
@@ -274,6 +304,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 	updates := make(map[peer.ID]*Validator)
 	nullifiersToAdd := make(map[types.Nullifier]peer.ID)
 	nullifiersToDelete := make(map[types.Nullifier]struct{})
+	blockTime := time.Unix(blk.Header.Timestamp, 0)
 
 	if blk.Header.Height > 0 {
 		producerID, err := peer.IDFromBytes(blk.Header.Producer_ID)
@@ -308,7 +339,11 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 					valNew = &Validator{}
 					copyValidator(valNew, valOld)
 				}
-				valNew.unclaimedCoins -= tx.CoinbaseTransaction.NewCoins
+				if tx.CoinbaseTransaction.NewCoins >= valNew.unclaimedCoins {
+					valNew.unclaimedCoins = 0
+				} else {
+					valNew.unclaimedCoins -= tx.CoinbaseTransaction.NewCoins
+				}
 				updates[validatorID] = valNew
 			}
 		case *transactions.Transaction_StakeTransaction:
@@ -337,7 +372,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 			valNew.TotalStake += tx.StakeTransaction.Amount
 			valNew.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)] = Stake{
 				Amount:     tx.StakeTransaction.Amount,
-				Blockstamp: time.Unix(blk.Header.Timestamp, 0),
+				Blockstamp: blockTime,
 			}
 			updates[validatorID] = valNew
 			nullifiersToAdd[types.NewNullifier(tx.StakeTransaction.Nullifier)] = validatorID
@@ -411,7 +446,20 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 	if validatorReward > 0 {
 		totalStaked := vs.totalStaked()
 		for _, val := range vs.validators {
-			val.unclaimedCoins = uint64(float64(validatorReward) / (float64(totalStaked) / float64(val.TotalStake)))
+			valTotal := uint64(0)
+			for _, stake := range val.Nullifiers {
+				timeSinceStake := blockTime.Sub(stake.Blockstamp).Seconds()
+				epochLength := float64(vs.params.EpochLength)
+				if timeSinceStake >= epochLength {
+					valTotal += stake.Amount
+				} else {
+					valTotal += uint64(float64(stake.Amount) * timeSinceStake / epochLength)
+				}
+			}
+
+			if valTotal > 0 {
+				val.unclaimedCoins = val.unclaimedCoins + uint64(float64(validatorReward)*(float64(valTotal)/float64(totalStaked)))
+			}
 		}
 	}
 
@@ -426,6 +474,9 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 	return vs.flush(flushMode, blk.Header.Height)
 }
 
+// WeightedRandomValidator returns a validator weighted by their current stake.
+//
+// NOTE: If there are no validators then "" will be returned for the peer ID.
 func (vs *ValidatorSet) WeightedRandomValidator() peer.ID {
 	vs.mtx.RLock()
 	defer vs.mtx.RUnlock()
@@ -437,6 +488,9 @@ func (vs *ValidatorSet) WeightedRandomValidator() peer.ID {
 	return vs.chooser.Pick()
 }
 
+// Flush flushes changes from the memory cache to disk.
+//
+// This method is safe for concurrent access.
 func (vs *ValidatorSet) Flush(mode flushMode, chainHeight uint32) error {
 	vs.mtx.Lock()
 	defer vs.mtx.Unlock()
@@ -444,6 +498,9 @@ func (vs *ValidatorSet) Flush(mode flushMode, chainHeight uint32) error {
 	return vs.flush(mode, chainHeight)
 }
 
+// flush flushes changes from the memory cache to disk.
+//
+// This method is NOT safe for concurrent access.
 func (vs *ValidatorSet) flush(mode flushMode, chainHeight uint32) error {
 	switch mode {
 	case flushRequired:
