@@ -180,6 +180,13 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				if !exists {
 					return ruleError(ErrInvalidTx, "txo root does not exist in chain")
 				}
+				exists, err = b.nullifierSet.NullifierExists(types.NewNullifier(tx.StakeTransaction.Nullifier))
+				if err != nil {
+					return err
+				}
+				if exists {
+					return ruleError(ErrDoubleSpend, "stake tx contains spent nullifier")
+				}
 			}
 		case *transactions.Transaction_StandardTransaction:
 			if flags.HasFlag(BFGenesisValidation) {
@@ -195,7 +202,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 					return err
 				}
 				if exists {
-					return ruleError(ErrDoubleSpend, "block contains duplicate nullifier")
+					return ruleError(ErrDoubleSpend, "block contains spent nullifier")
 				}
 
 				blockNullifiers[nullifier] = true

@@ -7,6 +7,7 @@ package blockchain
 import (
 	"context"
 	"github.com/ipfs/go-datastore"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain/indexers"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
@@ -284,6 +285,42 @@ func (b *Blockchain) GetBlockByID(blockID types.ID) (*blocks.Block, error) {
 		return nil, err
 	}
 	return node.Block()
+}
+
+// TreasuryBalance returns the current balance of the treasury.
+func (b *Blockchain) TreasuryBalance() (uint64, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	return dsFetchTreasuryBalance(b.ds)
+}
+
+// TxoRootExists returns whether the given root exists in the txo root set.
+func (b *Blockchain) TxoRootExists(txoRoot types.ID) (bool, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	return b.txoRootSet.RootExists(txoRoot)
+}
+
+// NullifierExists returns whether a nullifier exists in the nullifier set.
+func (b *Blockchain) NullifierExists(n types.Nullifier) (bool, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	return b.nullifierSet.NullifierExists(n)
+}
+
+// UnclaimedCoins returns the number of unclaimed coins for the given validator.
+func (b *Blockchain) UnclaimedCoins(validatorID peer.ID) (uint64, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	val, err := b.validatorSet.GetValidator(validatorID)
+	if err != nil {
+		return 0, err
+	}
+	return val.unclaimedCoins, nil
 }
 
 func (b *Blockchain) isInitialized() (bool, error) {

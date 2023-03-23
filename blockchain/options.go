@@ -33,7 +33,7 @@ func DefaultOptions() Option {
 	}
 }
 
-// Option is configuration option function for the Network
+// Option is configuration option function for the blockchain
 type Option func(cfg *config) error
 
 // Params identifies which chain parameters the chain is associated
