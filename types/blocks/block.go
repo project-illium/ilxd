@@ -160,3 +160,58 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	b = newBlock
 	return nil
 }
+
+func (b *Block) ToCompact() *CompactBlock {
+	txids := make([][]byte, 0, len(b.Transactions))
+	for _, tx := range b.Transactions {
+		id := tx.ID()
+		txids = append(txids, id[:])
+	}
+	return &CompactBlock{
+		Header: b.Header,
+		Txids:  txids,
+	}
+}
+
+func (b *CompactBlock) Serialize() ([]byte, error) {
+	return proto.Marshal(b)
+}
+
+func (b *CompactBlock) SerializedSize() (int, error) {
+	ser, err := proto.Marshal(b)
+	if err != nil {
+		return 0, err
+	}
+	return len(ser), nil
+}
+
+func (b *CompactBlock) Deserialize(data []byte) error {
+	newBlock := &CompactBlock{}
+	if err := proto.Unmarshal(data, newBlock); err != nil {
+		return err
+	}
+	b.Header = newBlock.Header
+	b.Txids = newBlock.Txids
+	return nil
+}
+
+func (b *CompactBlock) MarshalJSON() ([]byte, error) {
+	m := protojson.MarshalOptions{
+		Indent: "    ",
+	}
+	buf, err := m.Marshal(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf, nil
+}
+
+func (b *CompactBlock) UnmarshalJSON(data []byte) error {
+	newBlock := &CompactBlock{}
+	if err := protojson.Unmarshal(data, newBlock); err != nil {
+		return err
+	}
+	b = newBlock
+	return nil
+}

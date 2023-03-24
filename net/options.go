@@ -9,14 +9,31 @@ import (
 	"fmt"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/types/blocks"
+	"github.com/project-illium/ilxd/types/transactions"
 )
 
 var ErrNetworkConfig = errors.New("network config error")
 
 // Option is configuration option function for the Network
 type Option func(cfg *config) error
+
+func MempoolValidator(acceptToMempool func(tx *transactions.Transaction) error) Option {
+	return func(cfg *config) error {
+		cfg.acceptToMempool = acceptToMempool
+		return nil
+	}
+}
+
+func BlockValidator(validateBlock func(blk *blocks.CompactBlock, p peer.ID) error) Option {
+	return func(cfg *config) error {
+		cfg.validateBlock = validateBlock
+		return nil
+	}
+}
 
 func Params(params *params.NetworkParams) Option {
 	return func(cfg *config) error {
@@ -83,9 +100,14 @@ type config struct {
 	host              host.Host
 	privateKey        crypto.PrivKey
 	datastore         repo.Datastore
+	acceptToMempool   func(tx *transactions.Transaction) error
+	validateBlock     func(blk *blocks.CompactBlock, p peer.ID) error
 }
 
 func (cfg *config) validate() error {
+	if cfg == nil {
+		fmt.Errorf("%w: config is nil", ErrNetworkConfig)
+	}
 	if cfg.params == nil {
 		return fmt.Errorf("%w: params is nil", ErrNetworkConfig)
 	}
@@ -97,6 +119,12 @@ func (cfg *config) validate() error {
 	}
 	if cfg.datastore == nil && cfg.host == nil {
 		return fmt.Errorf("%w: datastore is nil", ErrNetworkConfig)
+	}
+	if cfg.acceptToMempool == nil {
+		return fmt.Errorf("%w: acceptToMempool is nil", ErrNetworkConfig)
+	}
+	if cfg.validateBlock == nil {
+		return fmt.Errorf("%w: validateBlock is nil", ErrNetworkConfig)
 	}
 	return nil
 }

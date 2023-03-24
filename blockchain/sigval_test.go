@@ -63,15 +63,18 @@ func TestSigValidator(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	err = ValidateTransactionSig(transactions.WrapTransaction(coinbaseTx), sigCache)
+	c := ValidateTransactionSig(transactions.WrapTransaction(coinbaseTx), sigCache)
+	err = <-c
 	assert.NoError(t, err)
 
 	coinbaseTx.Validator_ID = nil
-	err = ValidateTransactionSig(transactions.WrapTransaction(coinbaseTx), NewSigCache(10))
+	c = ValidateTransactionSig(transactions.WrapTransaction(coinbaseTx), NewSigCache(10))
+	err = <-c
 	assert.Error(t, err)
 
 	coinbaseTx.Validator_ID = validatorIDBytes
 	coinbaseTx.Signature = nil
-	err = ValidateTransactionSig(transactions.WrapTransaction(coinbaseTx), NewSigCache(10))
+	c = ValidateTransactionSig(transactions.WrapTransaction(coinbaseTx), NewSigCache(10))
+	err = <-c
 	assert.Error(t, err)
 }

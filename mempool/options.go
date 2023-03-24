@@ -7,10 +7,11 @@ package mempool
 import (
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/params"
+	"github.com/project-illium/ilxd/types"
 )
 
 const (
-	defaultFeePerByte     = 500
+	defaultFeePerByte     = 10
 	defaultMinimumStake   = 1000000
 	defaultSigCacheSize   = 100000
 	defaultProofCacheSize = 100000
@@ -26,6 +27,7 @@ func DefaultOptions() Option {
 		cfg.minStake = defaultMinimumStake
 		cfg.sigCache = blockchain.NewSigCache(defaultSigCacheSize)
 		cfg.proofCache = blockchain.NewProofCache(defaultProofCacheSize)
+		cfg.treasuryWhitelist = make(map[types.ID]bool)
 		return nil
 	}
 }
@@ -75,6 +77,16 @@ func MinStake(minStake uint64) Option {
 	}
 }
 
+// TreasuryWhitelist is a map of transactions ID that this node approves
+// of for treasury withdrawls. Only this IDs will be accepted into the
+// mempool.
+func TreasuryWhitelist(whitelist map[types.ID]bool) Option {
+	return func(cfg *config) error {
+		cfg.treasuryWhitelist = whitelist
+		return nil
+	}
+}
+
 // SignatureCache caches signature validation so we don't need to expend
 // extra CPU to validate signatures more than once.
 //
@@ -99,12 +111,13 @@ func ProofCache(proofCache *blockchain.ProofCache) Option {
 
 // Config specifies the blockchain configuration.
 type config struct {
-	params     *params.NetworkParams
-	chainView  ChainView
-	fpb        uint64
-	minStake   uint64
-	sigCache   *blockchain.SigCache
-	proofCache *blockchain.ProofCache
+	params            *params.NetworkParams
+	chainView         ChainView
+	fpb               uint64
+	minStake          uint64
+	sigCache          *blockchain.SigCache
+	proofCache        *blockchain.ProofCache
+	treasuryWhitelist map[types.ID]bool
 }
 
 func (cfg *config) validate() error {

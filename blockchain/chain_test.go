@@ -40,11 +40,11 @@ func TestBlockchain(t *testing.T) {
 	nCoins, err := dsFetchCurrentSupply(dbtx)
 	assert.NoError(t, err)
 	assert.NoError(t, dbtx.Commit(context.Background()))
-	assert.Equal(t, params.RegestParams.GenesisBlock.Transactions[0].GetCoinbaseTransaction().NewCoins, nCoins)
+	assert.Equal(t, types.Amount(params.RegestParams.GenesisBlock.Transactions[0].GetCoinbaseTransaction().NewCoins), nCoins)
 
 	// The validator set should have 1 validator in it
 	assert.Equal(t, 1, len(b.validatorSet.validators))
-	assert.Equal(t, params.RegestParams.GenesisBlock.Transactions[1].GetStakeTransaction().Amount, b.validatorSet.TotalStaked())
+	assert.Equal(t, types.Amount(params.RegestParams.GenesisBlock.Transactions[1].GetStakeTransaction().Amount), b.validatorSet.TotalStaked())
 
 	// Try connecting the gensis block again and make sure it raises a dup block error
 	assert.Error(t, b.ConnectBlock(b.params.GenesisBlock, BFGenesisValidation))
@@ -91,7 +91,7 @@ func TestBlockchain(t *testing.T) {
 						Ciphertext:      make([]byte, CiphertextLen),
 					},
 				},
-				ProposalHash: make([]byte, MaxProposalHashLen),
+				ProposalHash: make([]byte, MaxDocumentHashLen),
 				Proof:        proof,
 			}),
 		},
@@ -135,7 +135,7 @@ func TestBlockchain(t *testing.T) {
 }
 
 func TestCalculateNextCoinbaseDistribution(t *testing.T) {
-	var prevCoinbase, total uint64
+	var prevCoinbase, total types.Amount
 	for i := int64(0); i < params.MainnetParams.InitialDistributionPeriods; i++ {
 		coinbase := calculateNextCoinbaseDistribution(&params.MainnetParams, i)
 		if i > 0 {
@@ -144,7 +144,7 @@ func TestCalculateNextCoinbaseDistribution(t *testing.T) {
 		prevCoinbase = coinbase
 		total += coinbase
 	}
-	initalCoins := uint64(float64(params.MainnetParams.TargetDistribution) * .20)
+	initalCoins := types.Amount(float64(params.MainnetParams.TargetDistribution) * .20)
 	// The algorithm doesn't hit the nail on the head perfectly in terms of distributing
 	// the target supply in the initial distribution periods. But let's just check make
 	// sure it's within some tolerable amount. In this case around three tenths of

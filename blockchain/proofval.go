@@ -18,9 +18,14 @@ import (
 // proofCache must not be nil. The validator will check whether the proof already exists
 // in the cache. If it does the proof will be assumed to be valid. If not it will
 // validate the proof and add the proof to the cache if valid.
-func ValidateTransactionProof(tx *transactions.Transaction, proofCache *ProofCache) error {
-	validator := NewProofValidator(proofCache)
-	return validator.Validate([]*transactions.Transaction{tx})
+func ValidateTransactionProof(tx *transactions.Transaction, proofCache *ProofCache) <-chan error {
+	errChan := make(chan error)
+	go func() {
+		validator := NewProofValidator(proofCache)
+		errChan <- validator.Validate([]*transactions.Transaction{tx})
+		close(errChan)
+	}()
+	return errChan
 }
 
 // proofValidator is used to validate transaction zero knowledge proofs in parallel.

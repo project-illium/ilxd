@@ -204,21 +204,21 @@ func TestDebitCreditBalanceTreasury(t *testing.T) {
 
 	balance, err := dsFetchTreasuryBalance(ds)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(0), balance)
+	assert.Equal(t, types.Amount(0), balance)
 
 	assert.NoError(t, dsCreditTreasury(dbtx, 999))
 	assert.NoError(t, dbtx.Commit(context.Background()))
 
 	balance, err = dsFetchTreasuryBalance(ds)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(999), balance)
+	assert.Equal(t, types.Amount(999), balance)
 
 	assert.NoError(t, dsDebitTreasury(dbtx, 100))
 	assert.NoError(t, dbtx.Commit(context.Background()))
 
 	balance, err = dsFetchTreasuryBalance(ds)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(899), balance)
+	assert.Equal(t, types.Amount(899), balance)
 }
 
 func TestPutFetchAccumulator(t *testing.T) {
@@ -271,12 +271,12 @@ func TestIncrementFetchCurrentSupply(t *testing.T) {
 
 	supply, err := dsFetchCurrentSupply(dbtx)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(0), supply)
+	assert.Equal(t, types.Amount(0), supply)
 
 	assert.NoError(t, dsIncrementCurrentSupply(dbtx, 999))
 	assert.NoError(t, dbtx.Commit(context.Background()))
 
 	supply, err = dsFetchCurrentSupply(dbtx)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(999), supply)
+	assert.Equal(t, types.Amount(999), supply)
 }

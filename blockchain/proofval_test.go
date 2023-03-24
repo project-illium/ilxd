@@ -127,6 +127,7 @@ func TestProofValidator(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	err = ValidateTransactionProof(transactions.WrapTransaction(coinbaseTx), NewProofCache(10))
+	c := ValidateTransactionProof(transactions.WrapTransaction(coinbaseTx), NewProofCache(10))
+	err = <-c
 	assert.NoError(t, err)
 }

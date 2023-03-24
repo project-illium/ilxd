@@ -108,6 +108,18 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 	return b, nil
 }
 
+// Close flushes all caches to disk and makes the node safe to shutdown.
+func (b *Blockchain) Close() error {
+	b.stateLock.Lock()
+	defer b.stateLock.Unlock()
+
+	tip := b.index.Tip()
+	if err := b.validatorSet.Flush(flushRequired, tip.height); err != nil {
+		return err
+	}
+	return b.accumulatorDB.Flush(flushRequired, tip.height)
+}
+
 // CheckConnectBlock checks that the block is valid for the current state of the blockchain
 // and that it can be connected to the chain. This method does not change any blockchain
 // state. It merely reads the current state to determine the block validity.
@@ -177,14 +189,14 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 
 	accumulator := b.accumulatorDB.Accumulator()
 	blockCointainsOutputs := false
-	treasuryWidthdrawl := uint64(0)
+	treasuryWidthdrawl := types.Amount(0)
 	for _, tx := range blk.Transactions {
 		for _, out := range tx.Outputs() {
 			accumulator.Insert(out.Commitment, false)
 			blockCointainsOutputs = true
 		}
 		if treasuryTx, ok := tx.Tx.(*transactions.Transaction_TreasuryTransaction); ok {
-			treasuryWidthdrawl += treasuryTx.TreasuryTransaction.Amount
+			treasuryWidthdrawl += types.Amount(treasuryTx.TreasuryTransaction.Amount)
 		}
 	}
 	if treasuryWidthdrawl > 0 {
@@ -198,9 +210,9 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		}
 	}
 
-	var validatorReward uint64
+	var validatorReward types.Amount
 	if flags.HasFlag(BFGenesisValidation) {
-		if err := dsIncrementCurrentSupply(dbtx, blk.Transactions[0].GetCoinbaseTransaction().NewCoins); err != nil {
+		if err := dsIncrementCurrentSupply(dbtx, types.Amount(blk.Transactions[0].GetCoinbaseTransaction().NewCoins)); err != nil {
 			return err
 		}
 	} else {
@@ -217,11 +229,11 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 			}
 
 			treasuryCredit := float64(coinbase) / (float64(100) / b.params.TreasuryPercentage)
-			if err := dsCreditTreasury(dbtx, uint64(treasuryCredit)); err != nil {
+			if err := dsCreditTreasury(dbtx, types.Amount(treasuryCredit)); err != nil {
 				return err
 			}
 
-			validatorReward = coinbase - uint64(treasuryCredit)
+			validatorReward = coinbase - types.Amount(treasuryCredit)
 		}
 	}
 
@@ -288,7 +300,7 @@ func (b *Blockchain) GetBlockByID(blockID types.ID) (*blocks.Block, error) {
 }
 
 // TreasuryBalance returns the current balance of the treasury.
-func (b *Blockchain) TreasuryBalance() (uint64, error) {
+func (b *Blockchain) TreasuryBalance() (types.Amount, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
 
@@ -312,7 +324,7 @@ func (b *Blockchain) NullifierExists(n types.Nullifier) (bool, error) {
 }
 
 // UnclaimedCoins returns the number of unclaimed coins for the given validator.
-func (b *Blockchain) UnclaimedCoins(validatorID peer.ID) (uint64, error) {
+func (b *Blockchain) UnclaimedCoins(validatorID peer.ID) (types.Amount, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
 
@@ -333,17 +345,17 @@ func (b *Blockchain) isInitialized() (bool, error) {
 	return true, nil
 }
 
-func calculateNextCoinbaseDistribution(params *params.NetworkParams, epoch int64) uint64 {
+func calculateNextCoinbaseDistribution(params *params.NetworkParams, epoch int64) types.Amount {
 	if epoch > params.InitialDistributionPeriods {
 		a := float64(params.TargetDistribution) * params.LongTermInflationRate
-		return uint64(a * math.Pow(1.0+params.LongTermInflationRate, float64(epoch-params.InitialDistributionPeriods)))
+		return types.Amount(a * math.Pow(1.0+params.LongTermInflationRate, float64(epoch-params.InitialDistributionPeriods)))
 	}
 
-	return uint64((params.AValue * math.Pow(1.0-params.DecayFactor, float64(epoch))) + (float64(params.TargetDistribution) * (params.LongTermInflationRate * params.RValue)))
+	return types.Amount((params.AValue * math.Pow(1.0-params.DecayFactor, float64(epoch))) + (float64(params.TargetDistribution) * (params.LongTermInflationRate * params.RValue)))
 }
 
-func calculateNextValidatorReward(params *params.NetworkParams, epoch int64) uint64 {
+func calculateNextValidatorReward(params *params.NetworkParams, epoch int64) types.Amount {
 	coinbase := calculateNextCoinbaseDistribution(params, epoch)
 	treasuryCredit := float64(coinbase) * (params.TreasuryPercentage / 100)
-	return coinbase - uint64(treasuryCredit)
+	return coinbase - types.Amount(treasuryCredit)
 }

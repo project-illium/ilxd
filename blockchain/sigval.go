@@ -16,9 +16,14 @@ import (
 // sigCache must not be nil. The validator will check whether the signature already exists
 // in the cache. If it does the signature will be assumed to be valid. If not it will
 // validate the signature and add the signature to the cache if valid.
-func ValidateTransactionSig(tx *transactions.Transaction, sigCache *SigCache) error {
-	validator := NewSigValidator(sigCache)
-	return validator.Validate([]*transactions.Transaction{tx})
+func ValidateTransactionSig(tx *transactions.Transaction, sigCache *SigCache) <-chan error {
+	errChan := make(chan error)
+	go func() {
+		validator := NewSigValidator(sigCache)
+		errChan <- validator.Validate([]*transactions.Transaction{tx})
+		close(errChan)
+	}()
+	return errChan
 }
 
 // sigValidator is used to validate transaction signatures in parallel.

@@ -51,7 +51,7 @@ const (
 // Stake represents a given staked utxo and the time at which it
 // was added to the validator set.
 type Stake struct {
-	Amount     uint64
+	Amount     types.Amount
 	Blockstamp time.Time
 }
 
@@ -59,9 +59,9 @@ type Stake struct {
 // that is needed to validate blocks.
 type Validator struct {
 	PeerID         peer.ID
-	TotalStake     uint64
+	TotalStake     types.Amount
 	Nullifiers     map[types.Nullifier]Stake
-	unclaimedCoins uint64
+	unclaimedCoins types.Amount
 	epochBlocks    uint32
 	dirty          bool
 }
@@ -79,7 +79,7 @@ type ValidatorSet struct {
 	validators   map[peer.ID]*Validator
 	nullifierMap map[types.Nullifier]*Validator
 	toDelete     map[peer.ID]struct{}
-	chooser      *weightedrand.Chooser[peer.ID, uint64]
+	chooser      *weightedrand.Chooser[peer.ID, types.Amount]
 	dirty        bool
 	lastFlush    time.Time
 	mtx          sync.RWMutex
@@ -151,7 +151,7 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 					return err
 				}
 
-				validatorReward := uint64(0)
+				validatorReward := types.Amount(0)
 
 				if blk.Header.Height > 0 {
 					parent, err := node.Parent()
@@ -225,7 +225,7 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 	crand.Read(b)
 	rand.Seed(int64(binary.BigEndian.Uint64(b)))
 
-	choices := make([]weightedrand.Choice[peer.ID, uint64], 0, len(vs.validators))
+	choices := make([]weightedrand.Choice[peer.ID, types.Amount], 0, len(vs.validators))
 	for peerID, validator := range vs.validators {
 		choices = append(choices, weightedrand.NewChoice(peerID, validator.TotalStake))
 	}
@@ -276,7 +276,7 @@ func (vs *ValidatorSet) NullifierExists(nullifier types.Nullifier) bool {
 // TotalStaked returns the total staked by all validators.
 //
 // This method is safe for concurrent access.
-func (vs *ValidatorSet) TotalStaked() uint64 {
+func (vs *ValidatorSet) TotalStaked() types.Amount {
 	vs.mtx.RLock()
 	defer vs.mtx.RUnlock()
 
@@ -286,8 +286,8 @@ func (vs *ValidatorSet) TotalStaked() uint64 {
 // totalStaked returns the total staked by all validators.
 //
 // This method is NOT safe for concurrent access.
-func (vs *ValidatorSet) totalStaked() uint64 {
-	total := uint64(0)
+func (vs *ValidatorSet) totalStaked() types.Amount {
+	total := types.Amount(0)
 	for _, val := range vs.validators {
 		total += val.TotalStake
 	}
@@ -297,7 +297,7 @@ func (vs *ValidatorSet) totalStaked() uint64 {
 // CommitBlock commits the changes to the validator set found in the block into the set.
 // This function is fully atomic, if an error is returned, no changes are committed.
 // It is expected that the block is fully validated before calling this method.
-func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, flushMode flushMode) error {
+func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amount, flushMode flushMode) error {
 	vs.mtx.Lock()
 	defer vs.mtx.Unlock()
 
@@ -339,10 +339,10 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 					valNew = &Validator{}
 					copyValidator(valNew, valOld)
 				}
-				if tx.CoinbaseTransaction.NewCoins >= valNew.unclaimedCoins {
+				if types.Amount(tx.CoinbaseTransaction.NewCoins) >= valNew.unclaimedCoins {
 					valNew.unclaimedCoins = 0
 				} else {
-					valNew.unclaimedCoins -= tx.CoinbaseTransaction.NewCoins
+					valNew.unclaimedCoins -= types.Amount(tx.CoinbaseTransaction.NewCoins)
 				}
 				updates[validatorID] = valNew
 			}
@@ -369,9 +369,9 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 					copyValidator(valNew, valOld)
 				}
 			}
-			valNew.TotalStake += tx.StakeTransaction.Amount
+			valNew.TotalStake += types.Amount(tx.StakeTransaction.Amount)
 			valNew.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)] = Stake{
-				Amount:     tx.StakeTransaction.Amount,
+				Amount:     types.Amount(tx.StakeTransaction.Amount),
 				Blockstamp: blockTime,
 			}
 			updates[validatorID] = valNew
@@ -446,25 +446,25 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward uint64, f
 	if validatorReward > 0 {
 		totalStaked := vs.totalStaked()
 		for _, val := range vs.validators {
-			valTotal := uint64(0)
+			valTotal := types.Amount(0)
 			for _, stake := range val.Nullifiers {
 				timeSinceStake := blockTime.Sub(stake.Blockstamp).Seconds()
 				epochLength := float64(vs.params.EpochLength)
 				if timeSinceStake >= epochLength {
 					valTotal += stake.Amount
 				} else {
-					valTotal += uint64(float64(stake.Amount) * timeSinceStake / epochLength)
+					valTotal += types.Amount(float64(stake.Amount) * timeSinceStake / epochLength)
 				}
 			}
 
 			if valTotal > 0 {
-				val.unclaimedCoins = val.unclaimedCoins + uint64(float64(validatorReward)*(float64(valTotal)/float64(totalStaked)))
+				val.unclaimedCoins = val.unclaimedCoins + types.Amount(float64(validatorReward)*(float64(valTotal)/float64(totalStaked)))
 			}
 		}
 	}
 
 	if len(updates) > 0 || len(nullifiersToAdd) > 0 || len(nullifiersToDelete) > 0 {
-		choices := make([]weightedrand.Choice[peer.ID, uint64], 0, len(vs.validators))
+		choices := make([]weightedrand.Choice[peer.ID, types.Amount], 0, len(vs.validators))
 		for peerID, validator := range vs.validators {
 			choices = append(choices, weightedrand.NewChoice(peerID, validator.TotalStake))
 		}

@@ -9,12 +9,21 @@ import (
 	"github.com/project-illium/ilxd/types"
 )
 
+// ChainView is an interface of methods that provide the blockchain
+// context that the mempool needs to validate transactions.
 type ChainView interface {
-	TreasuryBalance() (uint64, error)
+	// TreasuryBalance returns current balance of the treasury.
+	TreasuryBalance() (types.Amount, error)
 
+	//TxoRootExists returns whether the given txo root exists
+	// in the txo root set.
 	TxoRootExists(txoRoot types.ID) (bool, error)
 
+	// NullifierExists returns whether the given nullifier exists
+	// in the nullifier set.
 	NullifierExists(n types.Nullifier) (bool, error)
 
-	UnclaimedCoins(validatorID peer.ID) (uint64, error)
+	// UnclaimedCoins returns the number of unclaimed coins for a
+	// given validator.
+	UnclaimedCoins(validatorID peer.ID) (types.Amount, error)
 }

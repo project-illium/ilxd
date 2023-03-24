@@ -9,7 +9,11 @@ import (
 	"fmt"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/project-illium/ilxd/blockchain"
+	"github.com/project-illium/ilxd/mempool"
 	"github.com/project-illium/ilxd/params/hash"
+	"github.com/project-illium/ilxd/types/blocks"
+	"github.com/project-illium/ilxd/types/transactions"
 	"time"
 
 	libp2p "github.com/libp2p/go-libp2p"
@@ -28,11 +32,18 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
+const (
+	BlockTopic        = "blocks"
+	TransactionsTopic = "transactions"
+)
+
 type Network struct {
 	host        host.Host
 	connManager coreconmgr.ConnManager
 	dht         *dht.IpfsDHT
 	pubsub      *pubsub.PubSub
+	txTopic     *pubsub.Topic
+	blockTopic  *pubsub.Topic
 }
 
 func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
@@ -164,6 +175,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		ctx,
 		host,
 		pubsub.WithNoAuthor(),
+		pubsub.WithMaxMessageSize(1<<23),
 		pubsub.WithMessageIdFn(func(pmsg *pb.Message) string {
 			h := hash.HashFunc(pmsg.Data)
 			return string(h[:])
@@ -179,14 +191,71 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		return nil, err
 	}
 
-	// TODO: the pubsub object must have a validator set for the blocks and transactions
-	// topics so that invalid blocks and transactions will not be relayed.
+	err = ps.RegisterTopicValidator(TransactionsTopic, pubsub.ValidatorEx(func(ctx context.Context, p peer.ID, m *pubsub.Message) pubsub.ValidationResult {
+		var tx transactions.Transaction
+		if err := tx.Deserialize(m.Data); err != nil {
+			return pubsub.ValidationReject
+		}
+		err := cfg.acceptToMempool(&tx)
+		switch err.(type) {
+		case mempool.PolicyError:
+			// Policy errors do no penalize peer
+			return pubsub.ValidationIgnore
+		case blockchain.RuleError:
+			// Rule errors do
+			return pubsub.ValidationReject
+		case nil:
+			return pubsub.ValidationAccept
+		default:
+			return pubsub.ValidationIgnore
+		}
+	}))
+	if err != nil {
+		return nil, err
+	}
+
+	// For blocks we will wait for the full block to be recovered from the compact block
+	// so that we can validate it before returning here.
+	err = ps.RegisterTopicValidator(BlockTopic, pubsub.ValidatorEx(func(ctx context.Context, p peer.ID, m *pubsub.Message) pubsub.ValidationResult {
+		var blk blocks.CompactBlock
+		if err := blk.Deserialize(m.Data); err != nil {
+			return pubsub.ValidationReject
+		}
+		err := cfg.validateBlock(&blk, p)
+		switch err.(type) {
+		case blockchain.OrphanBlockError:
+			// Orphans we won't relay (yet) but won't penalize them either.
+			return pubsub.ValidationIgnore
+		case blockchain.RuleError:
+			// Rule errors do
+			return pubsub.ValidationReject
+		case nil:
+			return pubsub.ValidationAccept
+		default:
+			return pubsub.ValidationIgnore
+		}
+	}))
+	if err != nil {
+		return nil, err
+	}
+
+	txTopic, err := ps.Join(TransactionsTopic)
+	if err != nil {
+		return nil, err
+	}
+
+	blockTopic, err := ps.Join(BlockTopic)
+	if err != nil {
+		return nil, err
+	}
 
 	net := &Network{
 		host:        host,
 		connManager: cmgr,
 		dht:         idht,
 		pubsub:      ps,
+		txTopic:     txTopic,
+		blockTopic:  blockTopic,
 	}
 
 	connected := func(_ inet.Network, conn inet.Conn) {
@@ -235,18 +304,26 @@ func (n *Network) Pubsub() *pubsub.PubSub {
 	return n.pubsub
 }
 
-func (n *Network) SubscribeBlocks() {
-
+func (n *Network) SubscribeBlocks() (*pubsub.Subscription, error) {
+	return n.blockTopic.Subscribe()
 }
 
-func (n *Network) SubscribeTransactions() {
-
+func (n *Network) SubscribeTransactions() (*pubsub.Subscription, error) {
+	return n.txTopic.Subscribe()
 }
 
-func (n *Network) BroadcastBlock() {
-
+func (n *Network) BroadcastBlock(blk *blocks.Block) error {
+	ser, err := blk.ToCompact().Serialize()
+	if err != nil {
+		return err
+	}
+	return n.blockTopic.Publish(context.Background(), ser)
 }
 
-func (n *Network) BroadcastTransaction() {
-
+func (n *Network) BroadcastTransaction(tx *transactions.Transaction) error {
+	ser, err := tx.Serialize()
+	if err != nil {
+		return err
+	}
+	return n.txTopic.Publish(context.Background(), ser)
 }

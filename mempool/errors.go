@@ -31,10 +31,12 @@ const (
 	ErrFeeTooLow = iota
 	ErrMinStake
 	ErrDuplicateCoinbase
+	ErrTreasuryWhitelist
 )
 
 var (
 	ErrDuplicateTx = errors.New("tx already in mempool")
+	ErrNotFound = errors.New("tx not found in pool")
 )
 
 // Map of ErrorCode values back to their constant names for pretty printing.
@@ -42,6 +44,7 @@ var errorCodeStrings = map[ErrorCode]string{
 	ErrFeeTooLow:         "ErrFeeTooLow",
 	ErrMinStake:          "ErrMinStake",
 	ErrDuplicateCoinbase: "ErrDuplicateCoinbase",
+	ErrTreasuryWhitelist: "ErrTreasuryWhitelist",
 }
 
 // String returns the ErrorCode as a human-readable name.

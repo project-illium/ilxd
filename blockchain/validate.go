@@ -21,7 +21,7 @@ const (
 
 	AssetIDLen = 32
 
-	MaxProposalHashLen = 68
+	MaxDocumentHashLen = 68
 
 	MaxTransactionSize = 1000000
 )
@@ -63,8 +63,11 @@ func (behaviorFlags BehaviorFlags) HasFlag(flag BehaviorFlags) bool {
 // the block producer exists in the validator set.
 func (b *Blockchain) checkBlockContext(header *blocks.BlockHeader) error {
 	tip := b.index.Tip()
-	if header.Height != tip.Height()+1 {
-		return ruleError(ErrDoesNotConnect, "block height does not extend tip")
+	if header.Height <= tip.Height() {
+		return ruleError(ErrDoesNotConnect, "block height less than current tip")
+	}
+	if header.Height > tip.Height()+1 {
+		return OrphanBlockError("block is orphan")
 	}
 	if types.NewID(header.Parent) != tip.ID() {
 		return ruleError(ErrDoesNotConnect, "block parent does not extend tip")
@@ -76,6 +79,7 @@ func (b *Blockchain) checkBlockContext(header *blocks.BlockHeader) error {
 	if header.Timestamp <= prevHeader.Timestamp {
 		return ruleError(ErrInvalidTimestamp, "timestamp is too early")
 	}
+	// Fixme: check that timestamp in not to far ahead of clock time.
 
 	producerID, err := peer.IDFromBytes(header.Producer_ID)
 	if err != nil {
@@ -144,7 +148,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 		blockCoinbases    = make(map[peer.ID]bool)
 		stakeTransactions = make([]*transactions.StakeTransaction, 0, len(blk.Transactions))
 
-		treasuryBalance *uint64
+		treasuryBalance *types.Amount
 	)
 
 	for _, t := range blk.GetTransactions() {
@@ -165,7 +169,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				if err != nil {
 					return ruleError(ErrInvalidTx, "validator does not exist in validator set")
 				}
-				if tx.CoinbaseTransaction.NewCoins != validator.unclaimedCoins {
+				if types.Amount(tx.CoinbaseTransaction.NewCoins) != validator.unclaimedCoins {
 					return ruleError(ErrInvalidTx, "coinbase transaction creates invalid number of coins")
 				}
 				blockCoinbases[validatorID] = true
@@ -253,10 +257,10 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				treasuryBalance = &balance
 			}
 
-			if tx.TreasuryTransaction.Amount > *treasuryBalance {
+			if types.Amount(tx.TreasuryTransaction.Amount) > *treasuryBalance {
 				return ruleError(ErrInvalidTx, "treasury tx amount exceeds treasury balance")
 			}
-			*treasuryBalance -= tx.TreasuryTransaction.Amount
+			*treasuryBalance -= types.Amount(tx.TreasuryTransaction.Amount)
 		}
 	}
 
@@ -280,14 +284,14 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 		}
 		txoRoot := acc.Root().Bytes()
 
-		totalStaked := uint64(0)
+		totalStaked := types.Amount(0)
 		for _, stakeTx := range stakeTransactions {
 			if !bytes.Equal(stakeTx.TxoRoot, txoRoot) {
 				return ruleError(ErrInvalidGenesis, "genesis stake txoroot invalid")
 			}
-			totalStaked += stakeTx.Amount
+			totalStaked += types.Amount(stakeTx.Amount)
 		}
-		if totalStaked > coinbaseTx.CoinbaseTransaction.NewCoins {
+		if totalStaked > types.Amount(coinbaseTx.CoinbaseTransaction.NewCoins) {
 			return ruleError(ErrInvalidGenesis, "genesis total stake larger than coinbase")
 		}
 	}
@@ -352,8 +356,8 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 		if len(tx.MintTransaction.Asset_ID) != AssetIDLen {
 			return ruleError(ErrInvalidTx, "invalid asset ID")
 		}
-		if len(tx.MintTransaction.MintKey) != PubkeyLen {
-			return ruleError(ErrInvalidTx, "invalid mint key")
+		if len(tx.MintTransaction.DocumentHash) > MaxDocumentHashLen {
+			return ruleError(ErrInvalidTx, "mint document hash too long")
 		}
 		switch tx.MintTransaction.Type {
 		case transactions.MintTransaction_FIXED_SUPPLY:
@@ -378,7 +382,7 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 		if err := validateOutputs(tx.TreasuryTransaction.Outputs); err != nil {
 			return err
 		}
-		if len(tx.TreasuryTransaction.ProposalHash) > MaxProposalHashLen {
+		if len(tx.TreasuryTransaction.ProposalHash) > MaxDocumentHashLen {
 			return ruleError(ErrInvalidTx, "treasury proposal hash too long")
 		}
 	}

@@ -22,16 +22,16 @@ import (
 func serializeValidator(v *Validator) ([]byte, error) {
 	vProto := &pb.DBValidator{
 		PeerId:         v.PeerID.String(),
-		TotalStake:     v.TotalStake,
+		TotalStake:     uint64(v.TotalStake),
 		Nullifiers:     make([]*pb.DBValidator_Nullifier, 0, len(v.Nullifiers)),
-		UnclaimedCoins: v.unclaimedCoins,
+		UnclaimedCoins: uint64(v.unclaimedCoins),
 		EpochBLocks:    v.epochBlocks,
 	}
 
 	for v, stake := range v.Nullifiers {
 		vProto.Nullifiers = append(vProto.Nullifiers, &pb.DBValidator_Nullifier{
 			Hash:       v[:],
-			Amount:     stake.Amount,
+			Amount:     uint64(stake.Amount),
 			Blockstamp: timestamppb.New(stake.Blockstamp),
 		})
 	}
@@ -51,9 +51,9 @@ func deserializeValidator(ser []byte) (*Validator, error) {
 	}
 	val := &Validator{
 		PeerID:         pid,
-		TotalStake:     vProto.TotalStake,
+		TotalStake:     types.Amount(vProto.TotalStake),
 		Nullifiers:     make(map[types.Nullifier]Stake),
-		unclaimedCoins: vProto.UnclaimedCoins,
+		unclaimedCoins: types.Amount(vProto.UnclaimedCoins),
 		epochBlocks:    vProto.EpochBLocks,
 		dirty:          false,
 	}
@@ -62,7 +62,7 @@ func deserializeValidator(ser []byte) (*Validator, error) {
 		var nullifier [32]byte
 		copy(nullifier[:], n.Hash)
 		val.Nullifiers[nullifier] = Stake{
-			Amount:     n.Amount,
+			Amount:     types.Amount(n.Amount),
 			Blockstamp: n.Blockstamp.AsTime(),
 		}
 	}
@@ -361,16 +361,16 @@ func dsTxoSetRootExists(ds repo.Datastore, txoRoot types.ID) (bool, error) {
 	return ds.Has(context.Background(), datastore.NewKey(repo.TxoRootKeyPrefix+txoRoot.String()))
 }
 
-func dsDebitTreasury(dbtx datastore.Txn, amount uint64) error {
+func dsDebitTreasury(dbtx datastore.Txn, amount types.Amount) error {
 	balanceBytes, err := dbtx.Get(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey))
 	if err != nil {
 		return err
 	}
-	balance := binary.BigEndian.Uint64(balanceBytes)
+	balance := types.Amount(binary.BigEndian.Uint64(balanceBytes))
 	balance -= amount
 
 	newBalance := make([]byte, 8)
-	binary.BigEndian.PutUint64(newBalance, balance)
+	binary.BigEndian.PutUint64(newBalance, uint64(balance))
 	return dbtx.Put(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey), newBalance)
 }
 
@@ -379,20 +379,20 @@ func dsInitTreasury(ds datastore.Datastore) error {
 	return ds.Put(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey), zero)
 }
 
-func dsCreditTreasury(dbtx datastore.Txn, amount uint64) error {
+func dsCreditTreasury(dbtx datastore.Txn, amount types.Amount) error {
 	balanceBytes, err := dbtx.Get(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey))
 	if err != nil {
 		return err
 	}
-	balance := binary.BigEndian.Uint64(balanceBytes)
+	balance := types.Amount(binary.BigEndian.Uint64(balanceBytes))
 	balance += amount
 
 	newBalance := make([]byte, 8)
-	binary.BigEndian.PutUint64(newBalance, balance)
+	binary.BigEndian.PutUint64(newBalance, uint64(balance))
 	return dbtx.Put(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey), newBalance)
 }
 
-func dsFetchTreasuryBalance(ds repo.Datastore) (uint64, error) {
+func dsFetchTreasuryBalance(ds repo.Datastore) (types.Amount, error) {
 	balance, err := ds.Get(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey))
 	if err == datastore.ErrNotFound {
 		return 0, nil
@@ -400,7 +400,7 @@ func dsFetchTreasuryBalance(ds repo.Datastore) (uint64, error) {
 		return 0, err
 	}
 
-	return binary.BigEndian.Uint64(balance), nil
+	return types.Amount(binary.BigEndian.Uint64(balance)), nil
 }
 
 func dsPutAccumulator(dbtx datastore.Txn, accumulator *Accumulator) error {
@@ -453,14 +453,14 @@ func dsFetchAccumulatorLastFlushHeight(ds repo.Datastore) (uint32, error) {
 	return binary.BigEndian.Uint32(b), nil
 }
 
-func dsIncrementCurrentSupply(dbtx datastore.Txn, newCoins uint64) error {
+func dsIncrementCurrentSupply(dbtx datastore.Txn, newCoins types.Amount) error {
 	currentSupply, err := dsFetchCurrentSupply(dbtx)
 	if err != nil {
 		return err
 	}
 
 	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, currentSupply+newCoins)
+	binary.BigEndian.PutUint64(b, uint64(currentSupply+newCoins))
 	return dbtx.Put(context.Background(), datastore.NewKey(repo.CoinSupplyKey), b)
 }
 
@@ -469,10 +469,10 @@ func dsInitCurrentSupply(ds datastore.Datastore) error {
 	return ds.Put(context.Background(), datastore.NewKey(repo.CoinSupplyKey), zero)
 }
 
-func dsFetchCurrentSupply(dbtx datastore.Txn) (uint64, error) {
+func dsFetchCurrentSupply(dbtx datastore.Txn) (types.Amount, error) {
 	b, err := dbtx.Get(context.Background(), datastore.NewKey(repo.CoinSupplyKey))
 	if err != nil {
 		return 0, err
 	}
-	return binary.BigEndian.Uint64(b), nil
+	return types.Amount(binary.BigEndian.Uint64(b)), nil
 }

@@ -56,21 +56,21 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	ret1, err := vs.GetValidator(producerID)
 	assert.NoError(t, err)
 	assert.Equal(t, producerID, ret1.PeerID)
-	assert.Equal(t, uint64(20000), ret1.TotalStake)
+	assert.Equal(t, types.Amount(20000), ret1.TotalStake)
 	stake, ok := ret1.Nullifiers[types.NewNullifier(producerNullifier[:])]
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(ret1.Nullifiers))
-	assert.Equal(t, uint64(20000), stake.Amount)
+	assert.Equal(t, types.Amount(20000), stake.Amount)
 	assert.Equal(t, uint32(1), ret1.epochBlocks)
 
 	ret2, err := vs.GetValidator(valID)
 	assert.NoError(t, err)
 	assert.Equal(t, valID, ret2.PeerID)
-	assert.Equal(t, uint64(100000), ret2.TotalStake)
+	assert.Equal(t, types.Amount(100000), ret2.TotalStake)
 	stake, ok = ret2.Nullifiers[types.NewNullifier(nullifier[:])]
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(ret2.Nullifiers))
-	assert.Equal(t, uint64(100000), stake.Amount)
+	assert.Equal(t, types.Amount(100000), stake.Amount)
 	assert.Equal(t, uint32(0), ret2.epochBlocks)
 
 	// Check nullifiers are in the nullifier map
@@ -104,11 +104,11 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	ret1, err = vs.GetValidator(valID2)
 	assert.NoError(t, err)
 	assert.Equal(t, valID2, ret1.PeerID)
-	assert.Equal(t, uint64(80000), ret1.TotalStake)
+	assert.Equal(t, types.Amount(80000), ret1.TotalStake)
 	stake, ok = ret1.Nullifiers[types.NewNullifier(nullifier2[:])]
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(ret1.Nullifiers))
-	assert.Equal(t, uint64(80000), stake.Amount)
+	assert.Equal(t, types.Amount(80000), stake.Amount)
 	assert.Equal(t, uint32(0), ret1.epochBlocks)
 
 	// Make sure the first validator was removed
@@ -118,11 +118,11 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	// Check that the unclaimed coins increased.
 	ret1, err = vs.GetValidator(valID2)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(0), ret1.unclaimedCoins) // Zero unclaimed coins because they were created in this block
+	assert.Equal(t, types.Amount(0), ret1.unclaimedCoins) // Zero unclaimed coins because they were created in this block
 
 	ret2, err = vs.GetValidator(producerID)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(2000), ret2.unclaimedCoins)
+	assert.Equal(t, types.Amount(2000), ret2.unclaimedCoins)
 
 	// Create new block that spends a coinbase and a mint
 	blk3 := randomBlock(randomBlockHeader(3, randomID()), 1)
@@ -142,7 +142,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	// Check that the new unclaimed coins were prorated correctly.
 	ret1, err = vs.GetValidator(valID2)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(50000), ret1.unclaimedCoins)
+	assert.Equal(t, types.Amount(50000), ret1.unclaimedCoins)
 }
 
 func TestValidatorSet_Init(t *testing.T) {
@@ -199,7 +199,7 @@ func TestValidatorSetMethods(t *testing.T) {
 	assert.False(t, vs.ValidatorExists(val2ID))
 	assert.False(t, vs.NullifierExists(types.NewNullifier(null2[:])))
 
-	assert.Equal(t, uint64(100000), vs.TotalStaked())
+	assert.Equal(t, types.Amount(100000), vs.TotalStaked())
 
 	assert.Equal(t, valID, vs.WeightedRandomValidator())
 }

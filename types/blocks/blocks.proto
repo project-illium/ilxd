@@ -21,3 +21,8 @@ message Block {
     BlockHeader header                = 1;
     repeated Transaction transactions = 2;
 }
+
+message CompactBlock {
+    BlockHeader header   = 1;
+    repeated bytes txids = 2;
+}

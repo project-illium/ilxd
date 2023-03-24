@@ -4,7 +4,18 @@
 
 package blockchain
 
-import "fmt"
+import (
+	"fmt"
+)
+
+// OrphanBlockError that the processed block is an orphan.
+type OrphanBlockError string
+
+// Error returns the assertion error as a human-readable string and satisfies
+// the error interface.
+func (e OrphanBlockError) Error() string {
+	return "orphan block"
+}
 
 // AssertError identifies an error that indicates an internal code consistency
 // issue and should be treated as a critical and unrecoverable error.

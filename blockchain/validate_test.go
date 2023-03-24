@@ -146,6 +146,17 @@ func TestCheckBlockContext(t *testing.T) {
 				Timestamp:   prev.Timestamp + 1,
 				Producer_ID: valBytes,
 			},
+			expectedErr: OrphanBlockError("block is orphan"),
+		},
+		{
+			name: "height before tip",
+			header: &blocks.BlockHeader{
+				Version:     1,
+				Height:      prev.Height - 1,
+				Parent:      prevID[:],
+				Timestamp:   prev.Timestamp + 1,
+				Producer_ID: valBytes,
+			},
 			expectedErr: ruleError(ErrDoesNotConnect, ""),
 		},
 		{
@@ -198,6 +209,8 @@ func TestCheckBlockContext(t *testing.T) {
 		err = b.checkBlockContext(test.header)
 		if test.expectedErr == nil {
 			assert.NoErrorf(t, err, "block context test: %s failure", test.name)
+		} else if _, ok := test.expectedErr.(OrphanBlockError); ok {
+			assert.Equal(t, test.expectedErr.(OrphanBlockError), err, "block context test: %s failure", test.name)
 		} else {
 			assert.Equal(t, test.expectedErr.(RuleError).ErrorCode, err.(RuleError).ErrorCode, "block context test: %s failure", test.name)
 		}
@@ -1573,12 +1586,12 @@ func TestCheckTransactionSanity(t *testing.T) {
 			expectedErr: ruleError(ErrInvalidTx, ""),
 		},
 		{
-			name: "mint invalid mint key len",
+			name: "mint invalid document hash len",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Nullifiers: [][]byte{nullifier.Bytes()},
-				Locktime:   time.Time{}.Unix(),
-				Asset_ID:   hash.HashFunc(nullifier.Bytes()),
-				MintKey:    []byte{0x01},
+				Nullifiers:   [][]byte{nullifier.Bytes()},
+				Locktime:     time.Time{}.Unix(),
+				Asset_ID:     hash.HashFunc(nullifier.Bytes()),
+				DocumentHash: make([]byte, MaxDocumentHashLen+1),
 				Outputs: []*transactions.Output{
 					{
 						Commitment:      make([]byte, types.CommitmentLen),
@@ -1668,7 +1681,7 @@ func TestCheckTransactionSanity(t *testing.T) {
 		{
 			name: "treasury valid",
 			tx: transactions.WrapTransaction(&transactions.TreasuryTransaction{
-				ProposalHash: make([]byte, MaxProposalHashLen),
+				ProposalHash: make([]byte, MaxDocumentHashLen),
 				Outputs: []*transactions.Output{
 					{
 						Commitment:      make([]byte, types.CommitmentLen),
@@ -1691,7 +1704,7 @@ func TestCheckTransactionSanity(t *testing.T) {
 		{
 			name: "treasury invalid proposal hash",
 			tx: transactions.WrapTransaction(&transactions.TreasuryTransaction{
-				ProposalHash: make([]byte, MaxProposalHashLen+1),
+				ProposalHash: make([]byte, MaxDocumentHashLen+1),
 				Outputs: []*transactions.Output{
 					{
 						Commitment:      make([]byte, types.CommitmentLen),
@@ -1706,7 +1719,7 @@ func TestCheckTransactionSanity(t *testing.T) {
 		{
 			name: "treasury invalid commitment len",
 			tx: transactions.WrapTransaction(&transactions.TreasuryTransaction{
-				ProposalHash: make([]byte, MaxProposalHashLen),
+				ProposalHash: make([]byte, MaxDocumentHashLen),
 				Outputs: []*transactions.Output{
 					{
 						Commitment:      make([]byte, types.CommitmentLen+1),
@@ -1721,7 +1734,7 @@ func TestCheckTransactionSanity(t *testing.T) {
 		{
 			name: "treasury invalid pubkey len",
 			tx: transactions.WrapTransaction(&transactions.TreasuryTransaction{
-				ProposalHash: make([]byte, MaxProposalHashLen),
+				ProposalHash: make([]byte, MaxDocumentHashLen),
 				Outputs: []*transactions.Output{
 					{
 						Commitment:      make([]byte, types.CommitmentLen),
@@ -1736,7 +1749,7 @@ func TestCheckTransactionSanity(t *testing.T) {
 		{
 			name: "treasury invalid ciphertext len",
 			tx: transactions.WrapTransaction(&transactions.TreasuryTransaction{
-				ProposalHash: make([]byte, MaxProposalHashLen),
+				ProposalHash: make([]byte, MaxDocumentHashLen),
 				Outputs: []*transactions.Output{
 					{
 						Commitment:      make([]byte, types.CommitmentLen),

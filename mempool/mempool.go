@@ -13,15 +13,33 @@ import (
 	"time"
 )
 
+type validationReq struct {
+	tx         *transactions.Transaction
+	resultChan chan error
+}
+type removeBlockTxsReq struct {
+	txs []*transactions.Transaction
+}
+
+// Mempool holds valid transactions that have been relayed around the
+// network but have not yet made it into a block. The pool will validate
+// transactions before admitting them. The block generation package uses
+// the mempool transactions to generate blocks.
 type Mempool struct {
 	pool           map[types.ID]*transactions.Transaction
 	nullifiers     map[types.Nullifier]types.ID
-	treasuryDebits map[types.ID]uint64
+	treasuryDebits map[types.ID]types.Amount
 	coinbases      map[peer.ID]*transactions.CoinbaseTransaction
 	cfg            *config
+	msgChan        chan interface{}
+	quit           chan struct{}
 	mempoolLock    sync.RWMutex
 }
 
+// NewMempool returns a new mempool with the configuration options.
+//
+// The options include local node policy for determining which (valid)
+// transactions to admit into the mempool.
 func NewMempool(opts ...Option) (*Mempool, error) {
 	var cfg config
 	for _, opt := range opts {
@@ -35,22 +53,47 @@ func NewMempool(opts ...Option) (*Mempool, error) {
 	m := &Mempool{
 		pool:           make(map[types.ID]*transactions.Transaction),
 		nullifiers:     make(map[types.Nullifier]types.ID),
-		treasuryDebits: make(map[types.ID]uint64),
+		treasuryDebits: make(map[types.ID]types.Amount),
 		coinbases:      make(map[peer.ID]*transactions.CoinbaseTransaction),
 		cfg:            &cfg,
+		msgChan:        make(chan interface{}),
+		quit:           make(chan struct{}),
 		mempoolLock:    sync.RWMutex{},
 	}
+	go m.validationHandler()
 	return m, nil
 }
 
-func (m *Mempool) ProcessTransaction(tx *transactions.Transaction) error {
-	m.mempoolLock.Lock()
-	defer m.mempoolLock.Unlock()
+// Close shuts down the validationHandlder and stops the mempool.
+func (m *Mempool) Close() {
+	close(m.quit)
+}
 
-	if _, ok := m.pool[tx.ID()]; ok {
-		return ErrDuplicateTx
+func (m *Mempool) validationHandler() {
+	for {
+		select {
+		case msg := <-m.msgChan:
+			switch req := msg.(type) {
+			case *validationReq:
+				req.resultChan <- m.validationTransaction(req.tx)
+			case *removeBlockTxsReq:
+				m.removeBlockTransactions(req.txs)
+			}
+
+		case <-m.quit:
+			return
+		}
 	}
+}
 
+// ProcessTransaction evaluates a transaction and accepts it into the mempool if
+// it passes all validation checks.
+//
+// This method is safe for concurrent access. It will attempt to do all the static
+// validation, such as the expensive signature and proof checks, without locking.
+// The rest of validation, such as nullifier checks, duplicate mempool checks, etc.
+// are done in a single threaded channel.
+func (m *Mempool) ProcessTransaction(tx *transactions.Transaction) error {
 	if err := blockchain.CheckTransactionSanity(tx, time.Now()); err != nil {
 		return err
 	}
@@ -63,6 +106,101 @@ func (m *Mempool) ProcessTransaction(tx *transactions.Transaction) error {
 		return policyError(ErrFeeTooLow, "transaction fee is below policy minimum")
 	}
 
+	proofChan := blockchain.ValidateTransactionProof(tx, m.cfg.proofCache)
+	sigChan := blockchain.ValidateTransactionSig(tx, m.cfg.sigCache)
+
+	err = <-proofChan
+	if err != nil {
+		return err
+	}
+	err = <-sigChan
+	if err != nil {
+		return err
+	}
+
+	resultChan := make(chan error)
+	m.msgChan <- &validationReq{
+		tx:         tx,
+		resultChan: resultChan,
+	}
+	err = <-resultChan
+	return err
+}
+
+// GetTransaction returns a transaction given the ID if it exists in the pool.
+func (m *Mempool) GetTransaction(txid types.ID) (*transactions.Transaction, error) {
+	m.mempoolLock.RLock()
+	defer m.mempoolLock.RUnlock()
+
+	tx, ok := m.pool[txid]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return tx, nil
+}
+
+// RemoveBlockTransactions should be called when a block is connected. It will remove
+// the block's transactions from the mempool and update the rest of the mempool state.
+//
+// This method is safe for concurrent access.
+func (m *Mempool) RemoveBlockTransactions(txs []*transactions.Transaction) {
+	m.msgChan <- &removeBlockTxsReq{
+		txs: txs,
+	}
+}
+
+// removeBlockTransactions is the implementation of RemoveBlockTransactions.
+//
+// This method is NOT safe for concurrent access.
+func (m *Mempool) removeBlockTransactions(txs []*transactions.Transaction) {
+	m.mempoolLock.Lock()
+	defer m.mempoolLock.Unlock()
+
+	for _, tx := range txs {
+		delete(m.pool, tx.ID())
+
+		switch t := tx.GetTx().(type) {
+		case *transactions.Transaction_CoinbaseTransaction:
+			validatorID, err := peer.IDFromBytes(t.CoinbaseTransaction.Validator_ID)
+			if err != nil {
+				continue
+			}
+			prevCoinbase, ok := m.coinbases[validatorID]
+			if ok {
+				if prevCoinbase.ID() == t.CoinbaseTransaction.ID() {
+					delete(m.coinbases, validatorID)
+				}
+			}
+		case *transactions.Transaction_StandardTransaction:
+			for _, n := range t.StandardTransaction.Nullifiers {
+				poolID, ok := m.nullifiers[types.NewNullifier(n)]
+				if ok {
+					delete(m.nullifiers, types.NewNullifier(n))
+					delete(m.pool, poolID)
+				}
+			}
+		case *transactions.Transaction_MintTransaction:
+			for _, n := range t.MintTransaction.Nullifiers {
+				poolID, ok := m.nullifiers[types.NewNullifier(n)]
+				if ok {
+					delete(m.nullifiers, types.NewNullifier(n))
+					delete(m.pool, poolID)
+				}
+			}
+		case *transactions.Transaction_TreasuryTransaction:
+			delete(m.treasuryDebits, t.TreasuryTransaction.ID())
+		}
+	}
+}
+
+func (m *Mempool) validationTransaction(tx *transactions.Transaction) error {
+	m.mempoolLock.Lock()
+	defer m.mempoolLock.Unlock()
+
+	if _, ok := m.pool[tx.ID()]; ok {
+		return ErrDuplicateTx
+	}
+
 	switch t := tx.GetTx().(type) {
 	case *transactions.Transaction_CoinbaseTransaction:
 		validatorID, err := peer.IDFromBytes(t.CoinbaseTransaction.Validator_ID)
@@ -73,7 +211,7 @@ func (m *Mempool) ProcessTransaction(tx *transactions.Transaction) error {
 		if err != nil {
 			return err
 		}
-		if t.CoinbaseTransaction.NewCoins != unclaimedCoins {
+		if types.Amount(t.CoinbaseTransaction.NewCoins) != unclaimedCoins {
 			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction creates invalid number of coins")
 		}
 
@@ -161,63 +299,27 @@ func (m *Mempool) ProcessTransaction(tx *transactions.Transaction) error {
 			return ruleError(blockchain.ErrDoubleSpend, "tx contains spent nullifier")
 		}
 	case *transactions.Transaction_TreasuryTransaction:
+		if !m.cfg.treasuryWhitelist[tx.ID()] {
+			return policyError(ErrTreasuryWhitelist, "treasury transaction not whitelisted")
+		}
+
 		treasuryBalance, err := m.cfg.chainView.TreasuryBalance()
 		if err != nil {
 			return err
 		}
-		inPoolBalance := uint64(0)
+		inPoolBalance := types.Amount(0)
 		for _, amt := range m.treasuryDebits {
 			inPoolBalance += amt
 		}
 
-		if inPoolBalance+t.TreasuryTransaction.Amount > treasuryBalance {
+		if types.Amount(t.TreasuryTransaction.Amount) > treasuryBalance-inPoolBalance {
 			return ruleError(blockchain.ErrInvalidTx, "treasury tx amount exceeds treasury balance")
 		}
 
-		m.treasuryDebits[t.TreasuryTransaction.ID()] = t.TreasuryTransaction.Amount
-	}
-
-	if err := blockchain.ValidateTransactionSig(tx, m.cfg.sigCache); err != nil {
-		return err
-	}
-	if err := blockchain.ValidateTransactionProof(tx, m.cfg.proofCache); err != nil {
-		return err
+		m.treasuryDebits[t.TreasuryTransaction.ID()] = types.Amount(t.TreasuryTransaction.Amount)
 	}
 	m.pool[tx.ID()] = tx
 	return nil
-}
-
-func (m *Mempool) RemoveTransactions(txs []*transactions.Transaction) {
-	m.mempoolLock.Lock()
-	defer m.mempoolLock.Unlock()
-
-	for _, tx := range txs {
-		delete(m.pool, tx.ID())
-
-		switch t := tx.GetTx().(type) {
-		case *transactions.Transaction_CoinbaseTransaction:
-			validatorID, err := peer.IDFromBytes(t.CoinbaseTransaction.Validator_ID)
-			if err != nil {
-				continue
-			}
-			prevCoinbase, ok := m.coinbases[validatorID]
-			if ok {
-				if prevCoinbase.ID() == t.CoinbaseTransaction.ID() {
-					delete(m.coinbases, validatorID)
-				}
-			}
-		case *transactions.Transaction_StandardTransaction:
-			for _, n := range t.StandardTransaction.Nullifiers {
-				delete(m.nullifiers, types.NewNullifier(n))
-			}
-		case *transactions.Transaction_MintTransaction:
-			for _, n := range t.MintTransaction.Nullifiers {
-				delete(m.nullifiers, types.NewNullifier(n))
-			}
-		case *transactions.Transaction_TreasuryTransaction:
-			delete(m.treasuryDebits, t.TreasuryTransaction.ID())
-		}
-	}
 }
 
 func calcFeePerByte(tx *transactions.Transaction) (uint64, bool, error) {

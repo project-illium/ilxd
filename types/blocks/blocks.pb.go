@@ -175,6 +175,61 @@ func (x *Block) GetTransactions() []*transactions.Transaction {
 	return nil
 }
 
+type CompactBlock struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Header *BlockHeader `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+	Txids  [][]byte     `protobuf:"bytes,2,rep,name=txids,proto3" json:"txids,omitempty"`
+}
+
+func (x *CompactBlock) Reset() {
+	*x = CompactBlock{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_blocks_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *CompactBlock) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompactBlock) ProtoMessage() {}
+
+func (x *CompactBlock) ProtoReflect() protoreflect.Message {
+	mi := &file_blocks_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompactBlock.ProtoReflect.Descriptor instead.
+func (*CompactBlock) Descriptor() ([]byte, []int) {
+	return file_blocks_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CompactBlock) GetHeader() *BlockHeader {
+	if x != nil {
+		return x.Header
+	}
+	return nil
+}
+
+func (x *CompactBlock) GetTxids() [][]byte {
+	if x != nil {
+		return x.Txids
+	}
+	return nil
+}
+
 var File_blocks_proto protoreflect.FileDescriptor
 
 var file_blocks_proto_rawDesc = []byte{
@@ -199,8 +254,13 @@ var file_blocks_proto_rawDesc = []byte{
 	0x72, 0x12, 0x30, 0x0a, 0x0c, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e,
 	0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0c, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61,
 	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x0c, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69,
-	0x6f, 0x6e, 0x73, 0x42, 0x0b, 0x5a, 0x09, 0x2e, 0x2e, 0x2f, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73,
-	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x6e, 0x73, 0x22, 0x4a, 0x0a, 0x0c, 0x43, 0x6f, 0x6d, 0x70, 0x61, 0x63, 0x74, 0x42, 0x6c,
+	0x6f, 0x63, 0x6b, 0x12, 0x24, 0x0a, 0x06, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x0c, 0x2e, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x65, 0x61, 0x64, 0x65,
+	0x72, 0x52, 0x06, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x12, 0x14, 0x0a, 0x05, 0x74, 0x78, 0x69,
+	0x64, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x05, 0x74, 0x78, 0x69, 0x64, 0x73, 0x42,
+	0x0b, 0x5a, 0x09, 0x2e, 0x2e, 0x2f, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x62, 0x06, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -215,20 +275,22 @@ func file_blocks_proto_rawDescGZIP() []byte {
 	return file_blocks_proto_rawDescData
 }
 
-var file_blocks_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_blocks_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_blocks_proto_goTypes = []interface{}{
 	(*BlockHeader)(nil),              // 0: BlockHeader
 	(*Block)(nil),                    // 1: Block
-	(*transactions.Transaction)(nil), // 2: Transaction
+	(*CompactBlock)(nil),             // 2: CompactBlock
+	(*transactions.Transaction)(nil), // 3: Transaction
 }
 var file_blocks_proto_depIdxs = []int32{
 	0, // 0: Block.header:type_name -> BlockHeader
-	2, // 1: Block.transactions:type_name -> Transaction
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 1: Block.transactions:type_name -> Transaction
+	0, // 2: CompactBlock.header:type_name -> BlockHeader
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_blocks_proto_init() }
@@ -261,6 +323,18 @@ func file_blocks_proto_init() {
 				return nil
 			}
 		}
+		file_blocks_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*CompactBlock); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -268,7 +342,7 @@ func file_blocks_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_blocks_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
