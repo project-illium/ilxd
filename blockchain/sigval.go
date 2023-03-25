@@ -154,7 +154,7 @@ func (s *sigValidator) validateHandler() {
 					break
 				}
 				if !valid {
-					s.resultChan <- ruleError(ErrInvalidTx, "stake tx invalid signature")
+					s.resultChan <- ruleError(ErrInvalidTx, "mint tx invalid signature")
 					break
 				}
 				s.sigCache.Add(types.NewID(sigHash), tx.MintTransaction.Signature, mintKey)

@@ -8,10 +8,13 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/types/blocks"
+	"github.com/project-illium/ilxd/types/transactions"
 	mrand "math/rand"
 	"sync"
 	"testing"
@@ -53,6 +56,12 @@ func runTest(numNodes int, numNoVotes int, numAlwaysNoVotes int) (bool, error) {
 		network, err := net.NewNetwork(context.Background(), []net.Option{
 			net.WithHost(host),
 			net.Params(&params.RegestParams),
+			net.BlockValidator(func(*blocks.CompactBlock, peer.ID) error {
+				return nil
+			}),
+			net.MempoolValidator(func(transaction *transactions.Transaction) error {
+				return nil
+			}),
 		}...)
 		if err != nil {
 			return false, err

@@ -36,7 +36,7 @@ const (
 
 var (
 	ErrDuplicateTx = errors.New("tx already in mempool")
-	ErrNotFound = errors.New("tx not found in pool")
+	ErrNotFound    = errors.New("tx not found in pool")
 )
 
 // Map of ErrorCode values back to their constant names for pretty printing.

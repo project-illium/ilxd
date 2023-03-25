@@ -284,19 +284,19 @@ func (m *Mempool) validationTransaction(tx *transactions.Transaction) error {
 		if _, ok := m.nullifiers[types.NewNullifier(t.StakeTransaction.Nullifier)]; ok {
 			return ruleError(blockchain.ErrDoubleSpend, "stake nullifier already in mempool")
 		}
-		exists, err := m.cfg.chainView.TxoRootExists(types.NewID(t.StakeTransaction.TxoRoot))
-		if err != nil {
-			return err
-		}
-		if !exists {
-			return ruleError(blockchain.ErrInvalidTx, "txo root does not exist in chain")
-		}
-		exists, err = m.cfg.chainView.NullifierExists(types.NewNullifier(t.StakeTransaction.Nullifier))
+		exists, err := m.cfg.chainView.NullifierExists(types.NewNullifier(t.StakeTransaction.Nullifier))
 		if err != nil {
 			return err
 		}
 		if exists {
 			return ruleError(blockchain.ErrDoubleSpend, "tx contains spent nullifier")
+		}
+		exists, err = m.cfg.chainView.TxoRootExists(types.NewID(t.StakeTransaction.TxoRoot))
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return ruleError(blockchain.ErrInvalidTx, "txo root does not exist in chain")
 		}
 	case *transactions.Transaction_TreasuryTransaction:
 		if !m.cfg.treasuryWhitelist[tx.ID()] {
