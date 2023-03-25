@@ -23,8 +23,9 @@ message DBTxs {
 }
 
 message DBBlockNode {
-        bytes blockID = 1;
-        uint32 height = 2;
+        bytes blockID   = 1;
+        uint32 height   = 2;
+        int64 timestamp = 3;
 }
 
 message DBAccumulator {

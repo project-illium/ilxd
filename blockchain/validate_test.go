@@ -182,6 +182,17 @@ func TestCheckBlockContext(t *testing.T) {
 			expectedErr: ruleError(ErrInvalidTimestamp, ""),
 		},
 		{
+			name: "timestamp too far in future",
+			header: &blocks.BlockHeader{
+				Version:     1,
+				Height:      prev.Height + 1,
+				Parent:      prevID[:],
+				Timestamp:   time.Now().Add(MaxBlockFutureTime + time.Second*1).Unix(),
+				Producer_ID: valBytes,
+			},
+			expectedErr: OrphanBlockError("block timestamp is too far in the future"),
+		},
+		{
 			name: "invalid producer ID",
 			header: &blocks.BlockHeader{
 				Version:     1,

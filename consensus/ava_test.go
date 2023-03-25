@@ -21,6 +21,22 @@ import (
 	"time"
 )
 
+// MockChooser is a mock WeightedChooser for testing.
+type MockChooser struct {
+	network *net.Network
+}
+
+// WeightedRandomValidator returns a validator weighted by their current stake.
+func (m *MockChooser) WeightedRandomValidator() peer.ID {
+	peers := m.network.Host().Network().Peers()
+	l := len(peers)
+	if l == 0 {
+		return ""
+	}
+	i := mrand.Intn(l)
+	return peers[i]
+}
+
 func TestAvalancheEngine(t *testing.T) {
 	numNodes := 50
 	numNoVotes := 0

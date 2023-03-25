@@ -88,7 +88,7 @@ func populateDatabase(ds repo.Datastore, nBlocks int) error {
 	}
 
 	prev := randomBlockHeader(0, [32]byte{})
-	prev.Timestamp = time.Now().Unix()
+	prev.Timestamp = time.Now().Add(-time.Second * time.Duration(nBlocks)).Unix()
 	if err := dsPutHeader(dbtx, prev); err != nil {
 		return err
 	}
@@ -116,9 +116,10 @@ func populateDatabase(ds repo.Datastore, nBlocks int) error {
 	}
 
 	if err := dsPutBlockIndexState(dbtx, &blockNode{
-		ds:      ds,
-		blockID: prev.ID(),
-		height:  uint32(nBlocks - 1),
+		ds:        ds,
+		blockID:   prev.ID(),
+		height:    uint32(nBlocks - 1),
+		timestamp: prev.Timestamp,
 	}); err != nil {
 		return err
 	}
@@ -138,6 +139,7 @@ func TestBlockIndex(t *testing.T) {
 	err = index.Init()
 	assert.NoError(t, err)
 	assert.NotNil(t, index.Tip())
+	assert.Greater(t, index.Tip().Timestamp(), int64(0))
 
 	// Traverse the index backwards from the tip to genesis
 	node := index.Tip()
@@ -176,4 +178,5 @@ func TestBlockIndex(t *testing.T) {
 	index.ExtendIndex(newHeader)
 	assert.Equal(t, newHeader.Height, index.Tip().height)
 	assert.Equal(t, newHeader.ID(), index.Tip().ID())
+	assert.Equal(t, newHeader.Timestamp, index.Tip().Timestamp())
 }

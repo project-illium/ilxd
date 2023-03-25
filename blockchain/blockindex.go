@@ -17,11 +17,12 @@ const blockIndexCacheSize = 1000
 // and height as well as links to the parent and child making it
 // possible to traverse the chain back and forward from this blocknode.
 type blockNode struct {
-	ds      repo.Datastore
-	blockID types.ID
-	height  uint32
-	parent  *blockNode
-	child   *blockNode
+	ds        repo.Datastore
+	blockID   types.ID
+	height    uint32
+	timestamp int64
+	parent    *blockNode
+	child     *blockNode
 }
 
 // ID returns the block ID of this blocknode.
@@ -44,6 +45,11 @@ func (bn *blockNode) Block() (*blocks.Block, error) {
 // Height returns the height from this node.
 func (bn *blockNode) Height() uint32 {
 	return bn.height
+}
+
+// Timestamp returns the timestamp from this node.
+func (bn *blockNode) Timestamp() int64 {
+	return bn.timestamp
 }
 
 // Parent returns the parent blocknode for this block. If the
@@ -157,11 +163,12 @@ func (bi *blockIndex) ExtendIndex(header *blocks.BlockHeader) {
 	defer bi.mtx.Unlock()
 
 	node := &blockNode{
-		ds:      bi.ds,
-		blockID: header.ID(),
-		height:  header.Height,
-		parent:  bi.tip,
-		child:   nil,
+		ds:        bi.ds,
+		blockID:   header.ID(),
+		height:    header.Height,
+		timestamp: header.Timestamp,
+		parent:    bi.tip,
+		child:     nil,
 	}
 	if bi.tip != nil {
 		bi.tip.child = node

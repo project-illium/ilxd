@@ -139,6 +139,14 @@ func (m *Mempool) GetTransaction(txid types.ID) (*transactions.Transaction, erro
 	return tx, nil
 }
 
+// GetTransactions returns the full list of transactions from the pool.
+func (m *Mempool) GetTransactions() map[types.ID]*transactions.Transaction {
+	m.mempoolLock.RLock()
+	defer m.mempoolLock.RUnlock()
+
+	return m.pool
+}
+
 // RemoveBlockTransactions should be called when a block is connected. It will remove
 // the block's transactions from the mempool and update the rest of the mempool state.
 //

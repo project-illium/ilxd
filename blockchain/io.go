@@ -71,8 +71,9 @@ func deserializeValidator(ser []byte) (*Validator, error) {
 
 func serializeBlockNode(node *blockNode) ([]byte, error) {
 	return proto.Marshal(&pb.DBBlockNode{
-		BlockID: node.blockID[:],
-		Height:  node.height,
+		BlockID:   node.blockID[:],
+		Height:    node.height,
+		Timestamp: node.timestamp,
 	})
 }
 
@@ -82,8 +83,9 @@ func deserializeBlockNode(ser []byte) (*blockNode, error) {
 		return nil, err
 	}
 	return &blockNode{
-		blockID: types.NewID(dbBlockNode.BlockID),
-		height:  dbBlockNode.Height,
+		blockID:   types.NewID(dbBlockNode.BlockID),
+		height:    dbBlockNode.Height,
+		timestamp: dbBlockNode.Timestamp,
 	}, nil
 }
 

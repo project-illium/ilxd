@@ -16,6 +16,7 @@ import (
 	"github.com/project-illium/ilxd/types/transactions"
 	"math"
 	"sync"
+	"time"
 )
 
 type flushMode uint8
@@ -266,13 +267,21 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	return nil
 }
 
-// BestBlock returns the ID and height of the block at the tip of the chain.
-func (b *Blockchain) BestBlock() (types.ID, uint32) {
+// WeightedRandomValidator returns a validator weighted by their current stake.
+func (b *Blockchain) WeightedRandomValidator() peer.ID {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	return b.validatorSet.WeightedRandomValidator()
+}
+
+// BestBlock returns the ID, height, and timestamp of the block at the tip of the chain.
+func (b *Blockchain) BestBlock() (types.ID, uint32, time.Time) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
 
 	tip := b.index.Tip()
-	return tip.blockID, tip.height
+	return tip.blockID, tip.height, time.Unix(tip.timestamp, 0)
 }
 
 // GetBlockByHeight returns the block at the given height. The block will be loaded from disk.

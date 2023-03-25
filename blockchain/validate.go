@@ -24,6 +24,8 @@ const (
 	MaxDocumentHashLen = 68
 
 	MaxTransactionSize = 1000000
+
+	MaxBlockFutureTime = time.Duration(10)
 )
 
 // BehaviorFlags is a bitmask defining tweaks to the normal behavior when
@@ -79,7 +81,12 @@ func (b *Blockchain) checkBlockContext(header *blocks.BlockHeader) error {
 	if header.Timestamp <= prevHeader.Timestamp {
 		return ruleError(ErrInvalidTimestamp, "timestamp is too early")
 	}
-	// Fixme: check that timestamp in not to far ahead of clock time.
+	// The block timestamp is not allowed to be too far ahead of our local clock.
+	// Because this block *may* still become valid as our clock advances we will
+	// mark it as an orphan which will allow us to process it again later.
+	if time.Unix(header.Timestamp, 0).After(time.Now().Add(MaxBlockFutureTime)) {
+		return OrphanBlockError("block timestamp is too far in the future")
+	}
 
 	producerID, err := peer.IDFromBytes(header.Producer_ID)
 	if err != nil {

@@ -6,6 +6,7 @@ package harness
 
 import (
 	"crypto/rand"
+	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
@@ -55,8 +56,8 @@ func TestNewTestHarness(t *testing.T) {
 		Outputs: []*transactions.Output{
 			{
 				Commitment:      outCommitment,
-				EphemeralPubkey: make([]byte, 32),
-				Ciphertext:      make([]byte, 176),
+				EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
+				Ciphertext:      make([]byte, blockchain.CiphertextLen),
 			},
 		},
 		Nullifiers: [][]byte{nullifer[:]},

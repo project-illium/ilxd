@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-msgio"
+	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/wire"
@@ -83,7 +84,7 @@ type registerVotesMsg struct {
 type AvalancheEngine struct {
 	ctx     context.Context
 	network *net.Network
-	chooser WeightedChooser
+	chooser blockchain.WeightedChooser
 	ms      net.MessageSender
 	wg      sync.WaitGroup
 	quit    chan struct{}
@@ -102,7 +103,7 @@ type AvalancheEngine struct {
 	printState  bool
 }
 
-func NewAvalancheEngine(ctx context.Context, network *net.Network, chooser WeightedChooser) (*AvalancheEngine, error) {
+func NewAvalancheEngine(ctx context.Context, network *net.Network, chooser blockchain.WeightedChooser) (*AvalancheEngine, error) {
 	return &AvalancheEngine{
 		ctx:            ctx,
 		network:        network,
