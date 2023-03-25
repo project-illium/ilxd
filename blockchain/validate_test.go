@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/hex"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/params"
@@ -260,23 +261,35 @@ func TestValidateBlock(t *testing.T) {
 		Transactions: nil,
 	}
 
+	hexToBytes := func(s string) []byte {
+		ret, _ := hex.DecodeString(s)
+		return ret
+	}
+
+	// Hardcoded instead of random to preserve block sort order
 	var (
-		txoRoot      = randomID()
-		txoRoot2     = randomID()
-		nullifier    = randomID()
-		nullifier2   = randomID()
-		validatorID  = randomPeerID()
-		validatorID2 = randomPeerID()
+		txoRoot      = hexToBytes("6d509adaffb1d910a13c88383bd39552673ec34d3b12043bac04ad1bde2c7bb5")
+		txoRoot2     = hexToBytes("f1255b59e9b04a5248b36f44d0aa7d28c563f8de605251034452f54b4d212e67")
+		nullifier    = hexToBytes("4adde2dd6a0ee6af84839962c4649551c6b0c16099f413ff01d2b7438a21a6e9")
+		nullifier2   = hexToBytes("a731ba862b015ce93e4236d87bcfe0e37d156d1846dccdf3f8dd82764c970620")
+		nullifier3   = hexToBytes("22ef55682643310babc449255a510523be2ef31c1fd36581bcc907b35642c6d2")
+		validatorID  = "12D3KooWRjmdSPh7WZmbYfiRXtt1cXAfGV6Q5nTQFwknWfEh5tT2"
+		validatorID2 = "12D3KooWP1qxNbQQLUFuZDfXkwPRC8p9UbVNVy3ytzaqryv8DJXz"
 	)
-	validatorIDBytes, err := validatorID.Marshal()
+
+	validatorPid, err := peer.Decode(validatorID)
 	assert.NoError(t, err)
-	validatorID2Bytes, err := validatorID2.Marshal()
+	validatorIDBytes, err := validatorPid.Marshal()
 	assert.NoError(t, err)
-	b.txoRootSet.cache[txoRoot] = time.Now()
+	validatorPid2, err := peer.Decode(validatorID2)
+	assert.NoError(t, err)
+	validatorID2Bytes, err := validatorPid2.Marshal()
+	assert.NoError(t, err)
+	b.txoRootSet.cache[types.NewID(txoRoot)] = time.Now()
 	b.nullifierSet.cachedEntries[types.NewNullifier(nullifier2[:])] = true
 
-	b.validatorSet.validators[validatorID] = &Validator{
-		PeerID:         validatorID,
+	b.validatorSet.validators[validatorPid] = &Validator{
+		PeerID:         validatorPid,
 		unclaimedCoins: 10000,
 	}
 
@@ -332,6 +345,45 @@ func TestValidateBlock(t *testing.T) {
 			},
 			flags:       BFNone,
 			expectedErr: ruleError(ErrInvalidTxRoot, ""),
+		},
+		{
+			name: "transactions out of required order",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.StandardTransaction{
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Nullifiers: [][]byte{nullifier3[:]},
+						TxoRoot:    txoRoot[:],
+					}), transactions.WrapTransaction(&transactions.StandardTransaction{
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot[:],
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFNone,
+			expectedErr: ruleError(ErrBlockSort, ""),
 		},
 		{
 			name: "standard transaction during genesis validation",
@@ -399,7 +451,7 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
+								EphemeralPubkey: bytes.Repeat([]byte{0x11}, PubkeyLen),
 								Ciphertext:      make([]byte, CiphertextLen),
 							},
 						},
@@ -495,7 +547,7 @@ func TestValidateBlock(t *testing.T) {
 				blk.Transactions = []*transactions.Transaction{
 					transactions.WrapTransaction(&transactions.StakeTransaction{
 						Validator_ID: validatorIDBytes,
-						Nullifier:    nullifier.Bytes(),
+						Nullifier:    nullifier,
 						TxoRoot:      txoRoot[:],
 						Locktime:     time.Time{}.Unix(),
 					}),
@@ -519,7 +571,7 @@ func TestValidateBlock(t *testing.T) {
 				blk.Transactions = []*transactions.Transaction{
 					transactions.WrapTransaction(&transactions.StakeTransaction{
 						Validator_ID: validatorIDBytes,
-						Nullifier:    nullifier.Bytes(),
+						Nullifier:    nullifier,
 						TxoRoot:      txoRoot2[:],
 						Locktime:     time.Time{}.Unix(),
 					}),
@@ -541,12 +593,6 @@ func TestValidateBlock(t *testing.T) {
 			name: "staked nullifier spent in same block",
 			block: func(blk *blocks.Block) (*blocks.Block, error) {
 				blk.Transactions = []*transactions.Transaction{
-					transactions.WrapTransaction(&transactions.StakeTransaction{
-						Validator_ID: validatorIDBytes,
-						Nullifier:    nullifier.Bytes(),
-						TxoRoot:      txoRoot[:],
-						Locktime:     time.Time{}.Unix(),
-					}),
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
@@ -557,6 +603,12 @@ func TestValidateBlock(t *testing.T) {
 						},
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
+					}),
+					transactions.WrapTransaction(&transactions.StakeTransaction{
+						Validator_ID: validatorIDBytes,
+						Nullifier:    nullifier,
+						TxoRoot:      txoRoot[:],
+						Locktime:     time.Time{}.Unix(),
 					}),
 				}
 
@@ -647,7 +699,7 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
+								EphemeralPubkey: bytes.Repeat([]byte{0x11}, PubkeyLen),
 								Ciphertext:      make([]byte, CiphertextLen),
 							},
 						},
@@ -860,7 +912,7 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
+								EphemeralPubkey: bytes.Repeat([]byte{0x11}, PubkeyLen),
 								Ciphertext:      make([]byte, CiphertextLen),
 							},
 						},
@@ -971,7 +1023,7 @@ func TestValidateBlock(t *testing.T) {
 			block: func(blk *blocks.Block) (*blocks.Block, error) {
 				blk.Transactions = []*transactions.Transaction{
 					transactions.WrapTransaction(&transactions.TreasuryTransaction{
-						Amount: 8000,
+						Amount: 3000,
 						Outputs: []*transactions.Output{
 							{
 								Commitment:      make([]byte, types.CommitmentLen),
@@ -982,7 +1034,7 @@ func TestValidateBlock(t *testing.T) {
 						ProposalHash: make([]byte, 32),
 					}),
 					transactions.WrapTransaction(&transactions.TreasuryTransaction{
-						Amount: 3000,
+						Amount: 8000,
 						Outputs: []*transactions.Output{
 							{
 								Commitment:      make([]byte, types.CommitmentLen),
@@ -1023,7 +1075,7 @@ func TestValidateBlock(t *testing.T) {
 					}),
 					transactions.WrapTransaction(&transactions.StakeTransaction{
 						Validator_ID: validatorIDBytes,
-						Nullifier:    nullifier.Bytes(),
+						Nullifier:    nullifier,
 						TxoRoot:      root[:],
 						Locktime:     time.Time{}.Unix(),
 					}),
@@ -1058,7 +1110,7 @@ func TestValidateBlock(t *testing.T) {
 					}),
 					transactions.WrapTransaction(&transactions.StakeTransaction{
 						Validator_ID: validatorIDBytes,
-						Nullifier:    nullifier.Bytes(),
+						Nullifier:    nullifier,
 						TxoRoot:      root[:],
 						Locktime:     time.Time{}.Unix(),
 						Amount:       10001,
@@ -1094,7 +1146,7 @@ func TestValidateBlock(t *testing.T) {
 					}),
 					transactions.WrapTransaction(&transactions.StakeTransaction{
 						Validator_ID: validatorIDBytes,
-						Nullifier:    nullifier.Bytes(),
+						Nullifier:    nullifier,
 						TxoRoot:      txoRoot[:],
 						Locktime:     time.Time{}.Unix(),
 					}),
@@ -1147,7 +1199,7 @@ func TestValidateBlock(t *testing.T) {
 				blk.Transactions = []*transactions.Transaction{
 					transactions.WrapTransaction(&transactions.StakeTransaction{
 						Validator_ID: validatorIDBytes,
-						Nullifier:    nullifier.Bytes(),
+						Nullifier:    nullifier,
 						TxoRoot:      root[:],
 						Locktime:     time.Time{}.Unix(),
 					}),
@@ -1185,7 +1237,11 @@ func TestValidateBlock(t *testing.T) {
 		if test.expectedErr == nil {
 			assert.NoErrorf(t, err, "block validation test: %s failure", test.name)
 		} else {
-			assert.Equalf(t, test.expectedErr.(RuleError).ErrorCode, err.(RuleError).ErrorCode, "block validation test: %s: error %s", test.name, err.Error())
+			_, ok := err.(RuleError)
+			assert.True(t, ok)
+			if ok {
+				assert.Equalf(t, test.expectedErr.(RuleError).ErrorCode, err.(RuleError).ErrorCode, "block validation test: %s: error %s", test.name, err.Error())
+			}
 		}
 	}
 }

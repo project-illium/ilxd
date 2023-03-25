@@ -12,6 +12,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"sort"
 	"time"
 )
 
@@ -105,7 +106,7 @@ func (g *BlockGenerator) generateBlock() error {
 
 	blk := &blocks.Block{
 		Header: &blocks.BlockHeader{
-			Version:     1,
+			Version:     BlockVersion,
 			Height:      height + 1,
 			Parent:      bestID[:],
 			Timestamp:   blockTime.Unix(),
@@ -143,6 +144,8 @@ func (g *BlockGenerator) generateBlock() error {
 	for _, tx := range txs {
 		blk.Transactions = append(blk.Transactions, tx)
 	}
+
+	sort.Sort(TxSorter(blk.Transactions))
 
 	merkles := blockchain.BuildMerkleTreeStore(blk.Transactions)
 	blk.Header.TxRoot = merkles[len(merkles)-1]

@@ -156,9 +156,16 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 		stakeTransactions = make([]*transactions.StakeTransaction, 0, len(blk.Transactions))
 
 		treasuryBalance *types.Amount
+		lastTxid        = types.NewID(make([]byte, 32))
 	)
 
 	for _, t := range blk.GetTransactions() {
+		if !flags.HasFlag(BFGenesisValidation) {
+			if lastTxid.Compare(t.ID()) >= 0 {
+				return ruleError(ErrBlockSort, "block is not sorted by txid")
+			}
+			lastTxid = t.ID()
+		}
 		if err := CheckTransactionSanity(t, time.Unix(blk.Header.Timestamp, 0)); err != nil {
 			return err
 		}

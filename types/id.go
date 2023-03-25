@@ -14,6 +14,22 @@ var ErrIDStrSize = fmt.Errorf("max ID string length is %v bytes", hash.HashSize*
 
 type ID [hash.HashSize]byte
 
+// Compare returns 1 if hash > target, -1 if hash < target and
+// 0 if hash == target.
+func (id ID) Compare(target ID) int {
+	for i := 0; i < len(id); i++ {
+		a := id[len(id)-1-i]
+		b := target[len(target)-1-i]
+		if a > b {
+			return 1
+		}
+		if a < b {
+			return -1
+		}
+	}
+	return 0
+}
+
 func (id ID) String() string {
 	return hex.EncodeToString(id[:])
 }
