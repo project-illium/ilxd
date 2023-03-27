@@ -135,8 +135,7 @@ func (b *Block) Deserialize(data []byte) error {
 	if err := proto.Unmarshal(data, newBlock); err != nil {
 		return err
 	}
-	b.Header = newBlock.Header
-	b.Transactions = newBlock.Transactions
+	b = newBlock
 	return nil
 }
 
@@ -161,23 +160,11 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (b *Block) ToCompact() *CompactBlock {
-	txids := make([][]byte, 0, len(b.Transactions))
-	for _, tx := range b.Transactions {
-		id := tx.ID()
-		txids = append(txids, id[:])
-	}
-	return &CompactBlock{
-		Header: b.Header,
-		Txids:  txids,
-	}
-}
-
-func (b *CompactBlock) Serialize() ([]byte, error) {
+func (b *XThinnerBlock) Serialize() ([]byte, error) {
 	return proto.Marshal(b)
 }
 
-func (b *CompactBlock) SerializedSize() (int, error) {
+func (b *XThinnerBlock) SerializedSize() (int, error) {
 	ser, err := proto.Marshal(b)
 	if err != nil {
 		return 0, err
@@ -185,17 +172,16 @@ func (b *CompactBlock) SerializedSize() (int, error) {
 	return len(ser), nil
 }
 
-func (b *CompactBlock) Deserialize(data []byte) error {
-	newBlock := &CompactBlock{}
+func (b *XThinnerBlock) Deserialize(data []byte) error {
+	newBlock := &XThinnerBlock{}
 	if err := proto.Unmarshal(data, newBlock); err != nil {
 		return err
 	}
-	b.Header = newBlock.Header
-	b.Txids = newBlock.Txids
+	b = newBlock
 	return nil
 }
 
-func (b *CompactBlock) MarshalJSON() ([]byte, error) {
+func (b *XThinnerBlock) MarshalJSON() ([]byte, error) {
 	m := protojson.MarshalOptions{
 		Indent: "    ",
 	}
@@ -207,8 +193,8 @@ func (b *CompactBlock) MarshalJSON() ([]byte, error) {
 	return buf, nil
 }
 
-func (b *CompactBlock) UnmarshalJSON(data []byte) error {
-	newBlock := &CompactBlock{}
+func (b *XThinnerBlock) UnmarshalJSON(data []byte) error {
+	newBlock := &XThinnerBlock{}
 	if err := protojson.Unmarshal(data, newBlock); err != nil {
 		return err
 	}

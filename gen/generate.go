@@ -145,7 +145,7 @@ func (g *BlockGenerator) generateBlock() error {
 		blk.Transactions = append(blk.Transactions, tx)
 	}
 
-	sort.Sort(TxSorter(blk.Transactions))
+	sort.Sort(mempool.TxSorter(blk.Transactions))
 
 	merkles := blockchain.BuildMerkleTreeStore(blk.Transactions)
 	blk.Header.TxRoot = merkles[len(merkles)-1]

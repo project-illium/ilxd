@@ -18,8 +18,8 @@ type ID [hash.HashSize]byte
 // 0 if hash == target.
 func (id ID) Compare(target ID) int {
 	for i := 0; i < len(id); i++ {
-		a := id[len(id)-1-i]
-		b := target[len(target)-1-i]
+		a := id[i]
+		b := target[i]
 		if a > b {
 			return 1
 		}

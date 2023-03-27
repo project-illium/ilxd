@@ -13,9 +13,6 @@ import (
 	"github.com/project-illium/ilxd/net"
 	params "github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
-	"github.com/project-illium/ilxd/types"
-	"github.com/project-illium/ilxd/types/blocks"
-	"github.com/project-illium/ilxd/types/transactions"
 	"go.uber.org/zap"
 	"sort"
 )
@@ -126,21 +123,6 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.printListenAddrs()
 
 	return s, nil
-}
-
-func (s *Server) recoverFullBlockFromCompact(cmpct *blocks.CompactBlock) (*blocks.Block, error) {
-	blk := &blocks.Block{
-		Header:       cmpct.Header,
-		Transactions: make([]*transactions.Transaction, len(cmpct.Txids)),
-	}
-	for i, txid := range cmpct.Txids {
-		tx, err := s.mempool.GetTransaction(types.NewID(txid))
-		if err != nil {
-			return nil, err
-		}
-		blk.Transactions[i] = tx
-	}
-	return blk, nil
 }
 
 // Close shuts down all the parts of the server and blocks until

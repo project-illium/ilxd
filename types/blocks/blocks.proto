@@ -22,7 +22,16 @@ message Block {
     repeated Transaction transactions = 2;
 }
 
-message CompactBlock {
-    BlockHeader header   = 1;
-    repeated bytes txids = 2;
+message XThinnerBlock {
+    BlockHeader header                          = 1;
+    uint32 tx_count                             = 2;
+    bytes pops                                  = 3;
+    bytes pushes                                = 4;
+    bytes push_bytes                            = 5;
+    repeated PrefilledTransaction prefilled_txs = 6;
+
+    message PrefilledTransaction {
+        Transaction transaction = 1;
+        uint32 index            = 2;
+    }
 }
