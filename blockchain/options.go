@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	defaultMaxTxoRoots    = 500
-	defaultMaxNullifiers  = 100000
-	defaultSigCacheSize   = 100000
-	defaultProofCacheSize = 100000
+	DefaultMaxTxoRoots    = 500
+	DefaultMaxNullifiers  = 100000
+	DefaultSigCacheSize   = 100000
+	DefaultProofCacheSize = 100000
 )
 
 // DefaultOptions returns a blockchain configure option that fills in
@@ -25,10 +25,10 @@ func DefaultOptions() Option {
 	return func(cfg *config) error {
 		cfg.params = &params.RegestParams
 		cfg.datastore = mock.NewMapDatastore()
-		cfg.sigCache = NewSigCache(defaultSigCacheSize)
-		cfg.proofCache = NewProofCache(defaultProofCacheSize)
-		cfg.maxNullifiers = defaultMaxNullifiers
-		cfg.maxTxoRoots = defaultMaxTxoRoots
+		cfg.sigCache = NewSigCache(DefaultSigCacheSize)
+		cfg.proofCache = NewProofCache(DefaultProofCacheSize)
+		cfg.maxNullifiers = DefaultMaxNullifiers
+		cfg.maxTxoRoots = DefaultMaxTxoRoots
 		return nil
 	}
 }

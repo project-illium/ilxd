@@ -10,10 +10,10 @@ import (
 	ctxio "github.com/jbenet/go-context/io"
 	inet "github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-msgio"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/net"
+	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/wire"
 	"google.golang.org/protobuf/proto"
@@ -49,12 +49,8 @@ const (
 	// DeleteInventoryAfter is the maximum time we'll keep a block in memory
 	// if it hasn't been finalized by avalanche.
 	DeleteInventoryAfter = time.Hour * 6
-)
 
-var (
-	// AvalancheProtocolID is the protocol ID for exchanging avalanche related messages
-	// in the network host. It ensures inbound streams with this ID are routed here.
-	AvalancheProtocolID = protocol.ID("/ilxd/avalanche")
+	ConsensusProtocol = "consensus"
 )
 
 // requestExpirationMsg signifies a request has expired and
@@ -84,6 +80,7 @@ type registerVotesMsg struct {
 type AvalancheEngine struct {
 	ctx     context.Context
 	network *net.Network
+	params  *params.NetworkParams
 	chooser blockchain.WeightedChooser
 	ms      net.MessageSender
 	wg      sync.WaitGroup
@@ -103,12 +100,13 @@ type AvalancheEngine struct {
 	printState  bool
 }
 
-func NewAvalancheEngine(ctx context.Context, network *net.Network, chooser blockchain.WeightedChooser) (*AvalancheEngine, error) {
+func NewAvalancheEngine(ctx context.Context, params *params.NetworkParams, network *net.Network, chooser blockchain.WeightedChooser) (*AvalancheEngine, error) {
 	return &AvalancheEngine{
-		ctx:            ctx,
-		network:        network,
-		chooser:        chooser,
-		ms:             net.NewMessageSender(network.Host(), AvalancheProtocolID),
+		ctx:     ctx,
+		network: network,
+		chooser: chooser,
+
+		ms:             net.NewMessageSender(network.Host(), params.ProtocolPrefix+ConsensusProtocol),
 		wg:             sync.WaitGroup{},
 		quit:           make(chan struct{}),
 		msgChan:        make(chan interface{}),
@@ -121,7 +119,7 @@ func NewAvalancheEngine(ctx context.Context, network *net.Network, chooser block
 
 // Start begins the core handler which processes peers and avalanche messages.
 func (eng *AvalancheEngine) Start() {
-	eng.network.Host().SetStreamHandler(AvalancheProtocolID, eng.HandleNewStream)
+	eng.network.Host().SetStreamHandler(eng.params.ProtocolPrefix+ConsensusProtocol, eng.HandleNewStream)
 	eng.wg.Add(1)
 	go eng.handler()
 }

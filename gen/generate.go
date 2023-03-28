@@ -29,6 +29,7 @@ type BlockGenerator struct {
 	blockchain     *blockchain.Blockchain
 	tickInterval   time.Duration
 	chain          *blockchain.Blockchain
+	broadcast      func(blk *blocks.XThinnerBlock) error
 	quit           chan struct{}
 }
 
@@ -62,6 +63,7 @@ func NewBlockGenerator(opts ...Option) (*BlockGenerator, error) {
 		mpool:          cfg.mpool,
 		tickInterval:   cfg.tickInterval,
 		chain:          cfg.chain,
+		broadcast:      cfg.broadcastFunc,
 		quit:           make(chan struct{}),
 	}
 
@@ -169,6 +171,5 @@ func (g *BlockGenerator) generateBlock() error {
 		return err
 	}
 
-	// TODO: broadcast and send to consensus engine.
-	return nil
+	return g.broadcast(xthinnerBlock)
 }

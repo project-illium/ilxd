@@ -5,6 +5,13 @@
 syntax = "proto3";
 option go_package = "../wire";
 
+import "transactions.proto";
+
+enum ErrorResponse {
+    None     = 0;
+    NotFound = 1;
+}
+
 message MsgAvaRequest {
     uint32 requestID    = 1;
     repeated bytes invs = 2;
@@ -13,4 +20,23 @@ message MsgAvaRequest {
 message MsgAvaResponse {
     uint32 requestID = 1;
     bytes votes      = 2;
+}
+
+message MsgGetBlockTxs {
+    bytes blockID              = 1;
+    repeated uint32 txIndexes  = 2;
+}
+
+message BlockTxs {
+    repeated Transaction transactions = 1;
+    ErrorResponse error               = 2;
+}
+
+message MsgGetBlockTxids {
+    bytes blockID              = 1;
+}
+
+message BlockTxids {
+    repeated bytes txids = 1;
+    ErrorResponse error  = 2;
 }

@@ -325,29 +325,7 @@ func (ms *peerMessageSender) writeMsg(pmes proto.Message) error {
 }
 
 func (ms *peerMessageSender) ctxReadMsg(ctx context.Context, mes proto.Message) error {
-	errc := make(chan error, 1)
-	go func(r msgio.ReadCloser) {
-		defer close(errc)
-		bytes, err := r.ReadMsg()
-		defer r.ReleaseMsg(bytes)
-		if err != nil {
-			errc <- err
-			return
-		}
-		errc <- proto.Unmarshal(bytes, mes)
-	}(ms.r)
-
-	t := time.NewTimer(readMessageTimeout)
-	defer t.Stop()
-
-	select {
-	case err := <-errc:
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-t.C:
-		return ErrReadTimeout
-	}
+	return ReadMsg(ctx, ms.r, mes)
 }
 
 // The Protobuf writer performs multiple small writes when writing a message.
@@ -378,6 +356,32 @@ func WriteMsg(w io.Writer, mes proto.Message) error {
 	bw.Reset(nil)
 	writerPool.Put(bw)
 	return err
+}
+
+func ReadMsg(ctx context.Context, r msgio.ReadCloser, mes proto.Message) error {
+	errc := make(chan error, 1)
+	go func(r msgio.ReadCloser) {
+		defer close(errc)
+		bytes, err := r.ReadMsg()
+		defer r.ReleaseMsg(bytes)
+		if err != nil {
+			errc <- err
+			return
+		}
+		errc <- proto.Unmarshal(bytes, mes)
+	}(r)
+
+	t := time.NewTimer(readMessageTimeout)
+	defer t.Stop()
+
+	select {
+	case err := <-errc:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return ErrReadTimeout
+	}
 }
 
 func (w *bufferedDelimitedWriter) Flush() error {

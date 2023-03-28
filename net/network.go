@@ -217,7 +217,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	// For blocks we will wait for the full block to be recovered from the compact block
 	// so that we can validate it before returning here.
 	err = ps.RegisterTopicValidator(BlockTopic, pubsub.ValidatorEx(func(ctx context.Context, p peer.ID, m *pubsub.Message) pubsub.ValidationResult {
-		var blk blocks.CompactBlock
+		var blk blocks.XThinnerBlock
 		if err := blk.Deserialize(m.Data); err != nil {
 			return pubsub.ValidationReject
 		}
@@ -312,8 +312,8 @@ func (n *Network) SubscribeTransactions() (*pubsub.Subscription, error) {
 	return n.txTopic.Subscribe()
 }
 
-func (n *Network) BroadcastBlock(blk *blocks.Block) error {
-	ser, err := blk.ToCompact().Serialize()
+func (n *Network) BroadcastBlock(blk *blocks.XThinnerBlock) error {
+	ser, err := blk.Serialize()
 	if err != nil {
 		return err
 	}

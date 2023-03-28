@@ -8,6 +8,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/mempool"
+	"github.com/project-illium/ilxd/types/blocks"
 	"time"
 )
 
@@ -28,6 +29,16 @@ type Option func(cfg *config) error
 func Blockchain(chain *blockchain.Blockchain) Option {
 	return func(cfg *config) error {
 		cfg.chain = chain
+		return nil
+	}
+}
+
+// BroadcastFunc broadcasts the block to the network.
+//
+// This cannot be nil.
+func BroadcastFunc(f func(blk *blocks.XThinnerBlock) error) Option {
+	return func(cfg *config) error {
+		cfg.broadcastFunc = f
 		return nil
 	}
 }
@@ -68,10 +79,11 @@ func PrivateKey(key crypto.PrivKey) Option {
 
 // Config specifies the blockchain configuration.
 type config struct {
-	privKey      crypto.PrivKey
-	mpool        *mempool.Mempool
-	tickInterval time.Duration
-	chain        *blockchain.Blockchain
+	privKey       crypto.PrivKey
+	mpool         *mempool.Mempool
+	tickInterval  time.Duration
+	chain         *blockchain.Blockchain
+	broadcastFunc func(blk *blocks.XThinnerBlock) error
 }
 
 func (cfg *config) validate() error {
@@ -86,6 +98,9 @@ func (cfg *config) validate() error {
 	}
 	if cfg.chain == nil {
 		return AssertError("NewBlockGenerator: WeightedChooser cannot be nil")
+	}
+	if cfg.broadcastFunc == nil {
+		return AssertError("NewBlockGenerator: BroadcastFund cannot be nil")
 	}
 	return nil
 }

@@ -53,6 +53,7 @@ type Config struct {
 	Regest            bool     `short:"r" long:"regtest" description:"Use regression testing mode"`
 	DisableNATPortMap bool     `long:"noupnp" description:"Disable use of upnp"`
 	UserAgent         string   `long:"useragent" description:"A custom user agent to advertise to the network"`
+	NoTxIndex         bool     `long:"notxindex" description:"Disable the transaction index"`
 
 	RPCOpts RPCOptions `group:"RPC Options"`
 }

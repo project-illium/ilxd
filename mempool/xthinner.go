@@ -18,8 +18,8 @@ import (
 // short transaction prefixes and returns an XThinnerBlock.  The idea being
 // that the receiving node can use the prefixes and their own mempool to
 // reconstruct the full block. Because block transactions are sorted by
-// txid by consensus rule, we can send just the minimum number of bytes to
-// disambiguate between transactions in our mempool.
+// txid by consensus rule, we can send just the minimum number of bytes neeced
+// to disambiguate between transactions in our mempool.
 //
 // The Xthinner spec calls for the XthinnerBlock to have a checksum attached
 // that can be used to detect collisions. However, in illium blocks come
@@ -134,6 +134,9 @@ func (m *Mempool) EncodeXthinner(blkIds []types.ID) (*blocks.XThinnerBlock, erro
 //
 // In both cases the solution is to download the full list of txids from the remote peer.
 func (m *Mempool) DecodeXthinner(blk *blocks.XThinnerBlock) ([]types.ID, []uint32) {
+	m.mempoolLock.RLock()
+	defer m.mempoolLock.RUnlock()
+
 	var (
 		pops            = decodeBitmap(blk.Pops)
 		pushes          = decodeBitmap(blk.Pushes)
@@ -150,6 +153,12 @@ func (m *Mempool) DecodeXthinner(blk *blocks.XThinnerBlock) ([]types.ID, []uint3
 
 	for txid := range m.pool {
 		mempoolTxs = append(mempoolTxs, txid)
+	}
+	for _, tx := range blk.PrefilledTxs {
+		id := tx.Transaction.ID()
+		if _, ok := m.pool[id]; !ok {
+			mempoolTxs = append(mempoolTxs, id)
+		}
 	}
 	sort.Sort(TxidSorter(mempoolTxs))
 	mempoolTxs = append(mempoolTxs, types.NewID(bytes.Repeat([]byte{0xff}, 32)))

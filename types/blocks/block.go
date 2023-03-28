@@ -160,6 +160,10 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (b *XThinnerBlock) ID() types.ID {
+	return b.Header.ID()
+}
+
 func (b *XThinnerBlock) Serialize() ([]byte, error) {
 	return proto.Marshal(b)
 }

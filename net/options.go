@@ -28,7 +28,7 @@ func MempoolValidator(acceptToMempool func(tx *transactions.Transaction) error) 
 	}
 }
 
-func BlockValidator(validateBlock func(blk *blocks.CompactBlock, p peer.ID) error) Option {
+func BlockValidator(validateBlock func(blk *blocks.XThinnerBlock, p peer.ID) error) Option {
 	return func(cfg *config) error {
 		cfg.validateBlock = validateBlock
 		return nil
@@ -101,7 +101,7 @@ type config struct {
 	privateKey        crypto.PrivKey
 	datastore         repo.Datastore
 	acceptToMempool   func(tx *transactions.Transaction) error
-	validateBlock     func(blk *blocks.CompactBlock, p peer.ID) error
+	validateBlock     func(blk *blocks.XThinnerBlock, p peer.ID) error
 }
 
 func (cfg *config) validate() error {

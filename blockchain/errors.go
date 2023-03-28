@@ -93,3 +93,10 @@ func (e RuleError) Error() string {
 func ruleError(c ErrorCode, desc string) RuleError {
 	return RuleError{ErrorCode: c, Description: desc}
 }
+
+func ErrorIs(err error, code ErrorCode) bool {
+	if ruleError, ok := err.(RuleError); ok && ruleError.ErrorCode == code {
+		return true
+	}
+	return false
+}
