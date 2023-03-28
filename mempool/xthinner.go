@@ -6,6 +6,7 @@ package mempool
 
 import (
 	"bytes"
+	"errors"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"math/rand"
@@ -33,7 +34,7 @@ import (
 // However, for it to be worth it the bandwidth savings needs to exceed
 // the extra bandwidth cost of the checksums. At small block sizes this isn't
 // worth it. So we omit the checksums.
-func (m *Mempool) EncodeXthinner(blkIds []types.ID) *blocks.XThinnerBlock {
+func (m *Mempool) EncodeXthinner(blkIds []types.ID) (*blocks.XThinnerBlock, error) {
 	m.mempoolLock.RLock()
 	defer m.mempoolLock.RUnlock()
 
@@ -56,13 +57,17 @@ func (m *Mempool) EncodeXthinner(blkIds []types.ID) *blocks.XThinnerBlock {
 	)
 
 	for _, txid := range blkIds {
+		if _, ok := m.pool[txid]; !ok {
+			return nil, errors.New("block tx not found in pool")
+		}
 		// Pop stage
 		if len(stack) > 0 {
 			stack = stack[:len(stack)-1]
 		}
 		for i := 0; i < len(stack); i++ {
 			if stack[i] != txid[i] {
-				for j := 0; j < len(stack)-i; j++ {
+				l := len(stack) - i
+				for j := 0; j < l; j++ {
 					stack = stack[:len(stack)-1]
 					pops = append(pops, 1)
 				}
@@ -106,7 +111,7 @@ func (m *Mempool) EncodeXthinner(blkIds []types.ID) *blocks.XThinnerBlock {
 		Pushes:       encodeBitmap(pushes),
 		PushBytes:    pushbytes,
 		PrefilledTxs: nil,
-	}
+	}, nil
 }
 
 // DecodeXthinner decodes an XThinnerBlock using the transactions in the mempool.

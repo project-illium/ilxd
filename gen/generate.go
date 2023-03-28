@@ -164,6 +164,11 @@ func (g *BlockGenerator) generateBlock() error {
 		return err
 	}
 
+	xthinnerBlock, err := g.mpool.EncodeXthinner(blk.Txids())
+	if err != nil {
+		return err
+	}
+
 	// TODO: broadcast and send to consensus engine.
 	return nil
 }
