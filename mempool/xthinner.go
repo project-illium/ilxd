@@ -9,6 +9,7 @@ import (
 	"errors"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
+	"github.com/project-illium/ilxd/types/transactions"
 	"math/rand"
 	"sort"
 	"time"
@@ -18,7 +19,7 @@ import (
 // short transaction prefixes and returns an XThinnerBlock.  The idea being
 // that the receiving node can use the prefixes and their own mempool to
 // reconstruct the full block. Because block transactions are sorted by
-// txid by consensus rule, we can send just the minimum number of bytes neeced
+// txid by consensus rule, we can send just the minimum number of bytes needed
 // to disambiguate between transactions in our mempool.
 //
 // The Xthinner spec calls for the XthinnerBlock to have a checksum attached
@@ -119,7 +120,7 @@ func (m *Mempool) EncodeXthinner(blkIds []types.ID) (*blocks.XThinnerBlock, erro
 //  1. There are no transactions in the mempool with the given prefix (missing tx).
 //  2. There are one or more transactions in the mempool with the same prefix (collision).
 //
-// In both scenarios a zero ID is returned for that transaction and the missing index is
+// In both scenarios nil is returned for that transaction and the missing index is
 // appended to the returned []uint32
 //
 // The caller should request the missing transaction(s) from the remote peer before proceeding
@@ -133,7 +134,7 @@ func (m *Mempool) EncodeXthinner(blkIds []types.ID) (*blocks.XThinnerBlock, erro
 //  2. The peer maliciously sent us an invalid block.
 //
 // In both cases the solution is to download the full list of txids from the remote peer.
-func (m *Mempool) DecodeXthinner(blk *blocks.XThinnerBlock) ([]types.ID, []uint32) {
+func (m *Mempool) DecodeXthinner(blk *blocks.XThinnerBlock) (*blocks.Block, []uint32) {
 	m.mempoolLock.RLock()
 	defer m.mempoolLock.RUnlock()
 
@@ -145,7 +146,7 @@ func (m *Mempool) DecodeXthinner(blk *blocks.XThinnerBlock) ([]types.ID, []uint3
 		pushbi          = 0
 		mempoolposition = 0
 		stack           = make([]byte, 0, 32)
-		blockTxids      = make([]types.ID, 0, len(m.pool))
+		fullBlk         = &blocks.Block{Header: blk.Header, Transactions: make([]*transactions.Transaction, blk.TxCount)}
 		rerequests      = make([]uint32, 0, blk.TxCount)
 	)
 
@@ -154,11 +155,13 @@ func (m *Mempool) DecodeXthinner(blk *blocks.XThinnerBlock) ([]types.ID, []uint3
 	for txid := range m.pool {
 		mempoolTxs = append(mempoolTxs, txid)
 	}
+	prefilled := make(map[types.ID]*transactions.Transaction)
 	for _, tx := range blk.PrefilledTxs {
 		id := tx.Transaction.ID()
 		if _, ok := m.pool[id]; !ok {
 			mempoolTxs = append(mempoolTxs, id)
 		}
+		prefilled[id] = tx.Transaction
 	}
 	sort.Sort(TxidSorter(mempoolTxs))
 	mempoolTxs = append(mempoolTxs, types.NewID(bytes.Repeat([]byte{0xff}, 32)))
@@ -193,17 +196,19 @@ func (m *Mempool) DecodeXthinner(blk *blocks.XThinnerBlock) ([]types.ID, []uint3
 		}
 		// Transaction not found in mempool
 		if types.NewID(stack).Compare(types.NewID(mempoolTxs[mempoolposition][:len(stack)])) != 0 {
-			blockTxids = append(blockTxids, types.NewID(make([]byte, 32)))
-			rerequests = append(rerequests, uint32(len(blockTxids))-1)
+			fullBlk.Transactions[pos] = nil
+			rerequests = append(rerequests, pos)
 			// More than one transaction in the mempool with the same prefix. Unable to disambiguate.
 		} else if mempoolposition < len(mempoolTxs)-2 && bytes.Equal(mempoolTxs[mempoolposition+1][:len(stack)], stack) {
-			blockTxids = append(blockTxids, types.NewID(make([]byte, 32)))
-			rerequests = append(rerequests, uint32(len(blockTxids))-1)
+			fullBlk.Transactions[pos] = nil
+			rerequests = append(rerequests, pos)
+		} else if tx, ok := prefilled[mempoolTxs[mempoolposition]]; ok {
+			fullBlk.Transactions[pos] = tx
 		} else {
-			blockTxids = append(blockTxids, mempoolTxs[mempoolposition])
+			fullBlk.Transactions[pos] = m.pool[mempoolTxs[mempoolposition]]
 		}
 	}
-	return blockTxids, rerequests
+	return fullBlk, rerequests
 }
 
 func encodeBitmap(bits []uint32) []byte {

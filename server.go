@@ -19,7 +19,6 @@ import (
 	"github.com/project-illium/ilxd/sync"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
-	"github.com/project-illium/ilxd/types/transactions"
 	"go.uber.org/zap"
 	"sort"
 	stdsync "sync"
@@ -52,6 +51,8 @@ type Server struct {
 // and use it to configure all the various parts of the Server.
 func BuildServer(config *repo.Config) (*Server, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+
+	s := Server{}
 
 	// Logging
 	if err := setupLogging(config.LogDir, config.LogLevel, config.Testnet); err != nil {
@@ -111,24 +112,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		listenAddrs = netParams.ListenAddrs
 	}
 
-	// Construct the Network.
-	networkOpts := []net.Option{
-		net.Datastore(ds),
-		net.SeedAddrs(seedAddrs),
-		net.ListenAddrs(listenAddrs),
-		net.UserAgent(config.UserAgent),
-		net.PrivateKey(privKey),
-		net.Params(netParams),
-	}
-	if config.DisableNATPortMap {
-		networkOpts = append(networkOpts, net.DisableNatPortMap())
-	}
-
-	network, err := net.NewNetwork(ctx, networkOpts...)
-	if err != nil {
-		return nil, err
-	}
-
+	// Create the blockchain
 	sigCache := blockchain.NewSigCache(blockchain.DefaultSigCacheSize)
 	proofCache := blockchain.NewProofCache(blockchain.DefaultProofCacheSize)
 
@@ -150,6 +134,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		return nil, err
 	}
 
+	// Mempool
 	mempoolOpts := []mempool.Option{
 		mempool.SignatureCache(sigCache),
 		mempool.ProofCache(proofCache),
@@ -162,22 +147,40 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		return nil, err
 	}
 
-	s := &Server{
-		cancelFunc:   cancel,
-		config:       config,
-		params:       netParams,
-		ds:           ds,
-		network:      network,
-		blockchain:   chain,
-		mempool:      mpool,
-		chainService: sync.NewChainService(ctx, chain, network, netParams),
-		orphanBlocks: make(map[types.ID]*orphanBlock),
-		orphanLock:   stdsync.RWMutex{},
+	// Network
+	networkOpts := []net.Option{
+		net.Datastore(ds),
+		net.SeedAddrs(seedAddrs),
+		net.ListenAddrs(listenAddrs),
+		net.UserAgent(config.UserAgent),
+		net.PrivateKey(privKey),
+		net.Params(netParams),
+		net.BlockValidator(s.handleIncomingBlock),
+		net.MempoolValidator(mpool.ProcessTransaction),
 	}
+	if config.DisableNATPortMap {
+		networkOpts = append(networkOpts, net.DisableNatPortMap())
+	}
+
+	network, err := net.NewNetwork(ctx, networkOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	s.cancelFunc = cancel
+	s.config = config
+	s.params = netParams
+	s.ds = ds
+	s.network = network
+	s.blockchain = chain
+	s.mempool = mpool
+	s.chainService = sync.NewChainService(ctx, chain, network, netParams)
+	s.orphanBlocks = make(map[types.ID]*orphanBlock)
+	s.orphanLock = stdsync.RWMutex{}
 
 	s.printListenAddrs()
 
-	return s, nil
+	return &s, nil
 }
 
 func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.ID) error {
@@ -239,47 +242,14 @@ func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.I
 }
 
 func (s *Server) decodeXthinner(xthinnerBlk *blocks.XThinnerBlock, p peer.ID) (*blocks.Block, error) {
-	blkID := xthinnerBlk.ID()
-	missingTxs := make(map[types.ID]*transactions.Transaction)
-	blkTxids, missing := s.mempool.DecodeXthinner(xthinnerBlk)
+	blk, missing := s.mempool.DecodeXthinner(xthinnerBlk)
 	if len(missing) > 0 {
-		txs, err := s.chainService.GetBlockTxs(p, blkID, missing)
+		txs, err := s.chainService.GetBlockTxs(p, xthinnerBlk.ID(), missing)
 		if err != nil {
 			return nil, err
 		}
 		for i, tx := range txs {
-			txid := tx.ID()
-			blkTxids[missing[i]] = txid
-			missingTxs[txid] = tx
-		}
-
-	}
-	blk := &blocks.Block{
-		Header:       xthinnerBlk.Header,
-		Transactions: make([]*transactions.Transaction, 0, xthinnerBlk.TxCount),
-	}
-	for i, txid := range blkTxids {
-		tx, ok := missingTxs[txid]
-		if ok {
-			blk.Transactions = append(blk.Transactions, tx)
-		} else {
-			foundInPrefilled := false
-			for _, ptx := range xthinnerBlk.PrefilledTxs {
-				if ptx.Index == uint32(i) {
-					blk.Transactions = append(blk.Transactions, ptx.Transaction)
-					foundInPrefilled = true
-					break
-				}
-			}
-			if foundInPrefilled {
-				continue
-			}
-
-			tx, err := s.mempool.GetTransaction(txid)
-			if err != nil {
-				return nil, err
-			}
-			blk.Transactions = append(blk.Transactions, tx)
+			blk.Transactions[missing[i]] = tx
 		}
 	}
 	return blk, nil
