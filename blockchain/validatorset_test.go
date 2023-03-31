@@ -203,3 +203,31 @@ func TestValidatorSetMethods(t *testing.T) {
 
 	assert.Equal(t, valID, vs.WeightedRandomValidator())
 }
+
+/*func calcStdDeviation(epochLen int, stakePercent float64) (float64, float64) {
+	avgs := make([]int, 1000)
+	for r := 0; r < 1000; r++ {
+		blks := 0
+		for i := 0; i < epochLen; i++ {
+			x := mrand.Intn(1000)
+			if float64(x) < stakePercent*10 {
+				blks++
+			}
+		}
+		avgs[r] = blks
+	}
+	total := 0
+	for _, avg := range avgs {
+		total += avg
+	}
+	mean := float64(total) / 1000
+
+	deviation2total := float64(0)
+	for _, avg := range avgs {
+		deviation2total += math.Pow(float64(avg)-mean, 2)
+	}
+
+	variance := deviation2total / 1000
+
+	return mean, math.Sqrt(variance)
+}*/

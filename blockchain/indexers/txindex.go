@@ -21,7 +21,7 @@ var _ Indexer = (*TxIndex)(nil)
 
 const (
 	txIndexKey  = "txindex"
-	txIndexName = "transaction index"
+	TxIndexName = "transaction index"
 )
 
 // TxIndex is and implementation of the Indexer which indexes
@@ -43,7 +43,7 @@ func (idx *TxIndex) Key() string {
 
 // Name returns the human-readable name of the index.
 func (idx *TxIndex) Name() string {
-	return txIndexName
+	return TxIndexName
 }
 
 // ConnectBlock is called when a block is connected to the chain.
@@ -90,4 +90,8 @@ func (idx *TxIndex) GetTransaction(ds repo.Datastore, txid types.ID) (*transacti
 	}
 
 	return dsTxs.Transactions[pos], nil
+}
+
+func DropTxIndex(ds repo.Datastore) error {
+	return dsDropIndex(ds, &TxIndex{})
 }

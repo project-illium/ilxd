@@ -72,7 +72,7 @@ func runTest(numNodes int, numNoVotes int, numAlwaysNoVotes int) (bool, error) {
 		network, err := net.NewNetwork(context.Background(), []net.Option{
 			net.WithHost(host),
 			net.Params(&params.RegestParams),
-			net.BlockValidator(func(*blocks.CompactBlock, peer.ID) error {
+			net.BlockValidator(func(*blocks.XThinnerBlock, peer.ID) error {
 				return nil
 			}),
 			net.MempoolValidator(func(transaction *transactions.Transaction) error {
@@ -83,7 +83,7 @@ func runTest(numNodes int, numNoVotes int, numAlwaysNoVotes int) (bool, error) {
 			return false, err
 		}
 
-		engine, err := NewAvalancheEngine(context.Background(), network, &MockChooser{network: network})
+		engine, err := NewAvalancheEngine(context.Background(), &params.RegestParams, network, &MockChooser{network: network})
 		if err != nil {
 			return false, err
 		}

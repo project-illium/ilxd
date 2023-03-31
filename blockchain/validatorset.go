@@ -25,6 +25,8 @@ import (
 const (
 	// TODO: decide on a value for this
 	maxTimeBetweenFlushes = time.Minute * 15
+
+	maxEpochBlockMultiple = 8
 )
 
 // setConsistencyStatus (SCS) codes are used to indicate the
@@ -58,12 +60,13 @@ type Stake struct {
 // Validator holds all the information about a validator in the ValidatorSet
 // that is needed to validate blocks.
 type Validator struct {
-	PeerID         peer.ID
-	TotalStake     types.Amount
-	Nullifiers     map[types.Nullifier]Stake
-	unclaimedCoins types.Amount
-	epochBlocks    uint32
-	dirty          bool
+	PeerID           peer.ID
+	TotalStake       types.Amount
+	Nullifiers       map[types.Nullifier]Stake
+	unclaimedCoins   types.Amount
+	stakeAccumulator float64
+	epochBlocks      uint32
+	dirty            bool
 }
 
 // ValidatorSet maintains the current state of the set of validators in
@@ -81,6 +84,7 @@ type ValidatorSet struct {
 	toDelete     map[peer.ID]struct{}
 	chooser      *weightedrand.Chooser[peer.ID, types.Amount]
 	dirty        bool
+	epochBlocks  uint32
 	lastFlush    time.Time
 	mtx          sync.RWMutex
 }
@@ -306,18 +310,14 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 	nullifiersToDelete := make(map[types.Nullifier]struct{})
 	blockTime := time.Unix(blk.Header.Timestamp, 0)
 
+	var (
+		producerID peer.ID
+		err        error
+	)
 	if blk.Header.Height > 0 {
-		producerID, err := peer.IDFromBytes(blk.Header.Producer_ID)
+		producerID, err = peer.IDFromBytes(blk.Header.Producer_ID)
 		if err != nil {
 			return err
-		}
-
-		blockProducer, ok := vs.validators[producerID]
-		if ok {
-			blockProducerNew := &Validator{}
-			copyValidator(blockProducerNew, blockProducer)
-			blockProducerNew.epochBlocks++
-			updates[producerID] = blockProducerNew
 		}
 	}
 
@@ -443,24 +443,48 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 		}
 	}
 
+	totalStaked := vs.totalStaked()
 	if validatorReward > 0 {
-		totalStaked := vs.totalStaked()
+		vs.dirty = true
 		for _, val := range vs.validators {
-			valTotal := types.Amount(0)
-			for _, stake := range val.Nullifiers {
-				timeSinceStake := blockTime.Sub(stake.Blockstamp).Seconds()
-				epochLength := float64(vs.params.EpochLength)
-				if timeSinceStake >= epochLength {
-					valTotal += stake.Amount
-				} else {
-					valTotal += types.Amount(float64(stake.Amount) * timeSinceStake / epochLength)
+			expectedBlocks := val.stakeAccumulator / float64(vs.epochBlocks)
+			if expectedBlocks < 1 {
+				expectedBlocks = 1
+			}
+			if val.epochBlocks > blockProductionLimit(float64(vs.epochBlocks), expectedBlocks/float64(vs.epochBlocks)) {
+				val.unclaimedCoins = 0
+			} else {
+				valTotal := types.Amount(0)
+				for _, stake := range val.Nullifiers {
+					timeSinceStake := blockTime.Sub(stake.Blockstamp).Seconds()
+					epochLength := float64(vs.params.EpochLength)
+					if timeSinceStake >= epochLength {
+						valTotal += stake.Amount
+					} else {
+						valTotal += types.Amount(float64(stake.Amount) * timeSinceStake / epochLength)
+					}
+				}
+				if valTotal > 0 {
+					val.unclaimedCoins = val.unclaimedCoins + types.Amount(float64(validatorReward)*(float64(valTotal)/float64(totalStaked)))
 				}
 			}
 
-			if valTotal > 0 {
-				val.unclaimedCoins = val.unclaimedCoins + types.Amount(float64(validatorReward)*(float64(valTotal)/float64(totalStaked)))
-			}
+			val.dirty = true
+			val.epochBlocks = 0
+			val.stakeAccumulator = 0
 		}
+		vs.epochBlocks = 0
+	}
+
+	if blk.Header.Height > 0 {
+		blockProducer, ok := vs.validators[producerID]
+		if ok {
+			blockProducer.epochBlocks++
+		}
+	}
+
+	for _, val := range vs.validators {
+		val.stakeAccumulator += float64(val.TotalStake) / float64(totalStaked)
 	}
 
 	if len(updates) > 0 || len(nullifiersToAdd) > 0 || len(nullifiersToDelete) > 0 {
@@ -470,6 +494,8 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 		}
 		vs.chooser, _ = weightedrand.NewChooser(choices...)
 	}
+
+	vs.epochBlocks++
 
 	return vs.flush(flushMode, blk.Header.Height)
 }
@@ -486,6 +512,24 @@ func (vs *ValidatorSet) WeightedRandomValidator() peer.ID {
 	}
 
 	return vs.chooser.Pick()
+}
+
+// BlockProductionLimit returns the maximum blocks that a validator can produce without losing
+// this coinbase. This is based on the current snapshot state of the set and changes every
+// block.
+func (vs *ValidatorSet) BlockProductionLimit(validatorID peer.ID) (uint32, uint32, error) {
+	vs.mtx.RLock()
+	defer vs.mtx.RUnlock()
+
+	val, ok := vs.validators[validatorID]
+	if !ok {
+		return 0, 0, errors.New("not found")
+	}
+	expectedBlocks := val.stakeAccumulator / float64(vs.epochBlocks)
+	if expectedBlocks < 1 {
+		expectedBlocks = 1
+	}
+	return val.epochBlocks, blockProductionLimit(float64(vs.epochBlocks), expectedBlocks/float64(vs.epochBlocks)), nil
 }
 
 // Flush flushes changes from the memory cache to disk.
@@ -561,6 +605,24 @@ func (vs *ValidatorSet) flushToDisk(chainHeight uint32) error {
 	vs.lastFlush = time.Now()
 
 	return nil
+}
+
+func blockProductionLimit(epochBlocks float64, stakePercentage float64) uint32 {
+	expectedBlocks := float64(epochBlocks) * (float64(stakePercentage) / 100)
+
+	var y float64
+	if epochBlocks < 1000 {
+		y = -0.666406440899447 + (0.00554776321533361 * epochBlocks) + (0.4487212077226 * stakePercentage)
+	} else if epochBlocks > 10000 {
+		y = -5.24316140008031 + (0.00132257484184948 * epochBlocks) + (1.60889421683857 * stakePercentage)
+	} else {
+		y = -0.0966049794345167 + (0.0033879058023209 * epochBlocks) + (0.259879996966144 * stakePercentage)
+	}
+	if y < 1 {
+		y = 1
+	}
+
+	return uint32(expectedBlocks + (y * 7))
 }
 
 func copyValidator(dest *Validator, src *Validator) {

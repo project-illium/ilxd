@@ -344,6 +344,23 @@ func (b *Blockchain) UnclaimedCoins(validatorID peer.ID) (types.Amount, error) {
 	return val.unclaimedCoins, nil
 }
 
+// Params returns the current chain parameters use by the blockchain.
+func (b *Blockchain) Params() *params.NetworkParams {
+	return b.params
+}
+
+// IsProducerUnderLimit returns whether the given validator is currently under the block production limit.
+func (b *Blockchain) IsProducerUnderLimit(validatorID peer.ID) (bool, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	current, max, err := b.validatorSet.BlockProductionLimit(validatorID)
+	if err != nil {
+		return false, err
+	}
+	return current < max, nil
+}
+
 func (b *Blockchain) isInitialized() (bool, error) {
 	_, err := dsFetchBlockIDFromHeight(b.ds, 0)
 	if err == datastore.ErrNotFound {

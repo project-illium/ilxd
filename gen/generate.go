@@ -94,6 +94,14 @@ func (g *BlockGenerator) eventLoop() {
 }
 
 func (g *BlockGenerator) generateBlock() error {
+	ok, err := g.chain.IsProducerUnderLimit(g.ownPeerID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return nil
+	}
+
 	bestID, height, timestamp := g.chain.BestBlock()
 
 	now := time.Now()

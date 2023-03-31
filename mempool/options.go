@@ -7,12 +7,11 @@ package mempool
 import (
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/params"
+	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
 )
 
 const (
-	defaultFeePerByte     = 10
-	defaultMinimumStake   = 1000000
 	defaultSigCacheSize   = 100000
 	defaultProofCacheSize = 100000
 )
@@ -23,8 +22,8 @@ const (
 func DefaultOptions() Option {
 	return func(cfg *config) error {
 		cfg.params = &params.RegestParams
-		cfg.fpb = defaultFeePerByte
-		cfg.minStake = defaultMinimumStake
+		cfg.fpb = repo.DefaultFeePerByte
+		cfg.minStake = repo.DefaultMinimumStake
 		cfg.sigCache = blockchain.NewSigCache(defaultSigCacheSize)
 		cfg.proofCache = blockchain.NewProofCache(defaultProofCacheSize)
 		cfg.treasuryWhitelist = make(map[types.ID]bool)
@@ -60,7 +59,7 @@ func Params(params *params.NetworkParams) Option {
 // FeePerByte is the minimum fee per byte to use when admitting
 // transactions into the mempool. By extension the node will only
 // relay transactions with a fee above this level as well.
-func FeePerByte(fpb uint64) Option {
+func FeePerByte(fpb types.Amount) Option {
 	return func(cfg *config) error {
 		cfg.fpb = fpb
 		return nil
@@ -70,7 +69,7 @@ func FeePerByte(fpb uint64) Option {
 // MinStake is the minimum amount of stake that a stake transaction
 // must post to be admitted into the mempool. By extension the node
 // will only relay transactions with a stake above this level as well.
-func MinStake(minStake uint64) Option {
+func MinStake(minStake types.Amount) Option {
 	return func(cfg *config) error {
 		cfg.minStake = minStake
 		return nil
@@ -80,9 +79,13 @@ func MinStake(minStake uint64) Option {
 // TreasuryWhitelist is a map of transactions ID that this node approves
 // of for treasury withdrawls. Only this IDs will be accepted into the
 // mempool.
-func TreasuryWhitelist(whitelist map[types.ID]bool) Option {
+func TreasuryWhitelist(whitelist []types.ID) Option {
 	return func(cfg *config) error {
-		cfg.treasuryWhitelist = whitelist
+		m := make(map[types.ID]bool)
+		for _, id := range whitelist {
+			m[id] = true
+		}
+		cfg.treasuryWhitelist = m
 		return nil
 	}
 }
@@ -113,8 +116,8 @@ func ProofCache(proofCache *blockchain.ProofCache) Option {
 type config struct {
 	params            *params.NetworkParams
 	chainView         ChainView
-	fpb               uint64
-	minStake          uint64
+	fpb               types.Amount
+	minStake          types.Amount
 	sigCache          *blockchain.SigCache
 	proofCache        *blockchain.ProofCache
 	treasuryWhitelist map[types.ID]bool

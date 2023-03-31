@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/blockchain/indexers"
+	"github.com/project-illium/ilxd/consensus"
 	"github.com/project-illium/ilxd/mempool"
 	"github.com/project-illium/ilxd/net"
 	params "github.com/project-illium/ilxd/params"
@@ -36,15 +37,18 @@ type orphanBlock struct {
 // into a full node.
 type Server struct {
 	cancelFunc   context.CancelFunc
+	ctx          context.Context
 	config       *repo.Config
 	params       *params.NetworkParams
 	ds           repo.Datastore
 	network      *net.Network
 	blockchain   *blockchain.Blockchain
 	mempool      *mempool.Mempool
+	engine       *consensus.ConsensusEngine
 	chainService *sync.ChainService
 	orphanBlocks map[types.ID]*orphanBlock
 	orphanLock   stdsync.RWMutex
+	policy       *Policy
 }
 
 // BuildServer is the constructor for the server. We pass in the config file here
@@ -57,6 +61,21 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	// Logging
 	if err := setupLogging(config.LogDir, config.LogLevel, config.Testnet); err != nil {
 		return nil, err
+	}
+
+	// Policy
+	policy := &Policy{
+		MinFeePerByte:      types.Amount(config.MinFeePerByte),
+		MinStake:           types.Amount(config.MinStake),
+		BlocksizeSoftLimit: config.BlocksizeSoftLimit,
+		MaxMessageSize:     config.MaxMessageSize,
+	}
+	for _, id := range config.TreasuryWhitelist {
+		w, err := types.NewIDFromString(id)
+		if err != nil {
+			return nil, err
+		}
+		s.policy.TreasuryWhitelist = append(s.policy.TreasuryWhitelist, w)
 	}
 
 	// Parameter selection
@@ -125,6 +144,12 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		blockchain.SnarkProofCache(proofCache),
 	}
 
+	if config.DropTxIndex {
+		if err := indexers.DropTxIndex(ds); err != nil {
+			return nil, err
+		}
+	}
+
 	if !config.NoTxIndex {
 		blockchainOpts = append(blockchainOpts, blockchain.Indexers([]indexers.Indexer{indexers.NewTxIndex()}))
 
@@ -140,6 +165,8 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		mempool.ProofCache(proofCache),
 		mempool.Params(netParams),
 		mempool.BlockchainView(chain),
+		mempool.MinStake(policy.MinStake),
+		mempool.FeePerByte(policy.MinFeePerByte),
 	}
 
 	mpool, err := mempool.NewMempool(mempoolOpts...)
@@ -167,6 +194,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		return nil, err
 	}
 
+	s.ctx = ctx
 	s.cancelFunc = cancel
 	s.config = config
 	s.params = netParams
@@ -177,6 +205,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.chainService = sync.NewChainService(ctx, chain, network, netParams)
 	s.orphanBlocks = make(map[types.ID]*orphanBlock)
 	s.orphanLock = stdsync.RWMutex{}
+	s.policy = policy
 
 	s.printListenAddrs()
 
@@ -237,7 +266,32 @@ func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.I
 			return s.blockchain.CheckConnectBlock(blk)
 		}
 	}
-	// TODO: This should be passed off to the consensus engine.
+	if err == nil {
+		callback := make(chan consensus.Status)
+		// TODO: set initial preference correctly
+		startTime := time.Now()
+		s.engine.NewBlock(blk.ID(), true, callback)
+
+		go func(b *blocks.Block, t time.Time) {
+			select {
+			case status := <-callback:
+				switch status {
+				case consensus.StatusFinalized:
+					blockID := blk.ID()
+					log.Debugf("Block %s finalized in %s milliseconds", blockID, time.Since(t).Milliseconds())
+					if err := s.blockchain.ConnectBlock(b, blockchain.BFNone); err != nil {
+						log.Warnf("Connect block error: block %s: %s", blockID, err)
+					} else {
+						log.Infof("New block: %s, (%d transactions)", blockID, len(b.Transactions))
+					}
+				case consensus.StatusRejected:
+					log.Debugf("Block %s rejected by consensus", b.ID())
+				}
+			case <-s.ctx.Done():
+				return
+			}
+		}(blk, startTime)
+	}
 	return err
 }
 

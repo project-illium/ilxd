@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/binary"
 	datastore "github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types/blocks"
 )
@@ -101,4 +102,26 @@ func dsPutIndexValue(dbtx datastore.Txn, indexer Indexer, key string, value []by
 
 func dsFetchIndexValue(ds repo.Datastore, indexer Indexer, key string) ([]byte, error) {
 	return ds.Get(context.Background(), datastore.NewKey(repo.IndexKeyPrefix+indexer.Key()+"/"+key))
+}
+
+func dsDropIndex(ds repo.Datastore, indexer Indexer) error {
+	q := query.Query{
+		Prefix: repo.IndexKeyPrefix + indexer.Key(),
+	}
+	dbtx, err := ds.NewTransaction(context.Background(), false)
+	if err != nil {
+		return err
+	}
+	defer dbtx.Discard(context.Background())
+	results, err := dbtx.Query(context.Background(), q)
+	if err != nil {
+		return err
+	}
+
+	for result, ok := results.NextSync(); ok; result, ok = results.NextSync() {
+		if err = dbtx.Delete(context.Background(), datastore.NewKey(result.Key)); err != nil {
+			return err
+		}
+	}
+	return dbtx.Commit(context.Background())
 }

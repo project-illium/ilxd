@@ -77,7 +77,7 @@ type registerVotesMsg struct {
 	resp *wire.MsgAvaResponse
 }
 
-type AvalancheEngine struct {
+type ConsensusEngine struct {
 	ctx     context.Context
 	network *net.Network
 	params  *params.NetworkParams
@@ -100,8 +100,8 @@ type AvalancheEngine struct {
 	printState  bool
 }
 
-func NewAvalancheEngine(ctx context.Context, params *params.NetworkParams, network *net.Network, chooser blockchain.WeightedChooser) (*AvalancheEngine, error) {
-	return &AvalancheEngine{
+func NewConsensusEngine(ctx context.Context, params *params.NetworkParams, network *net.Network, chooser blockchain.WeightedChooser) (*ConsensusEngine, error) {
+	return &ConsensusEngine{
 		ctx:     ctx,
 		network: network,
 		chooser: chooser,
@@ -118,18 +118,18 @@ func NewAvalancheEngine(ctx context.Context, params *params.NetworkParams, netwo
 }
 
 // Start begins the core handler which processes peers and avalanche messages.
-func (eng *AvalancheEngine) Start() {
+func (eng *ConsensusEngine) Start() {
 	eng.network.Host().SetStreamHandler(eng.params.ProtocolPrefix+ConsensusProtocol, eng.HandleNewStream)
 	eng.wg.Add(1)
 	go eng.handler()
 }
 
-func (eng *AvalancheEngine) Stop() {
+func (eng *ConsensusEngine) Stop() {
 	close(eng.quit)
 	eng.wg.Wait()
 }
 
-func (eng *AvalancheEngine) handler() {
+func (eng *ConsensusEngine) handler() {
 	eventLoopTicker := time.NewTicker(AvalancheTimeStep)
 out:
 	for {
@@ -155,7 +155,7 @@ out:
 	eng.wg.Done()
 }
 
-func (eng *AvalancheEngine) NewBlock(blockID types.ID, initialAcceptancePreference bool, callback chan<- Status) {
+func (eng *ConsensusEngine) NewBlock(blockID types.ID, initialAcceptancePreference bool, callback chan<- Status) {
 	eng.start = time.Now()
 	eng.msgChan <- &newBlockMessage{
 		blockID:                     blockID,
@@ -164,7 +164,7 @@ func (eng *AvalancheEngine) NewBlock(blockID types.ID, initialAcceptancePreferen
 	}
 }
 
-func (eng *AvalancheEngine) handleNewBlock(blockID types.ID, initialAcceptancePreference bool, callback chan<- Status) {
+func (eng *ConsensusEngine) handleNewBlock(blockID types.ID, initialAcceptancePreference bool, callback chan<- Status) {
 	_, ok := eng.voteRecords[blockID]
 	if ok {
 		return
@@ -180,11 +180,11 @@ func (eng *AvalancheEngine) handleNewBlock(blockID types.ID, initialAcceptancePr
 	eng.callbacks[blockID] = callback
 }
 
-func (eng *AvalancheEngine) HandleNewStream(s inet.Stream) {
+func (eng *ConsensusEngine) HandleNewStream(s inet.Stream) {
 	go eng.handleNewMessage(s)
 }
 
-func (eng *AvalancheEngine) handleNewMessage(s inet.Stream) {
+func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 	defer s.Close()
 	contextReader := ctxio.NewReader(eng.ctx, s)
 	reader := msgio.NewVarintReaderSize(contextReader, inet.MessageSizeMax)
@@ -229,7 +229,7 @@ func (eng *AvalancheEngine) handleNewMessage(s inet.Stream) {
 	}
 }
 
-func (eng *AvalancheEngine) handleQuery(req *wire.MsgAvaRequest, respChan chan *wire.MsgAvaResponse) {
+func (eng *ConsensusEngine) handleQuery(req *wire.MsgAvaRequest, respChan chan *wire.MsgAvaResponse) {
 	votes := make([]byte, len(req.Invs))
 	for i, invBytes := range req.Invs {
 		inv := types.NewID(invBytes)
@@ -270,7 +270,7 @@ func (eng *AvalancheEngine) handleQuery(req *wire.MsgAvaRequest, respChan chan *
 	respChan <- resp
 }
 
-func (eng *AvalancheEngine) handleRequestExpiration(key string) {
+func (eng *ConsensusEngine) handleRequestExpiration(key string) {
 	r, ok := eng.queries[key]
 	if !ok {
 		return
@@ -286,7 +286,7 @@ func (eng *AvalancheEngine) handleRequestExpiration(key string) {
 	}
 }
 
-func (eng *AvalancheEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer peer.ID) {
+func (eng *ConsensusEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer peer.ID) {
 	var (
 		key  = queryKey(req.RequestID, peer.String())
 		resp = new(wire.MsgAvaResponse)
@@ -305,7 +305,7 @@ func (eng *AvalancheEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer pee
 	}
 }
 
-func (eng *AvalancheEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResponse) {
+func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResponse) {
 	key := queryKey(resp.RequestID, p.String())
 
 	r, ok := eng.queries[key]
@@ -352,7 +352,7 @@ func (eng *AvalancheEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 
 		if vr.isPreferred() {
 			// We need to keep track of conflicting blocks
-			// when this one becomes accepted with need to set the
+			// when this one becomes accepted we need to set the
 			// confidence of the conflicts back to zero.
 		}
 
@@ -370,7 +370,7 @@ func (eng *AvalancheEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 	}
 }
 
-func (eng *AvalancheEngine) pollLoop() {
+func (eng *ConsensusEngine) pollLoop() {
 	if eng.alwaysNo || eng.flipFlopper {
 		return
 	}
@@ -401,7 +401,7 @@ func (eng *AvalancheEngine) pollLoop() {
 	go eng.queueMessageToPeer(req, p)
 }
 
-func (eng *AvalancheEngine) getInvsForNextPoll() []types.ID {
+func (eng *ConsensusEngine) getInvsForNextPoll() []types.ID {
 	var (
 		invs     []types.ID
 		toDelete []types.ID

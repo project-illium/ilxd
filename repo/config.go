@@ -24,6 +24,11 @@ const (
 	DefaultLogFilename    = "ilxd.log"
 	defaultConfigFilename = "ilxd.conf"
 	defaultGrpcPort       = "5001"
+
+	DefaultFeePerByte     = 10
+	DefaultMinimumStake   = 1000000
+	DefaultMaxMessageSize = 1 << 23 // 8 MiB
+	DefaultSoftLimit      = 1 << 20 // 1 MiB
 )
 
 var (
@@ -54,6 +59,14 @@ type Config struct {
 	DisableNATPortMap bool     `long:"noupnp" description:"Disable use of upnp"`
 	UserAgent         string   `long:"useragent" description:"A custom user agent to advertise to the network"`
 	NoTxIndex         bool     `long:"notxindex" description:"Disable the transaction index"`
+	DropTxIndex       bool     `long:"droptxindex" description:"Delete the tx index from the database"`
+
+	// Policy
+	MinFeePerByte      uint64   `long:"minfeeperbyte" description:"The minimum fee per byte that the node will accept in the mempool and generated blocks"`
+	MinStake           uint64   `long:"minstake" description:"The minimum stake required to accept a stake tx into the mempool or a generated block"`
+	TreasuryWhitelist  []string `long:"treasurywhitelist" description:"Allow these treasury txids into the mempool and generated blocks"`
+	BlocksizeSoftLimit uint32   `long:"blocksizesoftlimit" description:"The maximum size block this node will generate"`
+	MaxMessageSize     uint32   `long:"maxmessagesize" description:"The maximum size of a network message. This is a hard limit. Setting this value different than all other nodes could fork you off the network."`
 
 	RPCOpts RPCOptions `group:"RPC Options"`
 }
@@ -179,6 +192,18 @@ func LoadConfig() (*Config, error) {
 	}
 
 	cfg.UserAgent = "/ilxd/" + VersionString() + "/" + cfg.UserAgent
+	if cfg.MinFeePerByte == 0 {
+		cfg.MinFeePerByte = DefaultFeePerByte
+	}
+	if cfg.MinStake == 0 {
+		cfg.MinStake = DefaultMinimumStake
+	}
+	if cfg.BlocksizeSoftLimit == 0 {
+		cfg.BlocksizeSoftLimit = DefaultSoftLimit
+	}
+	if cfg.MaxMessageSize == 0 {
+		cfg.MaxMessageSize = DefaultMaxMessageSize
+	}
 
 	return &cfg, nil
 }

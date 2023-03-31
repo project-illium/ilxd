@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/params"
@@ -246,10 +247,12 @@ func TestValidateBlock(t *testing.T) {
 
 	// Build valid block
 	header := randomBlockHeader(1, randomID())
-	sk, pk, err := crypto.GenerateEd25519Key(rand.Reader)
+	pkBytes, err := hex.DecodeString("08011240a9aa020035ffcd6b474e45667ed6cb76a8c8b570b09f7605c488a0ea881a2ed8ee319ce201a24dbef41b6480c7f6315930825ddb0476662c6afa837573ef063f")
+	assert.NoError(t, err)
+	sk, err := crypto.UnmarshalPrivateKey(pkBytes)
 	assert.NoError(t, err)
 
-	pid, err := peer.IDFromPublicKey(pk)
+	pid, err := peer.IDFromPublicKey(sk.GetPublic())
 	assert.NoError(t, err)
 
 	pidBytes, err := pid.Marshal()
@@ -358,9 +361,10 @@ func TestValidateBlock(t *testing.T) {
 								Ciphertext:      make([]byte, CiphertextLen),
 							},
 						},
-						Nullifiers: [][]byte{nullifier3[:]},
+						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
-					}), transactions.WrapTransaction(&transactions.StandardTransaction{
+					}),
+					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
 								Commitment:      make([]byte, types.CommitmentLen),
@@ -368,7 +372,7 @@ func TestValidateBlock(t *testing.T) {
 								Ciphertext:      make([]byte, CiphertextLen),
 							},
 						},
-						Nullifiers: [][]byte{nullifier[:]},
+						Nullifiers: [][]byte{nullifier3[:]},
 						TxoRoot:    txoRoot[:],
 					}),
 				}
@@ -451,7 +455,7 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: bytes.Repeat([]byte{0x11}, PubkeyLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
 								Ciphertext:      make([]byte, CiphertextLen),
 							},
 						},
@@ -462,7 +466,7 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
+								EphemeralPubkey: bytes.Repeat([]byte{0x11}, PubkeyLen),
 								Ciphertext:      make([]byte, CiphertextLen),
 							},
 						},
@@ -1023,7 +1027,7 @@ func TestValidateBlock(t *testing.T) {
 			block: func(blk *blocks.Block) (*blocks.Block, error) {
 				blk.Transactions = []*transactions.Transaction{
 					transactions.WrapTransaction(&transactions.TreasuryTransaction{
-						Amount: 3000,
+						Amount: 8000,
 						Outputs: []*transactions.Output{
 							{
 								Commitment:      make([]byte, types.CommitmentLen),
@@ -1034,7 +1038,7 @@ func TestValidateBlock(t *testing.T) {
 						ProposalHash: make([]byte, 32),
 					}),
 					transactions.WrapTransaction(&transactions.TreasuryTransaction{
-						Amount: 8000,
+						Amount: 3000,
 						Outputs: []*transactions.Output{
 							{
 								Commitment:      make([]byte, types.CommitmentLen),
@@ -1241,6 +1245,8 @@ func TestValidateBlock(t *testing.T) {
 			assert.True(t, ok)
 			if ok {
 				assert.Equalf(t, test.expectedErr.(RuleError).ErrorCode, err.(RuleError).ErrorCode, "block validation test: %s: error %s", test.name, err.Error())
+			} else {
+				fmt.Println(err, test.name)
 			}
 		}
 	}
