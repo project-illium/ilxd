@@ -454,7 +454,7 @@ func TestMempool(t *testing.T) {
 			name: "stake below minimum",
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Validator_ID: valBytes,
-				Amount:       m.cfg.minStake - 1,
+				Amount:       uint64(m.cfg.minStake - 1),
 				Nullifier:    randomBytes(),
 				TxoRoot:      txoRoot[:],
 				Proof:        make([]byte, 1000),
@@ -477,7 +477,7 @@ func TestMempool(t *testing.T) {
 			name: "valid stake transaction",
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Validator_ID: valBytes,
-				Amount:       m.cfg.minStake,
+				Amount:       uint64(m.cfg.minStake),
 				Nullifier:    randomBytes(),
 				TxoRoot:      txoRoot[:],
 				Proof:        make([]byte, 1000),
@@ -500,7 +500,7 @@ func TestMempool(t *testing.T) {
 			name: "stake nullifier already in pool",
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Validator_ID: valBytes,
-				Amount:       m.cfg.minStake,
+				Amount:       uint64(m.cfg.minStake),
 				Nullifier:    nullifier1,
 				TxoRoot:      txoRoot[:],
 				Proof:        make([]byte, 1000),
@@ -523,7 +523,7 @@ func TestMempool(t *testing.T) {
 			name: "stake nullifier already in set",
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Validator_ID: valBytes,
-				Amount:       m.cfg.minStake,
+				Amount:       uint64(m.cfg.minStake),
 				Nullifier:    nullifier2[:],
 				TxoRoot:      txoRoot[:],
 				Proof:        make([]byte, 1000),
@@ -546,7 +546,7 @@ func TestMempool(t *testing.T) {
 			name: "stake txo root not in set",
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Validator_ID: valBytes,
-				Amount:       m.cfg.minStake,
+				Amount:       uint64(m.cfg.minStake),
 				Nullifier:    randomBytes(),
 				TxoRoot:      txoRoot2[:],
 				Proof:        make([]byte, 1000),
@@ -686,7 +686,7 @@ func TestFeePerByte(t *testing.T) {
 	fpb, ok, err := calcFeePerByte(tx)
 	assert.True(t, ok)
 	assert.NoError(t, err)
-	assert.Equal(t, tx.GetStandardTransaction().Fee/uint64(size), fpb)
+	assert.Equal(t, types.Amount(tx.GetStandardTransaction().Fee/uint64(size)), fpb)
 }
 
 func randomID() types.ID {

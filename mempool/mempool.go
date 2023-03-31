@@ -286,7 +286,7 @@ func (m *Mempool) validationTransaction(tx *transactions.Transaction) error {
 			m.nullifiers[types.NewNullifier(n)] = t.MintTransaction.ID()
 		}
 	case *transactions.Transaction_StakeTransaction:
-		if t.StakeTransaction.Amount < m.cfg.minStake {
+		if types.Amount(t.StakeTransaction.Amount) < m.cfg.minStake {
 			return policyError(ErrMinStake, "stake amount below policy minimum")
 		}
 		if _, ok := m.nullifiers[types.NewNullifier(t.StakeTransaction.Nullifier)]; ok {
@@ -330,7 +330,7 @@ func (m *Mempool) validationTransaction(tx *transactions.Transaction) error {
 	return nil
 }
 
-func calcFeePerByte(tx *transactions.Transaction) (uint64, bool, error) {
+func calcFeePerByte(tx *transactions.Transaction) (types.Amount, bool, error) {
 	var fee uint64
 	switch t := tx.GetTx().(type) {
 	case *transactions.Transaction_CoinbaseTransaction,
@@ -348,5 +348,5 @@ func calcFeePerByte(tx *transactions.Transaction) (uint64, bool, error) {
 		return 0, false, err
 	}
 
-	return uint64(float64(fee) / float64(size)), true, nil
+	return types.Amount(float64(fee) / float64(size)), true, nil
 }

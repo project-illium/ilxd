@@ -60,7 +60,7 @@ func TestAvalancheEngine(t *testing.T) {
 func runTest(numNodes int, numNoVotes int, numAlwaysNoVotes int) (bool, error) {
 	var (
 		mocknet = mocknet.New()
-		engines = make([]*AvalancheEngine, 0, numNodes)
+		engines = make([]*ConsensusEngine, 0, numNodes)
 	)
 
 	defer mocknet.Close()
@@ -83,7 +83,7 @@ func runTest(numNodes int, numNoVotes int, numAlwaysNoVotes int) (bool, error) {
 			return false, err
 		}
 
-		engine, err := NewAvalancheEngine(context.Background(), &params.RegestParams, network, &MockChooser{network: network})
+		engine, err := NewConsensusEngine(context.Background(), &params.RegestParams, network, &MockChooser{network: network})
 		if err != nil {
 			return false, err
 		}

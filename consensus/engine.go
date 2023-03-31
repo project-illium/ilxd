@@ -102,10 +102,10 @@ type ConsensusEngine struct {
 
 func NewConsensusEngine(ctx context.Context, params *params.NetworkParams, network *net.Network, chooser blockchain.WeightedChooser) (*ConsensusEngine, error) {
 	return &ConsensusEngine{
-		ctx:     ctx,
-		network: network,
-		chooser: chooser,
-
+		ctx:            ctx,
+		network:        network,
+		chooser:        chooser,
+		params:         params,
 		ms:             net.NewMessageSender(network.Host(), params.ProtocolPrefix+ConsensusProtocol),
 		wg:             sync.WaitGroup{},
 		quit:           make(chan struct{}),
