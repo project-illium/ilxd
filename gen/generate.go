@@ -67,8 +67,10 @@ func NewBlockGenerator(opts ...Option) (*BlockGenerator, error) {
 		quit:           make(chan struct{}),
 	}
 
-	go g.eventLoop()
 	return g, nil
+}
+func (g *BlockGenerator) Start() {
+	go g.eventLoop()
 }
 
 func (g *BlockGenerator) Close() {

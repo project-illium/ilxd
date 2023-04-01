@@ -28,6 +28,8 @@ const (
 	maxTimeBetweenFlushes = time.Minute * 15
 
 	maxEpochBlockMultiple = 8
+
+	validatorExpiration = time.Hour * 24 * 7 * 26
 )
 
 // setConsistencyStatus (SCS) codes are used to indicate the
@@ -370,7 +372,9 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 					copyValidator(valNew, valOld)
 				}
 			}
-			valNew.TotalStake += types.Amount(tx.StakeTransaction.Amount)
+			if _, ok := valNew.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)]; !ok {
+				valNew.TotalStake += types.Amount(tx.StakeTransaction.Amount)
+			}
 			valNew.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)] = Stake{
 				Amount:     types.Amount(tx.StakeTransaction.Amount),
 				Blockstamp: blockTime,
@@ -422,6 +426,59 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 		}
 	}
 
+	totalStaked := vs.totalStaked()
+	if validatorReward > 0 {
+		vs.dirty = true
+		for _, valOld := range vs.validators {
+			valNew, ok := updates[valOld.PeerID]
+			if !ok {
+				valNew = &Validator{}
+				copyValidator(valNew, valOld)
+			}
+
+			expectedBlocks := valNew.stakeAccumulator / float64(vs.epochBlocks)
+			if expectedBlocks < 1 {
+				expectedBlocks = 1
+			}
+			valTotal := types.Amount(0)
+			for nullifier, stake := range valNew.Nullifiers {
+				timeSinceStake := blockTime.Sub(stake.Blockstamp)
+
+				if timeSinceStake >= validatorExpiration {
+					nullifiersToDelete[nullifier] = struct{}{}
+					delete(valNew.Nullifiers, nullifier)
+					continue
+				}
+
+				epochLength := float64(vs.params.EpochLength)
+				if timeSinceStake.Seconds() >= epochLength {
+					valTotal += stake.Amount
+				} else {
+					valTotal += types.Amount(float64(stake.Amount) * timeSinceStake.Seconds() / epochLength)
+				}
+			}
+			if valTotal > 0 {
+				valNew.unclaimedCoins = valNew.unclaimedCoins + types.Amount(float64(validatorReward)*(float64(valTotal)/float64(totalStaked)))
+			}
+
+			if valNew.epochBlocks > blockProductionLimit(float64(vs.epochBlocks), expectedBlocks/float64(vs.epochBlocks)) {
+				valNew.unclaimedCoins = 0
+			}
+
+			valNew.epochBlocks = 0
+			valNew.stakeAccumulator = 0
+			updates[valNew.PeerID] = valNew
+		}
+		vs.epochBlocks = 0
+	}
+
+	if blk.Header.Height > 0 {
+		blockProducer, ok := vs.validators[producerID]
+		if ok {
+			blockProducer.epochBlocks++
+		}
+	}
+
 	for _, val := range updates {
 		val.dirty = true
 		vs.dirty = true
@@ -441,46 +498,6 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 		if len(val.Nullifiers) == 0 {
 			vs.toDelete[val.PeerID] = struct{}{}
 			delete(vs.validators, val.PeerID)
-		}
-	}
-
-	totalStaked := vs.totalStaked()
-	if validatorReward > 0 {
-		vs.dirty = true
-		for _, val := range vs.validators {
-			expectedBlocks := val.stakeAccumulator / float64(vs.epochBlocks)
-			if expectedBlocks < 1 {
-				expectedBlocks = 1
-			}
-			if val.epochBlocks > blockProductionLimit(float64(vs.epochBlocks), expectedBlocks/float64(vs.epochBlocks)) {
-				val.unclaimedCoins = 0
-			} else {
-				valTotal := types.Amount(0)
-				for _, stake := range val.Nullifiers {
-					timeSinceStake := blockTime.Sub(stake.Blockstamp).Seconds()
-					epochLength := float64(vs.params.EpochLength)
-					if timeSinceStake >= epochLength {
-						valTotal += stake.Amount
-					} else {
-						valTotal += types.Amount(float64(stake.Amount) * timeSinceStake / epochLength)
-					}
-				}
-				if valTotal > 0 {
-					val.unclaimedCoins = val.unclaimedCoins + types.Amount(float64(validatorReward)*(float64(valTotal)/float64(totalStaked)))
-				}
-			}
-
-			val.dirty = true
-			val.epochBlocks = 0
-			val.stakeAccumulator = 0
-		}
-		vs.epochBlocks = 0
-	}
-
-	if blk.Header.Height > 0 {
-		blockProducer, ok := vs.validators[producerID]
-		if ok {
-			blockProducer.epochBlocks++
 		}
 	}
 

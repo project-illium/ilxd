@@ -276,6 +276,7 @@ func TestValidateBlock(t *testing.T) {
 		nullifier    = hexToBytes("4adde2dd6a0ee6af84839962c4649551c6b0c16099f413ff01d2b7438a21a6e9")
 		nullifier2   = hexToBytes("a731ba862b015ce93e4236d87bcfe0e37d156d1846dccdf3f8dd82764c970620")
 		nullifier3   = hexToBytes("22ef55682643310babc449255a510523be2ef31c1fd36581bcc907b35642c6d2")
+		nullifier4   = hexToBytes("32e77ef1961f1c9c5135bff6e939b7ef3b4e8c7defa61d50dca797c86f97cc91")
 		validatorID  = "12D3KooWRjmdSPh7WZmbYfiRXtt1cXAfGV6Q5nTQFwknWfEh5tT2"
 		validatorID2 = "12D3KooWP1qxNbQQLUFuZDfXkwPRC8p9UbVNVy3ytzaqryv8DJXz"
 	)
@@ -294,6 +295,12 @@ func TestValidateBlock(t *testing.T) {
 	b.validatorSet.validators[validatorPid] = &Validator{
 		PeerID:         validatorPid,
 		unclaimedCoins: 10000,
+		Nullifiers: map[types.Nullifier]Stake{
+			types.NewNullifier(nullifier4): {
+				Amount:     25,
+				Blockstamp: time.Now(),
+			},
+		},
 	}
 
 	acc := NewAccumulator()
@@ -448,6 +455,46 @@ func TestValidateBlock(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
+			name: "duplicate transaction (will violate block sort rule)",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.StandardTransaction{
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot[:],
+					}),
+					transactions.WrapTransaction(&transactions.StandardTransaction{
+						Outputs: []*transactions.Output{
+							{
+								Commitment:      make([]byte, types.CommitmentLen),
+								EphemeralPubkey: make([]byte, PubkeyLen),
+								Ciphertext:      make([]byte, CiphertextLen),
+							},
+						},
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot[:],
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFNone,
+			expectedErr: ruleError(ErrBlockSort, ""),
+		},
+		{
 			name: "standard transaction nullifier already in block",
 			block: func(blk *blocks.Block) (*blocks.Block, error) {
 				blk.Transactions = []*transactions.Transaction{
@@ -568,6 +615,58 @@ func TestValidateBlock(t *testing.T) {
 			},
 			flags:       BFFastAdd,
 			expectedErr: nil,
+		},
+		{
+			name: "stake valid restake",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.StakeTransaction{
+						Validator_ID: validatorIDBytes,
+						Nullifier:    nullifier4,
+						TxoRoot:      txoRoot[:],
+						Locktime:     time.Time{}.Unix(),
+						Amount:       25,
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header.Timestamp = time.Now().Add(validatorExpiration - restakePeriod + time.Second).Unix()
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: nil,
+		},
+		{
+			name: "stake restake too early",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.StakeTransaction{
+						Validator_ID: validatorIDBytes,
+						Nullifier:    nullifier4,
+						TxoRoot:      txoRoot[:],
+						Locktime:     time.Time{}.Unix(),
+						Amount:       25,
+					}),
+				}
+
+				merkles := BuildMerkleTreeStore(blk.Transactions)
+				header.TxRoot = merkles[len(merkles)-1]
+				header.Timestamp = time.Now().Add(validatorExpiration - restakePeriod - time.Second*2).Unix()
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: ruleError(ErrRestakeTooEarly, ""),
 		},
 		{
 			name: "stake transaction txo root doesn't exist in set",

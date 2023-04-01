@@ -45,6 +45,7 @@ const (
 	ErrInvalidGenesis
 	ErrUnknownTxEnum
 	ErrBlockSort
+	ErrRestakeTooEarly
 )
 
 // Map of ErrorCode values back to their constant names for pretty printing.
@@ -64,6 +65,7 @@ var errorCodeStrings = map[ErrorCode]string{
 	ErrInvalidGenesis:         "ErrInvalidGenesis",
 	ErrUnknownTxEnum:          "ErrUnknownTxEnum",
 	ErrBlockSort:              "ErrBlockSort",
+	ErrRestakeTooEarly:        "ErrRestakeTooEarly",
 }
 
 // String returns the ErrorCode as a human-readable name.

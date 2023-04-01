@@ -26,6 +26,8 @@ const (
 	MaxTransactionSize = 1000000
 
 	MaxBlockFutureTime = time.Duration(10)
+
+	restakePeriod = time.Hour * 24 * 7
 )
 
 // BehaviorFlags is a bitmask defining tweaks to the normal behavior when
@@ -204,6 +206,19 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				}
 				if exists {
 					return ruleError(ErrDoubleSpend, "stake tx contains spent nullifier")
+				}
+				valID, err := peer.IDFromBytes(tx.StakeTransaction.Validator_ID)
+				if err != nil {
+					return ruleError(ErrInvalidTx, "stake tx validator ID does not decode")
+				}
+				validator, err := b.validatorSet.GetValidator(valID)
+				if err == nil {
+					stake, exists := validator.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)]
+					if exists {
+						if stake.Blockstamp.Add(validatorExpiration - restakePeriod).After(time.Unix(blk.Header.Timestamp, 0)) {
+							return ruleError(ErrRestakeTooEarly, "restake transaction too early")
+						}
+					}
 				}
 			}
 		case *transactions.Transaction_StandardTransaction:

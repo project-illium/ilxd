@@ -5,14 +5,11 @@
 package blockchain
 
 import (
-	"fmt"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/stretchr/testify/assert"
-	"math"
-	mrand "math/rand"
 	"testing"
 	"time"
 )
@@ -33,7 +30,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 		Nullifiers: map[types.Nullifier]Stake{
 			types.NewNullifier(producerNullifier[:]): {
 				Amount:     20000,
-				Blockstamp: time.Now(),
+				Blockstamp: time.Now().Add(-time.Hour * 24 * 8),
 			},
 		},
 	}
@@ -125,7 +122,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 
 	ret2, err = vs.GetValidator(producerID)
 	assert.NoError(t, err)
-	assert.Equal(t, types.Amount(2000), ret2.unclaimedCoins)
+	assert.Equal(t, types.Amount(1666), ret2.unclaimedCoins)
 
 	// Create new block that spends a coinbase and a mint
 	blk3 := randomBlock(randomBlockHeader(3, randomID()), 1)
@@ -145,7 +142,37 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	// Check that the new unclaimed coins were prorated correctly.
 	ret1, err = vs.GetValidator(valID2)
 	assert.NoError(t, err)
-	assert.Equal(t, types.Amount(50000), ret1.unclaimedCoins)
+	assert.Equal(t, types.Amount(40000), ret1.unclaimedCoins)
+	assert.Equal(t, types.Amount(80000), ret1.TotalStake)
+	assert.Equal(t, 1, len(ret1.Nullifiers))
+
+	// Test restake
+	blk4 := randomBlock(randomBlockHeader(4, randomID()), 1)
+	blk4.Header.Producer_ID = producerIDBytes
+	blk4.Header.Timestamp = blk.Header.Timestamp + vs.params.EpochLength + 1
+	blk4.Transactions = []*transactions.Transaction{
+		transactions.WrapTransaction(&transactions.StakeTransaction{
+			Validator_ID: valIDBytes2,
+			Amount:       80000,
+			Nullifier:    nullifier2[:],
+		}),
+	}
+	assert.NoError(t, vs.CommitBlock(blk4, 0, flushRequired))
+
+	// Should be no change in these variables since this is a restake
+	ret1, err = vs.GetValidator(valID2)
+	assert.NoError(t, err)
+	assert.Equal(t, types.Amount(80000), ret1.TotalStake)
+	assert.Equal(t, 1, len(ret1.Nullifiers))
+
+	// Test validator expiration
+	blk5 := randomBlock(randomBlockHeader(5, randomID()), 1)
+	blk5.Header.Producer_ID = producerIDBytes
+	blk5.Header.Timestamp = blk4.Header.Timestamp + int64(validatorExpiration.Seconds()) + 1
+	assert.NoError(t, vs.CommitBlock(blk5, 100000, flushRequired))
+
+	ret1, err = vs.GetValidator(valID2)
+	assert.Error(t, err)
 }
 
 func TestValidatorSet_Init(t *testing.T) {
@@ -205,41 +232,4 @@ func TestValidatorSetMethods(t *testing.T) {
 	assert.Equal(t, types.Amount(100000), vs.TotalStaked())
 
 	assert.Equal(t, valID, vs.WeightedRandomValidator())
-}
-
-func TestNewValidatorSet(t *testing.T) {
-	epochLen := float64(60 * 60 * 24 * 7)
-	stakePercentage := float64(.15)
-	mean, sigma := calcStdDeviation(epochLen, stakePercentage)
-	fmt.Println(mean, mean+(sigma*7))
-	fmt.Println(blockProductionLimit(epochLen, stakePercentage))
-}
-
-func calcStdDeviation(epochLen float64, stakePercent float64) (float64, float64) {
-	stakePercent *= 100
-	avgs := make([]int, 1000)
-	for r := 0; r < 1000; r++ {
-		blks := 0
-		for i := 0; i < int(epochLen); i++ {
-			x := mrand.Intn(1000)
-			if float64(x) < stakePercent*10 {
-				blks++
-			}
-		}
-		avgs[r] = blks
-	}
-	total := 0
-	for _, avg := range avgs {
-		total += avg
-	}
-	mean := float64(total) / 1000
-
-	deviation2total := float64(0)
-	for _, avg := range avgs {
-		deviation2total += math.Pow(float64(avg)-mean, 2)
-	}
-
-	variance := deviation2total / 1000
-
-	return mean, math.Sqrt(variance)
 }
