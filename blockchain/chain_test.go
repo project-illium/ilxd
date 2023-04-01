@@ -144,7 +144,7 @@ func TestCalculateNextCoinbaseDistribution(t *testing.T) {
 		prevCoinbase = coinbase
 		total += coinbase
 	}
-	initalCoins := types.Amount(float64(params.MainnetParams.TargetDistribution) * .20)
+	initalCoins := types.Amount(params.MainnetParams.GenesisBlock.Transactions[0].GetCoinbaseTransaction().NewCoins)
 	// The algorithm doesn't hit the nail on the head perfectly in terms of distributing
 	// the target supply in the initial distribution periods. But let's just check make
 	// sure it's within some tolerable amount. In this case around three tenths of
@@ -195,3 +195,23 @@ func finalizeAndSignBlock(blk *blocks.Block, privKey crypto.PrivKey) error {
 	blk.Header.Signature = sig
 	return nil
 }
+
+/*
+	n := float64(1<<60) * 0.8 // total number of coins
+
+	periods := float64(520)
+	w_0 := (n / periods) * 4.9
+	w_520 := (1 << 60) * 0.000379
+
+	r := math.Pow((w_520 / w_0), (1 / periods))
+
+	total := float64(0)
+	for i := float64(0); i < periods; i++ {
+		w_i := w_0 * math.Pow(r, i)
+		total += w_i
+		fmt.Println(w_i)
+	}
+	fmt.Println()
+	fmt.Println(w_520)
+	fmt.Println(total / (1 << 60) * .8)
+*/

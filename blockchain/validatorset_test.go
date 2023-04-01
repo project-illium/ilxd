@@ -5,11 +5,14 @@
 package blockchain
 
 import (
+	"fmt"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/stretchr/testify/assert"
+	"math"
+	mrand "math/rand"
 	"testing"
 	"time"
 )
@@ -204,11 +207,20 @@ func TestValidatorSetMethods(t *testing.T) {
 	assert.Equal(t, valID, vs.WeightedRandomValidator())
 }
 
-/*func calcStdDeviation(epochLen int, stakePercent float64) (float64, float64) {
+func TestNewValidatorSet(t *testing.T) {
+	epochLen := float64(60 * 60 * 24 * 7)
+	stakePercentage := float64(.15)
+	mean, sigma := calcStdDeviation(epochLen, stakePercentage)
+	fmt.Println(mean, mean+(sigma*7))
+	fmt.Println(blockProductionLimit(epochLen, stakePercentage))
+}
+
+func calcStdDeviation(epochLen float64, stakePercent float64) (float64, float64) {
+	stakePercent *= 100
 	avgs := make([]int, 1000)
 	for r := 0; r < 1000; r++ {
 		blks := 0
-		for i := 0; i < epochLen; i++ {
+		for i := 0; i < int(epochLen); i++ {
 			x := mrand.Intn(1000)
 			if float64(x) < stakePercent*10 {
 				blks++
@@ -230,4 +242,4 @@ func TestValidatorSetMethods(t *testing.T) {
 	variance := deviation2total / 1000
 
 	return mean, math.Sqrt(variance)
-}*/
+}

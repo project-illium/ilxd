@@ -53,20 +53,17 @@ type NetworkParams struct {
 	// with an exponential decrease before the long term inflation rate
 	// kicks in.
 	TargetDistribution uint64
-	// DecayFactor the rate of decay for the above mentioned exponential
-	// decrease in emission. This controls not just the rate of decrease
-	// but how long it takes to emit the TargetDistribution.
-	DecayFactor float64
 	// InitialDistributionPeriods defines the number of periods over which
 	// the TargetDistribution will be emitted.
 	InitialDistributionPeriods int64
-	// RValue is used in the coin emission calculation.
-	// TargetDistribution * LongTermInflationRate * r is added to the epoch's
-	// distribution. This can be tweaked to target a specific distribution in
-	// the final epoch of the initial distribution.
-	RValue float64
-	// AValue is the first epoch's distribution. This value is decreased exponentially
-	// in subsequent epochs.
+	// AValue tweaks the first period's distribution according to the following:
+	// w0 = ((TargetDistribution - GenesisCoinbase) / InitialDistributionPeriods) * AValue
+	//
+	// Since the distribution follows an exponential decay, the larger the first
+	// period's distribution, the more coins will be distributed in InitialDistributionPeriods.
+	// If you are changing the coin distribution parameters, you will want to
+	// pick an AValue such that the total coins distributed over InitialDistributionPeriods
+	// equals TargetDistribution - GenesisCoinbase.
 	AValue float64
 	// TreasuryPercentage is the percentage of new coins that are allocated
 	// to the treasury.
@@ -92,9 +89,7 @@ var MainnetParams = NetworkParams{
 	EpochLength:                60 * 60 * 24 * 7, // One week
 	TargetDistribution:         1 << 60,
 	InitialDistributionPeriods: 520,
-	DecayFactor:                .0050102575551808,
-	RValue:                     .23,
-	AValue:                     4724093425051351,
+	AValue:                     2.59,
 	TreasuryPercentage:         5,
 	LongTermInflationRate:      math.Pow(1.02, 1.0/52) - 1, // Annualizes to 2% over 52 periods.
 }
@@ -114,9 +109,7 @@ var Testnet1Params = NetworkParams{
 	EpochLength:                60 * 60 * 24 * 7, // One week
 	TargetDistribution:         1 << 60,
 	InitialDistributionPeriods: 520,
-	DecayFactor:                .0050102575551808,
-	RValue:                     .23,
-	AValue:                     4724093425051351,
+	AValue:                     2.59,
 	TreasuryPercentage:         5,
 	LongTermInflationRate:      math.Pow(1.02, 1.0/52) - 1, // Annualizes to 2% over 52 periods.
 }
@@ -134,9 +127,7 @@ var RegestParams = NetworkParams{
 	EpochLength:                60 * 60 * 24 * 7, // One week
 	TargetDistribution:         1 << 60,
 	InitialDistributionPeriods: 520,
-	DecayFactor:                .0050102575551808,
-	RValue:                     .23,
-	AValue:                     4724093425051351,
+	AValue:                     2.59,
 	TreasuryPercentage:         5,
 	LongTermInflationRate:      math.Pow(1.02, 1.0/52) - 1, // Annualizes to 2% over 52 periods.
 }

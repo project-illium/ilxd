@@ -35,7 +35,7 @@ var MainnetGenesisBlock = &blocks.Block{
 			Tx: &transactions.Transaction_CoinbaseTransaction{
 				CoinbaseTransaction: &transactions.CoinbaseTransaction{
 					Validator_ID: []byte{0x00}, //TODO
-					NewCoins:     math.MaxUint64 / 10,
+					NewCoins:     1 << 60 / 5,
 					Outputs: []*transactions.Output{
 						{
 							Commitment:      []byte{0x00}, //TODO

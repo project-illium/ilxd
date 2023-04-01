@@ -371,13 +371,27 @@ func (b *Blockchain) isInitialized() (bool, error) {
 	return true, nil
 }
 
-func calculateNextCoinbaseDistribution(params *params.NetworkParams, epoch int64) types.Amount {
+/*func calculateNextCoinbaseDistributionOld(params *params.NetworkParams, epoch int64) types.Amount {
 	if epoch > params.InitialDistributionPeriods {
 		a := float64(params.TargetDistribution) * params.LongTermInflationRate
 		return types.Amount(a * math.Pow(1.0+params.LongTermInflationRate, float64(epoch-params.InitialDistributionPeriods)))
 	}
 
 	return types.Amount((params.AValue * math.Pow(1.0-params.DecayFactor, float64(epoch))) + (float64(params.TargetDistribution) * (params.LongTermInflationRate * params.RValue)))
+}*/
+
+func calculateNextCoinbaseDistribution(params *params.NetworkParams, epoch int64) types.Amount {
+	if epoch > params.InitialDistributionPeriods {
+		a := float64(params.TargetDistribution) * params.LongTermInflationRate
+		return types.Amount(a * math.Pow(1.0+params.LongTermInflationRate, float64(epoch-params.InitialDistributionPeriods)))
+	}
+
+	n := float64(params.TargetDistribution) - float64(params.GenesisBlock.Transactions[0].GetCoinbaseTransaction().NewCoins)
+	periods := float64(params.InitialDistributionPeriods)
+	w0 := (n / periods) * params.AValue
+	wl := float64(params.TargetDistribution) * params.LongTermInflationRate
+	r := math.Pow((wl / w0), (1 / periods))
+	return types.Amount(w0 * math.Pow(r, float64(epoch)))
 }
 
 func calculateNextValidatorReward(params *params.NetworkParams, epoch int64) types.Amount {

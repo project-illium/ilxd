@@ -17,6 +17,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"math"
 	"math/rand"
 	"sync"
 	"time"
@@ -607,22 +608,9 @@ func (vs *ValidatorSet) flushToDisk(chainHeight uint32) error {
 	return nil
 }
 
+// Six standard deviations from the expected number of blocks.
 func blockProductionLimit(epochBlocks float64, stakePercentage float64) uint32 {
-	expectedBlocks := float64(epochBlocks) * (float64(stakePercentage) / 100)
-
-	var y float64
-	if epochBlocks < 1000 {
-		y = -0.666406440899447 + (0.00554776321533361 * epochBlocks) + (0.4487212077226 * stakePercentage)
-	} else if epochBlocks > 10000 {
-		y = -5.24316140008031 + (0.00132257484184948 * epochBlocks) + (1.60889421683857 * stakePercentage)
-	} else {
-		y = -0.0966049794345167 + (0.0033879058023209 * epochBlocks) + (0.259879996966144 * stakePercentage)
-	}
-	if y < 1 {
-		y = 1
-	}
-
-	return uint32(expectedBlocks + (y * 7))
+	return uint32((epochBlocks * stakePercentage) + (math.Sqrt(epochBlocks*stakePercentage*(1-stakePercentage)) * 6))
 }
 
 func copyValidator(dest *Validator, src *Validator) {
