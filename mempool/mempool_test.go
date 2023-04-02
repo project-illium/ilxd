@@ -7,6 +7,7 @@ package mempool
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
@@ -14,6 +15,7 @@ import (
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestMempool(t *testing.T) {
@@ -45,14 +47,38 @@ func TestMempool(t *testing.T) {
 
 	sk, pk, err := crypto.GenerateEd25519Key(rand.Reader)
 	assert.NoError(t, err)
+	sk2, pk2, err := crypto.GenerateEd25519Key(rand.Reader)
+	assert.NoError(t, err)
 	pkBytes, err := crypto.MarshalPublicKey(pk)
 	assert.NoError(t, err)
 	validatorID, err := peer.IDFromPublicKey(pk)
 	assert.NoError(t, err)
 	valBytes, err := validatorID.Marshal()
 	assert.NoError(t, err)
+	validator2ID, err := peer.IDFromPublicKey(pk2)
+	assert.NoError(t, err)
+	val2Bytes, err := validator2ID.Marshal()
+	assert.NoError(t, err)
 
-	view.validators[validatorID] = 10000
+	nullifier3 := types.NewNullifier(randomBytes())
+	nullifier4 := types.NewNullifier(randomBytes())
+
+	view.validators[validatorID] = &blockchain.Validator{
+		UnclaimedCoins: 10000,
+	}
+	view.validators[validator2ID] = &blockchain.Validator{
+		UnclaimedCoins: 10000,
+		Nullifiers: map[types.Nullifier]blockchain.Stake{
+			nullifier3: {
+				Amount:     10000,
+				Blockstamp: time.Now(),
+			},
+			nullifier4: {
+				Amount:     10000,
+				Blockstamp: time.Now().Add(-blockchain.ValidatorExpiration - blockchain.RestakePeriod + time.Minute),
+			},
+		},
+	}
 
 	tests := []struct {
 		name        string
@@ -436,7 +462,9 @@ func TestMempool(t *testing.T) {
 				Proof:     make([]byte, 1000),
 			}),
 			signFunc: func(tx *transactions.Transaction) error {
-				view.validators[validatorID] = 20000
+				view.validators[validatorID] = &blockchain.Validator{
+					UnclaimedCoins: 20000,
+				}
 				h, err := tx.GetCoinbaseTransaction().SigHash()
 				if err != nil {
 					return err
@@ -495,6 +523,52 @@ func TestMempool(t *testing.T) {
 				return nil
 			},
 			expectedErr: nil,
+		},
+		{
+			name: "valid stake replacement",
+			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
+				Validator_ID: val2Bytes,
+				Amount:       uint64(m.cfg.minStake),
+				Nullifier:    nullifier4[:],
+				TxoRoot:      txoRoot[:],
+				Proof:        make([]byte, 1000),
+			}),
+			signFunc: func(tx *transactions.Transaction) error {
+				h, err := tx.GetStakeTransaction().SigHash()
+				if err != nil {
+					return err
+				}
+				sig, err := sk2.Sign(h)
+				if err != nil {
+					return err
+				}
+				tx.GetStakeTransaction().Signature = sig
+				return nil
+			},
+			expectedErr: nil,
+		},
+		{
+			name: "invalid stake replacement",
+			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
+				Validator_ID: val2Bytes,
+				Amount:       uint64(m.cfg.minStake),
+				Nullifier:    nullifier3[:],
+				TxoRoot:      txoRoot[:],
+				Proof:        make([]byte, 1000),
+			}),
+			signFunc: func(tx *transactions.Transaction) error {
+				h, err := tx.GetStakeTransaction().SigHash()
+				if err != nil {
+					return err
+				}
+				sig, err := sk2.Sign(h)
+				if err != nil {
+					return err
+				}
+				tx.GetStakeTransaction().Signature = sig
+				return nil
+			},
+			expectedErr: ruleError(blockchain.ErrRestakeTooEarly, ""),
 		},
 		{
 			name: "stake nullifier already in pool",
@@ -661,7 +735,7 @@ func newMockBlockchainView() *mockBlockchainView {
 		treasuryBalance: 0,
 		txoRoots:        make(map[types.ID]bool),
 		nullifiers:      make(map[types.Nullifier]bool),
-		validators:      make(map[peer.ID]types.Amount),
+		validators:      make(map[peer.ID]*blockchain.Validator),
 	}
 }
 
@@ -699,7 +773,7 @@ type mockBlockchainView struct {
 	treasuryBalance types.Amount
 	txoRoots        map[types.ID]bool
 	nullifiers      map[types.Nullifier]bool
-	validators      map[peer.ID]types.Amount
+	validators      map[peer.ID]*blockchain.Validator
 }
 
 func (m *mockBlockchainView) TreasuryBalance() (types.Amount, error) {
@@ -714,6 +788,10 @@ func (m *mockBlockchainView) NullifierExists(n types.Nullifier) (bool, error) {
 	return m.nullifiers[n], nil
 }
 
-func (m *mockBlockchainView) UnclaimedCoins(validatorID peer.ID) (types.Amount, error) {
-	return m.validators[validatorID], nil
+func (m *mockBlockchainView) GetValidator(validatorID peer.ID) (*blockchain.Validator, error) {
+	val, ok := m.validators[validatorID]
+	if !ok {
+		return nil, errors.New("not found")
+	}
+	return val, nil
 }

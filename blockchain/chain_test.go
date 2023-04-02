@@ -131,7 +131,7 @@ func TestBlockchain(t *testing.T) {
 
 	val, err := b.validatorSet.GetValidator(validatorID)
 	assert.NoError(t, err)
-	assert.Greater(t, val.unclaimedCoins, uint64(0))
+	assert.Greater(t, val.UnclaimedCoins, uint64(0))
 }
 
 func TestCalculateNextCoinbaseDistribution(t *testing.T) {

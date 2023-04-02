@@ -27,7 +27,7 @@ const (
 
 	MaxBlockFutureTime = time.Duration(10)
 
-	restakePeriod = time.Hour * 24 * 7
+	RestakePeriod = time.Hour * 24 * 7
 )
 
 // BehaviorFlags is a bitmask defining tweaks to the normal behavior when
@@ -185,7 +185,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				if err != nil {
 					return ruleError(ErrInvalidTx, "validator does not exist in validator set")
 				}
-				if types.Amount(tx.CoinbaseTransaction.NewCoins) != validator.unclaimedCoins {
+				if types.Amount(tx.CoinbaseTransaction.NewCoins) != validator.UnclaimedCoins {
 					return ruleError(ErrInvalidTx, "coinbase transaction creates invalid number of coins")
 				}
 				blockCoinbases[validatorID] = true
@@ -215,7 +215,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				if err == nil {
 					stake, exists := validator.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)]
 					if exists {
-						if stake.Blockstamp.Add(validatorExpiration - restakePeriod).After(time.Unix(blk.Header.Timestamp, 0)) {
+						if stake.Blockstamp.Add(ValidatorExpiration - RestakePeriod).After(time.Unix(blk.Header.Timestamp, 0)) {
 							return ruleError(ErrRestakeTooEarly, "restake transaction too early")
 						}
 					}

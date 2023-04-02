@@ -118,11 +118,11 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	// Check that the unclaimed coins increased.
 	ret1, err = vs.GetValidator(valID2)
 	assert.NoError(t, err)
-	assert.Equal(t, types.Amount(0), ret1.unclaimedCoins) // Zero unclaimed coins because they were created in this block
+	assert.Equal(t, types.Amount(0), ret1.UnclaimedCoins) // Zero unclaimed coins because they were created in this block
 
 	ret2, err = vs.GetValidator(producerID)
 	assert.NoError(t, err)
-	assert.Equal(t, types.Amount(1666), ret2.unclaimedCoins)
+	assert.Equal(t, types.Amount(1666), ret2.UnclaimedCoins)
 
 	// Create new block that spends a coinbase and a mint
 	blk3 := randomBlock(randomBlockHeader(3, randomID()), 1)
@@ -142,7 +142,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	// Check that the new unclaimed coins were prorated correctly.
 	ret1, err = vs.GetValidator(valID2)
 	assert.NoError(t, err)
-	assert.Equal(t, types.Amount(40000), ret1.unclaimedCoins)
+	assert.Equal(t, types.Amount(40000), ret1.UnclaimedCoins)
 	assert.Equal(t, types.Amount(80000), ret1.TotalStake)
 	assert.Equal(t, 1, len(ret1.Nullifiers))
 
@@ -168,7 +168,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	// Test validator expiration
 	blk5 := randomBlock(randomBlockHeader(5, randomID()), 1)
 	blk5.Header.Producer_ID = producerIDBytes
-	blk5.Header.Timestamp = blk4.Header.Timestamp + int64(validatorExpiration.Seconds()) + 1
+	blk5.Header.Timestamp = blk4.Header.Timestamp + int64(ValidatorExpiration.Seconds()) + 1
 	assert.NoError(t, vs.CommitBlock(blk5, 100000, flushRequired))
 
 	ret1, err = vs.GetValidator(valID2)

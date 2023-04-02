@@ -6,6 +6,7 @@ package mempool
 
 import (
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/types"
 )
 
@@ -23,7 +24,6 @@ type ChainView interface {
 	// in the nullifier set.
 	NullifierExists(n types.Nullifier) (bool, error)
 
-	// UnclaimedCoins returns the number of unclaimed coins for a
-	// given validator.
-	UnclaimedCoins(validatorID peer.ID) (types.Amount, error)
+	// GetValidator returns the validator for the given ID
+	GetValidator(validatorID peer.ID) (*blockchain.Validator, error)
 }

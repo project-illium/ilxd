@@ -332,16 +332,18 @@ func (b *Blockchain) NullifierExists(n types.Nullifier) (bool, error) {
 	return b.nullifierSet.NullifierExists(n)
 }
 
-// UnclaimedCoins returns the number of unclaimed coins for the given validator.
-func (b *Blockchain) UnclaimedCoins(validatorID peer.ID) (types.Amount, error) {
+// GetValidator returns the validator for the given ID
+func (b *Blockchain) GetValidator(validatorID peer.ID) (*Validator, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
 
 	val, err := b.validatorSet.GetValidator(validatorID)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return val.unclaimedCoins, nil
+	ret := &Validator{}
+	copyValidator(ret, val)
+	return ret, nil
 }
 
 // Params returns the current chain parameters use by the blockchain.

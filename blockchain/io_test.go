@@ -116,7 +116,7 @@ func TestPutGetDeleteValidator(t *testing.T) {
 				Blockstamp: time.Now(),
 			},
 		},
-		unclaimedCoins: 50,
+		UnclaimedCoins: 50,
 		epochBlocks:    17,
 		dirty:          true,
 	}

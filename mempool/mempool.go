@@ -215,11 +215,11 @@ func (m *Mempool) validationTransaction(tx *transactions.Transaction) error {
 		if err != nil {
 			return ruleError(blockchain.ErrInvalidTx, "coinbase tx validator ID does not decode")
 		}
-		unclaimedCoins, err := m.cfg.chainView.UnclaimedCoins(validatorID)
+		validator, err := m.cfg.chainView.GetValidator(validatorID)
 		if err != nil {
-			return err
+			return ruleError(blockchain.ErrInvalidTx, "validator does not exist in validator set")
 		}
-		if types.Amount(t.CoinbaseTransaction.NewCoins) != unclaimedCoins {
+		if types.Amount(t.CoinbaseTransaction.NewCoins) != validator.UnclaimedCoins {
 			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction creates invalid number of coins")
 		}
 
@@ -291,6 +291,19 @@ func (m *Mempool) validationTransaction(tx *transactions.Transaction) error {
 		}
 		if _, ok := m.nullifiers[types.NewNullifier(t.StakeTransaction.Nullifier)]; ok {
 			return ruleError(blockchain.ErrDoubleSpend, "stake nullifier already in mempool")
+		}
+		valID, err := peer.IDFromBytes(t.StakeTransaction.Validator_ID)
+		if err != nil {
+			return ruleError(blockchain.ErrInvalidTx, "stake tx validator ID does not decode")
+		}
+		validator, err := m.cfg.chainView.GetValidator(valID)
+		if err == nil {
+			stake, exists := validator.Nullifiers[types.NewNullifier(t.StakeTransaction.Nullifier)]
+			if exists {
+				if stake.Blockstamp.Add(blockchain.ValidatorExpiration - blockchain.RestakePeriod).After(time.Now()) {
+					return ruleError(blockchain.ErrRestakeTooEarly, "restake transaction too early")
+				}
+			}
 		}
 		exists, err := m.cfg.chainView.NullifierExists(types.NewNullifier(t.StakeTransaction.Nullifier))
 		if err != nil {

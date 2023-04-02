@@ -29,7 +29,7 @@ const (
 
 	maxEpochBlockMultiple = 8
 
-	validatorExpiration = time.Hour * 24 * 7 * 26
+	ValidatorExpiration = time.Hour * 24 * 7 * 26
 )
 
 // setConsistencyStatus (SCS) codes are used to indicate the
@@ -66,7 +66,7 @@ type Validator struct {
 	PeerID           peer.ID
 	TotalStake       types.Amount
 	Nullifiers       map[types.Nullifier]Stake
-	unclaimedCoins   types.Amount
+	UnclaimedCoins   types.Amount
 	stakeAccumulator float64
 	epochBlocks      uint32
 	dirty            bool
@@ -342,10 +342,10 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 					valNew = &Validator{}
 					copyValidator(valNew, valOld)
 				}
-				if types.Amount(tx.CoinbaseTransaction.NewCoins) >= valNew.unclaimedCoins {
-					valNew.unclaimedCoins = 0
+				if types.Amount(tx.CoinbaseTransaction.NewCoins) >= valNew.UnclaimedCoins {
+					valNew.UnclaimedCoins = 0
 				} else {
-					valNew.unclaimedCoins -= types.Amount(tx.CoinbaseTransaction.NewCoins)
+					valNew.UnclaimedCoins -= types.Amount(tx.CoinbaseTransaction.NewCoins)
 				}
 				updates[validatorID] = valNew
 			}
@@ -363,7 +363,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 						PeerID:         validatorID,
 						TotalStake:     0,
 						Nullifiers:     make(map[types.Nullifier]Stake),
-						unclaimedCoins: 0,
+						UnclaimedCoins: 0,
 						epochBlocks:    0,
 						dirty:          true,
 					}
@@ -444,7 +444,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 			for nullifier, stake := range valNew.Nullifiers {
 				timeSinceStake := blockTime.Sub(stake.Blockstamp)
 
-				if timeSinceStake >= validatorExpiration {
+				if timeSinceStake >= ValidatorExpiration {
 					nullifiersToDelete[nullifier] = struct{}{}
 					delete(valNew.Nullifiers, nullifier)
 					continue
@@ -458,11 +458,11 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 				}
 			}
 			if valTotal > 0 {
-				valNew.unclaimedCoins = valNew.unclaimedCoins + types.Amount(float64(validatorReward)*(float64(valTotal)/float64(totalStaked)))
+				valNew.UnclaimedCoins = valNew.UnclaimedCoins + types.Amount(float64(validatorReward)*(float64(valTotal)/float64(totalStaked)))
 			}
 
 			if valNew.epochBlocks > blockProductionLimit(float64(vs.epochBlocks), expectedBlocks/float64(vs.epochBlocks)) {
-				valNew.unclaimedCoins = 0
+				valNew.UnclaimedCoins = 0
 			}
 
 			valNew.epochBlocks = 0
@@ -634,7 +634,7 @@ func copyValidator(dest *Validator, src *Validator) {
 	dest.PeerID = src.PeerID
 	dest.TotalStake = src.TotalStake
 	dest.epochBlocks = src.epochBlocks
-	dest.unclaimedCoins = src.unclaimedCoins
+	dest.UnclaimedCoins = src.UnclaimedCoins
 	dest.Nullifiers = make(map[types.Nullifier]Stake)
 	for k, v := range src.Nullifiers {
 		dest.Nullifiers[k] = v

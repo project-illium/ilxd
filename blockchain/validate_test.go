@@ -294,7 +294,7 @@ func TestValidateBlock(t *testing.T) {
 
 	b.validatorSet.validators[validatorPid] = &Validator{
 		PeerID:         validatorPid,
-		unclaimedCoins: 10000,
+		UnclaimedCoins: 10000,
 		Nullifiers: map[types.Nullifier]Stake{
 			types.NewNullifier(nullifier4): {
 				Amount:     25,
@@ -631,7 +631,7 @@ func TestValidateBlock(t *testing.T) {
 
 				merkles := BuildMerkleTreeStore(blk.Transactions)
 				header.TxRoot = merkles[len(merkles)-1]
-				header.Timestamp = time.Now().Add(validatorExpiration - restakePeriod + time.Second).Unix()
+				header.Timestamp = time.Now().Add(ValidatorExpiration - RestakePeriod + time.Second).Unix()
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -657,7 +657,7 @@ func TestValidateBlock(t *testing.T) {
 
 				merkles := BuildMerkleTreeStore(blk.Transactions)
 				header.TxRoot = merkles[len(merkles)-1]
-				header.Timestamp = time.Now().Add(validatorExpiration - restakePeriod - time.Second*2).Unix()
+				header.Timestamp = time.Now().Add(ValidatorExpiration - RestakePeriod - time.Second*2).Unix()
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err

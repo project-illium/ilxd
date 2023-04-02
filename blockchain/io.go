@@ -21,11 +21,12 @@ import (
 
 func serializeValidator(v *Validator) ([]byte, error) {
 	vProto := &pb.DBValidator{
-		PeerId:         v.PeerID.String(),
-		TotalStake:     uint64(v.TotalStake),
-		Nullifiers:     make([]*pb.DBValidator_Nullifier, 0, len(v.Nullifiers)),
-		UnclaimedCoins: uint64(v.unclaimedCoins),
-		EpochBLocks:    v.epochBlocks,
+		PeerId:           v.PeerID.String(),
+		TotalStake:       uint64(v.TotalStake),
+		Nullifiers:       make([]*pb.DBValidator_Nullifier, 0, len(v.Nullifiers)),
+		UnclaimedCoins:   uint64(v.UnclaimedCoins),
+		EpochBLocks:      v.epochBlocks,
+		StakeAccumulator: float32(v.stakeAccumulator),
 	}
 
 	for v, stake := range v.Nullifiers {
@@ -50,12 +51,13 @@ func deserializeValidator(ser []byte) (*Validator, error) {
 		return nil, err
 	}
 	val := &Validator{
-		PeerID:         pid,
-		TotalStake:     types.Amount(vProto.TotalStake),
-		Nullifiers:     make(map[types.Nullifier]Stake),
-		unclaimedCoins: types.Amount(vProto.UnclaimedCoins),
-		epochBlocks:    vProto.EpochBLocks,
-		dirty:          false,
+		PeerID:           pid,
+		TotalStake:       types.Amount(vProto.TotalStake),
+		Nullifiers:       make(map[types.Nullifier]Stake),
+		UnclaimedCoins:   types.Amount(vProto.UnclaimedCoins),
+		epochBlocks:      vProto.EpochBLocks,
+		stakeAccumulator: float64(vProto.StakeAccumulator),
+		dirty:            false,
 	}
 
 	for _, n := range vProto.Nullifiers {
