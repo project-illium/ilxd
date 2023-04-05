@@ -26,6 +26,7 @@ import (
 	inet "github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/routing"
+	discovery "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
@@ -74,6 +75,11 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		}
 	}
 
+	dhtOpts := []dht.Option{
+		dht.DisableValues(),
+		dht.ProtocolPrefix(cfg.params.ProtocolPrefix),
+	}
+
 	hostOpts := libp2p.ChainOptions(
 		// Use the keypair we generated
 		libp2p.Identity(cfg.privateKey),
@@ -94,12 +100,6 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 
 		// Let this host use the DHT to find other hosts
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-			dhtOpts := []dht.Option{
-				dht.DisableValues(),
-				dht.DisableProviders(),
-				dht.ProtocolPrefix(cfg.params.ProtocolPrefix),
-			}
-
 			idht, err = dht.New(ctx, h, dhtOpts...)
 			return idht, err
 		}),
@@ -136,6 +136,10 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		host = cfg.host
 		cmgr = host.ConnManager()
 		pstore = host.Peerstore()
+		idht, err = dht.New(ctx, cfg.host, dhtOpts...)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		host, err = libp2p.New(hostOpts)
 		if err != nil {
@@ -175,6 +179,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		ctx,
 		host,
 		pubsub.WithNoAuthor(),
+		pubsub.WithDiscovery(discovery.NewRoutingDiscovery(idht)),
 		pubsub.WithMaxMessageSize(1<<23),
 		pubsub.WithMessageIdFn(func(pmsg *pb.Message) string {
 			h := hash.HashFunc(pmsg.Data)
@@ -296,7 +301,7 @@ func (n *Network) ConnManager() coreconmgr.ConnManager {
 	return n.connManager
 }
 
-func (n *Network) DHT() *dht.IpfsDHT {
+func (n *Network) Routing() routing.Routing {
 	return n.dht
 }
 

@@ -7,7 +7,6 @@ package sync
 import (
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/martian/log"
 	ctxio "github.com/jbenet/go-context/io"
 	inet "github.com/libp2p/go-libp2p/core/network"
@@ -19,6 +18,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/types/wire"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -63,8 +63,8 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 		default:
 		}
 
-		var msg proto.Message
-		if err := net.ReadMsg(cs.ctx, reader, msg); err != nil {
+		req := new(wire.MsgChainServiceRequest)
+		if err := net.ReadMsg(cs.ctx, reader, req); err != nil {
 			log.Debugf("Error reading from block service stream: peer: %s, error: %s", remotePeer, err.Error())
 			return
 		}
@@ -73,11 +73,11 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 			resp proto.Message
 			err  error
 		)
-		switch m := msg.(type) {
-		case *wire.MsgGetBlockTxs:
-			resp, err = cs.handleGetBlockTxs(m)
-		case *wire.MsgGetBlockTxids:
-			resp, err = cs.handleGetBlockTxids(m)
+		switch m := req.Msg.(type) {
+		case *wire.MsgChainServiceRequest_GetBlockTxs:
+			resp, err = cs.handleGetBlockTxs(m.GetBlockTxs)
+		case *wire.MsgChainServiceRequest_GetBlockTxids:
+			resp, err = cs.handleGetBlockTxids(m.GetBlockTxids)
 		}
 		if err != nil {
 			log.Errorf("Error handing block service message to peer: %s, error: %s", remotePeer, err.Error())
@@ -95,11 +95,15 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 
 func (cs *ChainService) GetBlockTxs(p peer.ID, blockID types.ID, txIndexes []uint32) ([]*transactions.Transaction, error) {
 	var (
-		req = &wire.MsgGetBlockTxs{
-			BlockID:   blockID[:],
-			TxIndexes: txIndexes,
+		req = &wire.MsgChainServiceRequest{
+			Msg: &wire.MsgChainServiceRequest_GetBlockTxs{
+				GetBlockTxs: &wire.GetBlockTxs{
+					BlockID:   blockID[:],
+					TxIndexes: txIndexes,
+				},
+			},
 		}
-		resp = new(wire.BlockTxs)
+		resp = new(wire.MsgBlockTxs)
 	)
 	err := cs.ms.SendRequest(cs.ctx, p, req, resp)
 	if err != nil {
@@ -117,13 +121,13 @@ func (cs *ChainService) GetBlockTxs(p peer.ID, blockID types.ID, txIndexes []uin
 	return resp.Transactions, nil
 }
 
-func (cs *ChainService) handleGetBlockTxs(req *wire.MsgGetBlockTxs) (*wire.BlockTxs, error) {
+func (cs *ChainService) handleGetBlockTxs(req *wire.GetBlockTxs) (*wire.MsgBlockTxs, error) {
 	blk, err := cs.chain.GetBlockByID(types.NewID(req.BlockID))
 	if err != nil {
-		return &wire.BlockTxs{Error: wire.ErrorResponse_NotFound}, nil
+		return &wire.MsgBlockTxs{Error: wire.ErrorResponse_NotFound}, nil
 	}
 
-	resp := &wire.BlockTxs{
+	resp := &wire.MsgBlockTxs{
 		Transactions: make([]*transactions.Transaction, len(req.TxIndexes)),
 	}
 
@@ -139,10 +143,14 @@ func (cs *ChainService) handleGetBlockTxs(req *wire.MsgGetBlockTxs) (*wire.Block
 
 func (cs *ChainService) GetBlockTxids(p peer.ID, blockID types.ID) ([]types.ID, error) {
 	var (
-		req = &wire.MsgGetBlockTxids{
-			BlockID: blockID[:],
+		req = &wire.MsgChainServiceRequest{
+			Msg: &wire.MsgChainServiceRequest_GetBlockTxids{
+				GetBlockTxids: &wire.GetBlockTxids{
+					BlockID: blockID[:],
+				},
+			},
 		}
-		resp = new(wire.BlockTxids)
+		resp = new(wire.MsgBlockTxids)
 	)
 	err := cs.ms.SendRequest(cs.ctx, p, req, resp)
 	if err != nil {
@@ -160,10 +168,10 @@ func (cs *ChainService) GetBlockTxids(p peer.ID, blockID types.ID) ([]types.ID, 
 	return txids, nil
 }
 
-func (cs *ChainService) handleGetBlockTxids(req *wire.MsgGetBlockTxids) (*wire.BlockTxids, error) {
+func (cs *ChainService) handleGetBlockTxids(req *wire.GetBlockTxids) (*wire.MsgBlockTxids, error) {
 	blk, err := cs.chain.GetBlockByID(types.NewID(req.BlockID))
 	if err != nil {
-		return &wire.BlockTxids{Error: wire.ErrorResponse_NotFound}, nil
+		return &wire.MsgBlockTxids{Error: wire.ErrorResponse_NotFound}, nil
 	}
 
 	txids := make([][]byte, 0, len(blk.Transactions))
@@ -172,7 +180,7 @@ func (cs *ChainService) handleGetBlockTxids(req *wire.MsgGetBlockTxids) (*wire.B
 		txids = append(txids, id[:])
 	}
 
-	resp := &wire.BlockTxids{
+	resp := &wire.MsgBlockTxids{
 		Txids: txids,
 	}
 

@@ -22,21 +22,28 @@ message MsgAvaResponse {
     bytes votes      = 2;
 }
 
-message MsgGetBlockTxs {
+message MsgChainServiceRequest {
+    oneof msg {
+        GetBlockTxs   get_block_txs  = 1;
+        GetBlockTxids get_block_txids = 2;
+    }
+}
+
+message GetBlockTxs {
     bytes blockID              = 1;
     repeated uint32 txIndexes  = 2;
 }
 
-message BlockTxs {
+message MsgBlockTxs {
     repeated Transaction transactions = 1;
     ErrorResponse error               = 2;
 }
 
-message MsgGetBlockTxids {
+message GetBlockTxids {
     bytes blockID              = 1;
 }
 
-message BlockTxids {
+message MsgBlockTxids {
     repeated bytes txids = 1;
     ErrorResponse error  = 2;
 }

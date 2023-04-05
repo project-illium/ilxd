@@ -110,7 +110,7 @@ func TestGenerator(t *testing.T) {
 	case blk := <-respChan:
 		assert.Equal(t, uint32(1), blk.TxCount)
 	case <-time.After(time.Second):
-		t.Error("Failed to receive transaction from braodcast")
+		t.Error("Failed to receive transaction from broadcast")
 	}
 
 }

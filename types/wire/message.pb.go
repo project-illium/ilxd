@@ -181,17 +181,19 @@ func (x *MsgAvaResponse) GetVotes() []byte {
 	return nil
 }
 
-type MsgGetBlockTxs struct {
+type MsgChainServiceRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	BlockID   []byte   `protobuf:"bytes,1,opt,name=blockID,proto3" json:"blockID,omitempty"`
-	TxIndexes []uint32 `protobuf:"varint,2,rep,packed,name=txIndexes,proto3" json:"txIndexes,omitempty"`
+	// Types that are assignable to Msg:
+	//	*MsgChainServiceRequest_GetBlockTxs
+	//	*MsgChainServiceRequest_GetBlockTxids
+	Msg isMsgChainServiceRequest_Msg `protobuf_oneof:"msg"`
 }
 
-func (x *MsgGetBlockTxs) Reset() {
-	*x = MsgGetBlockTxs{}
+func (x *MsgChainServiceRequest) Reset() {
+	*x = MsgChainServiceRequest{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_message_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -199,13 +201,13 @@ func (x *MsgGetBlockTxs) Reset() {
 	}
 }
 
-func (x *MsgGetBlockTxs) String() string {
+func (x *MsgChainServiceRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*MsgGetBlockTxs) ProtoMessage() {}
+func (*MsgChainServiceRequest) ProtoMessage() {}
 
-func (x *MsgGetBlockTxs) ProtoReflect() protoreflect.Message {
+func (x *MsgChainServiceRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_message_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -217,36 +219,59 @@ func (x *MsgGetBlockTxs) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use MsgGetBlockTxs.ProtoReflect.Descriptor instead.
-func (*MsgGetBlockTxs) Descriptor() ([]byte, []int) {
+// Deprecated: Use MsgChainServiceRequest.ProtoReflect.Descriptor instead.
+func (*MsgChainServiceRequest) Descriptor() ([]byte, []int) {
 	return file_message_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *MsgGetBlockTxs) GetBlockID() []byte {
-	if x != nil {
-		return x.BlockID
+func (m *MsgChainServiceRequest) GetMsg() isMsgChainServiceRequest_Msg {
+	if m != nil {
+		return m.Msg
 	}
 	return nil
 }
 
-func (x *MsgGetBlockTxs) GetTxIndexes() []uint32 {
-	if x != nil {
-		return x.TxIndexes
+func (x *MsgChainServiceRequest) GetGetBlockTxs() *GetBlockTxs {
+	if x, ok := x.GetMsg().(*MsgChainServiceRequest_GetBlockTxs); ok {
+		return x.GetBlockTxs
 	}
 	return nil
 }
 
-type BlockTxs struct {
+func (x *MsgChainServiceRequest) GetGetBlockTxids() *GetBlockTxids {
+	if x, ok := x.GetMsg().(*MsgChainServiceRequest_GetBlockTxids); ok {
+		return x.GetBlockTxids
+	}
+	return nil
+}
+
+type isMsgChainServiceRequest_Msg interface {
+	isMsgChainServiceRequest_Msg()
+}
+
+type MsgChainServiceRequest_GetBlockTxs struct {
+	GetBlockTxs *GetBlockTxs `protobuf:"bytes,1,opt,name=get_block_txs,json=getBlockTxs,proto3,oneof"`
+}
+
+type MsgChainServiceRequest_GetBlockTxids struct {
+	GetBlockTxids *GetBlockTxids `protobuf:"bytes,2,opt,name=get_block_txids,json=getBlockTxids,proto3,oneof"`
+}
+
+func (*MsgChainServiceRequest_GetBlockTxs) isMsgChainServiceRequest_Msg() {}
+
+func (*MsgChainServiceRequest_GetBlockTxids) isMsgChainServiceRequest_Msg() {}
+
+type GetBlockTxs struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Transactions []*transactions.Transaction `protobuf:"bytes,1,rep,name=transactions,proto3" json:"transactions,omitempty"`
-	Error        ErrorResponse               `protobuf:"varint,2,opt,name=error,proto3,enum=ErrorResponse" json:"error,omitempty"`
+	BlockID   []byte   `protobuf:"bytes,1,opt,name=blockID,proto3" json:"blockID,omitempty"`
+	TxIndexes []uint32 `protobuf:"varint,2,rep,packed,name=txIndexes,proto3" json:"txIndexes,omitempty"`
 }
 
-func (x *BlockTxs) Reset() {
-	*x = BlockTxs{}
+func (x *GetBlockTxs) Reset() {
+	*x = GetBlockTxs{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_message_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -254,13 +279,13 @@ func (x *BlockTxs) Reset() {
 	}
 }
 
-func (x *BlockTxs) String() string {
+func (x *GetBlockTxs) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BlockTxs) ProtoMessage() {}
+func (*GetBlockTxs) ProtoMessage() {}
 
-func (x *BlockTxs) ProtoReflect() protoreflect.Message {
+func (x *GetBlockTxs) ProtoReflect() protoreflect.Message {
 	mi := &file_message_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -272,35 +297,36 @@ func (x *BlockTxs) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BlockTxs.ProtoReflect.Descriptor instead.
-func (*BlockTxs) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetBlockTxs.ProtoReflect.Descriptor instead.
+func (*GetBlockTxs) Descriptor() ([]byte, []int) {
 	return file_message_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *BlockTxs) GetTransactions() []*transactions.Transaction {
+func (x *GetBlockTxs) GetBlockID() []byte {
 	if x != nil {
-		return x.Transactions
+		return x.BlockID
 	}
 	return nil
 }
 
-func (x *BlockTxs) GetError() ErrorResponse {
+func (x *GetBlockTxs) GetTxIndexes() []uint32 {
 	if x != nil {
-		return x.Error
+		return x.TxIndexes
 	}
-	return ErrorResponse_None
+	return nil
 }
 
-type MsgGetBlockTxids struct {
+type MsgBlockTxs struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	BlockID []byte `protobuf:"bytes,1,opt,name=blockID,proto3" json:"blockID,omitempty"`
+	Transactions []*transactions.Transaction `protobuf:"bytes,1,rep,name=transactions,proto3" json:"transactions,omitempty"`
+	Error        ErrorResponse               `protobuf:"varint,2,opt,name=error,proto3,enum=ErrorResponse" json:"error,omitempty"`
 }
 
-func (x *MsgGetBlockTxids) Reset() {
-	*x = MsgGetBlockTxids{}
+func (x *MsgBlockTxs) Reset() {
+	*x = MsgBlockTxs{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_message_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -308,13 +334,13 @@ func (x *MsgGetBlockTxids) Reset() {
 	}
 }
 
-func (x *MsgGetBlockTxids) String() string {
+func (x *MsgBlockTxs) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*MsgGetBlockTxids) ProtoMessage() {}
+func (*MsgBlockTxs) ProtoMessage() {}
 
-func (x *MsgGetBlockTxids) ProtoReflect() protoreflect.Message {
+func (x *MsgBlockTxs) ProtoReflect() protoreflect.Message {
 	mi := &file_message_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -326,29 +352,35 @@ func (x *MsgGetBlockTxids) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use MsgGetBlockTxids.ProtoReflect.Descriptor instead.
-func (*MsgGetBlockTxids) Descriptor() ([]byte, []int) {
+// Deprecated: Use MsgBlockTxs.ProtoReflect.Descriptor instead.
+func (*MsgBlockTxs) Descriptor() ([]byte, []int) {
 	return file_message_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *MsgGetBlockTxids) GetBlockID() []byte {
+func (x *MsgBlockTxs) GetTransactions() []*transactions.Transaction {
 	if x != nil {
-		return x.BlockID
+		return x.Transactions
 	}
 	return nil
 }
 
-type BlockTxids struct {
+func (x *MsgBlockTxs) GetError() ErrorResponse {
+	if x != nil {
+		return x.Error
+	}
+	return ErrorResponse_None
+}
+
+type GetBlockTxids struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Txids [][]byte      `protobuf:"bytes,1,rep,name=txids,proto3" json:"txids,omitempty"`
-	Error ErrorResponse `protobuf:"varint,2,opt,name=error,proto3,enum=ErrorResponse" json:"error,omitempty"`
+	BlockID []byte `protobuf:"bytes,1,opt,name=blockID,proto3" json:"blockID,omitempty"`
 }
 
-func (x *BlockTxids) Reset() {
-	*x = BlockTxids{}
+func (x *GetBlockTxids) Reset() {
+	*x = GetBlockTxids{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_message_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -356,13 +388,13 @@ func (x *BlockTxids) Reset() {
 	}
 }
 
-func (x *BlockTxids) String() string {
+func (x *GetBlockTxids) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BlockTxids) ProtoMessage() {}
+func (*GetBlockTxids) ProtoMessage() {}
 
-func (x *BlockTxids) ProtoReflect() protoreflect.Message {
+func (x *GetBlockTxids) ProtoReflect() protoreflect.Message {
 	mi := &file_message_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -374,19 +406,67 @@ func (x *BlockTxids) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BlockTxids.ProtoReflect.Descriptor instead.
-func (*BlockTxids) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetBlockTxids.ProtoReflect.Descriptor instead.
+func (*GetBlockTxids) Descriptor() ([]byte, []int) {
 	return file_message_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *BlockTxids) GetTxids() [][]byte {
+func (x *GetBlockTxids) GetBlockID() []byte {
+	if x != nil {
+		return x.BlockID
+	}
+	return nil
+}
+
+type MsgBlockTxids struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Txids [][]byte      `protobuf:"bytes,1,rep,name=txids,proto3" json:"txids,omitempty"`
+	Error ErrorResponse `protobuf:"varint,2,opt,name=error,proto3,enum=ErrorResponse" json:"error,omitempty"`
+}
+
+func (x *MsgBlockTxids) Reset() {
+	*x = MsgBlockTxids{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_message_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *MsgBlockTxids) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MsgBlockTxids) ProtoMessage() {}
+
+func (x *MsgBlockTxids) ProtoReflect() protoreflect.Message {
+	mi := &file_message_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MsgBlockTxids.ProtoReflect.Descriptor instead.
+func (*MsgBlockTxids) Descriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *MsgBlockTxids) GetTxids() [][]byte {
 	if x != nil {
 		return x.Txids
 	}
 	return nil
 }
 
-func (x *BlockTxids) GetError() ErrorResponse {
+func (x *MsgBlockTxids) GetError() ErrorResponse {
 	if x != nil {
 		return x.Error
 	}
@@ -406,21 +486,30 @@ var file_message_proto_rawDesc = []byte{
 	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x1c, 0x0a, 0x09, 0x72, 0x65, 0x71, 0x75,
 	0x65, 0x73, 0x74, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x09, 0x72, 0x65, 0x71,
 	0x75, 0x65, 0x73, 0x74, 0x49, 0x44, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x6f, 0x74, 0x65, 0x73, 0x18,
-	0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x05, 0x76, 0x6f, 0x74, 0x65, 0x73, 0x22, 0x48, 0x0a, 0x0e,
-	0x4d, 0x73, 0x67, 0x47, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x54, 0x78, 0x73, 0x12, 0x18,
-	0x0a, 0x07, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52,
-	0x07, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x49, 0x44, 0x12, 0x1c, 0x0a, 0x09, 0x74, 0x78, 0x49, 0x6e,
-	0x64, 0x65, 0x78, 0x65, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0d, 0x52, 0x09, 0x74, 0x78, 0x49,
-	0x6e, 0x64, 0x65, 0x78, 0x65, 0x73, 0x22, 0x62, 0x0a, 0x08, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x54,
+	0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x05, 0x76, 0x6f, 0x74, 0x65, 0x73, 0x22, 0x8d, 0x01, 0x0a,
+	0x16, 0x4d, 0x73, 0x67, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x32, 0x0a, 0x0d, 0x67, 0x65, 0x74, 0x5f, 0x62,
+	0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x74, 0x78, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0c,
+	0x2e, 0x47, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x54, 0x78, 0x73, 0x48, 0x00, 0x52, 0x0b,
+	0x67, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x54, 0x78, 0x73, 0x12, 0x38, 0x0a, 0x0f, 0x67,
+	0x65, 0x74, 0x5f, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x74, 0x78, 0x69, 0x64, 0x73, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x47, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x54,
+	0x78, 0x69, 0x64, 0x73, 0x48, 0x00, 0x52, 0x0d, 0x67, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b,
+	0x54, 0x78, 0x69, 0x64, 0x73, 0x42, 0x05, 0x0a, 0x03, 0x6d, 0x73, 0x67, 0x22, 0x45, 0x0a, 0x0b,
+	0x47, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x54, 0x78, 0x73, 0x12, 0x18, 0x0a, 0x07, 0x62,
+	0x6c, 0x6f, 0x63, 0x6b, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x07, 0x62, 0x6c,
+	0x6f, 0x63, 0x6b, 0x49, 0x44, 0x12, 0x1c, 0x0a, 0x09, 0x74, 0x78, 0x49, 0x6e, 0x64, 0x65, 0x78,
+	0x65, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0d, 0x52, 0x09, 0x74, 0x78, 0x49, 0x6e, 0x64, 0x65,
+	0x78, 0x65, 0x73, 0x22, 0x65, 0x0a, 0x0b, 0x4d, 0x73, 0x67, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x54,
 	0x78, 0x73, 0x12, 0x30, 0x0a, 0x0c, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f,
 	0x6e, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0c, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73,
 	0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x0c, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74,
 	0x69, 0x6f, 0x6e, 0x73, 0x12, 0x24, 0x0a, 0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x18, 0x02, 0x20,
 	0x01, 0x28, 0x0e, 0x32, 0x0e, 0x2e, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x52, 0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x22, 0x2c, 0x0a, 0x10, 0x4d, 0x73,
-	0x67, 0x47, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x54, 0x78, 0x69, 0x64, 0x73, 0x12, 0x18,
-	0x0a, 0x07, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52,
-	0x07, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x49, 0x44, 0x22, 0x48, 0x0a, 0x0a, 0x42, 0x6c, 0x6f, 0x63,
+	0x6e, 0x73, 0x65, 0x52, 0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x22, 0x29, 0x0a, 0x0d, 0x47, 0x65,
+	0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x54, 0x78, 0x69, 0x64, 0x73, 0x12, 0x18, 0x0a, 0x07, 0x62,
+	0x6c, 0x6f, 0x63, 0x6b, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x07, 0x62, 0x6c,
+	0x6f, 0x63, 0x6b, 0x49, 0x44, 0x22, 0x4b, 0x0a, 0x0d, 0x4d, 0x73, 0x67, 0x42, 0x6c, 0x6f, 0x63,
 	0x6b, 0x54, 0x78, 0x69, 0x64, 0x73, 0x12, 0x14, 0x0a, 0x05, 0x74, 0x78, 0x69, 0x64, 0x73, 0x18,
 	0x01, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x05, 0x74, 0x78, 0x69, 0x64, 0x73, 0x12, 0x24, 0x0a, 0x05,
 	0x65, 0x72, 0x72, 0x6f, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x0e, 0x2e, 0x45, 0x72,
@@ -444,26 +533,29 @@ func file_message_proto_rawDescGZIP() []byte {
 }
 
 var file_message_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_message_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_message_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_message_proto_goTypes = []interface{}{
 	(ErrorResponse)(0),               // 0: ErrorResponse
 	(*MsgAvaRequest)(nil),            // 1: MsgAvaRequest
 	(*MsgAvaResponse)(nil),           // 2: MsgAvaResponse
-	(*MsgGetBlockTxs)(nil),           // 3: MsgGetBlockTxs
-	(*BlockTxs)(nil),                 // 4: BlockTxs
-	(*MsgGetBlockTxids)(nil),         // 5: MsgGetBlockTxids
-	(*BlockTxids)(nil),               // 6: BlockTxids
-	(*transactions.Transaction)(nil), // 7: Transaction
+	(*MsgChainServiceRequest)(nil),   // 3: MsgChainServiceRequest
+	(*GetBlockTxs)(nil),              // 4: GetBlockTxs
+	(*MsgBlockTxs)(nil),              // 5: MsgBlockTxs
+	(*GetBlockTxids)(nil),            // 6: GetBlockTxids
+	(*MsgBlockTxids)(nil),            // 7: MsgBlockTxids
+	(*transactions.Transaction)(nil), // 8: Transaction
 }
 var file_message_proto_depIdxs = []int32{
-	7, // 0: BlockTxs.transactions:type_name -> Transaction
-	0, // 1: BlockTxs.error:type_name -> ErrorResponse
-	0, // 2: BlockTxids.error:type_name -> ErrorResponse
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 0: MsgChainServiceRequest.get_block_txs:type_name -> GetBlockTxs
+	6, // 1: MsgChainServiceRequest.get_block_txids:type_name -> GetBlockTxids
+	8, // 2: MsgBlockTxs.transactions:type_name -> Transaction
+	0, // 3: MsgBlockTxs.error:type_name -> ErrorResponse
+	0, // 4: MsgBlockTxids.error:type_name -> ErrorResponse
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_message_proto_init() }
@@ -497,7 +589,7 @@ func file_message_proto_init() {
 			}
 		}
 		file_message_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*MsgGetBlockTxs); i {
+			switch v := v.(*MsgChainServiceRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -509,7 +601,7 @@ func file_message_proto_init() {
 			}
 		}
 		file_message_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*BlockTxs); i {
+			switch v := v.(*GetBlockTxs); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -521,7 +613,7 @@ func file_message_proto_init() {
 			}
 		}
 		file_message_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*MsgGetBlockTxids); i {
+			switch v := v.(*MsgBlockTxs); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -533,7 +625,19 @@ func file_message_proto_init() {
 			}
 		}
 		file_message_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*BlockTxids); i {
+			switch v := v.(*GetBlockTxids); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_message_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*MsgBlockTxids); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -545,13 +649,17 @@ func file_message_proto_init() {
 			}
 		}
 	}
+	file_message_proto_msgTypes[2].OneofWrappers = []interface{}{
+		(*MsgChainServiceRequest_GetBlockTxs)(nil),
+		(*MsgChainServiceRequest_GetBlockTxids)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_message_proto_rawDesc,
 			NumEnums:      1,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

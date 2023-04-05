@@ -16,7 +16,7 @@ require (
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-kad-dht v0.18.0
 	github.com/libp2p/go-libp2p-pubsub v0.6.0
-	github.com/libp2p/go-msgio v0.2.0
+	github.com/libp2p/go-msgio v0.3.0
 	github.com/mroth/weightedrand/v2 v2.0.0
 	github.com/multiformats/go-multiaddr v0.7.0
 	github.com/stretchr/testify v1.8.0

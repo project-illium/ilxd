@@ -8,9 +8,9 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-kad-dht/metrics"
 	"go.opencensus.io/stats"
+	"google.golang.org/protobuf/proto"
 
 	"io"
 	"sync"
@@ -22,7 +22,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 
 	"github.com/libp2p/go-msgio"
-	"github.com/libp2p/go-msgio/protoio"
+	"github.com/libp2p/go-msgio/pbio"
 )
 
 var readMessageTimeout = 10 * time.Second
@@ -333,7 +333,7 @@ func (ms *peerMessageSender) ctxReadMsg(ctx context.Context, mes proto.Message) 
 // packet for every single write.
 type bufferedDelimitedWriter struct {
 	*bufio.Writer
-	protoio.WriteCloser
+	pbio.WriteCloser
 }
 
 var writerPool = sync.Pool{
@@ -341,7 +341,7 @@ var writerPool = sync.Pool{
 		w := bufio.NewWriter(nil)
 		return &bufferedDelimitedWriter{
 			Writer:      w,
-			WriteCloser: protoio.NewDelimitedWriter(w),
+			WriteCloser: pbio.NewDelimitedWriter(w),
 		}
 	},
 }
