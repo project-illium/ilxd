@@ -26,7 +26,6 @@ type BlockGenerator struct {
 	ownPeerID      peer.ID
 	ownPeerIDBytes []byte
 	mpool          *mempool.Mempool
-	blockchain     *blockchain.Blockchain
 	tickInterval   time.Duration
 	chain          *blockchain.Blockchain
 	broadcast      func(blk *blocks.XThinnerBlock) error
@@ -172,7 +171,7 @@ func (g *BlockGenerator) generateBlock() error {
 	}
 	blk.Header.Signature = sig
 
-	if err := g.blockchain.CheckConnectBlock(blk); err != nil {
+	if err := g.chain.CheckConnectBlock(blk); err != nil {
 		return err
 	}
 

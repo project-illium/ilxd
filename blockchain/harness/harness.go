@@ -150,3 +150,7 @@ func (h *TestHarness) SpendableNotes() []*SpendableNote {
 func (h *TestHarness) Accumulator() *blockchain.Accumulator {
 	return h.acc
 }
+
+func (h *TestHarness) Blockchain() *blockchain.Blockchain {
+	return h.chain
+}

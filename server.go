@@ -282,7 +282,7 @@ func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.I
 					if err := s.blockchain.ConnectBlock(b, blockchain.BFNone); err != nil {
 						log.Warnf("Connect block error: block %s: %s", blockID, err)
 					} else {
-						log.Infof("New block: %s, (%d transactions)", blockID, len(b.Transactions))
+						log.Infof("New block: %s, (height: %d, transactions: %d)", blockID, blk.Header.Height, len(b.Transactions))
 					}
 				case consensus.StatusRejected:
 					log.Debugf("Block %s rejected by consensus", b.ID())

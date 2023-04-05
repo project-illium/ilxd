@@ -95,7 +95,7 @@ func (m *Mempool) EncodeXthinner(blkIds []types.ID) (*blocks.XThinnerBlock, erro
 		prev := mempoolTxs[r-1]
 		next := mempoolTxs[mempoolPos+1]
 
-		for bytes.Equal(stack, prev[:len(stack)]) || bytes.Equal(stack, next[:len(stack)]) {
+		for (bytes.Equal(stack, prev[:len(stack)]) || bytes.Equal(stack, next[:len(stack)])) && len(mempoolTxs) > 2 {
 			pushes = append(pushes, 1)
 			stack = append(stack, txid[len(stack)])
 			pushbytes = append(pushbytes, stack[len(stack)-1])
