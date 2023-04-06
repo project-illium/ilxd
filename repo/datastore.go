@@ -43,6 +43,8 @@ const (
 	IndexerHeightKeyPrefix = "/ilxd/indexerheight/"
 	// IndexKeyPrefix is the datastore key used by each indexer. This must be extended to use.
 	IndexKeyPrefix = "/ilxd/index/"
+	// ConnGaterKeyPrefix is the datastore namespace key used by the conngater.
+	ConnGaterKeyPrefix = "/ilxd/conngater/"
 )
 
 type Datastore interface {

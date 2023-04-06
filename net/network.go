@@ -75,6 +75,11 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		}
 	}
 
+	conngater, err := NewConnectionGater(cfg.datastore, pstore, cfg.banDuration, cfg.maxBanscore)
+	if err != nil {
+		return nil, err
+	}
+
 	dhtOpts := []dht.Option{
 		dht.DisableValues(),
 		dht.ProtocolPrefix(cfg.params.ProtocolPrefix),
@@ -125,6 +130,8 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		libp2p.DisableRelay(),
 
 		libp2p.EnableHolePunching(),
+
+		libp2p.ConnectionGater(conngater),
 	)
 
 	if !cfg.disableNatPortMap {

@@ -14,6 +14,7 @@ import (
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"time"
 )
 
 var ErrNetworkConfig = errors.New("network config error")
@@ -52,6 +53,20 @@ func PrivateKey(privKey crypto.PrivKey) Option {
 func Datastore(ds repo.Datastore) Option {
 	return func(cfg *config) error {
 		cfg.datastore = ds
+		return nil
+	}
+}
+
+func MaxBanscore(max uint32) Option {
+	return func(cfg *config) error {
+		cfg.maxBanscore = max
+		return nil
+	}
+}
+
+func BanDuration(duration time.Duration) Option {
+	return func(cfg *config) error {
+		cfg.banDuration = duration
 		return nil
 	}
 }
@@ -102,6 +117,8 @@ type config struct {
 	datastore         repo.Datastore
 	acceptToMempool   func(tx *transactions.Transaction) error
 	validateBlock     func(blk *blocks.XThinnerBlock, p peer.ID) error
+	maxBanscore       uint32
+	banDuration       time.Duration
 }
 
 func (cfg *config) validate() error {

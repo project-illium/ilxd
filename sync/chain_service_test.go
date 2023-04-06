@@ -18,8 +18,9 @@ import (
 	"testing"
 )
 
-func TestNewChainService(t *testing.T) {
+func TestChainService(t *testing.T) {
 	mn := mocknet.New()
+
 	host1, err := mn.GenPeer()
 	assert.NoError(t, err)
 	network1, err := net.NewNetwork(context.Background(), []net.Option{

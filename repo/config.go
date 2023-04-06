@@ -29,6 +29,9 @@ const (
 	DefaultMinimumStake   = 1000000
 	DefaultMaxMessageSize = 1 << 23 // 8 MiB
 	DefaultSoftLimit      = 1 << 20 // 1 MiB
+
+	DefaultMaxBanscore = 100
+	DefaultBanDuration = time.Hour * 24
 )
 
 var (
@@ -47,19 +50,21 @@ var (
 //
 // See LoadConfig for details on the configuration load process.
 type Config struct {
-	ShowVersion       bool     `short:"v" long:"version" description:"Display version information and exit"`
-	ConfigFile        string   `short:"C" long:"configfile" description:"Path to configuration file"`
-	DataDir           string   `short:"d" long:"datadir" description:"Directory to store data"`
-	LogDir            string   `long:"logdir" description:"Directory to log output."`
-	LogLevel          string   `short:"l" long:"loglevel" description:"Set the logging level [debug, info, notice, error, alert, critical, emergency]." default:"info"`
-	SeedAddrs         []string `long:"seedaddr" description:"Override the default seed addresses with the provided values"`
-	ListenAddrs       []string `long:"listenaddr" description:"Override the default listen addresses with the provided values"`
-	Testnet           bool     `short:"t" long:"testnet" description:"Use the test network"`
-	Regest            bool     `short:"r" long:"regtest" description:"Use regression testing mode"`
-	DisableNATPortMap bool     `long:"noupnp" description:"Disable use of upnp"`
-	UserAgent         string   `long:"useragent" description:"A custom user agent to advertise to the network"`
-	NoTxIndex         bool     `long:"notxindex" description:"Disable the transaction index"`
-	DropTxIndex       bool     `long:"droptxindex" description:"Delete the tx index from the database"`
+	ShowVersion       bool          `short:"v" long:"version" description:"Display version information and exit"`
+	ConfigFile        string        `short:"C" long:"configfile" description:"Path to configuration file"`
+	DataDir           string        `short:"d" long:"datadir" description:"Directory to store data"`
+	LogDir            string        `long:"logdir" description:"Directory to log output."`
+	LogLevel          string        `short:"l" long:"loglevel" description:"Set the logging level [debug, info, notice, error, alert, critical, emergency]." default:"info"`
+	SeedAddrs         []string      `long:"seedaddr" description:"Override the default seed addresses with the provided values"`
+	ListenAddrs       []string      `long:"listenaddr" description:"Override the default listen addresses with the provided values"`
+	Testnet           bool          `short:"t" long:"testnet" description:"Use the test network"`
+	Regest            bool          `short:"r" long:"regtest" description:"Use regression testing mode"`
+	DisableNATPortMap bool          `long:"noupnp" description:"Disable use of upnp"`
+	UserAgent         string        `long:"useragent" description:"A custom user agent to advertise to the network"`
+	NoTxIndex         bool          `long:"notxindex" description:"Disable the transaction index"`
+	DropTxIndex       bool          `long:"droptxindex" description:"Delete the tx index from the database"`
+	MaxBanscore       uint32        `long:"maxbanscore" description:"The maximum ban score a peer is allowed to have before getting banned" default:"100"`
+	BanDuration       time.Duration `long:"banduration" description:"The duration for which banned peers are banned for" default:"24h"`
 
 	// Policy
 	MinFeePerByte      uint64   `long:"minfeeperbyte" description:"The minimum fee per byte that the node will accept in the mempool and generated blocks"`
