@@ -26,7 +26,9 @@ import (
 )
 
 // ConnectionGater implements a connection gater that allows the application to perform
-// access control on incoming and outgoing connections.
+// access control on incoming and outgoing connections. The difference between this
+// and the libp2p BasicConnectionGater is this class provides a method for incrementally
+// increasing a peers banscore and bans them only for a specified duration.
 type ConnectionGater struct {
 	sync.RWMutex
 
@@ -48,9 +50,7 @@ const (
 )
 
 // NewConnectionGater creates a new connection gater.
-// The ds argument is an (optional, can be nil) datastore to persist the connection gater
-// filters.
-func NewConnectionGater(ds datastore.Datastore, addrBook peerstore.AddrBook, banDuration time.Duration, maxBanscore uint32) (*ConnectionGater, error) {
+func NewConnectionGater(ds repo.Datastore, addrBook peerstore.AddrBook, banDuration time.Duration, maxBanscore uint32) (*ConnectionGater, error) {
 	cg := &ConnectionGater{
 		blockedPeers: make(map[peer.ID]time.Time),
 		blockedAddrs: make(map[string]time.Time),
@@ -58,13 +58,12 @@ func NewConnectionGater(ds datastore.Datastore, addrBook peerstore.AddrBook, ban
 		banDuration:  banDuration,
 		maxBanscore:  maxBanscore,
 		addrBook:     addrBook,
+		ds:           ds,
 	}
 
-	if ds != nil {
-		err := cg.loadRules(context.Background())
-		if err != nil {
-			return nil, err
-		}
+	err := cg.loadRules(context.Background())
+	if err != nil {
+		return nil, err
 	}
 
 	return cg, nil
@@ -128,20 +127,29 @@ func (cg *ConnectionGater) loadRules(ctx context.Context) error {
 	return nil
 }
 
-func (cg *ConnectionGater) IncreaseBanscore(p peer.ID, persistent, transient uint32) error {
-	if cg.banDuration == 0 {
-		return nil
+// IncreaseBanscore increases the ban score for a peer. If the score goes over maxBanscore then
+// the peer will be banned as well as its IP addresses.
+//
+// If persistent is non-zero the persistent score will never decrease. The transient score does
+// decrease according to a decay function.
+func (cg *ConnectionGater) IncreaseBanscore(p peer.ID, persistent, transient uint32) (bool, error) {
+	if _, ok := cg.blockedPeers[p]; ok || cg.banDuration == 0 {
+		return false, nil
 	}
 	cg.Lock()
 	banscore, ok := cg.scores[p]
 	if !ok {
-		cg.scores[p] = &DynamicBanScore{}
+		banscore = &DynamicBanScore{}
+		cg.scores[p] = banscore
 	}
 	score := banscore.Increase(persistent, transient)
+	log.Infof("Increased peer %s banscore to %d, threshold %d", p, score, cg.maxBanscore)
 	cg.Unlock()
-	if score > cg.maxBanscore {
+	banned := score > cg.maxBanscore
+	if banned {
+		log.Infof("Banning peer %s for %s", p, cg.banDuration)
 		if err := cg.BlockPeer(p); err != nil {
-			return err
+			return false, err
 		}
 
 		addrs := cg.addrBook.Addrs(p)
@@ -149,10 +157,11 @@ func (cg *ConnectionGater) IncreaseBanscore(p peer.ID, persistent, transient uin
 			ip, err := manet.ToIP(addr)
 			if err == nil {
 				if err := cg.BlockAddr(ip); err != nil {
-					return err
+					return false, err
 				}
 			}
 		}
+		delete(cg.scores, p)
 	}
 	cg.Lock()
 	defer cg.Unlock()
@@ -161,7 +170,7 @@ func (cg *ConnectionGater) IncreaseBanscore(p peer.ID, persistent, transient uin
 			delete(cg.scores, p)
 		}
 	}
-	return nil
+	return banned, nil
 }
 
 // BlockPeer adds a peer to the set of blocked peers.

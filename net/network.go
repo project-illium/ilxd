@@ -41,6 +41,7 @@ const (
 type Network struct {
 	host        host.Host
 	connManager coreconmgr.ConnManager
+	connGater   *ConnectionGater
 	dht         *dht.IpfsDHT
 	pubsub      *pubsub.PubSub
 	txTopic     *pubsub.Topic
@@ -264,6 +265,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	net := &Network{
 		host:        host,
 		connManager: cmgr,
+		connGater:   conngater,
 		dht:         idht,
 		pubsub:      ps,
 		txTopic:     txTopic,
@@ -338,4 +340,14 @@ func (n *Network) BroadcastTransaction(tx *transactions.Transaction) error {
 		return err
 	}
 	return n.txTopic.Publish(context.Background(), ser)
+}
+
+func (n *Network) IncreaseBanscore(p peer.ID, persistent, transient uint32) {
+	banned, err := n.connGater.IncreaseBanscore(p, persistent, transient)
+	if err != nil {
+		log.Errorf("Error setting banscore for peer %: %s", p, err)
+	}
+	if banned {
+		n.host.Network().ClosePeer(p)
+	}
 }

@@ -52,7 +52,7 @@ func (cs *ChainService) HandleNewStream(s inet.Stream) {
 func (cs *ChainService) handleNewMessage(s inet.Stream) {
 	defer s.Close()
 	contextReader := ctxio.NewReader(cs.ctx, s)
-	reader := msgio.NewVarintReaderSize(contextReader, inet.MessageSizeMax)
+	reader := msgio.NewVarintReaderSize(contextReader, 1<<23)
 	remotePeer := s.Conn().RemotePeer()
 	defer reader.Close()
 
@@ -114,7 +114,7 @@ func (cs *ChainService) GetBlockTxs(p peer.ID, blockID types.ID, txIndexes []uin
 	}
 
 	if len(resp.Transactions) != len(txIndexes) {
-		// FIXME: increase ban score?
+		cs.network.IncreaseBanscore(p, 50, 0)
 		return nil, fmt.Errorf("peer %s did not return all requested txs", p.String())
 	}
 
@@ -122,6 +122,13 @@ func (cs *ChainService) GetBlockTxs(p peer.ID, blockID types.ID, txIndexes []uin
 }
 
 func (cs *ChainService) handleGetBlockTxs(req *wire.GetBlockTxs) (*wire.MsgBlockTxs, error) {
+	// FIXME: this will only serve txs from blocks that have passed consensus and
+	// have been connected to the chain. We should also check the inventory of the
+	// consensus engine. Blocks in the consensus engine have passed the block
+	// validation rules and thus are safe to serve in response to this.
+	//
+	// This is needed since nodes will call this RPC when decoding xthinner blocks
+	// and before they've validated them, let alone finalized them.
 	blk, err := cs.chain.GetBlockByID(types.NewID(req.BlockID))
 	if err != nil {
 		return &wire.MsgBlockTxs{Error: wire.ErrorResponse_NotFound}, nil
@@ -133,7 +140,7 @@ func (cs *ChainService) handleGetBlockTxs(req *wire.GetBlockTxs) (*wire.MsgBlock
 
 	for _, idx := range req.TxIndexes {
 		if idx > uint32(len(blk.Transactions))-1 {
-			return nil, nil
+			return &wire.MsgBlockTxs{Error: wire.ErrorResponse_BadRequest}, nil
 		}
 		resp.Transactions[idx] = blk.Transactions[idx]
 	}
@@ -169,6 +176,13 @@ func (cs *ChainService) GetBlockTxids(p peer.ID, blockID types.ID) ([]types.ID, 
 }
 
 func (cs *ChainService) handleGetBlockTxids(req *wire.GetBlockTxids) (*wire.MsgBlockTxids, error) {
+	// FIXME: this will only serve txids from blocks that have passed consensus and
+	// have been connected to the chain. We should also check the inventory of the
+	// consensus engine. Blocks in the consensus engine have passed the block
+	// validation rules and thus are safe to serve in response to this.
+	//
+	// This is needed since nodes will call this RPC when decoding xthinner blocks
+	// and before they've validated them, let alone finalized them.
 	blk, err := cs.chain.GetBlockByID(types.NewID(req.BlockID))
 	if err != nil {
 		return &wire.MsgBlockTxids{Error: wire.ErrorResponse_NotFound}, nil

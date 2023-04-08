@@ -33,6 +33,7 @@ func TestChainService(t *testing.T) {
 			return nil
 		}),
 	}...)
+	assert.NoError(t, err)
 
 	testHarness1, err := harness.NewTestHarness(harness.DefaultOptions())
 	assert.NoError(t, err)
@@ -40,8 +41,7 @@ func TestChainService(t *testing.T) {
 	err = testHarness1.GenerateBlocks(10)
 	assert.NoError(t, err)
 
-	ctx1, _ := context.WithCancel(context.Background())
-	service1 := NewChainService(ctx1, testHarness1.Blockchain(), network1, testHarness1.Blockchain().Params())
+	service1 := NewChainService(context.Background(), testHarness1.Blockchain(), network1, testHarness1.Blockchain().Params())
 
 	host2, err := mn.GenPeer()
 	assert.NoError(t, err)
@@ -55,6 +55,7 @@ func TestChainService(t *testing.T) {
 			return nil
 		}),
 	}...)
+	assert.NoError(t, err)
 
 	testHarness2, err := harness.NewTestHarness(harness.DefaultOptions())
 	assert.NoError(t, err)
@@ -62,8 +63,7 @@ func TestChainService(t *testing.T) {
 	err = testHarness2.GenerateBlocks(10)
 	assert.NoError(t, err)
 
-	ctx2, _ := context.WithCancel(context.Background())
-	service2 := NewChainService(ctx2, testHarness2.Blockchain(), network2, testHarness2.Blockchain().Params())
+	service2 := NewChainService(context.Background(), testHarness2.Blockchain(), network2, testHarness2.Blockchain().Params())
 
 	assert.NoError(t, mn.LinkAll())
 	assert.NoError(t, mn.ConnectAllButSelf())
@@ -89,5 +89,4 @@ func TestChainService(t *testing.T) {
 	ret2, err = service1.GetBlockTxs(host2.ID(), b4.ID(), []uint32{0})
 	assert.NoError(t, err)
 	assert.Empty(t, deep.Equal(b4.GetTransactions(), ret2))
-
 }

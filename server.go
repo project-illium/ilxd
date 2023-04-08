@@ -184,6 +184,8 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		net.Params(netParams),
 		net.BlockValidator(s.handleIncomingBlock),
 		net.MempoolValidator(mpool.ProcessTransaction),
+		net.MaxBanscore(config.MaxBanscore),
+		net.BanDuration(config.BanDuration),
 	}
 	if config.DisableNATPortMap {
 		networkOpts = append(networkOpts, net.DisableNatPortMap())
@@ -220,8 +222,12 @@ func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.I
 		return err
 	}
 
-	connectErr := s.blockchain.CheckConnectBlock(blk)
-	switch connectErr.(type) {
+	return s.processBlock(blk, p, false)
+}
+
+func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck bool) error {
+	err := s.blockchain.CheckConnectBlock(blk)
+	switch err.(type) {
 	case blockchain.OrphanBlockError:
 		// An orphan is a block's whose height is greater than
 		// our current blockchain tip. It might be valid, but
@@ -234,77 +240,126 @@ func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.I
 			firstSeen: time.Now(),
 		}
 		s.orphanLock.Unlock()
+		return err
 	case blockchain.RuleError:
+		if recheck {
+			s.network.IncreaseBanscore(relayingPeer, 34, 0)
+			return err
+		}
 		// If the merkle root is invalid it either means we had a collision in the
 		// mempool or this block is genuinely invalid.
 		//
 		// Let's download the txid list from the peer and figure out which it is.
 		if blockchain.ErrorIs(err, blockchain.ErrInvalidTxRoot) {
-			txids, err := s.chainService.GetBlockTxids(p, xThinnerBlk.ID())
+			blk, err := s.fetchBlockTxids(blk, relayingPeer)
 			if err != nil {
-				return err
-			}
-			if len(txids) != len(blk.Transactions) {
-				return errors.New("getblocktxids: peer returned unexpected  number of IDs")
-			}
-			missing := make([]uint32, 0, len(blk.Transactions))
-			for i, tx := range blk.Transactions {
-				if tx.ID() != txids[i] {
-					missing = append(missing, uint32(i))
+				s.network.IncreaseBanscore(relayingPeer, 34, 0)
+
+				for _, pid := range s.network.Host().Network().Peers() {
+					blk, err = s.fetchBlockTxids(blk, pid)
+					if err == nil {
+						return s.processBlock(blk, relayingPeer, true)
+					}
 				}
+			} else {
+				return s.processBlock(blk, relayingPeer, true)
 			}
-			if len(missing) == 0 {
-				return connectErr
+
+		} else if blockchain.ErrorIs(err, blockchain.ErrDoesNotConnect) {
+			// Small chance of a race condition where we receive a block
+			// right after we finalize a block at the same height. We'll
+			// only lightly increase the penalty for this to prevent banning
+			// nodes for innocent behavior.
+			s.network.IncreaseBanscore(relayingPeer, 0, 10)
+		} else {
+			// Ban nodes that send us invalid blocks.
+			s.network.IncreaseBanscore(relayingPeer, 101, 0)
+		}
+		return err
+	}
+	if err != nil {
+		return err
+	}
+
+	callback := make(chan consensus.Status)
+	// TODO: set initial preference correctly
+	startTime := time.Now()
+	s.engine.NewBlock(blk.ID(), true, callback)
+
+	go func(b *blocks.Block, t time.Time) {
+		select {
+		case status := <-callback:
+			switch status {
+			case consensus.StatusFinalized:
+				blockID := blk.ID()
+				log.Debugf("Block %s finalized in %s milliseconds", blockID, time.Since(t).Milliseconds())
+				if err := s.blockchain.ConnectBlock(b, blockchain.BFNone); err != nil {
+					log.Warnf("Connect block error: block %s: %s", blockID, err)
+				} else {
+					log.Infof("New block: %s, (height: %d, transactions: %d)", blockID, blk.Header.Height, len(b.Transactions))
+				}
+			case consensus.StatusRejected:
+				log.Debugf("Block %s rejected by consensus", b.ID())
 			}
-			txs, err := s.chainService.GetBlockTxs(p, blk.ID(), missing)
-			if err != nil {
-				return err
-			}
+		case <-s.ctx.Done():
+			return
+		}
+	}(blk, startTime)
+	return nil
+}
+
+func (s *Server) decodeXthinner(xThinnerBlk *blocks.XThinnerBlock, relayingPeer peer.ID) (*blocks.Block, error) {
+	blk, missing := s.mempool.DecodeXthinner(xThinnerBlk)
+	if len(missing) > 0 {
+		txs, err := s.chainService.GetBlockTxs(relayingPeer, xThinnerBlk.ID(), missing)
+		if err == nil {
 			for i, tx := range txs {
 				blk.Transactions[missing[i]] = tx
 			}
-			return s.blockchain.CheckConnectBlock(blk)
+			return blk, nil
+		} else {
+			s.network.IncreaseBanscore(relayingPeer, 34, 0)
+		}
+
+		for _, pid := range s.network.Host().Network().Peers() {
+			txs, err := s.chainService.GetBlockTxs(pid, xThinnerBlk.ID(), missing)
+			if err == nil {
+				for i, tx := range txs {
+					blk.Transactions[missing[i]] = tx
+				}
+				return blk, nil
+			}
+			// We won't increase the ban score for these peers as they didn't send
+			// us the block. If the block is invalid they may not be able to legitimately
+			// respond to our request.
 		}
 	}
-	if err == nil {
-		callback := make(chan consensus.Status)
-		// TODO: set initial preference correctly
-		startTime := time.Now()
-		s.engine.NewBlock(blk.ID(), true, callback)
-
-		go func(b *blocks.Block, t time.Time) {
-			select {
-			case status := <-callback:
-				switch status {
-				case consensus.StatusFinalized:
-					blockID := blk.ID()
-					log.Debugf("Block %s finalized in %s milliseconds", blockID, time.Since(t).Milliseconds())
-					if err := s.blockchain.ConnectBlock(b, blockchain.BFNone); err != nil {
-						log.Warnf("Connect block error: block %s: %s", blockID, err)
-					} else {
-						log.Infof("New block: %s, (height: %d, transactions: %d)", blockID, blk.Header.Height, len(b.Transactions))
-					}
-				case consensus.StatusRejected:
-					log.Debugf("Block %s rejected by consensus", b.ID())
-				}
-			case <-s.ctx.Done():
-				return
-			}
-		}(blk, startTime)
-	}
-	return err
+	return blk, nil
 }
 
-func (s *Server) decodeXthinner(xthinnerBlk *blocks.XThinnerBlock, p peer.ID) (*blocks.Block, error) {
-	blk, missing := s.mempool.DecodeXthinner(xthinnerBlk)
-	if len(missing) > 0 {
-		txs, err := s.chainService.GetBlockTxs(p, xthinnerBlk.ID(), missing)
-		if err != nil {
-			return nil, err
+func (s *Server) fetchBlockTxids(blk *blocks.Block, p peer.ID) (*blocks.Block, error) {
+	txids, err := s.chainService.GetBlockTxids(p, blk.ID())
+	if err != nil {
+		return nil, err
+	}
+	if len(txids) != len(blk.Transactions) {
+		return nil, errors.New("getblocktxids: peer returned unexpected  number of IDs")
+	}
+	missing := make([]uint32, 0, len(blk.Transactions))
+	for i, tx := range blk.Transactions {
+		if tx.ID() != txids[i] {
+			missing = append(missing, uint32(i))
 		}
-		for i, tx := range txs {
-			blk.Transactions[missing[i]] = tx
-		}
+	}
+	if len(missing) == 0 {
+		return nil, errors.New("block invalid")
+	}
+	txs, err := s.chainService.GetBlockTxs(p, blk.ID(), missing)
+	if err != nil {
+		return nil, err
+	}
+	for i, tx := range txs {
+		blk.Transactions[missing[i]] = tx
 	}
 	return blk, nil
 }
