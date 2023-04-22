@@ -12,6 +12,7 @@ import (
 	"github.com/project-illium/ilxd/blockchain/harness"
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/params"
+	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/stretchr/testify/assert"
@@ -20,6 +21,8 @@ import (
 
 func TestChainService(t *testing.T) {
 	mn := mocknet.New()
+
+	ds := mock.NewMapDatastore()
 
 	host1, err := mn.GenPeer()
 	assert.NoError(t, err)
@@ -32,6 +35,7 @@ func TestChainService(t *testing.T) {
 		net.MempoolValidator(func(transaction *transactions.Transaction) error {
 			return nil
 		}),
+		net.Datastore(ds),
 	}...)
 	assert.NoError(t, err)
 
@@ -54,6 +58,7 @@ func TestChainService(t *testing.T) {
 		net.MempoolValidator(func(transaction *transactions.Transaction) error {
 			return nil
 		}),
+		net.Datastore(ds),
 	}...)
 	assert.NoError(t, err)
 

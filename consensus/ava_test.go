@@ -12,6 +12,7 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/params"
+	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -78,6 +79,7 @@ func runTest(numNodes int, numNoVotes int, numAlwaysNoVotes int) (bool, error) {
 			net.MempoolValidator(func(transaction *transactions.Transaction) error {
 				return nil
 			}),
+			net.Datastore(mock.NewMapDatastore()),
 		}...)
 		if err != nil {
 			return false, err
