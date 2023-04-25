@@ -200,6 +200,38 @@ func TestConnectionGater(t *testing.T) {
 	assert.True(t, allow, "expected gater to allow peerB in 2.3.4.5")
 }
 
+func TestBanscore(t *testing.T) {
+	ds := mock.NewMapDatastore()
+	pstore, err := pstoreds.NewPeerstore(context.Background(), ds, pstoreds.DefaultOpts())
+	assert.NoError(t, err)
+
+	peerA, _ := peer.Decode("12D3KooWSE3nPEMZEXGpDRjZesMEVquvs3YjYPJdiC4ve66rVuu5")
+
+	addr := ma.StringCast("/ip4/1.2.3.4/tcp/1234")
+
+	pstore.AddAddr(peerA, addr, time.Hour)
+
+	cg, err := NewConnectionGater(ds, pstore, time.Minute, 100)
+	assert.NoError(t, err)
+
+	banned, err := cg.IncreaseBanscore(peerA, 99, 0)
+	assert.NoError(t, err)
+	assert.False(t, banned)
+
+	banned, err = cg.IncreaseBanscore(peerA, 2, 0)
+	assert.NoError(t, err)
+	assert.True(t, banned)
+
+	blockedPeers := cg.ListBlockedPeers()
+	assert.Equalf(t, 1, len(blockedPeers), "expected 1 blocked peer, but got %d", len(blockedPeers))
+
+	blockedAddrs := cg.ListBlockedAddrs()
+	assert.Equalf(t, 1, len(blockedAddrs), "expected 1 blocked addr, but got %d", len(blockedAddrs))
+
+	assert.Equal(t, peerA.String(), blockedPeers[0].String())
+	assert.Equal(t, "1.2.3.4", blockedAddrs[0].String())
+}
+
 type mockConnMultiaddrs struct {
 	local, remote ma.Multiaddr
 }
