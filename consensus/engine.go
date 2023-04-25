@@ -61,8 +61,9 @@ type requestExpirationMsg struct {
 
 // queryMsg signifies a query from another peer.
 type queryMsg struct {
-	request  *wire.MsgAvaRequest
-	respChan chan *wire.MsgAvaResponse
+	request    *wire.MsgAvaRequest
+	respChan   chan *wire.MsgAvaResponse
+	remotePeer peer.ID
 }
 
 type newBlockMessage struct {
@@ -77,21 +78,23 @@ type registerVotesMsg struct {
 	resp *wire.MsgAvaResponse
 }
 
+type RequestBlockFunc func(blockID types.ID, remotePeer peer.ID)
+
 type ConsensusEngine struct {
-	ctx     context.Context
-	network *net.Network
-	params  *params.NetworkParams
-	chooser blockchain.WeightedChooser
-	ms      net.MessageSender
-	wg      sync.WaitGroup
-	quit    chan struct{}
-	msgChan chan interface{}
+	ctx         context.Context
+	network     *net.Network
+	params      *params.NetworkParams
+	chooser     blockchain.WeightedChooser
+	ms          net.MessageSender
+	wg          sync.WaitGroup
+	requestFunc RequestBlockFunc
+	quit        chan struct{}
+	msgChan     chan interface{}
 
 	voteRecords    map[types.ID]*VoteRecord
 	rejectedBlocks map[types.ID]struct{}
 	queries        map[string]RequestRecord
 	callbacks      map[types.ID]chan<- Status
-	streams        map[peer.ID]inet.Stream
 	start          time.Time
 
 	alwaysNo    bool
@@ -100,7 +103,7 @@ type ConsensusEngine struct {
 	printState  bool
 }
 
-func NewConsensusEngine(ctx context.Context, params *params.NetworkParams, network *net.Network, chooser blockchain.WeightedChooser) (*ConsensusEngine, error) {
+func NewConsensusEngine(ctx context.Context, params *params.NetworkParams, network *net.Network, chooser blockchain.WeightedChooser, requestBlockFunc RequestBlockFunc) (*ConsensusEngine, error) {
 	return &ConsensusEngine{
 		ctx:            ctx,
 		network:        network,
@@ -108,6 +111,7 @@ func NewConsensusEngine(ctx context.Context, params *params.NetworkParams, netwo
 		params:         params,
 		ms:             net.NewMessageSender(network.Host(), params.ProtocolPrefix+ConsensusProtocol),
 		wg:             sync.WaitGroup{},
+		requestFunc:    requestBlockFunc,
 		quit:           make(chan struct{}),
 		msgChan:        make(chan interface{}),
 		voteRecords:    make(map[types.ID]*VoteRecord),
@@ -139,7 +143,7 @@ out:
 			case *requestExpirationMsg:
 				eng.handleRequestExpiration(msg.key)
 			case *queryMsg:
-				eng.handleQuery(msg.request, msg.respChan)
+				eng.handleQuery(msg.request, msg.remotePeer, msg.respChan)
 			case *newBlockMessage:
 				eng.handleNewBlock(msg.blockID, msg.initialAcceptancePreference, msg.callback)
 			case *registerVotesMsg:
@@ -216,8 +220,9 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 
 		respCh := make(chan *wire.MsgAvaResponse)
 		eng.msgChan <- &queryMsg{
-			request:  req,
-			respChan: respCh,
+			request:    req,
+			respChan:   respCh,
+			remotePeer: remotePeer,
 		}
 
 		respMsg := <-respCh
@@ -229,7 +234,7 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 	}
 }
 
-func (eng *ConsensusEngine) handleQuery(req *wire.MsgAvaRequest, respChan chan *wire.MsgAvaResponse) {
+func (eng *ConsensusEngine) handleQuery(req *wire.MsgAvaRequest, remotePeer peer.ID, respChan chan *wire.MsgAvaResponse) {
 	votes := make([]byte, len(req.Invs))
 	for i, invBytes := range req.Invs {
 		inv := types.NewID(invBytes)
@@ -246,10 +251,9 @@ func (eng *ConsensusEngine) handleQuery(req *wire.MsgAvaRequest, respChan chan *
 				votes[i] = 0x01 // Yes vote
 			}
 		} else {
-			// TODO: we need to download this block from the peer and give it to
-			// the mempool for processing.
-
 			votes[i] = 0x80 // Neutral vote
+			// Request to download the block from the remote peer
+			eng.requestFunc(inv, remotePeer)
 		}
 
 		if eng.alwaysNo {

@@ -29,8 +29,9 @@ import (
 var log = zap.S()
 
 type orphanBlock struct {
-	blk       *blocks.Block
-	firstSeen time.Time
+	blk          *blocks.Block
+	relayingPeer peer.ID
+	firstSeen    time.Time
 }
 
 // Server is the main class that brings all the constituent parts together
@@ -46,9 +47,16 @@ type Server struct {
 	mempool      *mempool.Mempool
 	engine       *consensus.ConsensusEngine
 	chainService *sync.ChainService
+
 	orphanBlocks map[types.ID]*orphanBlock
 	orphanLock   stdsync.RWMutex
-	policy       *Policy
+
+	activeInventory map[types.ID]*blocks.Block
+	inventoryLock   stdsync.RWMutex
+
+	inflightRequests map[types.ID]bool
+	inflightLock     stdsync.RWMutex
+	policy           *Policy
 }
 
 // BuildServer is the constructor for the server. We pass in the config file here
@@ -196,6 +204,11 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		return nil, err
 	}
 
+	engine, err := consensus.NewConsensusEngine(ctx, netParams, network, chain, s.requestBlock)
+	if err != nil {
+		return nil, err
+	}
+
 	s.ctx = ctx
 	s.cancelFunc = cancel
 	s.config = config
@@ -204,9 +217,14 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.network = network
 	s.blockchain = chain
 	s.mempool = mpool
-	s.chainService = sync.NewChainService(ctx, chain, network, netParams)
+	s.engine = engine
+	s.chainService = sync.NewChainService(ctx, s.fetchBlock, network, netParams)
 	s.orphanBlocks = make(map[types.ID]*orphanBlock)
+	s.activeInventory = make(map[types.ID]*blocks.Block)
+	s.inflightRequests = make(map[types.ID]bool)
 	s.orphanLock = stdsync.RWMutex{}
+	s.inventoryLock = stdsync.RWMutex{}
+	s.inflightLock = stdsync.RWMutex{}
 	s.policy = policy
 
 	s.printListenAddrs()
@@ -236,8 +254,9 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 		// we connect the next block.
 		s.orphanLock.Lock()
 		s.orphanBlocks[blk.ID()] = &orphanBlock{
-			blk:       blk,
-			firstSeen: time.Now(),
+			blk:          blk,
+			firstSeen:    time.Now(),
+			relayingPeer: relayingPeer,
 		}
 		s.orphanLock.Unlock()
 		return err
@@ -284,6 +303,15 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 	callback := make(chan consensus.Status)
 	// TODO: set initial preference correctly
 	startTime := time.Now()
+
+	s.inventoryLock.Lock()
+	s.activeInventory[blk.ID()] = blk
+	s.inventoryLock.Unlock()
+
+	s.orphanLock.Lock()
+	delete(s.orphanBlocks, blk.ID())
+	s.orphanLock.Unlock()
+
 	s.engine.NewBlock(blk.ID(), true, callback)
 
 	go func(b *blocks.Block, t time.Time) {
@@ -301,6 +329,20 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 			case consensus.StatusRejected:
 				log.Debugf("Block %s rejected by consensus", b.ID())
 			}
+
+			s.inventoryLock.Lock()
+			delete(s.activeInventory, blk.ID())
+			s.inventoryLock.Unlock()
+
+			s.orphanLock.Lock()
+			for _, orphan := range s.orphanBlocks {
+				if orphan.blk.Header.Height == blk.Header.Height+1 {
+					// FIXME: delete old orphans
+					s.processBlock(orphan.blk, orphan.relayingPeer, false)
+					break
+				}
+			}
+			s.orphanLock.Unlock()
 		case <-s.ctx.Done():
 			return
 		}
@@ -362,6 +404,47 @@ func (s *Server) fetchBlockTxids(blk *blocks.Block, p peer.ID) (*blocks.Block, e
 		blk.Transactions[missing[i]] = tx
 	}
 	return blk, nil
+}
+
+func (s *Server) fetchBlock(blockID types.ID) (*blocks.Block, error) {
+	s.inventoryLock.RLock()
+	defer s.inventoryLock.RUnlock()
+
+	if blk, ok := s.activeInventory[blockID]; ok {
+		return blk, nil
+	}
+
+	return s.blockchain.GetBlockByID(blockID)
+}
+
+func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
+	s.inflightLock.RLock()
+	if _, ok := s.inflightRequests[blockID]; ok {
+		s.inflightLock.RUnlock()
+		return
+	}
+	s.inflightLock.RLock()
+
+	s.inflightLock.Lock()
+	s.inflightRequests[blockID] = true
+	s.inflightLock.Unlock()
+
+	blk, err := s.chainService.GetBlock(remotePeer, blockID)
+	if err != nil {
+		s.inflightLock.Lock()
+		delete(s.inflightRequests, blockID)
+		s.inflightLock.Unlock()
+		return
+	}
+
+	s.processBlock(blk, remotePeer, false)
+
+	time.AfterFunc(time.Minute*5, func() {
+		s.inflightLock.Lock()
+		delete(s.inflightRequests, blockID)
+		s.inflightLock.Unlock()
+	})
+
 }
 
 // Close shuts down all the parts of the server and blocks until

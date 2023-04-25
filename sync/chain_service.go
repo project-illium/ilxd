@@ -12,10 +12,10 @@ import (
 	inet "github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-msgio"
-	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/types/wire"
 	"google.golang.org/protobuf/proto"
@@ -25,21 +25,23 @@ const (
 	ChainServiceProtocol = "chainservice"
 )
 
+type FetchBlockFunc func(blockID types.ID) (*blocks.Block, error)
+
 type ChainService struct {
-	ctx     context.Context
-	network *net.Network
-	params  *params.NetworkParams
-	chain   *blockchain.Blockchain
-	ms      net.MessageSender
+	ctx        context.Context
+	network    *net.Network
+	params     *params.NetworkParams
+	fetchBlock FetchBlockFunc
+	ms         net.MessageSender
 }
 
-func NewChainService(ctx context.Context, chain *blockchain.Blockchain, network *net.Network, params *params.NetworkParams) *ChainService {
+func NewChainService(ctx context.Context, fetchBlock FetchBlockFunc, network *net.Network, params *params.NetworkParams) *ChainService {
 	cs := &ChainService{
-		ctx:     ctx,
-		network: network,
-		chain:   chain,
-		params:  params,
-		ms:      net.NewMessageSender(network.Host(), params.ProtocolPrefix+ChainServiceProtocol),
+		ctx:        ctx,
+		network:    network,
+		fetchBlock: fetchBlock,
+		params:     params,
+		ms:         net.NewMessageSender(network.Host(), params.ProtocolPrefix+ChainServiceProtocol),
 	}
 	cs.network.Host().SetStreamHandler(cs.params.ProtocolPrefix+ChainServiceProtocol, cs.HandleNewStream)
 	return cs
@@ -78,6 +80,8 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 			resp, err = cs.handleGetBlockTxs(m.GetBlockTxs)
 		case *wire.MsgChainServiceRequest_GetBlockTxids:
 			resp, err = cs.handleGetBlockTxids(m.GetBlockTxids)
+		case *wire.MsgChainServiceRequest_GetBlock:
+			resp, err = cs.handleGetBlock(m.GetBlock)
 		}
 		if err != nil {
 			log.Errorf("Error handing block service message to peer: %s, error: %s", remotePeer, err.Error())
@@ -97,13 +101,13 @@ func (cs *ChainService) GetBlockTxs(p peer.ID, blockID types.ID, txIndexes []uin
 	var (
 		req = &wire.MsgChainServiceRequest{
 			Msg: &wire.MsgChainServiceRequest_GetBlockTxs{
-				GetBlockTxs: &wire.GetBlockTxs{
+				GetBlockTxs: &wire.GetBlockTxsReq{
 					BlockID:   blockID[:],
 					TxIndexes: txIndexes,
 				},
 			},
 		}
-		resp = new(wire.MsgBlockTxs)
+		resp = new(wire.MsgBlockTxsResp)
 	)
 	err := cs.ms.SendRequest(cs.ctx, p, req, resp)
 	if err != nil {
@@ -121,7 +125,7 @@ func (cs *ChainService) GetBlockTxs(p peer.ID, blockID types.ID, txIndexes []uin
 	return resp.Transactions, nil
 }
 
-func (cs *ChainService) handleGetBlockTxs(req *wire.GetBlockTxs) (*wire.MsgBlockTxs, error) {
+func (cs *ChainService) handleGetBlockTxs(req *wire.GetBlockTxsReq) (*wire.MsgBlockTxsResp, error) {
 	// FIXME: this will only serve txs from blocks that have passed consensus and
 	// have been connected to the chain. We should also check the inventory of the
 	// consensus engine. Blocks in the consensus engine have passed the block
@@ -129,18 +133,18 @@ func (cs *ChainService) handleGetBlockTxs(req *wire.GetBlockTxs) (*wire.MsgBlock
 	//
 	// This is needed since nodes will call this RPC when decoding xthinner blocks
 	// and before they've validated them, let alone finalized them.
-	blk, err := cs.chain.GetBlockByID(types.NewID(req.BlockID))
+	blk, err := cs.fetchBlock(types.NewID(req.BlockID))
 	if err != nil {
-		return &wire.MsgBlockTxs{Error: wire.ErrorResponse_NotFound}, nil
+		return &wire.MsgBlockTxsResp{Error: wire.ErrorResponse_NotFound}, nil
 	}
 
-	resp := &wire.MsgBlockTxs{
+	resp := &wire.MsgBlockTxsResp{
 		Transactions: make([]*transactions.Transaction, len(req.TxIndexes)),
 	}
 
 	for _, idx := range req.TxIndexes {
 		if idx > uint32(len(blk.Transactions))-1 {
-			return &wire.MsgBlockTxs{Error: wire.ErrorResponse_BadRequest}, nil
+			return &wire.MsgBlockTxsResp{Error: wire.ErrorResponse_BadRequest}, nil
 		}
 		resp.Transactions[idx] = blk.Transactions[idx]
 	}
@@ -152,12 +156,12 @@ func (cs *ChainService) GetBlockTxids(p peer.ID, blockID types.ID) ([]types.ID, 
 	var (
 		req = &wire.MsgChainServiceRequest{
 			Msg: &wire.MsgChainServiceRequest_GetBlockTxids{
-				GetBlockTxids: &wire.GetBlockTxids{
+				GetBlockTxids: &wire.GetBlockTxidsReq{
 					BlockID: blockID[:],
 				},
 			},
 		}
-		resp = new(wire.MsgBlockTxids)
+		resp = new(wire.MsgBlockTxidsResp)
 	)
 	err := cs.ms.SendRequest(cs.ctx, p, req, resp)
 	if err != nil {
@@ -175,17 +179,10 @@ func (cs *ChainService) GetBlockTxids(p peer.ID, blockID types.ID) ([]types.ID, 
 	return txids, nil
 }
 
-func (cs *ChainService) handleGetBlockTxids(req *wire.GetBlockTxids) (*wire.MsgBlockTxids, error) {
-	// FIXME: this will only serve txids from blocks that have passed consensus and
-	// have been connected to the chain. We should also check the inventory of the
-	// consensus engine. Blocks in the consensus engine have passed the block
-	// validation rules and thus are safe to serve in response to this.
-	//
-	// This is needed since nodes will call this RPC when decoding xthinner blocks
-	// and before they've validated them, let alone finalized them.
-	blk, err := cs.chain.GetBlockByID(types.NewID(req.BlockID))
+func (cs *ChainService) handleGetBlockTxids(req *wire.GetBlockTxidsReq) (*wire.MsgBlockTxidsResp, error) {
+	blk, err := cs.fetchBlock(types.NewID(req.BlockID))
 	if err != nil {
-		return &wire.MsgBlockTxids{Error: wire.ErrorResponse_NotFound}, nil
+		return &wire.MsgBlockTxidsResp{Error: wire.ErrorResponse_NotFound}, nil
 	}
 
 	txids := make([][]byte, 0, len(blk.Transactions))
@@ -194,8 +191,43 @@ func (cs *ChainService) handleGetBlockTxids(req *wire.GetBlockTxids) (*wire.MsgB
 		txids = append(txids, id[:])
 	}
 
-	resp := &wire.MsgBlockTxids{
+	resp := &wire.MsgBlockTxidsResp{
 		Txids: txids,
+	}
+
+	return resp, nil
+}
+
+func (cs *ChainService) GetBlock(p peer.ID, blockID types.ID) (*blocks.Block, error) {
+	var (
+		req = &wire.MsgChainServiceRequest{
+			Msg: &wire.MsgChainServiceRequest_GetBlock{
+				GetBlock: &wire.GetBlockReq{
+					BlockID: blockID[:],
+				},
+			},
+		}
+		resp = new(wire.MsgBlockResp)
+	)
+	err := cs.ms.SendRequest(cs.ctx, p, req, resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Error != wire.ErrorResponse_None {
+		return nil, fmt.Errorf("error response from peer: %s", resp.GetError().String())
+	}
+
+	return resp.Block, nil
+}
+
+func (cs *ChainService) handleGetBlock(req *wire.GetBlockReq) (*wire.MsgBlockResp, error) {
+	blk, err := cs.fetchBlock(types.NewID(req.BlockID))
+	if err != nil {
+		return &wire.MsgBlockResp{Error: wire.ErrorResponse_NotFound}, nil
+	}
+
+	resp := &wire.MsgBlockResp{
+		Block: blk,
 	}
 
 	return resp, nil

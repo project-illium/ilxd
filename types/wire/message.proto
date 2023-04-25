@@ -6,6 +6,7 @@ syntax = "proto3";
 option go_package = "../wire";
 
 import "transactions.proto";
+import "blocks.proto";
 
 enum ErrorResponse {
     None       = 0;
@@ -25,26 +26,36 @@ message MsgAvaResponse {
 
 message MsgChainServiceRequest {
     oneof msg {
-        GetBlockTxs   get_block_txs  = 1;
-        GetBlockTxids get_block_txids = 2;
+        GetBlockTxsReq   get_block_txs   = 1;
+        GetBlockTxidsReq get_block_txids = 2;
+        GetBlockReq      get_block       = 3;
     }
 }
 
-message GetBlockTxs {
+message GetBlockTxsReq {
     bytes blockID              = 1;
     repeated uint32 txIndexes  = 2;
 }
 
-message MsgBlockTxs {
+message MsgBlockTxsResp {
     repeated Transaction transactions = 1;
     ErrorResponse error               = 2;
 }
 
-message GetBlockTxids {
-    bytes blockID              = 1;
+message GetBlockTxidsReq {
+    bytes blockID = 1;
 }
 
-message MsgBlockTxids {
+message MsgBlockTxidsResp {
     repeated bytes txids = 1;
     ErrorResponse error  = 2;
+}
+
+message GetBlockReq {
+    bytes blockID = 1;
+}
+
+message MsgBlockResp {
+    Block block         = 1;
+    ErrorResponse error = 2;
 }

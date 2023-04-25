@@ -45,7 +45,7 @@ func TestChainService(t *testing.T) {
 	err = testHarness1.GenerateBlocks(10)
 	assert.NoError(t, err)
 
-	service1 := NewChainService(context.Background(), testHarness1.Blockchain(), network1, testHarness1.Blockchain().Params())
+	service1 := NewChainService(context.Background(), testHarness1.Blockchain().GetBlockByID, network1, testHarness1.Blockchain().Params())
 
 	host2, err := mn.GenPeer()
 	assert.NoError(t, err)
@@ -68,7 +68,7 @@ func TestChainService(t *testing.T) {
 	err = testHarness2.GenerateBlocks(10)
 	assert.NoError(t, err)
 
-	service2 := NewChainService(context.Background(), testHarness2.Blockchain(), network2, testHarness2.Blockchain().Params())
+	service2 := NewChainService(context.Background(), testHarness2.Blockchain().GetBlockByID, network2, testHarness2.Blockchain().Params())
 
 	assert.NoError(t, mn.LinkAll())
 	assert.NoError(t, mn.ConnectAllButSelf())
@@ -94,4 +94,12 @@ func TestChainService(t *testing.T) {
 	ret2, err = service1.GetBlockTxs(host2.ID(), b4.ID(), []uint32{0})
 	assert.NoError(t, err)
 	assert.Empty(t, deep.Equal(b4.GetTransactions(), ret2))
+
+	ret3, err := service2.GetBlock(host1.ID(), b5.ID())
+	assert.NoError(t, err)
+	assert.Empty(t, deep.Equal(b5, ret3))
+
+	ret3, err = service1.GetBlock(host2.ID(), b4.ID())
+	assert.NoError(t, err)
+	assert.Empty(t, deep.Equal(b4, ret3))
 }
