@@ -5,6 +5,7 @@
 package blocks
 
 import (
+	"encoding/json"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -14,6 +15,16 @@ import (
 
 var _ types.Serializable = (*BlockHeader)(nil)
 var _ types.Serializable = (*Block)(nil)
+
+type headerJSON struct {
+	Version     uint32             `json:"version"`
+	Height      uint32             `json:"height"`
+	Parent      types.HexEncodable `json:"parent"`
+	Timestamp   int64              `json:"timestamp"`
+	TxRoot      types.HexEncodable `json:"tx_root"`
+	Producer_ID types.HexEncodable `json:"producer_ID"`
+	Signature   types.HexEncodable `json:"signature"`
+}
 
 func (h *BlockHeader) ID() types.ID {
 	ser, _ := h.Serialize()
@@ -60,23 +71,33 @@ func (h *BlockHeader) SigHash() ([]byte, error) {
 }
 
 func (h *BlockHeader) MarshalJSON() ([]byte, error) {
-	m := protojson.MarshalOptions{
-		Indent: "    ",
-	}
-	b, err := m.Marshal(h)
-	if err != nil {
-		return nil, err
+	header := &headerJSON{
+		Version:     h.Version,
+		Height:      h.Height,
+		Parent:      h.Parent,
+		Timestamp:   h.Timestamp,
+		TxRoot:      h.TxRoot,
+		Producer_ID: h.Producer_ID,
+		Signature:   h.Signature,
 	}
 
-	return b, nil
+	return json.Marshal(header)
 }
 
 func (h *BlockHeader) UnmarshalJSON(data []byte) error {
-	newHeader := &BlockHeader{}
-	if err := protojson.Unmarshal(data, newHeader); err != nil {
+	newHeader := &headerJSON{}
+	if err := json.Unmarshal(data, newHeader); err != nil {
 		return err
 	}
-	h = newHeader
+	h = &BlockHeader{
+		Version:     newHeader.Version,
+		Height:      newHeader.Height,
+		Parent:      newHeader.Parent,
+		Timestamp:   newHeader.Timestamp,
+		TxRoot:      newHeader.TxRoot,
+		Producer_ID: newHeader.Producer_ID,
+		Signature:   newHeader.Signature,
+	}
 	return nil
 }
 
@@ -140,20 +161,12 @@ func (b *Block) Deserialize(data []byte) error {
 }
 
 func (b *Block) MarshalJSON() ([]byte, error) {
-	m := protojson.MarshalOptions{
-		Indent: "    ",
-	}
-	buf, err := m.Marshal(b)
-	if err != nil {
-		return nil, err
-	}
-
-	return buf, nil
+	return json.Marshal(*b)
 }
 
 func (b *Block) UnmarshalJSON(data []byte) error {
 	newBlock := &Block{}
-	if err := protojson.Unmarshal(data, newBlock); err != nil {
+	if err := json.Unmarshal(data, newBlock); err != nil {
 		return err
 	}
 	b = newBlock

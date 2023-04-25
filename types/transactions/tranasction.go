@@ -5,6 +5,8 @@
 package transactions
 
 import (
+	"encoding/json"
+	"errors"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -79,15 +81,44 @@ func (tx *Transaction) Deserialize(data []byte) error {
 }
 
 func (tx *Transaction) MarshalJSON() ([]byte, error) {
-	m := protojson.MarshalOptions{
-		Indent: "    ",
+	switch tx := tx.GetTx().(type) {
+	case *Transaction_StandardTransaction:
+		ret := &struct {
+			StandardTransaction *StandardTransaction `json:"standard_transaction"`
+		}{
+			StandardTransaction: tx.StandardTransaction,
+		}
+		return json.Marshal(ret)
+	case *Transaction_CoinbaseTransaction:
+		ret := &struct {
+			CoinbaseTransaction *CoinbaseTransaction `json:"coinbase_transaction"`
+		}{
+			CoinbaseTransaction: tx.CoinbaseTransaction,
+		}
+		return json.Marshal(ret)
+	case *Transaction_StakeTransaction:
+		ret := &struct {
+			StakeTransaction *StakeTransaction `json:"stake_transaction"`
+		}{
+			StakeTransaction: tx.StakeTransaction,
+		}
+		return json.Marshal(ret)
+	case *Transaction_TreasuryTransaction:
+		ret := &struct {
+			TreasuryTransaction *TreasuryTransaction `json:"treasury_transaction"`
+		}{
+			TreasuryTransaction: tx.TreasuryTransaction,
+		}
+		return json.Marshal(ret)
+	case *Transaction_MintTransaction:
+		ret := &struct {
+			MintTransaction *MintTransaction `json:"mint_transaction"`
+		}{
+			MintTransaction: tx.MintTransaction,
+		}
+		return json.Marshal(ret)
 	}
-	b, err := m.Marshal(tx)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
+	return nil, errors.New("unknown tx type")
 }
 
 func (tx *Transaction) UnmarshalJSON(data []byte) error {
@@ -97,6 +128,15 @@ func (tx *Transaction) UnmarshalJSON(data []byte) error {
 	}
 	tx = newTx
 	return nil
+}
+
+type standardTxJSON struct {
+	Outputs    []*Output            `json:"outputs"`
+	Nullifiers []types.HexEncodable `json:"nullifiers"`
+	TxoRoot    types.HexEncodable   `json:"txo_root"`
+	Locktime   int64                `json:"locktime"`
+	Fee        uint64               `json:"fee"`
+	Proof      types.HexEncodable   `json:"proof"`
 }
 
 func (tx *StandardTransaction) ID() types.ID {
@@ -130,24 +170,47 @@ func (tx *StandardTransaction) SigHash() ([]byte, error) {
 }
 
 func (tx *StandardTransaction) MarshalJSON() ([]byte, error) {
-	m := protojson.MarshalOptions{
-		Indent: "    ",
+	nullifiers := make([]types.HexEncodable, 0, len(tx.Nullifiers))
+	for _, n := range tx.Nullifiers {
+		nullifiers = append(nullifiers, n)
 	}
-	b, err := m.Marshal(tx)
-	if err != nil {
-		return nil, err
+	s := &standardTxJSON{
+		Outputs:    tx.Outputs,
+		Nullifiers: nullifiers,
+		TxoRoot:    tx.TxoRoot,
+		Locktime:   tx.Locktime,
+		Fee:        tx.Fee,
+		Proof:      tx.Proof,
 	}
-
-	return b, nil
+	return json.Marshal(s)
 }
 
 func (tx *StandardTransaction) UnmarshalJSON(data []byte) error {
-	newTx := &StandardTransaction{}
-	if err := protojson.Unmarshal(data, newTx); err != nil {
+	newTx := &standardTxJSON{}
+	if err := json.Unmarshal(data, newTx); err != nil {
 		return err
 	}
-	tx = newTx
+	nullifiers := make([][]byte, 0, len(newTx.Nullifiers))
+	for _, n := range newTx.Nullifiers {
+		nullifiers = append(nullifiers, n)
+	}
+	tx = &StandardTransaction{
+		Outputs:    newTx.Outputs,
+		Nullifiers: nullifiers,
+		TxoRoot:    newTx.TxoRoot,
+		Locktime:   newTx.Locktime,
+		Fee:        newTx.Fee,
+		Proof:      newTx.Proof,
+	}
 	return nil
+}
+
+type coinbaseTxJSON struct {
+	Validator_ID types.HexEncodable `json:"validator_ID"`
+	NewCoins     uint64             `json:"new_coins"`
+	Outputs      []*Output          `json:"outputs"`
+	Signature    types.HexEncodable `json:"signature"`
+	Proof        types.HexEncodable `json:"proof"`
 }
 
 func (tx *CoinbaseTransaction) ID() types.ID {
@@ -182,24 +245,39 @@ func (tx *CoinbaseTransaction) SigHash() ([]byte, error) {
 }
 
 func (tx *CoinbaseTransaction) MarshalJSON() ([]byte, error) {
-	m := protojson.MarshalOptions{
-		Indent: "    ",
+	c := &coinbaseTxJSON{
+		Validator_ID: tx.Validator_ID,
+		NewCoins:     tx.NewCoins,
+		Outputs:      tx.Outputs,
+		Signature:    tx.Signature,
+		Proof:        tx.Proof,
 	}
-	b, err := m.Marshal(tx)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
+	return json.Marshal(c)
 }
 
 func (tx *CoinbaseTransaction) UnmarshalJSON(data []byte) error {
-	newTx := &CoinbaseTransaction{}
-	if err := protojson.Unmarshal(data, newTx); err != nil {
+	newTx := &coinbaseTxJSON{}
+	if err := json.Unmarshal(data, newTx); err != nil {
 		return err
 	}
-	tx = newTx
+	tx = &CoinbaseTransaction{
+		Validator_ID: newTx.Validator_ID,
+		NewCoins:     newTx.NewCoins,
+		Outputs:      newTx.Outputs,
+		Signature:    newTx.Signature,
+		Proof:        newTx.Proof,
+	}
 	return nil
+}
+
+type stakeTxJSON struct {
+	Validator_ID types.HexEncodable `json:"validator_ID"`
+	Amount       uint64             `json:"amount"`
+	Nullifier    types.HexEncodable `json:"nullifier"`
+	TxoRoot      types.HexEncodable `json:"txo_root"`
+	Locktime     int64              `json:"locktime"`
+	Signature    types.HexEncodable `json:"signature"`
+	Proof        types.HexEncodable `json:"proof"`
 }
 
 func (tx *StakeTransaction) ID() types.ID {
@@ -234,24 +312,40 @@ func (tx *StakeTransaction) SigHash() ([]byte, error) {
 }
 
 func (tx *StakeTransaction) MarshalJSON() ([]byte, error) {
-	m := protojson.MarshalOptions{
-		Indent: "    ",
+	s := &stakeTxJSON{
+		Validator_ID: tx.Validator_ID,
+		Amount:       tx.Amount,
+		Nullifier:    tx.Nullifier,
+		TxoRoot:      tx.TxoRoot,
+		Locktime:     tx.Locktime,
+		Signature:    tx.Signature,
+		Proof:        tx.Proof,
 	}
-	b, err := m.Marshal(tx)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
+	return json.Marshal(s)
 }
 
 func (tx *StakeTransaction) UnmarshalJSON(data []byte) error {
-	newTx := &StakeTransaction{}
-	if err := protojson.Unmarshal(data, newTx); err != nil {
+	newTx := &stakeTxJSON{}
+	if err := json.Unmarshal(data, newTx); err != nil {
 		return err
 	}
-	tx = newTx
+	tx = &StakeTransaction{
+		Validator_ID: newTx.Validator_ID,
+		Amount:       newTx.Amount,
+		Nullifier:    newTx.Nullifier,
+		TxoRoot:      newTx.TxoRoot,
+		Locktime:     newTx.Locktime,
+		Signature:    newTx.Signature,
+		Proof:        newTx.Proof,
+	}
 	return nil
+}
+
+type treasuryTxJSON struct {
+	Amount       uint64             `json:"amount"`
+	Outputs      []*Output          `json:"outputs"`
+	ProposalHash types.HexEncodable `json:"proposal_hash"`
+	Proof        types.HexEncodable `json:"proof"`
 }
 
 func (tx *TreasuryTransaction) ID() types.ID {
@@ -285,24 +379,42 @@ func (tx *TreasuryTransaction) SigHash() ([]byte, error) {
 }
 
 func (tx *TreasuryTransaction) MarshalJSON() ([]byte, error) {
-	m := protojson.MarshalOptions{
-		Indent: "    ",
+	t := &treasuryTxJSON{
+		Amount:       tx.Amount,
+		Outputs:      tx.Outputs,
+		ProposalHash: tx.ProposalHash,
+		Proof:        tx.Proof,
 	}
-	b, err := m.Marshal(tx)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
+	return json.Marshal(t)
 }
 
 func (tx *TreasuryTransaction) UnmarshalJSON(data []byte) error {
-	newTx := &TreasuryTransaction{}
-	if err := protojson.Unmarshal(data, newTx); err != nil {
+	newTx := &treasuryTxJSON{}
+	if err := json.Unmarshal(data, newTx); err != nil {
 		return err
 	}
-	tx = newTx
+	tx = &TreasuryTransaction{
+		Amount:       newTx.Amount,
+		Outputs:      newTx.Outputs,
+		ProposalHash: newTx.ProposalHash,
+		Proof:        newTx.Proof,
+	}
 	return nil
+}
+
+type mintTxJSON struct {
+	Type         MintTransaction_AssetType `json:"type"`
+	Asset_ID     types.HexEncodable        `json:"asset_ID"`
+	DocumentHash types.HexEncodable        `json:"document_hash"`
+	NewTokens    uint64                    `json:"new_tokens"`
+	Outputs      []*Output                 `json:"outputs"`
+	Fee          uint64                    `json:"fee"`
+	Nullifiers   []types.HexEncodable      `json:"nullifiers"`
+	TxoRoot      types.HexEncodable        `json:"txo_root"`
+	MintKey      types.HexEncodable        `json:"mint_key"`
+	Locktime     int64                     `json:"locktime"`
+	Signature    types.HexEncodable        `json:"signature"`
+	Proof        types.HexEncodable        `json:"proof"`
 }
 
 func (tx *MintTransaction) ID() types.ID {
@@ -337,22 +449,77 @@ func (tx *MintTransaction) SigHash() ([]byte, error) {
 }
 
 func (tx *MintTransaction) MarshalJSON() ([]byte, error) {
-	m := protojson.MarshalOptions{
-		Indent: "    ",
+	nullifiers := make([]types.HexEncodable, 0, len(tx.Nullifiers))
+	for _, n := range tx.Nullifiers {
+		nullifiers = append(nullifiers, n)
 	}
-	b, err := m.Marshal(tx)
-	if err != nil {
-		return nil, err
+	s := &mintTxJSON{
+		Type:         tx.Type,
+		Asset_ID:     tx.Asset_ID,
+		DocumentHash: tx.DocumentHash,
+		NewTokens:    tx.NewTokens,
+		Outputs:      tx.Outputs,
+		Fee:          tx.Fee,
+		Nullifiers:   nullifiers,
+		TxoRoot:      tx.TxoRoot,
+		MintKey:      tx.MintKey,
+		Locktime:     tx.Locktime,
+		Signature:    tx.Signature,
+		Proof:        tx.Proof,
 	}
-
-	return b, nil
+	return json.Marshal(s)
 }
 
 func (tx *MintTransaction) UnmarshalJSON(data []byte) error {
-	newTx := &MintTransaction{}
-	if err := protojson.Unmarshal(data, newTx); err != nil {
+	newTx := &mintTxJSON{}
+	if err := json.Unmarshal(data, newTx); err != nil {
 		return err
 	}
-	tx = newTx
+	nullifiers := make([][]byte, 0, len(newTx.Nullifiers))
+	for _, n := range newTx.Nullifiers {
+		nullifiers = append(nullifiers, n)
+	}
+	tx = &MintTransaction{
+		Type:         newTx.Type,
+		Asset_ID:     newTx.Asset_ID,
+		DocumentHash: newTx.DocumentHash,
+		NewTokens:    newTx.NewTokens,
+		Outputs:      newTx.Outputs,
+		Fee:          newTx.Fee,
+		Nullifiers:   nullifiers,
+		TxoRoot:      newTx.TxoRoot,
+		MintKey:      newTx.MintKey,
+		Locktime:     newTx.Locktime,
+		Signature:    newTx.Signature,
+		Proof:        newTx.Proof,
+	}
+	return nil
+}
+
+type outputJSON struct {
+	Commitment      types.HexEncodable `json:"commitment"`
+	EphemeralPubkey types.HexEncodable `json:"ephemeral_pubkey"`
+	Ciphertext      types.HexEncodable `json:"ciphertext"`
+}
+
+func (out *Output) MarshalJSON() ([]byte, error) {
+	o := &outputJSON{
+		Commitment:      out.Commitment,
+		EphemeralPubkey: out.EphemeralPubkey,
+		Ciphertext:      out.Ciphertext,
+	}
+	return json.Marshal(o)
+}
+
+func (out *Output) UnmarshalJSON(data []byte) error {
+	var o outputJSON
+	if err := json.Unmarshal(data, &o); err != nil {
+		return err
+	}
+	out = &Output{
+		Commitment:      o.Commitment,
+		EphemeralPubkey: o.EphemeralPubkey,
+		Ciphertext:      o.Ciphertext,
+	}
 	return nil
 }

@@ -6,7 +6,9 @@ package mempool
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/stretchr/testify/assert"
@@ -274,4 +276,9 @@ func TestMempool_Close(t *testing.T) {
 		}
 		i++
 	}
+}
+
+func TestBlockchainView(t *testing.T) {
+	b, _ := json.MarshalIndent(params.RegestParams.GenesisBlock, "", "    ")
+	fmt.Println(string(b))
 }

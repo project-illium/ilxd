@@ -28,7 +28,7 @@ import (
 // ConnectionGater implements a connection gater that allows the application to perform
 // access control on incoming and outgoing connections. The difference between this
 // and the libp2p BasicConnectionGater is this class provides a method for incrementally
-// increasing a peers banscore and bans them only for a specified duration.
+// increasing a peer's banscore and bans them only for a specified duration.
 type ConnectionGater struct {
 	sync.RWMutex
 
@@ -159,6 +159,9 @@ func (cg *ConnectionGater) IncreaseBanscore(p peer.ID, persistent, transient uin
 		for _, addr := range addrs {
 			ip, err := manet.ToIP(addr)
 			if err == nil {
+				if ip.IsLoopback() {
+					continue
+				}
 				if err := cg.BlockAddr(ip); err != nil {
 					return false, err
 				}
