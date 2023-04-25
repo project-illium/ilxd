@@ -71,7 +71,7 @@ func NewConnectionGater(ds repo.Datastore, addrBook peerstore.AddrBook, banDurat
 
 func (cg *ConnectionGater) loadRules(ctx context.Context) error {
 	// load blocked peers
-	res, err := cg.ds.Query(ctx, query.Query{Prefix: keyPeer})
+	res, err := cg.ds.Query(ctx, query.Query{Prefix: repo.ConnGaterKeyPrefix + keyPeer})
 	if err != nil {
 		log.Errorf("error querying datastore for blocked peers: %s", err)
 		return err
@@ -83,7 +83,10 @@ func (cg *ConnectionGater) loadRules(ctx context.Context) error {
 			return err
 		}
 
-		p := peer.ID(path.Base(r.Key))
+		p, err := peer.Decode(path.Base(r.Key))
+		if err != nil {
+			return err
+		}
 		t := time.Time{}
 		if err = t.GobDecode(r.Entry.Value); err != nil {
 			log.Errorf("time deserialization error: %s", r.Error)
@@ -98,7 +101,7 @@ func (cg *ConnectionGater) loadRules(ctx context.Context) error {
 	}
 
 	// load blocked addrs
-	res, err = cg.ds.Query(ctx, query.Query{Prefix: keyAddr})
+	res, err = cg.ds.Query(ctx, query.Query{Prefix: repo.ConnGaterKeyPrefix + keyAddr})
 	if err != nil {
 		log.Errorf("error querying datastore for blocked addrs: %s", err)
 		return err
@@ -110,7 +113,7 @@ func (cg *ConnectionGater) loadRules(ctx context.Context) error {
 			return err
 		}
 
-		ip := net.IP(path.Base(r.Key))
+		ip := net.ParseIP(path.Base(r.Key))
 		t := time.Time{}
 		if err = t.GobDecode(r.Entry.Value); err != nil {
 			log.Errorf("time deserialization error: %s", r.Error)

@@ -7,8 +7,13 @@ package net
 import (
 	"context"
 	"fmt"
+	"github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p/core/event"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/libp2p/go-libp2p/p2p/host/autorelay"
+	mh "github.com/multiformats/go-multihash"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/mempool"
 	"github.com/project-illium/ilxd/params/hash"
@@ -36,6 +41,7 @@ import (
 const (
 	BlockTopic        = "blocks"
 	TransactionsTopic = "transactions"
+	RelayKey          = "/ilxd/relaypeers"
 )
 
 type Network struct {
@@ -56,6 +62,20 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 
 	if err := cfg.validate(); err != nil {
 		return nil, err
+	}
+
+	seedAddrs := make([]peer.AddrInfo, 0, len(cfg.seedAddrs))
+	for _, addr := range cfg.seedAddrs {
+		ma, err := multiaddr.NewMultiaddr(addr)
+		if err != nil {
+			return nil, fmt.Errorf("%w: malformatted seed peer", ErrNetworkConfig)
+		}
+
+		pi, err := peer.AddrInfoFromP2pAddr(ma)
+		if err != nil {
+			return nil, err
+		}
+		seedAddrs = append(seedAddrs, *pi)
 	}
 
 	var (
@@ -86,6 +106,16 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		dht.ProtocolPrefix(cfg.params.ProtocolPrefix),
 	}
 
+	peerSource := func(ctx context.Context, numPeers int) <-chan peer.AddrInfo {
+		h, err := mh.Sum([]byte(RelayKey), mh.SHA2_256, -1)
+		if err != nil {
+			return nil
+		}
+
+		id := cid.NewCidV1(cid.Raw, h)
+		return idht.FindProvidersAsync(ctx, id, numPeers)
+	}
+
 	hostOpts := libp2p.ChainOptions(
 		// Use the keypair we generated
 		libp2p.Identity(cfg.privateKey),
@@ -113,7 +143,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		// Let this host use relays and advertise itself on relays if
 		// it finds it is behind NAT. Use libp2p.Relay(options...) to
 		// enable active relays and more.
-		libp2p.EnableAutoRelay(),
+		libp2p.EnableAutoRelay(autorelay.WithPeerSource(peerSource, 0)),
 		// If you want to help other peers to figure out if they are behind
 		// NATs, you can launch the server-side of AutoNAT too (AutoRelay
 		// already runs the client)
@@ -122,15 +152,15 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		// performance issues.
 		libp2p.EnableNATService(),
 
+		libp2p.EnableRelay(),
+
+		libp2p.EnableHolePunching(),
+
 		libp2p.UserAgent(cfg.userAgent),
 
 		libp2p.Ping(true),
 
 		libp2p.Peerstore(pstore),
-
-		libp2p.DisableRelay(),
-
-		libp2p.EnableHolePunching(),
 
 		libp2p.ConnectionGater(conngater),
 	)
@@ -167,19 +197,8 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	// seed peers (or any other peers). We leave this commented as
 	// this is an example and the peer will die as soon as it finishes, so
 	// it is unnecessary to put strain on the network.
-	for _, addr := range cfg.seedAddrs {
-		ma, err := multiaddr.NewMultiaddr(addr)
-		if err != nil {
-			return nil, fmt.Errorf("%w: malformatted seed peer", ErrNetworkConfig)
-		}
-
-		pi, err := peer.AddrInfoFromP2pAddr(ma)
-		if err != nil {
-			return nil, err
-		}
-		// We ignore errors as some bootstrap peers may be down
-		// and that is fine.
-		host.Connect(ctx, *pi)
+	for _, addr := range seedAddrs {
+		host.Connect(ctx, addr)
 	}
 
 	// create a new PubSub service using the GossipSub router
@@ -285,6 +304,34 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	}
 
 	host.Network().Notify(notifier)
+
+	subReachability, err := host.EventBus().Subscribe(new(event.EvtLocalReachabilityChanged))
+	if err != nil {
+		return nil, err
+	}
+	defer subReachability.Close()
+
+	go func(sub event.Subscription, r *dht.IpfsDHT) {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case ev, ok := <-sub.Out():
+				if !ok {
+					return
+				}
+				if ev.(event.EvtLocalReachabilityChanged).Reachability == network.ReachabilityPublic {
+					h, err := mh.Sum([]byte(RelayKey), mh.SHA2_256, -1)
+					if err != nil {
+						return
+					}
+
+					id := cid.NewCidV1(cid.Raw, h)
+					r.Provide(ctx, id, true)
+				}
+			}
+		}
+	}(subReachability, idht)
 
 	return net, nil
 }
