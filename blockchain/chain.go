@@ -308,6 +308,18 @@ func (b *Blockchain) GetBlockByID(blockID types.ID) (*blocks.Block, error) {
 	return node.Block()
 }
 
+// HasBlock returns whether the block exists in the chain.
+func (b *Blockchain) HasBlock(blockID types.ID) bool {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	_, err := b.index.GetNodeByID(blockID)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 // TreasuryBalance returns the current balance of the treasury.
 func (b *Blockchain) TreasuryBalance() (types.Amount, error) {
 	b.stateLock.RLock()

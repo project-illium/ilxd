@@ -204,7 +204,13 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		return nil, err
 	}
 
-	engine, err := consensus.NewConsensusEngine(ctx, netParams, network, chain, s.requestBlock)
+	engine, err := consensus.NewConsensusEngine(ctx, []consensus.Option{
+		consensus.Params(netParams),
+		consensus.Network(network),
+		consensus.Chooser(chain),
+		consensus.RequestBlock(s.requestBlock),
+		consensus.HasBlock(chain.HasBlock),
+	}...)
 	if err != nil {
 		return nil, err
 	}
@@ -418,6 +424,7 @@ func (s *Server) fetchBlock(blockID types.ID) (*blocks.Block, error) {
 }
 
 func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
+	// FIXME: check that we're current before proceeding
 	s.inflightLock.RLock()
 	if _, ok := s.inflightRequests[blockID]; ok {
 		s.inflightLock.RUnlock()
@@ -431,6 +438,7 @@ func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
 
 	blk, err := s.chainService.GetBlock(remotePeer, blockID)
 	if err != nil {
+		s.network.IncreaseBanscore(remotePeer, 34, 0)
 		s.inflightLock.Lock()
 		delete(s.inflightRequests, blockID)
 		s.inflightLock.Unlock()
@@ -444,7 +452,6 @@ func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
 		delete(s.inflightRequests, blockID)
 		s.inflightLock.Unlock()
 	})
-
 }
 
 // Close shuts down all the parts of the server and blocks until
@@ -460,6 +467,7 @@ func (s *Server) Close() error {
 	if err := s.blockchain.Close(); err != nil {
 		return err
 	}
+	s.engine.Close()
 	s.mempool.Close()
 	return nil
 }

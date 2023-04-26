@@ -79,6 +79,7 @@ type registerVotesMsg struct {
 }
 
 type RequestBlockFunc func(blockID types.ID, remotePeer peer.ID)
+type HasBlockFunc func(blockID types.ID) bool
 
 type ConsensusEngine struct {
 	ctx         context.Context
@@ -88,6 +89,7 @@ type ConsensusEngine struct {
 	ms          net.MessageSender
 	wg          sync.WaitGroup
 	requestFunc RequestBlockFunc
+	hasBlock    HasBlockFunc
 	quit        chan struct{}
 	msgChan     chan interface{}
 
@@ -95,7 +97,6 @@ type ConsensusEngine struct {
 	rejectedBlocks map[types.ID]struct{}
 	queries        map[string]RequestRecord
 	callbacks      map[types.ID]chan<- Status
-	start          time.Time
 
 	alwaysNo    bool
 	flipFlopper bool
@@ -103,32 +104,39 @@ type ConsensusEngine struct {
 	printState  bool
 }
 
-func NewConsensusEngine(ctx context.Context, params *params.NetworkParams, network *net.Network, chooser blockchain.WeightedChooser, requestBlockFunc RequestBlockFunc) (*ConsensusEngine, error) {
-	return &ConsensusEngine{
+func NewConsensusEngine(ctx context.Context, opts ...Option) (*ConsensusEngine, error) {
+	var cfg config
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+
+	eng := &ConsensusEngine{
 		ctx:            ctx,
-		network:        network,
-		chooser:        chooser,
-		params:         params,
-		ms:             net.NewMessageSender(network.Host(), params.ProtocolPrefix+ConsensusProtocol),
+		network:        cfg.network,
+		chooser:        cfg.chooser,
+		params:         cfg.params,
+		ms:             net.NewMessageSender(cfg.network.Host(), cfg.params.ProtocolPrefix+ConsensusProtocol),
 		wg:             sync.WaitGroup{},
-		requestFunc:    requestBlockFunc,
+		requestFunc:    cfg.requestBlock,
+		hasBlock:       cfg.hasBlock,
 		quit:           make(chan struct{}),
 		msgChan:        make(chan interface{}),
 		voteRecords:    make(map[types.ID]*VoteRecord),
 		rejectedBlocks: make(map[types.ID]struct{}),
 		queries:        make(map[string]RequestRecord),
 		callbacks:      make(map[types.ID]chan<- Status),
-	}, nil
-}
-
-// Start begins the core handler which processes peers and avalanche messages.
-func (eng *ConsensusEngine) Start() {
+	}
 	eng.network.Host().SetStreamHandler(eng.params.ProtocolPrefix+ConsensusProtocol, eng.HandleNewStream)
 	eng.wg.Add(1)
 	go eng.handler()
+	return eng, nil
 }
 
-func (eng *ConsensusEngine) Stop() {
+func (eng *ConsensusEngine) Close() {
 	close(eng.quit)
 	eng.wg.Wait()
 }
@@ -160,7 +168,6 @@ out:
 }
 
 func (eng *ConsensusEngine) NewBlock(blockID types.ID, initialAcceptancePreference bool, callback chan<- Status) {
-	eng.start = time.Now()
 	eng.msgChan <- &newBlockMessage{
 		blockID:                     blockID,
 		initialAcceptancePreference: initialAcceptancePreference,
@@ -251,9 +258,13 @@ func (eng *ConsensusEngine) handleQuery(req *wire.MsgAvaRequest, remotePeer peer
 				votes[i] = 0x01 // Yes vote
 			}
 		} else {
-			votes[i] = 0x80 // Neutral vote
-			// Request to download the block from the remote peer
-			eng.requestFunc(inv, remotePeer)
+			if eng.hasBlock(inv) {
+				votes[i] = 0x01
+			} else {
+				votes[i] = 0x80 // Neutral vote
+				// Request to download the block from the remote peer
+				eng.requestFunc(inv, remotePeer)
+			}
 		}
 
 		if eng.alwaysNo {

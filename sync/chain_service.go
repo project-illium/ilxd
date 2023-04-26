@@ -6,6 +6,7 @@ package sync
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/google/martian/log"
 	ctxio "github.com/jbenet/go-context/io"
@@ -215,6 +216,10 @@ func (cs *ChainService) GetBlock(p peer.ID, blockID types.ID) (*blocks.Block, er
 	}
 	if resp.Error != wire.ErrorResponse_None {
 		return nil, fmt.Errorf("error response from peer: %s", resp.GetError().String())
+	}
+
+	if resp.Block.ID().Compare(blockID) != 0 {
+		return nil, errors.New("incorrect block returned")
 	}
 
 	return resp.Block, nil
