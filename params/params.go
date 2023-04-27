@@ -6,6 +6,7 @@ package params
 
 import (
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"math"
 	"path"
@@ -19,6 +20,11 @@ const (
 	networkRegtest  = "regtest"
 )
 
+type Checkpoint struct {
+	BlockID types.ID
+	Height  uint32
+}
+
 type NetworkParams struct {
 	// ProtocolPrefix defines the prefix for all network protocols.
 	// Using different prefixes for different network effectively
@@ -30,6 +36,10 @@ type NetworkParams struct {
 	// block must have a coinbase and stake transaction for the
 	// network to move forward.
 	GenesisBlock *blocks.Block
+
+	// Checkpoints are known good blocks in the blockchain. We
+	// use these to speed up the initial block download.
+	Checkpoints []Checkpoint
 
 	// SeedAddrs are used to connect to the network for the first
 	// time. After first start up new peer addresses are stored in
