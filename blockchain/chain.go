@@ -308,6 +308,30 @@ func (b *Blockchain) GetBlockByID(blockID types.ID) (*blocks.Block, error) {
 	return node.Block()
 }
 
+// GetBlockIDByHeight returns the ID of the block at the given height.
+func (b *Blockchain) GetBlockIDByHeight(height uint32) (types.ID, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	node, err := b.index.GetNodeByHeight(height)
+	if err != nil {
+		return types.ID{}, err
+	}
+	return node.ID(), nil
+}
+
+// GetHeaderByHeight returns the header at the given height. The header will be loaded from disk.
+func (b *Blockchain) GetHeaderByHeight(height uint32) (*blocks.BlockHeader, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	node, err := b.index.GetNodeByHeight(height)
+	if err != nil {
+		return nil, err
+	}
+	return node.Header()
+}
+
 // HasBlock returns whether the block exists in the chain.
 func (b *Blockchain) HasBlock(blockID types.ID) bool {
 	b.stateLock.RLock()

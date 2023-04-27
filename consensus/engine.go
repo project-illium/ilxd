@@ -278,8 +278,8 @@ func (eng *ConsensusEngine) handleQuery(req *wire.MsgAvaRequest, remotePeer peer
 		}
 	}
 	resp := &wire.MsgAvaResponse{
-		RequestID: req.RequestID,
-		Votes:     votes,
+		Request_ID: req.Request_ID,
+		Votes:      votes,
 	}
 
 	respChan <- resp
@@ -303,7 +303,7 @@ func (eng *ConsensusEngine) handleRequestExpiration(key string) {
 
 func (eng *ConsensusEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer peer.ID) {
 	var (
-		key  = queryKey(req.RequestID, peer.String())
+		key  = queryKey(req.Request_ID, peer.String())
 		resp = new(wire.MsgAvaResponse)
 	)
 
@@ -321,7 +321,7 @@ func (eng *ConsensusEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer pee
 }
 
 func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResponse) {
-	key := queryKey(resp.RequestID, p.String())
+	key := queryKey(resp.Request_ID, p.String())
 
 	r, ok := eng.queries[key]
 	if !ok {
@@ -409,8 +409,8 @@ func (eng *ConsensusEngine) pollLoop() {
 	}
 
 	req := &wire.MsgAvaRequest{
-		RequestID: requestID,
-		Invs:      invList,
+		Request_ID: requestID,
+		Invs:       invList,
 	}
 
 	go eng.queueMessageToPeer(req, p)

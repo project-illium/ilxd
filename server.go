@@ -224,7 +224,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.blockchain = chain
 	s.mempool = mpool
 	s.engine = engine
-	s.chainService = sync.NewChainService(ctx, s.fetchBlock, network, netParams)
+	s.chainService = sync.NewChainService(ctx, s.fetchBlock, chain, network, netParams)
 	s.orphanBlocks = make(map[types.ID]*orphanBlock)
 	s.activeInventory = make(map[types.ID]*blocks.Block)
 	s.inflightRequests = make(map[types.ID]bool)

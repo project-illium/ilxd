@@ -13,6 +13,7 @@ import (
 	inet "github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-msgio"
+	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
@@ -20,10 +21,13 @@ import (
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/types/wire"
 	"google.golang.org/protobuf/proto"
+	"time"
 )
 
 const (
 	ChainServiceProtocol = "chainservice"
+
+	maxBatchSize = 2000
 )
 
 type FetchBlockFunc func(blockID types.ID) (*blocks.Block, error)
@@ -33,14 +37,16 @@ type ChainService struct {
 	network    *net.Network
 	params     *params.NetworkParams
 	fetchBlock FetchBlockFunc
+	chain      *blockchain.Blockchain
 	ms         net.MessageSender
 }
 
-func NewChainService(ctx context.Context, fetchBlock FetchBlockFunc, network *net.Network, params *params.NetworkParams) *ChainService {
+func NewChainService(ctx context.Context, fetchBlock FetchBlockFunc, chain *blockchain.Blockchain, network *net.Network, params *params.NetworkParams) *ChainService {
 	cs := &ChainService{
 		ctx:        ctx,
 		network:    network,
 		fetchBlock: fetchBlock,
+		chain:      chain,
 		params:     params,
 		ms:         net.NewMessageSender(network.Host(), params.ProtocolPrefix+ChainServiceProtocol),
 	}
@@ -83,6 +89,20 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 			resp, err = cs.handleGetBlockTxids(m.GetBlockTxids)
 		case *wire.MsgChainServiceRequest_GetBlock:
 			resp, err = cs.handleGetBlock(m.GetBlock)
+		case *wire.MsgChainServiceRequest_GetBlockId:
+			resp, err = cs.handleGetBlockID(m.GetBlockId)
+		case *wire.MsgChainServiceRequest_GetHeadersStream:
+			err := cs.handleGetHeadersStream(m.GetHeadersStream, s)
+			if err != nil {
+				log.Errorf("Error sending header response to peer: %s, error: %s", remotePeer, err.Error())
+			}
+			return
+		case *wire.MsgChainServiceRequest_GetBlockTxsStream:
+			err := cs.handleGetBlockTxsStream(m.GetBlockTxsStream, s)
+			if err != nil {
+				log.Errorf("Error sending block txs response to peer: %s, error: %s", remotePeer, err.Error())
+			}
+			return
 		}
 		if err != nil {
 			log.Errorf("Error handing block service message to peer: %s, error: %s", remotePeer, err.Error())
@@ -103,7 +123,7 @@ func (cs *ChainService) GetBlockTxs(p peer.ID, blockID types.ID, txIndexes []uin
 		req = &wire.MsgChainServiceRequest{
 			Msg: &wire.MsgChainServiceRequest_GetBlockTxs{
 				GetBlockTxs: &wire.GetBlockTxsReq{
-					BlockID:   blockID[:],
+					Block_ID:  blockID[:],
 					TxIndexes: txIndexes,
 				},
 			},
@@ -134,7 +154,7 @@ func (cs *ChainService) handleGetBlockTxs(req *wire.GetBlockTxsReq) (*wire.MsgBl
 	//
 	// This is needed since nodes will call this RPC when decoding xthinner blocks
 	// and before they've validated them, let alone finalized them.
-	blk, err := cs.fetchBlock(types.NewID(req.BlockID))
+	blk, err := cs.fetchBlock(types.NewID(req.Block_ID))
 	if err != nil {
 		return &wire.MsgBlockTxsResp{Error: wire.ErrorResponse_NotFound}, nil
 	}
@@ -158,7 +178,7 @@ func (cs *ChainService) GetBlockTxids(p peer.ID, blockID types.ID) ([]types.ID, 
 		req = &wire.MsgChainServiceRequest{
 			Msg: &wire.MsgChainServiceRequest_GetBlockTxids{
 				GetBlockTxids: &wire.GetBlockTxidsReq{
-					BlockID: blockID[:],
+					Block_ID: blockID[:],
 				},
 			},
 		}
@@ -181,7 +201,7 @@ func (cs *ChainService) GetBlockTxids(p peer.ID, blockID types.ID) ([]types.ID, 
 }
 
 func (cs *ChainService) handleGetBlockTxids(req *wire.GetBlockTxidsReq) (*wire.MsgBlockTxidsResp, error) {
-	blk, err := cs.fetchBlock(types.NewID(req.BlockID))
+	blk, err := cs.fetchBlock(types.NewID(req.Block_ID))
 	if err != nil {
 		return &wire.MsgBlockTxidsResp{Error: wire.ErrorResponse_NotFound}, nil
 	}
@@ -204,7 +224,7 @@ func (cs *ChainService) GetBlock(p peer.ID, blockID types.ID) (*blocks.Block, er
 		req = &wire.MsgChainServiceRequest{
 			Msg: &wire.MsgChainServiceRequest_GetBlock{
 				GetBlock: &wire.GetBlockReq{
-					BlockID: blockID[:],
+					Block_ID: blockID[:],
 				},
 			},
 		}
@@ -226,7 +246,7 @@ func (cs *ChainService) GetBlock(p peer.ID, blockID types.ID) (*blocks.Block, er
 }
 
 func (cs *ChainService) handleGetBlock(req *wire.GetBlockReq) (*wire.MsgBlockResp, error) {
-	blk, err := cs.fetchBlock(types.NewID(req.BlockID))
+	blk, err := cs.fetchBlock(types.NewID(req.Block_ID))
 	if err != nil {
 		return &wire.MsgBlockResp{Error: wire.ErrorResponse_NotFound}, nil
 	}
@@ -236,4 +256,156 @@ func (cs *ChainService) handleGetBlock(req *wire.GetBlockReq) (*wire.MsgBlockRes
 	}
 
 	return resp, nil
+}
+
+func (cs *ChainService) GetBlockID(p peer.ID, height uint32) (types.ID, error) {
+	var (
+		req = &wire.MsgChainServiceRequest{
+			Msg: &wire.MsgChainServiceRequest_GetBlockId{
+				GetBlockId: &wire.GetBlockIDReq{
+					Height: height,
+				},
+			},
+		}
+		resp = new(wire.MsgGetBlockIDResp)
+	)
+	err := cs.ms.SendRequest(cs.ctx, p, req, resp)
+	if err != nil {
+		return types.ID{}, err
+	}
+
+	if resp.Error != wire.ErrorResponse_None {
+		return types.ID{}, fmt.Errorf("error response from peer: %s", resp.GetError().String())
+	}
+
+	return types.NewID(resp.Block_ID), nil
+}
+
+func (cs *ChainService) handleGetBlockID(req *wire.GetBlockIDReq) (*wire.MsgGetBlockIDResp, error) {
+	blockID, err := cs.chain.GetBlockIDByHeight(req.Height)
+	if err != nil {
+		return &wire.MsgGetBlockIDResp{Error: wire.ErrorResponse_NotFound}, nil
+	}
+
+	resp := &wire.MsgGetBlockIDResp{
+		Block_ID: blockID[:],
+	}
+
+	return resp, nil
+}
+
+func (cs *ChainService) GetHeadersStream(p peer.ID, startHeight uint32) (<-chan *blocks.BlockHeader, error) {
+	req := &wire.MsgChainServiceRequest{
+		Msg: &wire.MsgChainServiceRequest_GetHeadersStream{
+			GetHeadersStream: &wire.GetHeadersStreamReq{
+				StartHeight: startHeight,
+			},
+		},
+	}
+
+	s, err := cs.network.Host().NewStream(context.Background(), p, cs.params.ProtocolPrefix+ChainServiceProtocol)
+	if err != nil {
+		return nil, err
+	}
+	err = net.WriteMsg(s, req)
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan *blocks.BlockHeader)
+
+	go func() {
+		reader := msgio.NewVarintReaderSize(s, 1<<23)
+		for {
+			header := new(blocks.BlockHeader)
+			ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+			if err := net.ReadMsg(ctx, reader, header); err != nil {
+				close(ch)
+				s.Close()
+				return
+			}
+			ch <- header
+		}
+	}()
+
+	return ch, nil
+}
+
+func (cs *ChainService) handleGetHeadersStream(req *wire.GetHeadersStreamReq, s inet.Stream) error {
+	_, bestHeight, _ := cs.chain.BestBlock()
+
+	endHeight := req.StartHeight + maxBatchSize - 1
+	if endHeight > bestHeight {
+		endHeight = bestHeight
+	}
+
+	for i := req.StartHeight; i <= endHeight; i++ {
+		header, err := cs.chain.GetHeaderByHeight(i)
+		if err != nil {
+			return err
+		}
+		if err := net.WriteMsg(s, header); err != nil {
+			s.Close()
+			return err
+		}
+	}
+	return s.Close()
+}
+
+func (cs *ChainService) GetBlockTxsStream(p peer.ID, startHeight uint32) (<-chan *blocks.BlockTxs, error) {
+	req := &wire.MsgChainServiceRequest{
+		Msg: &wire.MsgChainServiceRequest_GetBlockTxsStream{
+			GetBlockTxsStream: &wire.GetBlockTxsStreamReq{
+				StartHeight: startHeight,
+			},
+		},
+	}
+
+	s, err := cs.network.Host().NewStream(context.Background(), p, cs.params.ProtocolPrefix+ChainServiceProtocol)
+	if err != nil {
+		return nil, err
+	}
+	err = net.WriteMsg(s, req)
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan *blocks.BlockTxs)
+
+	go func() {
+		reader := msgio.NewVarintReaderSize(s, 1<<23)
+		for {
+			txs := new(blocks.BlockTxs)
+			ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+			if err := net.ReadMsg(ctx, reader, txs); err != nil {
+				close(ch)
+				s.Close()
+				return
+			}
+			ch <- txs
+		}
+	}()
+
+	return ch, nil
+}
+
+func (cs *ChainService) handleGetBlockTxsStream(req *wire.GetBlockTxsStreamReq, s inet.Stream) error {
+	_, bestHeight, _ := cs.chain.BestBlock()
+
+	endHeight := req.StartHeight + maxBatchSize - 1
+	if endHeight > bestHeight {
+		endHeight = bestHeight
+	}
+
+	for i := req.StartHeight; i <= endHeight; i++ {
+		block, err := cs.chain.GetBlockByHeight(i)
+		if err != nil {
+			return err
+		}
+		if err := net.WriteMsg(s, &blocks.BlockTxs{Transactions: block.Transactions}); err != nil {
+			s.Close()
+			return err
+		}
+	}
+	return s.Close()
 }

@@ -15,26 +15,29 @@ enum ErrorResponse {
 }
 
 message MsgAvaRequest {
-    uint32 requestID    = 1;
+    uint32 request_ID    = 1;
     repeated bytes invs = 2;
 }
 
 message MsgAvaResponse {
-    uint32 requestID = 1;
+    uint32 request_ID = 1;
     bytes votes      = 2;
 }
 
 message MsgChainServiceRequest {
     oneof msg {
-        GetBlockTxsReq   get_block_txs   = 1;
-        GetBlockTxidsReq get_block_txids = 2;
-        GetBlockReq      get_block       = 3;
+        GetBlockTxsReq      get_block_txs         = 1;
+        GetBlockTxidsReq    get_block_txids       = 2;
+        GetBlockReq         get_block             = 3;
+        GetBlockIDReq       get_block_id          = 4;
+        GetHeadersStreamReq get_headers_stream    = 5;
+        GetBlockTxsStreamReq get_block_txs_stream = 6;
     }
 }
 
 message GetBlockTxsReq {
-    bytes blockID              = 1;
-    repeated uint32 txIndexes  = 2;
+    bytes block_ID              = 1;
+    repeated uint32 tx_indexes  = 2;
 }
 
 message MsgBlockTxsResp {
@@ -43,7 +46,7 @@ message MsgBlockTxsResp {
 }
 
 message GetBlockTxidsReq {
-    bytes blockID = 1;
+    bytes block_ID = 1;
 }
 
 message MsgBlockTxidsResp {
@@ -52,10 +55,27 @@ message MsgBlockTxidsResp {
 }
 
 message GetBlockReq {
-    bytes blockID = 1;
+    bytes block_ID = 1;
 }
 
 message MsgBlockResp {
     Block block         = 1;
     ErrorResponse error = 2;
+}
+
+message GetBlockIDReq {
+    uint32 height = 1;
+}
+
+message MsgGetBlockIDResp {
+    bytes block_ID       = 1;
+    ErrorResponse error = 2;
+}
+
+message GetHeadersStreamReq {
+    uint32 start_height = 1;
+}
+
+message GetBlockTxsStreamReq {
+    uint32 start_height = 1;
 }

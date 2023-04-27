@@ -22,6 +22,10 @@ message Block {
     repeated Transaction transactions = 2;
 }
 
+message BlockTxs {
+    repeated Transaction transactions = 1;
+}
+
 message XThinnerBlock {
     BlockHeader header                          = 1;
     uint32 tx_count                             = 2;
