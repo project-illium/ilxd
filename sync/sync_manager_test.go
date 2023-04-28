@@ -42,7 +42,7 @@ func TestSyncManagerSyncToCheckpoints(t *testing.T) {
 	testHarness1, err := harness.NewTestHarness(harness.DefaultOptions())
 	assert.NoError(t, err)
 
-	err = testHarness1.GenerateBlocks(20000)
+	err = testHarness1.GenerateBlocks(15100)
 	assert.NoError(t, err)
 
 	chk1, err := testHarness1.Blockchain().GetBlockByHeight(5000)
@@ -91,10 +91,101 @@ func TestSyncManagerSyncToCheckpoints(t *testing.T) {
 	blk, err := chain.GetBlockByHeight(testHarness1.Blockchain().Params().Checkpoints[0].Height)
 	assert.NoError(t, err)
 	assert.Equal(t, testHarness1.Blockchain().Params().Checkpoints[0].BlockID, blk.ID())
+
 	blk, err = chain.GetBlockByHeight(testHarness1.Blockchain().Params().Checkpoints[1].Height)
 	assert.NoError(t, err)
 	assert.Equal(t, testHarness1.Blockchain().Params().Checkpoints[1].BlockID, blk.ID())
+
 	blk, err = chain.GetBlockByHeight(testHarness1.Blockchain().Params().Checkpoints[2].Height)
 	assert.NoError(t, err)
 	assert.Equal(t, testHarness1.Blockchain().Params().Checkpoints[2].BlockID, blk.ID())
+}
+
+func TestSyncManagerQueryPeers(t *testing.T) {
+	mn := mocknet.New()
+
+	host0, err := mn.GenPeer()
+	assert.NoError(t, err)
+	network0, err := net.NewNetwork(context.Background(), []net.Option{
+		net.WithHost(host0),
+		net.Params(&params.RegestParams),
+		net.BlockValidator(func(*blocks.XThinnerBlock, peer.ID) error {
+			return nil
+		}),
+		net.MempoolValidator(func(transaction *transactions.Transaction) error {
+			return nil
+		}),
+		net.Datastore(mock.NewMapDatastore()),
+	}...)
+	assert.NoError(t, err)
+
+	host1, err := mn.GenPeer()
+	assert.NoError(t, err)
+	network1, err := net.NewNetwork(context.Background(), []net.Option{
+		net.WithHost(host1),
+		net.Params(&params.RegestParams),
+		net.BlockValidator(func(*blocks.XThinnerBlock, peer.ID) error {
+			return nil
+		}),
+		net.MempoolValidator(func(transaction *transactions.Transaction) error {
+			return nil
+		}),
+		net.Datastore(mock.NewMapDatastore()),
+	}...)
+	assert.NoError(t, err)
+
+	host2, err := mn.GenPeer()
+	assert.NoError(t, err)
+	network2, err := net.NewNetwork(context.Background(), []net.Option{
+		net.WithHost(host2),
+		net.Params(&params.RegestParams),
+		net.BlockValidator(func(*blocks.XThinnerBlock, peer.ID) error {
+			return nil
+		}),
+		net.MempoolValidator(func(transaction *transactions.Transaction) error {
+			return nil
+		}),
+		net.Datastore(mock.NewMapDatastore()),
+	}...)
+	assert.NoError(t, err)
+
+	host3, err := mn.GenPeer()
+	assert.NoError(t, err)
+	network3, err := net.NewNetwork(context.Background(), []net.Option{
+		net.WithHost(host3),
+		net.Params(&params.RegestParams),
+		net.BlockValidator(func(*blocks.XThinnerBlock, peer.ID) error {
+			return nil
+		}),
+		net.MempoolValidator(func(transaction *transactions.Transaction) error {
+			return nil
+		}),
+		net.Datastore(mock.NewMapDatastore()),
+	}...)
+	assert.NoError(t, err)
+
+	assert.NoError(t, mn.LinkAll())
+	assert.NoError(t, mn.ConnectAllButSelf())
+
+	testHarness, err := harness.NewTestHarness(harness.DefaultOptions())
+	assert.NoError(t, err)
+
+	err = testHarness.GenerateBlocks(10)
+	assert.NoError(t, err)
+
+	NewChainService(context.Background(), testHarness.Blockchain().GetBlockByID, testHarness.Blockchain(), network0, testHarness.Blockchain().Params())
+	NewChainService(context.Background(), testHarness.Blockchain().GetBlockByID, testHarness.Blockchain(), network1, testHarness.Blockchain().Params())
+	NewChainService(context.Background(), testHarness.Blockchain().GetBlockByID, testHarness.Blockchain(), network2, testHarness.Blockchain().Params())
+	service := NewChainService(context.Background(), testHarness.Blockchain().GetBlockByID, testHarness.Blockchain(), network3, testHarness.Blockchain().Params())
+
+	sm := NewSyncManager(context.Background(), testHarness.Blockchain(), network2, testHarness.Blockchain().Params(), service)
+
+	ids, err := sm.queryPeers(5)
+	assert.NoError(t, err)
+
+	blkID, err := testHarness.Blockchain().GetBlockIDByHeight(5)
+	assert.NoError(t, err)
+
+	assert.Len(t, ids, 3)
+	assert.Equal(t, blkID, ids[0])
 }

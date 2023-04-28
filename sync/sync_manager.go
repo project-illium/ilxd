@@ -15,7 +15,10 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"math/rand"
+	"sync"
 )
+
+const querySize = 8
 
 type SyncManager struct {
 	ctx          context.Context
@@ -33,6 +36,51 @@ func NewSyncManager(ctx context.Context, chain *blockchain.Blockchain, network *
 		chainService: cs,
 		chain:        chain,
 	}
+}
+
+func (sm *SyncManager) queryPeers(height uint32) ([]types.ID, error) {
+	peers := sm.network.Host().Network().Peers()
+	size := querySize
+	if len(peers) < querySize {
+		size = len(peers)
+	}
+
+	toQuery := make(map[peer.ID]bool)
+	for len(toQuery) < size {
+		p := peers[rand.Intn(len(peers))]
+		if toQuery[p] {
+			continue
+		}
+		toQuery[p] = true
+	}
+
+	ch := make(chan types.ID)
+	wg := sync.WaitGroup{}
+	wg.Add(len(toQuery))
+	go func() {
+		for p := range toQuery {
+			go func(pid peer.ID) {
+				defer wg.Done()
+				id, err := sm.chainService.GetBlockID(p, height)
+				if err != nil {
+					sm.network.IncreaseBanscore(pid, 0, 20)
+					return
+				}
+				ch <- id
+			}(p)
+		}
+		wg.Wait()
+		close(ch)
+	}()
+	ids := make([]types.ID, 0, size)
+	for id := range ch {
+		ids = append(ids, id)
+	}
+	// If enough peers failed, retry.
+	if len(ids) < size/2 {
+		return sm.queryPeers(height)
+	}
+	return ids, nil
 }
 
 func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) error {
