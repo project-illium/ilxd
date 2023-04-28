@@ -6,6 +6,7 @@ package sync
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
@@ -17,30 +18,25 @@ import (
 )
 
 type SyncManager struct {
+	ctx          context.Context
 	params       *params.NetworkParams
 	network      *net.Network
 	chainService *ChainService
 	chain        *blockchain.Blockchain
 }
 
-func NewSyncManager() *SyncManager {
-	return &SyncManager{}
+func NewSyncManager(ctx context.Context, chain *blockchain.Blockchain, network *net.Network, params *params.NetworkParams, cs *ChainService) *SyncManager {
+	return &SyncManager{
+		ctx:          ctx,
+		params:       params,
+		network:      network,
+		chainService: cs,
+		chain:        chain,
+	}
 }
 
-// - pick peer and sync headers to first checkpoint in memory
-// - if last header doesn't match checkpoint ban and start over
-// - if header matches backfill blocks.
-// - if any block doesn't match hash, ban peer and select a new sync peer.
-// - pick a different sync peer and repeat up to the next checkpoint.
-//
-// - after last checkpoint query peers for best height and hash.
-// - select earliest height, if necessary query other peers to
-//   confirm they have that block.
-// - if yes, sync to that height.
-// - if no,
-
 func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) error {
-	height := currentHeight
+	height := currentHeight + 1
 	for _, checkpoint := range sm.params.Checkpoints {
 		if currentHeight > checkpoint.Height {
 			continue
@@ -93,10 +89,11 @@ func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) error {
 				sm.network.IncreaseBanscore(p, 0, 20)
 				continue
 			}
+			x := 0
 			for i := headerIdx; i < headerIdx+len(txs); i++ {
 				blk := &blocks.Block{
 					Header:       headers[i],
-					Transactions: txs[i].Transactions,
+					Transactions: txs[x].Transactions,
 				}
 				merkles := blockchain.BuildMerkleTreeStore(blk.Transactions)
 				if !bytes.Equal(merkles[len(merkles)-1], headers[i].TxRoot) {
@@ -104,6 +101,7 @@ func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) error {
 					continue blockLoop
 				}
 				blks = append(blks, blk)
+				x++
 			}
 			headerIdx += len(txs)
 			for _, blk := range blks {
@@ -122,7 +120,7 @@ func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) error {
 }
 
 func (sm *SyncManager) downloadHeaders(p peer.ID, startHeight, endHeight uint32) ([]*blocks.BlockHeader, error) {
-	headers := make([]*blocks.BlockHeader, 0, endHeight-startHeight+1)
+	headers := make([]*blocks.BlockHeader, 0, endHeight-startHeight)
 	height := startHeight
 	for {
 		ch, err := sm.chainService.GetHeadersStream(p, height)
@@ -132,8 +130,11 @@ func (sm *SyncManager) downloadHeaders(p peer.ID, startHeight, endHeight uint32)
 		for header := range ch {
 			headers = append(headers, header)
 			height++
+			if height > endHeight {
+				return headers, nil
+			}
 		}
-		if height >= endHeight {
+		if height > endHeight {
 			break
 		}
 	}
@@ -141,7 +142,7 @@ func (sm *SyncManager) downloadHeaders(p peer.ID, startHeight, endHeight uint32)
 }
 
 func (sm *SyncManager) downloadBlockTxs(p peer.ID, startHeight, endHeight uint32) ([]*blocks.BlockTxs, error) {
-	txs := make([]*blocks.BlockTxs, 0, endHeight-startHeight+1)
+	txs := make([]*blocks.BlockTxs, 0, endHeight-startHeight)
 	height := startHeight
 	for {
 		ch, err := sm.chainService.GetBlockTxsStream(p, height)
@@ -151,8 +152,11 @@ func (sm *SyncManager) downloadBlockTxs(p peer.ID, startHeight, endHeight uint32
 		for blockTxs := range ch {
 			txs = append(txs, blockTxs)
 			height++
+			if height > endHeight {
+				return txs, nil
+			}
 		}
-		if height >= endHeight {
+		if height > endHeight {
 			break
 		}
 	}
