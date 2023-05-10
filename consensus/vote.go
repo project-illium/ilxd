@@ -49,18 +49,21 @@ const (
 // VoteRecord keeps track of a series of votes for a target
 type VoteRecord struct {
 	blockID          types.ID
+	height           uint32
 	votes            uint16
 	consider         uint16
 	confidence       uint16
 	inflightRequests uint8
 	timestamp        time.Time
+	lastChange       time.Time
 	totalVotes       int
+	print            bool
 }
 
 // NewVoteRecord instantiates a new base record for voting on a target
 // `accepted` indicates whether or not the initial state should be preferred
-func NewVoteRecord(blockID types.ID, preferred bool) *VoteRecord {
-	return &VoteRecord{blockID: blockID, confidence: boolToUint16(preferred), timestamp: time.Now()}
+func NewVoteRecord(blockID types.ID, height uint32, preferred bool) *VoteRecord {
+	return &VoteRecord{blockID: blockID, height: height, confidence: boolToUint16(preferred), timestamp: time.Now(), lastChange: time.Now()}
 }
 
 // isPreferred returns whether or not the voted state is preferred or not
@@ -81,11 +84,17 @@ func (vr VoteRecord) hasFinalized() bool {
 // regsiterVote adds a new vote for an item and update confidence accordingly.
 // Returns true if the acceptance or finalization state changed.
 func (vr *VoteRecord) regsiterVote(vote uint8) bool {
-	vr.totalVotes++
+	if vote < 2 {
+		vr.totalVotes++
+	}
+
 	vr.votes = (vr.votes << 1) | boolToUint16(vote == 1)
 	vr.consider = (vr.consider << 1) | boolToUint16(vote < 2)
 
 	yes := countBits16(vr.votes&vr.consider) > 12
+	if vr.print {
+		vr.printState()
+	}
 
 	// The round is inconclusive
 	if !yes {
@@ -97,14 +106,26 @@ func (vr *VoteRecord) regsiterVote(vote uint8) bool {
 
 	// Vote is conclusive and agrees with our current state
 	if vr.isPreferred() == yes {
-		vr.confidence += 2
-		return vr.getConfidence() == AvalancheFinalizationScore
+		if vr.isPreferred() {
+			vr.confidence += 2
+			return vr.getConfidence() >= AvalancheFinalizationScore
+		}
+		return false
 	}
 
 	// Vote is conclusive but does not agree with our current state
 	vr.confidence = boolToUint16(yes)
+	vr.lastChange = time.Now()
 
 	return true
+}
+
+func (vr *VoteRecord) Reset(preference bool) {
+	vr.confidence = boolToUint16(preference)
+}
+
+func (vr *VoteRecord) Reject() {
+	vr.confidence = AvalancheFinalizationScore * 2
 }
 
 func (vr *VoteRecord) status() (status Status) {

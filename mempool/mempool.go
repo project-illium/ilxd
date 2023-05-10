@@ -98,7 +98,7 @@ func (m *Mempool) ProcessTransaction(tx *transactions.Transaction) error {
 		return err
 	}
 
-	fpb, isFeePayer, err := calcFeePerByte(tx)
+	fpb, isFeePayer, err := CalcFeePerByte(tx)
 	if err != nil {
 		return err
 	}
@@ -343,7 +343,7 @@ func (m *Mempool) validationTransaction(tx *transactions.Transaction) error {
 	return nil
 }
 
-func calcFeePerByte(tx *transactions.Transaction) (types.Amount, bool, error) {
+func CalcFeePerByte(tx *transactions.Transaction) (types.Amount, bool, error) {
 	var fee uint64
 	switch t := tx.GetTx().(type) {
 	case *transactions.Transaction_CoinbaseTransaction,

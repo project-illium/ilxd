@@ -26,6 +26,9 @@ import (
 	"time"
 )
 
+const maxOrphanDuration = time.Hour
+const maxOrphans = 100
+
 var log = zap.S()
 
 type orphanBlock struct {
@@ -233,6 +236,8 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.inflightLock = stdsync.RWMutex{}
 	s.policy = policy
 
+	chain.Subscribe(s.blockConnected)
+
 	s.printListenAddrs()
 
 	return &s, nil
@@ -241,12 +246,30 @@ func BuildServer(config *repo.Config) (*Server, error) {
 func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.ID) error {
 	// Try to decode the block. This should succeed most of the time unless
 	// the merkle root is invalid.
+	blockID := xThinnerBlk.ID()
+	s.inflightLock.Lock()
+	s.inflightRequests[blockID] = true
+	s.inflightLock.Unlock()
+
 	blk, err := s.decodeXthinner(xThinnerBlk, p)
 	if err != nil {
 		return err
 	}
 
+	time.AfterFunc(time.Minute*5, func() {
+		s.inflightLock.Lock()
+		delete(s.inflightRequests, blockID)
+		s.inflightLock.Unlock()
+	})
+
 	return s.processBlock(blk, p, false)
+}
+
+func (s *Server) blockConnected(ntf *blockchain.Notification) {
+	blk, ok := ntf.Data.(*blocks.Block)
+	if ntf.Type == blockchain.NTBlockConnected && ok {
+		s.mempool.RemoveBlockTransactions(blk.Transactions)
+	}
 }
 
 func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck bool) error {
@@ -259,6 +282,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 		// We'll store it in memory and will circle back after
 		// we connect the next block.
 		s.orphanLock.Lock()
+		s.limitOrphans()
 		s.orphanBlocks[blk.ID()] = &orphanBlock{
 			blk:          blk,
 			firstSeen:    time.Now(),
@@ -307,9 +331,13 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 	}
 
 	callback := make(chan consensus.Status)
-	// TODO: set initial preference correctly
+
 	startTime := time.Now()
 
+	initialPreference, err := s.policy.IsPreferredBlock(blk)
+	if err != nil {
+		log.Warnf("Error calculating policy preference: %s", err)
+	}
 	s.inventoryLock.Lock()
 	s.activeInventory[blk.ID()] = blk
 	s.inventoryLock.Unlock()
@@ -318,7 +346,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 	delete(s.orphanBlocks, blk.ID())
 	s.orphanLock.Unlock()
 
-	s.engine.NewBlock(blk.ID(), true, callback)
+	s.engine.NewBlock(blk.Header, initialPreference, callback)
 
 	go func(b *blocks.Block, t time.Time) {
 		select {
@@ -342,10 +370,13 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 
 			s.orphanLock.Lock()
 			for _, orphan := range s.orphanBlocks {
-				if orphan.blk.Header.Height == blk.Header.Height+1 {
-					// FIXME: delete old orphans
+				if orphan.blk.Header.Height == blk.Header.Height {
+					delete(s.orphanBlocks, orphan.blk.ID())
+				} else if orphan.blk.Header.Height == blk.Header.Height+1 {
 					s.processBlock(orphan.blk, orphan.relayingPeer, false)
 					break
+				} else if time.Since(orphan.firstSeen) > maxOrphanDuration {
+					delete(s.orphanBlocks, orphan.blk.ID())
 				}
 			}
 			s.orphanLock.Unlock()
@@ -470,6 +501,15 @@ func (s *Server) Close() error {
 	s.engine.Close()
 	s.mempool.Close()
 	return nil
+}
+
+func (s *Server) limitOrphans() {
+	if len(s.orphanBlocks) > maxOrphans {
+		for id := range s.orphanBlocks {
+			delete(s.orphanBlocks, id)
+			break
+		}
+	}
 }
 
 func (s *Server) printListenAddrs() {

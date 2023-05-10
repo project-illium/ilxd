@@ -20,8 +20,8 @@ message MsgAvaRequest {
 }
 
 message MsgAvaResponse {
-    uint32 request_ID = 1;
-    bytes votes      = 2;
+    uint32 request_ID         = 1;
+    bytes votes               = 2;
 }
 
 message MsgChainServiceRequest {

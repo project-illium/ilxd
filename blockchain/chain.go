@@ -30,20 +30,27 @@ const (
 	flushPeriodic
 )
 
+type Subscription struct {
+	Block *blocks.Block
+}
+
 // Blockchain is a class which handles all the functionality needed for maintaining
 // the state of the chain. This includes validating blocks, connecting blocks to the
 // chain and saving state to the database.
 type Blockchain struct {
-	params        *params.NetworkParams
-	ds            repo.Datastore
-	index         *blockIndex
-	accumulatorDB *AccumulatorDB
-	validatorSet  *ValidatorSet
-	nullifierSet  *NullifierSet
-	txoRootSet    *TxoRootSet
-	sigCache      *SigCache
-	proofCache    *ProofCache
-	indexManager  *indexers.IndexManager
+	params            *params.NetworkParams
+	ds                repo.Datastore
+	index             *blockIndex
+	accumulatorDB     *AccumulatorDB
+	validatorSet      *ValidatorSet
+	nullifierSet      *NullifierSet
+	txoRootSet        *TxoRootSet
+	sigCache          *SigCache
+	proofCache        *ProofCache
+	indexManager      *indexers.IndexManager
+	notifications     []NotificationCallback
+	notificationsLock sync.RWMutex
+	subs              []*Subscription
 
 	// stateLock protects concurrent access to the chain state
 	stateLock sync.RWMutex
@@ -61,17 +68,18 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 	}
 
 	b := &Blockchain{
-		params:        cfg.params,
-		ds:            cfg.datastore,
-		index:         NewBlockIndex(cfg.datastore),
-		accumulatorDB: NewAccumulatorDB(cfg.datastore),
-		validatorSet:  NewValidatorSet(cfg.params, cfg.datastore),
-		nullifierSet:  NewNullifierSet(cfg.datastore, cfg.maxNullifiers),
-		txoRootSet:    NewTxoRootSet(cfg.datastore, cfg.maxTxoRoots),
-		indexManager:  indexers.NewIndexManager(cfg.datastore, cfg.indexers),
-		sigCache:      cfg.sigCache,
-		proofCache:    cfg.proofCache,
-		stateLock:     sync.RWMutex{},
+		params:            cfg.params,
+		ds:                cfg.datastore,
+		index:             NewBlockIndex(cfg.datastore),
+		accumulatorDB:     NewAccumulatorDB(cfg.datastore),
+		validatorSet:      NewValidatorSet(cfg.params, cfg.datastore),
+		nullifierSet:      NewNullifierSet(cfg.datastore, cfg.maxNullifiers),
+		txoRootSet:        NewTxoRootSet(cfg.datastore, cfg.maxTxoRoots),
+		indexManager:      indexers.NewIndexManager(cfg.datastore, cfg.indexers),
+		sigCache:          cfg.sigCache,
+		proofCache:        cfg.proofCache,
+		stateLock:         sync.RWMutex{},
+		notificationsLock: sync.RWMutex{},
 	}
 
 	initialized, err := b.isInitialized()
@@ -262,7 +270,8 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		log.Errorf("Commit Block: Error flushing accumulator: %s", err.Error())
 	}
 
-	// TODO: notify subscribers of new block
+	// Notify subscribers of new block.
+	b.sendNotification(NTBlockConnected, blk)
 
 	return nil
 }

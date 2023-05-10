@@ -16,9 +16,13 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"math/rand"
 	"sync"
+	"time"
 )
 
-const querySize = 8
+const (
+	querySize     = 8
+	lookaheadSize = 10000
+)
 
 type SyncManager struct {
 	ctx          context.Context
@@ -38,8 +42,36 @@ func NewSyncManager(ctx context.Context, chain *blockchain.Blockchain, network *
 	}
 }
 
-func (sm *SyncManager) queryPeers(height uint32) ([]types.ID, error) {
+func (sm *SyncManager) Start() {
+	_, height, _ := sm.chain.BestBlock()
+
+	if len(sm.params.Checkpoints) > 0 && height < sm.params.Checkpoints[len(sm.params.Checkpoints)-1].Height {
+		err := sm.syncToCheckpoints(height)
+		if err != nil {
+			time.AfterFunc(time.Second*10, sm.Start)
+			return
+		}
+	}
+	for {
+		_, height, _ = sm.chain.BestBlock()
+		blockMap, err := sm.queryPeers(height + lookaheadSize)
+		if err != nil {
+			select {
+			case <-time.After(time.Second * 10):
+				continue
+			}
+		}
+		if len(blockMap) == 1 {
+
+		}
+	}
+}
+
+func (sm *SyncManager) queryPeers(height uint32) (map[types.ID]peer.ID, error) {
 	peers := sm.network.Host().Network().Peers()
+	if len(peers) == 0 {
+		return nil, errors.New("no peers to query")
+	}
 	size := querySize
 	if len(peers) < querySize {
 		size = len(peers)
@@ -54,38 +86,48 @@ func (sm *SyncManager) queryPeers(height uint32) ([]types.ID, error) {
 		toQuery[p] = true
 	}
 
-	ch := make(chan types.ID)
+	type resp struct {
+		p       peer.ID
+		blockID types.ID
+	}
+
+	ch := make(chan resp)
 	wg := sync.WaitGroup{}
 	wg.Add(len(toQuery))
 	go func() {
 		for p := range toQuery {
-			go func(pid peer.ID) {
-				defer wg.Done()
+			go func(pid peer.ID, w *sync.WaitGroup) {
+				defer w.Done()
 				id, err := sm.chainService.GetBlockID(p, height)
 				if err != nil {
 					sm.network.IncreaseBanscore(pid, 0, 20)
 					return
 				}
-				ch <- id
-			}(p)
+				ch <- resp{
+					p:       pid,
+					blockID: id,
+				}
+			}(p, &wg)
 		}
 		wg.Wait()
 		close(ch)
 	}()
-	ids := make([]types.ID, 0, size)
-	for id := range ch {
-		ids = append(ids, id)
+	ret := make(map[types.ID]peer.ID)
+	count := 0
+	for r := range ch {
+		ret[r.blockID] = r.p
+		count++
 	}
 	// If enough peers failed, retry.
-	if len(ids) < size/2 {
+	if count < size/2 {
 		return sm.queryPeers(height)
 	}
-	return ids, nil
+	return ret, nil
 }
 
 func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) error {
 	height := currentHeight + 1
-	for _, checkpoint := range sm.params.Checkpoints {
+	for z, checkpoint := range sm.params.Checkpoints {
 		if currentHeight > checkpoint.Height {
 			continue
 		}
@@ -103,6 +145,18 @@ func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) error {
 			headers, err = sm.downloadHeaders(p, height, checkpoint.Height)
 			if err != nil {
 				sm.network.IncreaseBanscore(p, 0, 20)
+				continue
+			}
+			if headers[len(headers)-1].ID().Compare(checkpoint.BlockID) != 0 {
+				sm.network.IncreaseBanscore(p, 101, 0)
+				continue
+			}
+			parent := sm.params.GenesisBlock.ID()
+			if z > 0 {
+				parent = checkpoint.BlockID
+			}
+			if types.NewID(headers[0].Parent).Compare(parent) != 0 {
+				sm.network.IncreaseBanscore(p, 101, 0)
 				continue
 			}
 			if headers[len(headers)-1].ID().Compare(checkpoint.BlockID) != 0 {

@@ -15,6 +15,7 @@ import (
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/wire"
 	"google.golang.org/protobuf/proto"
 	"io"
@@ -33,7 +34,7 @@ const (
 	AvalancheRequestTimeout = 1 * time.Minute
 
 	// AvalancheFinalizationScore is the confidence score we consider to be final
-	AvalancheFinalizationScore = 128
+	AvalancheFinalizationScore = 160
 
 	// AvalancheTimeStep is the amount of time to wait between event ticks
 	AvalancheTimeStep = time.Millisecond
@@ -51,6 +52,8 @@ const (
 	DeleteInventoryAfter = time.Hour * 6
 
 	ConsensusProtocol = "consensus"
+
+	MaxRejectedCache = 200
 )
 
 // requestExpirationMsg signifies a request has expired and
@@ -67,7 +70,7 @@ type queryMsg struct {
 }
 
 type newBlockMessage struct {
-	blockID                     types.ID
+	header                      *blocks.BlockHeader
 	initialAcceptancePreference bool
 	callback                    chan<- Status
 }
@@ -82,18 +85,19 @@ type RequestBlockFunc func(blockID types.ID, remotePeer peer.ID)
 type HasBlockFunc func(blockID types.ID) bool
 
 type ConsensusEngine struct {
-	ctx         context.Context
-	network     *net.Network
-	params      *params.NetworkParams
-	chooser     blockchain.WeightedChooser
-	ms          net.MessageSender
-	wg          sync.WaitGroup
-	requestFunc RequestBlockFunc
-	hasBlock    HasBlockFunc
-	quit        chan struct{}
-	msgChan     chan interface{}
+	ctx          context.Context
+	network      *net.Network
+	params       *params.NetworkParams
+	chooser      blockchain.WeightedChooser
+	ms           net.MessageSender
+	wg           sync.WaitGroup
+	requestBlock RequestBlockFunc
+	hasBlock     HasBlockFunc
+	quit         chan struct{}
+	msgChan      chan interface{}
 
 	voteRecords    map[types.ID]*VoteRecord
+	conflicts      map[uint32][]types.ID
 	rejectedBlocks map[types.ID]struct{}
 	queries        map[string]RequestRecord
 	callbacks      map[types.ID]chan<- Status
@@ -121,12 +125,13 @@ func NewConsensusEngine(ctx context.Context, opts ...Option) (*ConsensusEngine, 
 		params:         cfg.params,
 		ms:             net.NewMessageSender(cfg.network.Host(), cfg.params.ProtocolPrefix+ConsensusProtocol),
 		wg:             sync.WaitGroup{},
-		requestFunc:    cfg.requestBlock,
+		requestBlock:   cfg.requestBlock,
 		hasBlock:       cfg.hasBlock,
 		quit:           make(chan struct{}),
 		msgChan:        make(chan interface{}),
 		voteRecords:    make(map[types.ID]*VoteRecord),
 		rejectedBlocks: make(map[types.ID]struct{}),
+		conflicts:      make(map[uint32][]types.ID),
 		queries:        make(map[string]RequestRecord),
 		callbacks:      make(map[types.ID]chan<- Status),
 	}
@@ -153,7 +158,7 @@ out:
 			case *queryMsg:
 				eng.handleQuery(msg.request, msg.remotePeer, msg.respChan)
 			case *newBlockMessage:
-				eng.handleNewBlock(msg.blockID, msg.initialAcceptancePreference, msg.callback)
+				eng.handleNewBlock(msg.header, msg.initialAcceptancePreference, msg.callback)
 			case *registerVotesMsg:
 				eng.handleRegisterVotes(msg.p, msg.resp)
 			}
@@ -167,15 +172,16 @@ out:
 	eng.wg.Done()
 }
 
-func (eng *ConsensusEngine) NewBlock(blockID types.ID, initialAcceptancePreference bool, callback chan<- Status) {
+func (eng *ConsensusEngine) NewBlock(header *blocks.BlockHeader, initialAcceptancePreference bool, callback chan<- Status) {
 	eng.msgChan <- &newBlockMessage{
-		blockID:                     blockID,
+		header:                      header,
 		initialAcceptancePreference: initialAcceptancePreference,
 		callback:                    callback,
 	}
 }
 
-func (eng *ConsensusEngine) handleNewBlock(blockID types.ID, initialAcceptancePreference bool, callback chan<- Status) {
+func (eng *ConsensusEngine) handleNewBlock(header *blocks.BlockHeader, initialAcceptancePreference bool, callback chan<- Status) {
+	blockID := header.ID()
 	_, ok := eng.voteRecords[blockID]
 	if ok {
 		return
@@ -184,8 +190,25 @@ func (eng *ConsensusEngine) handleNewBlock(blockID types.ID, initialAcceptancePr
 	if ok {
 		return
 	}
+	_, ok = eng.conflicts[header.Height]
+	if !ok {
+		eng.conflicts[header.Height] = make([]types.ID, 0, 1)
+	}
+	// If we already have a preferred block at this height set the initial
+	// preference to false.
+	for _, conflict := range eng.conflicts[header.Height] {
+		if conflict != header.ID() {
+			record, ok := eng.voteRecords[conflict]
+			if ok {
+				if record.isPreferred() {
+					initialAcceptancePreference = false
+				}
+			}
+		}
+	}
+	eng.conflicts[header.Height] = append(eng.conflicts[header.Height], blockID)
 
-	vr := NewVoteRecord(blockID, initialAcceptancePreference)
+	vr := NewVoteRecord(blockID, header.Height, initialAcceptancePreference)
 	eng.voteRecords[blockID] = vr
 
 	eng.callbacks[blockID] = callback
@@ -243,6 +266,11 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 
 func (eng *ConsensusEngine) handleQuery(req *wire.MsgAvaRequest, remotePeer peer.ID, respChan chan *wire.MsgAvaResponse) {
 	votes := make([]byte, len(req.Invs))
+	if len(req.Invs) == 0 {
+		log.Debugf("Received empty avalanche request from peer %s", remotePeer)
+		eng.network.IncreaseBanscore(remotePeer, 30, 0)
+		return
+	}
 	for i, invBytes := range req.Invs {
 		inv := types.NewID(invBytes)
 
@@ -263,7 +291,7 @@ func (eng *ConsensusEngine) handleQuery(req *wire.MsgAvaRequest, remotePeer peer
 			} else {
 				votes[i] = 0x80 // Neutral vote
 				// Request to download the block from the remote peer
-				eng.requestFunc(inv, remotePeer)
+				go eng.requestBlock(inv, remotePeer)
 			}
 		}
 
@@ -311,6 +339,7 @@ func (eng *ConsensusEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer pee
 	if err != nil {
 		log.Errorf("Error reading avalanche response from peer %s", peer.String())
 		eng.msgChan <- &requestExpirationMsg{key}
+		eng.network.IncreaseBanscore(peer, 0, 10)
 		return
 	}
 
@@ -326,6 +355,7 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 	r, ok := eng.queries[key]
 	if !ok {
 		log.Debugf("Received avalanche response from peer %s with an unknown request ID", p)
+		eng.network.IncreaseBanscore(p, 30, 0)
 		return
 	}
 
@@ -334,12 +364,14 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 
 	if r.IsExpired() {
 		log.Debugf("Received avalanche response from peer %s with an expired request", p)
+		eng.network.IncreaseBanscore(p, 0, 20)
 		return
 	}
 
 	invs := r.GetInvs()
 	if len(resp.Votes) != len(invs) {
 		log.Debugf("Received avalanche response from peer %s with incorrect number of votes", p)
+		eng.network.IncreaseBanscore(p, 30, 0)
 		return
 	}
 
@@ -369,9 +401,14 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 			// We need to keep track of conflicting blocks
 			// when this one becomes accepted we need to set the
 			// confidence of the conflicts back to zero.
+			for _, conflict := range eng.conflicts[vr.height] {
+				if conflict != vr.blockID {
+					eng.voteRecords[conflict].Reset(false)
+				}
+			}
 		}
 
-		if vr.status() == StatusFinalized || vr.status() == StatusRejected {
+		if vr.status() == StatusFinalized {
 			if eng.printState {
 				vr.printState()
 			}
@@ -380,6 +417,19 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 				go func() {
 					callback <- vr.status()
 				}()
+			}
+			for _, conflict := range eng.conflicts[vr.height] {
+				if conflict != vr.blockID {
+					eng.voteRecords[conflict].Reject()
+					eng.limitRejected()
+					eng.rejectedBlocks[conflict] = struct{}{}
+					callback, ok := eng.callbacks[conflict]
+					if ok {
+						go func() {
+							callback <- eng.voteRecords[conflict].status()
+						}()
+					}
+				}
 			}
 		}
 	}
@@ -451,6 +501,15 @@ func (eng *ConsensusEngine) getInvsForNextPoll() []types.ID {
 	}
 
 	return invs
+}
+
+func (eng *ConsensusEngine) limitRejected() {
+	if len(eng.rejectedBlocks) >= MaxRejectedCache {
+		for blockID := range eng.rejectedBlocks {
+			delete(eng.rejectedBlocks, blockID)
+			break
+		}
+	}
 }
 
 func queryKey(requestID uint32, peerID string) string {

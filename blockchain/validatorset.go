@@ -465,6 +465,10 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 				valNew.UnclaimedCoins = 0
 			}
 
+			if valNew.epochBlocks < blockProductionFloor(float64(vs.epochBlocks), expectedBlocks/float64(vs.epochBlocks)) {
+				valNew.UnclaimedCoins = 0
+			}
+
 			valNew.epochBlocks = 0
 			valNew.stakeAccumulator = 0
 			updates[valNew.PeerID] = valNew
@@ -628,6 +632,16 @@ func (vs *ValidatorSet) flushToDisk(chainHeight uint32) error {
 // Six standard deviations from the expected number of blocks.
 func blockProductionLimit(epochBlocks float64, stakePercentage float64) uint32 {
 	return uint32((epochBlocks * stakePercentage) + (math.Sqrt(epochBlocks*stakePercentage*(1-stakePercentage)) * 6))
+}
+
+// Six standard deviations from the expected number of blocks.
+func blockProductionFloor(epochBlocks float64, stakePercentage float64) uint32 {
+	expectedBlocks := uint32(epochBlocks * stakePercentage)
+	dev := uint32(math.Sqrt(epochBlocks*stakePercentage*(1-stakePercentage)) * 6)
+	if dev > expectedBlocks {
+		return 0
+	}
+	return (expectedBlocks - dev) / 3
 }
 
 func copyValidator(dest *Validator, src *Validator) {

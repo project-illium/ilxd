@@ -180,12 +180,13 @@ func TestSyncManagerQueryPeers(t *testing.T) {
 
 	sm := NewSyncManager(context.Background(), testHarness.Blockchain(), network2, testHarness.Blockchain().Params(), service)
 
-	ids, err := sm.queryPeers(5)
+	m, err := sm.queryPeers(5)
 	assert.NoError(t, err)
 
 	blkID, err := testHarness.Blockchain().GetBlockIDByHeight(5)
 	assert.NoError(t, err)
 
-	assert.Len(t, ids, 3)
-	assert.Equal(t, blkID, ids[0])
+	assert.Len(t, m, 1)
+	_, ok := m[blkID]
+	assert.True(t, ok)
 }

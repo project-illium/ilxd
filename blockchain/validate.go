@@ -25,7 +25,7 @@ const (
 
 	MaxTransactionSize = 1000000
 
-	MaxBlockFutureTime = time.Duration(10)
+	MaxBlockFutureTime = time.Second * 10
 
 	RestakePeriod = time.Hour * 24 * 7
 )
