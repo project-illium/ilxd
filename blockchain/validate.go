@@ -54,6 +54,9 @@ const (
 	// using special validation rules.
 	BFGenesisValidation
 
+	// BFNoFlush skips flushing memory caches to disk.
+	BFNoFlush
+
 	// BFNone is a convenience value to specifically indicate no flags.
 	BFNone BehaviorFlags = 0
 )

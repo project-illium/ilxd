@@ -82,6 +82,16 @@ func (ns *NullifierSet) AddNullifiers(dbtx datastore.Txn, nullifiers []types.Nul
 	return dsPutNullifiers(dbtx, nullifiers)
 }
 
+// Clone returns a copy of the NullifierSet
+func (ns *NullifierSet) Clone() *NullifierSet {
+	return &NullifierSet{
+		ds:            ns.ds,
+		cachedEntries: make(map[types.Nullifier]bool),
+		maxEntries:    DefaultMaxNullifiers,
+		mtx:           sync.RWMutex{},
+	}
+}
+
 func (ns *NullifierSet) limitCache(newEntries int) {
 	// If adding this new entry will put us over the max number of allowed
 	// entries, then evict an entry.

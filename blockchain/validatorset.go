@@ -72,6 +72,25 @@ type Validator struct {
 	dirty            bool
 }
 
+// Clone returns a copy of the validator
+func (v *Validator) Clone() *Validator {
+	ret := &Validator{
+		PeerID:           v.PeerID,
+		TotalStake:       v.TotalStake,
+		Nullifiers:       make(map[types.Nullifier]Stake),
+		UnclaimedCoins:   v.UnclaimedCoins,
+		stakeAccumulator: v.stakeAccumulator,
+		epochBlocks:      v.epochBlocks,
+	}
+	for n, s := range v.Nullifiers {
+		ret.Nullifiers[n] = Stake{
+			Amount:     s.Amount,
+			Blockstamp: s.Blockstamp,
+		}
+	}
+	return ret
+}
+
 // ValidatorSet maintains the current state of the set of validators in
 // the network.
 //

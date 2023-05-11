@@ -131,7 +131,7 @@ syncLoop:
 
 			// Step three is to download the evaluation window for each side of the fork.
 
-			// Step four, compute the chain score for each side of the fork.
+			// Step four is to compute the chain score for each side of the fork.
 
 			// Finally, sync to the fork with the best chain score.
 
@@ -229,6 +229,15 @@ bucketLoop:
 	return ret, nil
 }
 
+// populatePeerBuckets queries a large number of peers and asks them when their best
+// blockID is. If the peers disagree they will be sorted into buckets based on which
+// chain they follow.
+//
+// Note do to the asynchronous nature of the network peers might not report the same
+// best blockID even though they are all following the same chain. In this case we
+// may still end up putting them into different buckets. This is OK as the buckets
+// are only used to add peers to our queries and if there is no fork this won't hurt
+// anything.
 func (sm *SyncManager) populatePeerBuckets() error {
 	peers := sm.network.Host().Network().Peers()
 	if len(peers) == 0 {

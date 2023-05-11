@@ -97,3 +97,20 @@ func (t *TxoRootSet) UpdateCache(txoRoot types.ID) {
 	}
 	t.cache[txoRoot] = time.Now()
 }
+
+// Clone returns a copy of the TxoRootSet
+func (t *TxoRootSet) Clone() *TxoRootSet {
+	t.mtx.RLock()
+	defer t.mtx.RUnlock()
+
+	ret := &TxoRootSet{
+		cache:      make(map[types.ID]time.Time),
+		mtx:        sync.RWMutex{},
+		ds:         t.ds,
+		maxEntries: t.maxEntries,
+	}
+	for txoRoot, timestamp := range t.cache {
+		ret.cache[txoRoot] = timestamp
+	}
+	return ret
+}

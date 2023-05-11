@@ -28,11 +28,10 @@ const (
 	// flushPeriodic will flush if a certain time interval has passed since the last
 	// flush.
 	flushPeriodic
-)
 
-type Subscription struct {
-	Block *blocks.Block
-}
+	// flushNop signals to skip the flush.
+	flushNop
+)
 
 // Blockchain is a class which handles all the functionality needed for maintaining
 // the state of the chain. This includes validating blocks, connecting blocks to the
@@ -50,7 +49,6 @@ type Blockchain struct {
 	indexManager      *indexers.IndexManager
 	notifications     []NotificationCallback
 	notificationsLock sync.RWMutex
-	subs              []*Subscription
 
 	// stateLock protects concurrent access to the chain state
 	stateLock sync.RWMutex
@@ -262,11 +260,15 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	// rolling back the changes if the rest of this function errors. The only possible error is
 	// an error flushing to disk, which we will just log. Any errors we should be able to repair
 	// later.
-	if err := b.validatorSet.CommitBlock(blk, validatorReward, flushPeriodic); err != nil {
+	flushMode := flushPeriodic
+	if flags.HasFlag(BFNoFlush) {
+		flushMode = flushNop
+	}
+	if err := b.validatorSet.CommitBlock(blk, validatorReward, flushMode); err != nil {
 		log.Errorf("Commit Block: Error flushing validator set: %s", err.Error())
 	}
 
-	if err := b.accumulatorDB.Commit(accumulator, blk.Header.Height, flushPeriodic); err != nil {
+	if err := b.accumulatorDB.Commit(accumulator, blk.Header.Height, flushMode); err != nil {
 		log.Errorf("Commit Block: Error flushing accumulator: %s", err.Error())
 	}
 
