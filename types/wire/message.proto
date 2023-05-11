@@ -12,6 +12,7 @@ enum ErrorResponse {
     None       = 0;
     NotFound   = 1;
     BadRequest = 2;
+    NotCurrent = 3;
 }
 
 message MsgAvaRequest {
@@ -26,12 +27,13 @@ message MsgAvaResponse {
 
 message MsgChainServiceRequest {
     oneof msg {
-        GetBlockTxsReq      get_block_txs         = 1;
-        GetBlockTxidsReq    get_block_txids       = 2;
-        GetBlockReq         get_block             = 3;
-        GetBlockIDReq       get_block_id          = 4;
-        GetHeadersStreamReq get_headers_stream    = 5;
+        GetBlockTxsReq       get_block_txs        = 1;
+        GetBlockTxidsReq     get_block_txids      = 2;
+        GetBlockReq          get_block            = 3;
+        GetBlockIDReq        get_block_id         = 4;
+        GetHeadersStreamReq  get_headers_stream   = 5;
         GetBlockTxsStreamReq get_block_txs_stream = 6;
+        GetBestReq           get_best             = 7;
     }
 }
 
@@ -78,4 +80,12 @@ message GetHeadersStreamReq {
 
 message GetBlockTxsStreamReq {
     uint32 start_height = 1;
+}
+
+message GetBestReq {}
+
+message MsgGetBestResp {
+    bytes block_ID      = 1;
+    uint32 height       = 2;
+    ErrorResponse error = 3;
 }

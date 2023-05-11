@@ -29,6 +29,8 @@ const (
 	maxBatchSize = 2000
 )
 
+var ErrNotCurrent = errors.New("peer not current")
+
 type FetchBlockFunc func(blockID types.ID) (*blocks.Block, error)
 
 type ChainService struct {
@@ -90,6 +92,8 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 			resp, err = cs.handleGetBlock(m.GetBlock)
 		case *wire.MsgChainServiceRequest_GetBlockId:
 			resp, err = cs.handleGetBlockID(m.GetBlockId)
+		case *wire.MsgChainServiceRequest_GetBest:
+			resp, err = cs.handleGetBest(m.GetBest)
 		case *wire.MsgChainServiceRequest_GetHeadersStream:
 			err := cs.handleGetHeadersStream(m.GetHeadersStream, s)
 			if err != nil {
@@ -407,4 +411,42 @@ func (cs *ChainService) handleGetBlockTxsStream(req *wire.GetBlockTxsStreamReq, 
 		}
 	}
 	return s.Close()
+}
+
+func (cs *ChainService) GetBest(p peer.ID) (types.ID, uint32, error) {
+	var (
+		req = &wire.MsgChainServiceRequest{
+			Msg: &wire.MsgChainServiceRequest_GetBest{
+				GetBest: &wire.GetBestReq{},
+			},
+		}
+		resp = new(wire.MsgGetBestResp)
+	)
+	err := cs.ms.SendRequest(cs.ctx, p, req, resp)
+	if err != nil {
+		return types.ID{}, 0, err
+	}
+
+	if resp.Error == wire.ErrorResponse_NotCurrent {
+		return types.ID{}, 0, ErrNotCurrent
+	}
+
+	if resp.Error != wire.ErrorResponse_None {
+		return types.ID{}, 0, fmt.Errorf("error response from peer: %s", resp.GetError().String())
+	}
+
+	return types.NewID(resp.Block_ID), resp.Height, nil
+}
+
+func (cs *ChainService) handleGetBest(req *wire.GetBestReq) (*wire.MsgGetBestResp, error) {
+	blockID, height, _ := cs.chain.BestBlock()
+
+	resp := &wire.MsgGetBestResp{
+		Block_ID: blockID[:],
+		Height:   height,
+	}
+
+	// FIXME: if not current return error
+
+	return resp, nil
 }
