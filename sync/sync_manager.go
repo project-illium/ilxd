@@ -16,6 +16,7 @@ import (
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
+	"math"
 	"math/rand"
 	"sync"
 	"time"
@@ -25,6 +26,7 @@ const (
 	nextHeightQuerySize = 8
 	bestHeightQuerySize = 100
 	lookaheadSize       = 10000
+	evaluationWindow    = 5000
 )
 
 type SyncManager struct {
@@ -99,7 +101,7 @@ syncLoop:
 			// All peers agree on the blockID at the requested height. This is good.
 			// We'll just sync up to this height.
 			for blockID, p := range blockMap {
-				err := sm.syncBlocks(p, height, height+lookaheadSize, bestID, blockID)
+				err := sm.syncBlocks(p, height+1, height+lookaheadSize, bestID, blockID)
 				if err != nil {
 					log.Debugf("Error syncing blocks. Peer: %s, Err: %s", p, err)
 				}
@@ -120,7 +122,7 @@ syncLoop:
 			// Step two is sync up to fork point.
 			if forkPoint > height {
 				for blockID, p := range blockMap {
-					err := sm.syncBlocks(p, height, forkPoint, bestID, blockID)
+					err := sm.syncBlocks(p, height+1, forkPoint, bestID, blockID)
 					if err != nil {
 						log.Debugf("Error syncing blocks. Peer: %s, Err: %s", p, err)
 						continue syncLoop
@@ -129,12 +131,53 @@ syncLoop:
 				}
 			}
 
-			// Step three is to download the evaluation window for each side of the fork.
+			scores := make(map[types.ID]blockchain.ChainScore)
 
-			// Step four is to compute the chain score for each side of the fork.
+			// Step three is to download the evaluation window for each side of the fork.
+			for blockID, p := range blockMap {
+				blks, err := sm.downloadEvalWindow(p, forkPoint+1)
+				if err != nil {
+					log.Debugf("Sync peer failed to serve evaluation window. Banning. Peer: %s", p)
+					sm.network.IncreaseBanscore(p, 101, 0)
+					continue syncLoop
+				}
+
+				// Step four is to compute the chain score for each side of the fork.
+				score, err := sm.chain.CalcChainScore(blks)
+				if err != nil {
+					log.Debugf("Sync peer failed to served invalid evaluation window. Banning. Peer: %s", p)
+					sm.network.IncreaseBanscore(p, 101, 0)
+					continue syncLoop
+				}
+				if len(blks) < evaluationWindow {
+					score = score / blockchain.ChainScore(len(blks)) * evaluationWindow
+				}
+				scores[blockID] = score
+			}
 
 			// Finally, sync to the fork with the best chain score.
+			var (
+				bestScore = blockchain.ChainScore(math.MaxInt32)
+				bestID    types.ID
+			)
+			for blockID, score := range scores {
+				if score < bestScore {
+					bestScore = score
+					bestID = blockID
+				}
+			}
+			for blockID, p := range blockMap {
+				if blockID != bestID {
+					sm.network.IncreaseBanscore(p, 101, 0)
+				}
+			}
 
+			currentID, height, _ := sm.chain.BestBlock()
+			err = sm.syncBlocks(blockMap[bestID], height+1, height+lookaheadSize, currentID, bestID)
+			if err != nil {
+				log.Debugf("Error syncing blocks. Peer: %s, Err: %s", blockMap[bestID], err)
+				continue syncLoop
+			}
 		}
 	}
 }
@@ -336,6 +379,27 @@ func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) {
 	}
 }
 
+func (sm *SyncManager) downloadEvalWindow(p peer.ID, fromHeight uint32) ([]*blocks.Block, error) {
+	headers, err := sm.downloadHeaders(p, fromHeight, fromHeight+evaluationWindow)
+	if err != nil {
+		sm.network.IncreaseBanscore(p, 0, 20)
+		return nil, err
+	}
+	blks := make([]*blocks.Block, 0, len(headers))
+	txs, err := sm.downloadBlockTxs(p, fromHeight, fromHeight+evaluationWindow)
+	if err != nil {
+		sm.network.IncreaseBanscore(p, 0, 20)
+		return nil, fmt.Errorf("peer %s block download error %s", p, err)
+	}
+	for i, tx := range txs {
+		blks = append(blks, &blocks.Block{
+			Header:       headers[i],
+			Transactions: tx.Transactions,
+		})
+	}
+	return blks, nil
+}
+
 func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent, expectedID types.ID) error {
 	headers, err := sm.downloadHeaders(p, fromHeight, toHeight)
 	if err != nil {
@@ -461,12 +525,17 @@ func (sm *SyncManager) downloadHeaders(p peer.ID, startHeight, endHeight uint32)
 		if err != nil {
 			return nil, err
 		}
+		count := 0
 		for header := range ch {
 			headers = append(headers, header)
 			height++
 			if height > endHeight {
 				return headers, nil
 			}
+			count++
+		}
+		if count == 0 {
+			return nil, errors.New("peer closed stream without sending any headers")
 		}
 		if height > endHeight {
 			break
@@ -483,12 +552,17 @@ func (sm *SyncManager) downloadBlockTxs(p peer.ID, startHeight, endHeight uint32
 		if err != nil {
 			return nil, err
 		}
+		count := 0
 		for blockTxs := range ch {
 			txs = append(txs, blockTxs)
 			height++
 			if height > endHeight {
 				return txs, nil
 			}
+			count++
+		}
+		if count == 0 {
+			return nil, errors.New("peer closed stream without returning any blocktxs")
 		}
 		if height > endHeight {
 			break

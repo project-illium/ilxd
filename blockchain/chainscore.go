@@ -15,7 +15,7 @@ import (
 	"sync"
 )
 
-type ChainScore int32
+type ChainScore float64
 
 func (b *Blockchain) CalcChainScore(blks []*blocks.Block) (ChainScore, error) {
 	b.stateLock.RLock()
@@ -80,6 +80,10 @@ func (b *Blockchain) CalcChainScore(blks []*blocks.Block) (ChainScore, error) {
 		return 0, err
 	}
 	defer dbtx.Discard(context.Background())
+
+	if err := dsPutHeader(dbtx, tipHeader); err != nil {
+		return 0, err
+	}
 
 	if err := dsCreditTreasury(dbtx, balance); err != nil {
 		return 0, err

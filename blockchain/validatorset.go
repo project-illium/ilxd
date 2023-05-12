@@ -595,6 +595,8 @@ func (vs *ValidatorSet) flush(mode flushMode, chainHeight uint32) error {
 			return vs.flushToDisk(chainHeight)
 		}
 		return nil
+	case flushNop:
+		return nil
 	default:
 		return fmt.Errorf("unsupported flushmode for the validator set")
 	}

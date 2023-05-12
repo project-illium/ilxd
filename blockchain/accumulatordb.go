@@ -154,6 +154,8 @@ func (adb *AccumulatorDB) flush(mode flushMode, acc *Accumulator, chainHeight ui
 			return adb.flushToDisk(acc, chainHeight)
 		}
 		return nil
+	case flushNop:
+		return nil
 	default:
 		return fmt.Errorf("unsupported flushmode for the accumulator db")
 	}
