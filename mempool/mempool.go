@@ -20,13 +20,17 @@ type validationReq struct {
 type removeBlockTxsReq struct {
 	txs []*transactions.Transaction
 }
+type ttlTx struct {
+	tx         *transactions.Transaction
+	expiration time.Time
+}
 
 // Mempool holds valid transactions that have been relayed around the
 // network but have not yet made it into a block. The pool will validate
 // transactions before admitting them. The block generation package uses
 // the mempool transactions to generate blocks.
 type Mempool struct {
-	pool           map[types.ID]*transactions.Transaction
+	pool           map[types.ID]*ttlTx
 	nullifiers     map[types.Nullifier]types.ID
 	treasuryDebits map[types.ID]types.Amount
 	coinbases      map[peer.ID]*transactions.CoinbaseTransaction
@@ -51,7 +55,7 @@ func NewMempool(opts ...Option) (*Mempool, error) {
 	}
 
 	m := &Mempool{
-		pool:           make(map[types.ID]*transactions.Transaction),
+		pool:           make(map[types.ID]*ttlTx),
 		nullifiers:     make(map[types.Nullifier]types.ID),
 		treasuryDebits: make(map[types.ID]types.Amount),
 		coinbases:      make(map[peer.ID]*transactions.CoinbaseTransaction),
@@ -70,6 +74,7 @@ func (m *Mempool) Close() {
 }
 
 func (m *Mempool) validationHandler() {
+	ticker := time.NewTicker(time.Hour)
 	for {
 		select {
 		case msg := <-m.msgChan:
@@ -79,7 +84,18 @@ func (m *Mempool) validationHandler() {
 			case *removeBlockTxsReq:
 				m.removeBlockTransactions(req.txs)
 			}
-
+		case <-ticker.C:
+			m.mempoolLock.RLock()
+			toDelete := make([]*transactions.Transaction, 0)
+			for _, tx := range m.pool {
+				if time.Now().After(tx.expiration) {
+					toDelete = append(toDelete, tx.tx)
+				}
+			}
+			m.mempoolLock.RUnlock()
+			if len(toDelete) > 0 {
+				m.removeBlockTransactions(toDelete)
+			}
 		case <-m.quit:
 			return
 		}
@@ -136,7 +152,7 @@ func (m *Mempool) GetTransaction(txid types.ID) (*transactions.Transaction, erro
 	if !ok {
 		return nil, ErrNotFound
 	}
-	return tx, nil
+	return tx.tx, nil
 }
 
 // GetTransactions returns the full list of transactions from the pool.
@@ -144,7 +160,12 @@ func (m *Mempool) GetTransactions() map[types.ID]*transactions.Transaction {
 	m.mempoolLock.RLock()
 	defer m.mempoolLock.RUnlock()
 
-	return m.pool
+	pool := make(map[types.ID]*transactions.Transaction)
+	for id, tx := range m.pool {
+		pool[id] = tx.tx
+	}
+
+	return pool
 }
 
 // RemoveBlockTransactions should be called when a block is connected. It will remove
@@ -339,7 +360,10 @@ func (m *Mempool) validationTransaction(tx *transactions.Transaction) error {
 
 		m.treasuryDebits[t.TreasuryTransaction.ID()] = types.Amount(t.TreasuryTransaction.Amount)
 	}
-	m.pool[tx.ID()] = tx
+	m.pool[tx.ID()] = &ttlTx{
+		tx:         tx,
+		expiration: time.Now().Add(m.cfg.transactionTTL),
+	}
 	return nil
 }
 

@@ -9,11 +9,13 @@ import (
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
+	"time"
 )
 
 const (
 	defaultSigCacheSize   = 100000
 	defaultProofCacheSize = 100000
+	defaultTransactionTTL = time.Hour * 24
 )
 
 // DefaultOptions returns a blockchain configure option that fills in
@@ -27,6 +29,7 @@ func DefaultOptions() Option {
 		cfg.sigCache = blockchain.NewSigCache(defaultSigCacheSize)
 		cfg.proofCache = blockchain.NewProofCache(defaultProofCacheSize)
 		cfg.treasuryWhitelist = make(map[types.ID]bool)
+		cfg.transactionTTL = defaultTransactionTTL
 		return nil
 	}
 }
@@ -90,6 +93,15 @@ func TreasuryWhitelist(whitelist []types.ID) Option {
 	}
 }
 
+// TransactionTTL represents the amount of time a transaction remains
+// in the mempool without being included in a block before we discard it.
+func TransactionTTL(ttl time.Duration) Option {
+	return func(cfg *config) error {
+		cfg.transactionTTL = ttl
+		return nil
+	}
+}
+
 // SignatureCache caches signature validation so we don't need to expend
 // extra CPU to validate signatures more than once.
 //
@@ -121,6 +133,7 @@ type config struct {
 	sigCache          *blockchain.SigCache
 	proofCache        *blockchain.ProofCache
 	treasuryWhitelist map[types.ID]bool
+	transactionTTL    time.Duration
 }
 
 func (cfg *config) validate() error {

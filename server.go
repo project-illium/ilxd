@@ -50,6 +50,7 @@ type Server struct {
 	mempool      *mempool.Mempool
 	engine       *consensus.ConsensusEngine
 	chainService *sync.ChainService
+	syncManager  *sync.SyncManager
 
 	orphanBlocks map[types.ID]*orphanBlock
 	orphanLock   stdsync.RWMutex
@@ -244,6 +245,10 @@ func BuildServer(config *repo.Config) (*Server, error) {
 }
 
 func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.ID) error {
+	_, height, _ := s.blockchain.BestBlock()
+	if !s.syncManager.IsCurrent() && xThinnerBlk.Header.Height != height+1 {
+		return errors.New("not current")
+	}
 	// Try to decode the block. This should succeed most of the time unless
 	// the merkle root is invalid.
 	blockID := xThinnerBlk.ID()
@@ -359,6 +364,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 					log.Warnf("Connect block error: block %s: %s", blockID, err)
 				} else {
 					log.Infof("New block: %s, (height: %d, transactions: %d)", blockID, blk.Header.Height, len(b.Transactions))
+					s.syncManager.SetCurrent()
 				}
 			case consensus.StatusRejected:
 				log.Debugf("Block %s rejected by consensus", b.ID())
@@ -454,8 +460,47 @@ func (s *Server) fetchBlock(blockID types.ID) (*blocks.Block, error) {
 	return s.blockchain.GetBlockByID(blockID)
 }
 
+func (s *Server) consensusChoose(blks []*blocks.Block) (types.ID, error) {
+	height := blks[0].Header.Height
+	for _, blk := range blks {
+		if blk.Header.Height != height {
+			return types.ID{}, errors.New("not all blocks at the same height")
+		}
+	}
+
+	respCh := make(chan *types.ID)
+	wg := stdsync.WaitGroup{}
+	wg.Add(len(blks))
+	go func() {
+		for _, blk := range blks {
+			go func(b *blocks.Block, w *stdsync.WaitGroup) {
+				callback := make(chan consensus.Status)
+				s.engine.NewBlock(b.Header, false, callback)
+				select {
+				case status := <-callback:
+					if status == consensus.StatusFinalized {
+						id := b.Header.ID()
+						respCh <- &id
+					}
+				case <-time.After(time.Second * 30):
+				}
+				w.Done()
+			}(blk, &wg)
+		}
+		wg.Wait()
+		close(respCh)
+	}()
+	id := <-respCh
+	if id != nil {
+		return *id, nil
+	}
+	return types.ID{}, errors.New("no blocks finalized")
+}
+
 func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
-	// FIXME: check that we're current before proceeding
+	if !s.syncManager.IsCurrent() {
+		return
+	}
 	s.inflightLock.RLock()
 	if _, ok := s.inflightRequests[blockID]; ok {
 		s.inflightLock.RUnlock()

@@ -30,24 +30,31 @@ const (
 )
 
 type SyncManager struct {
-	ctx          context.Context
-	params       *params.NetworkParams
-	network      *net.Network
-	chainService *ChainService
-	chain        *blockchain.Blockchain
-	buckets      map[types.ID][]peer.ID
-	bucketMtx    sync.RWMutex
+	ctx             context.Context
+	params          *params.NetworkParams
+	network         *net.Network
+	chainService    *ChainService
+	chain           *blockchain.Blockchain
+	consensuChooser ConsensusChooser
+	buckets         map[types.ID][]peer.ID
+	bucketMtx       sync.RWMutex
+	currentMtx      sync.RWMutex
+	current         bool
 }
 
-func NewSyncManager(ctx context.Context, chain *blockchain.Blockchain, network *net.Network, params *params.NetworkParams, cs *ChainService) *SyncManager {
+type ConsensusChooser func([]*blocks.Block) (types.ID, error)
+
+func NewSyncManager(ctx context.Context, chain *blockchain.Blockchain, network *net.Network, params *params.NetworkParams, cs *ChainService, chooser ConsensusChooser) *SyncManager {
 	sm := &SyncManager{
-		ctx:          ctx,
-		params:       params,
-		network:      network,
-		chainService: cs,
-		chain:        chain,
-		buckets:      make(map[types.ID][]peer.ID),
-		bucketMtx:    sync.RWMutex{},
+		ctx:             ctx,
+		params:          params,
+		network:         network,
+		chainService:    cs,
+		chain:           chain,
+		consensuChooser: chooser,
+		buckets:         make(map[types.ID][]peer.ID),
+		bucketMtx:       sync.RWMutex{},
+		currentMtx:      sync.RWMutex{},
 	}
 	notifier := &inet.NotifyBundle{
 		DisconnectedF: sm.bucketPeerDisconnected,
@@ -83,6 +90,11 @@ func (sm *SyncManager) Start() {
 	// Now we can continue to sync the rest of the chain.
 syncLoop:
 	for {
+		sm.currentMtx.RLock()
+		if sm.current {
+			return
+		}
+		sm.currentMtx.RUnlock()
 		// We'll start by querying a subset of our peers ask them for what
 		// block they have at height + lookaheadSize.
 		//
@@ -101,6 +113,12 @@ syncLoop:
 			// All peers agree on the blockID at the requested height. This is good.
 			// We'll just sync up to this height.
 			for blockID, p := range blockMap {
+				if bestID == blockID {
+					sm.currentMtx.Lock()
+					defer sm.currentMtx.Unlock()
+					sm.current = true
+					return
+				}
 				err := sm.syncBlocks(p, height+1, height+lookaheadSize, bestID, blockID)
 				if err != nil {
 					log.Debugf("Error syncing blocks. Peer: %s, Err: %s", p, err)
@@ -131,7 +149,11 @@ syncLoop:
 				}
 			}
 
-			scores := make(map[types.ID]blockchain.ChainScore)
+			var (
+				scores      = make(map[types.ID]blockchain.ChainScore)
+				tipOfChain  = true
+				firstBlocks = make([]*blocks.Block, 0, len(blockMap))
+			)
 
 			// Step three is to download the evaluation window for each side of the fork.
 			for blockID, p := range blockMap {
@@ -141,6 +163,7 @@ syncLoop:
 					sm.network.IncreaseBanscore(p, 101, 0)
 					continue syncLoop
 				}
+				firstBlocks = append(firstBlocks, blks[0])
 
 				// Step four is to compute the chain score for each side of the fork.
 				score, err := sm.chain.CalcChainScore(blks)
@@ -151,6 +174,8 @@ syncLoop:
 				}
 				if len(blks) < evaluationWindow {
 					score = score / blockchain.ChainScore(len(blks)) * evaluationWindow
+				} else {
+					tipOfChain = false
 				}
 				scores[blockID] = score
 			}
@@ -160,10 +185,18 @@ syncLoop:
 				bestScore = blockchain.ChainScore(math.MaxInt32)
 				bestID    types.ID
 			)
-			for blockID, score := range scores {
-				if score < bestScore {
-					bestScore = score
-					bestID = blockID
+			if tipOfChain {
+				bestID, err = sm.consensuChooser(firstBlocks)
+				if err != nil {
+					log.Debugf("Sync error choosing between tips: %s", err)
+					continue syncLoop
+				}
+			} else {
+				for blockID, score := range scores {
+					if score < bestScore {
+						bestScore = score
+						bestID = blockID
+					}
 				}
 			}
 			for blockID, p := range blockMap {
@@ -180,6 +213,20 @@ syncLoop:
 			}
 		}
 	}
+}
+
+func (sm *SyncManager) IsCurrent() bool {
+	sm.currentMtx.RLock()
+	defer sm.currentMtx.RUnlock()
+
+	return sm.current
+}
+
+func (sm *SyncManager) SetCurrent() {
+	sm.currentMtx.Lock()
+	defer sm.currentMtx.Unlock()
+
+	sm.current = true
 }
 
 func (sm *SyncManager) bucketPeerDisconnected(_ inet.Network, conn inet.Conn) {
