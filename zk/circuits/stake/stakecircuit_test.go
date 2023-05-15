@@ -45,6 +45,7 @@ func TestStakeCircuit(t *testing.T) {
 		SnarkVerificationKey: verificationKeyBytes,
 		PublicParams:         userParams,
 	}
+	scriptHash := script.Hash()
 
 	r := make([]byte, 32)
 	rand.Read(r)
@@ -52,10 +53,10 @@ func TestStakeCircuit(t *testing.T) {
 	copy(salt[:], r)
 
 	note1 := types.SpendNote{
-		UnlockingScript: script,
-		AssetID:         [32]byte{},
-		Amount:          1000000,
-		Salt:            salt,
+		ScriptHash: scriptHash[:],
+		AssetID:    [32]byte{},
+		Amount:     1000000,
+		Salt:       salt,
 	}
 
 	commitment, err := note1.Commitment()
@@ -87,7 +88,7 @@ func TestStakeCircuit(t *testing.T) {
 	privateParams := &stake.PrivateParams{
 		AssetID:         note1.AssetID,
 		Salt:            note1.Salt,
-		State:           [32]byte{},
+		State:           [types.StateLen]byte{},
 		CommitmentIndex: inclusionProof.Index,
 		InclusionProof: standard.InclusionProof{
 			Accumulator: inclusionProof.Accumulator,

@@ -5,12 +5,12 @@
 package hash
 
 import (
-	"golang.org/x/crypto/blake2b"
+	"golang.org/x/crypto/blake2s"
 )
 
 const HashSize = 32
 
 func HashFunc(data []byte) []byte {
-	h := blake2b.Sum256(data)
+	h := blake2s.Sum256(data)
 	return h[:]
 }

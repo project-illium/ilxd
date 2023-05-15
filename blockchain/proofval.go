@@ -108,7 +108,6 @@ func (p *proofValidator) validateHandler() {
 				for _, out := range tx.StandardTransaction.Outputs {
 					outputs = append(outputs, standard.PublicOutput{
 						Commitment: out.Commitment,
-						EncKey:     out.EphemeralPubkey,
 						CipherText: out.Ciphertext,
 					})
 				}
@@ -152,7 +151,6 @@ func (p *proofValidator) validateHandler() {
 				for _, out := range tx.CoinbaseTransaction.Outputs {
 					outputs = append(outputs, standard.PublicOutput{
 						Commitment: out.Commitment,
-						EncKey:     out.EphemeralPubkey,
 						CipherText: out.Ciphertext,
 					})
 				}
@@ -194,7 +192,6 @@ func (p *proofValidator) validateHandler() {
 				for _, out := range tx.TreasuryTransaction.Outputs {
 					outputs = append(outputs, standard.PublicOutput{
 						Commitment: out.Commitment,
-						EncKey:     out.EphemeralPubkey,
 						CipherText: out.Ciphertext,
 					})
 				}
@@ -236,7 +233,6 @@ func (p *proofValidator) validateHandler() {
 				for _, out := range tx.MintTransaction.Outputs {
 					outputs = append(outputs, standard.PublicOutput{
 						Commitment: out.Commitment,
-						EncKey:     out.EphemeralPubkey,
 						CipherText: out.Ciphertext,
 					})
 				}

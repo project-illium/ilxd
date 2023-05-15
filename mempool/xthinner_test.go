@@ -131,7 +131,7 @@ func TestMempool_EncodeXthinner(t *testing.T) {
 			},
 			mempoolFunc: func(m *Mempool) {
 				tx := transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 58838}) // cd11927462cd7e99c7bbbda269e9736d545c7e1c8280eace536d4cd815eb9b73
-				m.pool[tx.ID()] = tx
+				m.pool[tx.ID()] = &ttlTx{tx: tx}
 			},
 			expectedTxids: []string{
 				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
@@ -155,7 +155,7 @@ func TestMempool_EncodeXthinner(t *testing.T) {
 			},
 			mempoolFunc: func(m *Mempool) {
 				tx := transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 20870716}) // cd0a76057b7b69b3aca629173f6c7968ed908b843fcb15331def075807180d15
-				m.pool[tx.ID()] = tx
+				m.pool[tx.ID()] = &ttlTx{tx: tx}
 			},
 			expectedTxids: []string{
 				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
@@ -210,10 +210,10 @@ func TestMempool_EncodeXthinner(t *testing.T) {
 
 	for _, test := range tests {
 		m := &Mempool{
-			pool: make(map[types.ID]*transactions.Transaction),
+			pool: make(map[types.ID]*ttlTx),
 		}
 		for _, tx := range test.mempoolTxs {
-			m.pool[tx.ID()] = tx
+			m.pool[tx.ID()] = &ttlTx{tx: tx}
 		}
 
 		blockIDs := make([]types.ID, 0, len(test.blockHashes))

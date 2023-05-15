@@ -29,28 +29,32 @@ func TestProofValidator(t *testing.T) {
 	spendPubkeyBytes, err := crypto.MarshalPublicKey(spendKey.GetPublic())
 	assert.NoError(t, err)
 
+	inUnlockingScript := types.UnlockingScript{
+		SnarkVerificationKey: verificationKeyBytes,
+		PublicParams:         [][]byte{spendPubkeyBytes},
+	}
+	inScriptHash := inUnlockingScript.Hash()
 	inNote := &types.SpendNote{
-		UnlockingScript: types.UnlockingScript{
-			SnarkVerificationKey: verificationKeyBytes,
-			PublicParams:         [][]byte{spendPubkeyBytes},
-		},
-		Amount:  1000000,
-		AssetID: types.IlliumCoinID,
-		Salt:    salt1,
-		State:   [32]byte{},
+		ScriptHash: inScriptHash[:],
+		Amount:     1000000,
+		AssetID:    types.IlliumCoinID,
+		Salt:       salt1,
+		State:      [types.StateLen]byte{},
 	}
 	inCommitment, err := inNote.Commitment()
 	assert.NoError(t, err)
 
+	outUnlockingScript := types.UnlockingScript{
+		SnarkVerificationKey: verificationKeyBytes,
+		PublicParams:         [][]byte{spendPubkeyBytes},
+	}
+	outScriptHash := outUnlockingScript.Hash()
 	outNote := &types.SpendNote{
-		UnlockingScript: types.UnlockingScript{
-			SnarkVerificationKey: verificationKeyBytes,
-			PublicParams:         [][]byte{spendPubkeyBytes},
-		},
-		Amount:  900000,
-		AssetID: types.IlliumCoinID,
-		Salt:    salt1,
-		State:   [32]byte{},
+		ScriptHash: outScriptHash[:],
+		Amount:     900000,
+		AssetID:    types.IlliumCoinID,
+		Salt:       salt1,
+		State:      [types.StateLen]byte{},
 	}
 	outCommitment, err := outNote.Commitment()
 	assert.NoError(t, err)
@@ -59,7 +63,7 @@ func TestProofValidator(t *testing.T) {
 	acc.Insert(inCommitment, true)
 	root := acc.Root()
 
-	inNullifier, err := types.CalculateNullifier(0, inNote.Salt, inNote.UnlockingScript.SnarkVerificationKey, inNote.UnlockingScript.PublicParams...)
+	inNullifier, err := types.CalculateNullifier(0, inNote.Salt, inUnlockingScript.SnarkVerificationKey, inUnlockingScript.PublicParams...)
 	assert.NoError(t, err)
 
 	fakeProof := make([]byte, 8000)

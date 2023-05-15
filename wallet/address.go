@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/btcsuite/btcd/btcutil/bech32"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	crypto2 "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
@@ -29,7 +30,7 @@ type BasicAddress struct {
 }
 
 func NewBasicAddress(script types.UnlockingScript, viewKey crypto.PubKey, params *params.NetworkParams) (*BasicAddress, error) {
-	_, ok := viewKey.(*Curve25519PublicKey)
+	_, ok := viewKey.(*crypto2.Curve25519PublicKey)
 	if !ok {
 		return nil, errors.New("viewKey must be of type Curve25519PublicKey")
 	}
@@ -100,7 +101,7 @@ func DecodeAddress(addr string, params *params.NetworkParams) (Address, error) {
 	var h2 [32]byte
 	copy(h2[:], regrouped[:ScriptHashLength])
 
-	pub, err := UnmarshalCurve25519PublicKey(regrouped[ScriptHashLength:])
+	pub, err := crypto2.UnmarshalCurve25519PublicKey(regrouped[ScriptHashLength:])
 	if err != nil {
 		return nil, err
 	}

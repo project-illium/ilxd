@@ -17,8 +17,7 @@ message Transaction {
 
 message Output {
     bytes commitment       = 1;
-    bytes ephemeral_pubkey = 2;
-    bytes ciphertext       = 3;
+    bytes ciphertext       = 2;
 }
 
 message StandardTransaction {

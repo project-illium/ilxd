@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/project-illium/ilxd/params/hash"
+	"github.com/project-illium/ilxd/types"
 	"math"
 	"time"
 )
@@ -16,7 +17,7 @@ import (
 var ErrIntegerOverflow = errors.New("integer overflow")
 
 var (
-	defaultAssetID [32]byte
+	defaultAssetID [types.AssetIDLen]byte
 )
 
 type InclusionProof struct {
@@ -27,9 +28,9 @@ type InclusionProof struct {
 
 type PrivateInput struct {
 	Amount               uint64
-	Salt                 [32]byte
-	AssetID              [32]byte
-	State                [32]byte
+	Salt                 [types.SaltLen]byte
+	AssetID              [types.AssetIDLen]byte
+	State                [types.StateLen]byte
 	CommitmentIndex      uint64
 	InclusionProof       InclusionProof
 	SnarkVerificationKey []byte
@@ -40,14 +41,13 @@ type PrivateInput struct {
 type PrivateOutput struct {
 	ScriptHash []byte
 	Amount     uint64
-	Salt       [32]byte
-	State      [32]byte
-	AssetID    [32]byte
+	Salt       [types.SaltLen]byte
+	AssetID    [types.AssetIDLen]byte
+	State      [types.StateLen]byte
 }
 
 type PublicOutput struct {
 	Commitment []byte
-	EncKey     []byte
 	CipherText []byte
 }
 
@@ -90,7 +90,7 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 		inVal = uint64(0)
 		err   error
 	)
-	assetIns := make(map[[32]byte]uint64)
+	assetIns := make(map[[types.AssetIDLen]byte]uint64)
 
 	for i, in := range priv.Inputs {
 		// First obtain the hash of the spendScript.
@@ -103,7 +103,7 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 		// Now calculate the commitmentPreimage and commitment hash.
 		amountBytes := make([]byte, 8)
 		binary.BigEndian.PutUint64(amountBytes, in.Amount)
-		commitmentPreimage := make([]byte, 0, 32+8+32+32+32)
+		commitmentPreimage := make([]byte, 0, hash.HashSize+8+types.AssetIDLen+types.StateLen+types.SaltLen)
 		commitmentPreimage = append(commitmentPreimage, spendScriptHash...)
 		commitmentPreimage = append(commitmentPreimage, amountBytes...)
 		commitmentPreimage = append(commitmentPreimage, in.AssetID[:]...)
@@ -161,7 +161,7 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 	}
 
 	outVal := uint64(0)
-	assetOuts := make(map[[32]byte]uint64)
+	assetOuts := make(map[[types.AssetIDLen]byte]uint64)
 	if len(priv.Outputs) != len(pub.Outputs) {
 		return false
 	}
@@ -170,7 +170,7 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 		// actually matches the calculated output commitment. This prevents
 		// someone from putting a different output hash containing a
 		// different amount in the transactions.
-		commitmentPreimage := make([]byte, 0, 32+8+32+32+32)
+		commitmentPreimage := make([]byte, 0, hash.HashSize+8+types.AssetIDLen+types.StateLen+types.SaltLen)
 		amountBytes := make([]byte, 8)
 		binary.BigEndian.PutUint64(amountBytes, out.Amount)
 

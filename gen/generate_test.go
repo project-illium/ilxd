@@ -89,9 +89,8 @@ func TestGenerator(t *testing.T) {
 	transferTx := &transactions.StandardTransaction{
 		Outputs: []*transactions.Output{
 			{
-				Commitment:      make([]byte, types.CommitmentLen),
-				EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-				Ciphertext:      make([]byte, blockchain.CiphertextLen),
+				Commitment: make([]byte, types.CommitmentLen),
+				Ciphertext: make([]byte, blockchain.CiphertextLen),
 			},
 		},
 		Nullifiers: [][]byte{nullifier[:]},

@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
+	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/stretchr/testify/assert"
@@ -91,9 +92,8 @@ func TestMempool(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Nullifiers: [][]byte{nullifier1},
@@ -109,9 +109,8 @@ func TestMempool(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Nullifiers: [][]byte{nullifier1[:]},
@@ -127,9 +126,8 @@ func TestMempool(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Nullifiers: [][]byte{randomBytes()},
@@ -145,9 +143,8 @@ func TestMempool(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Nullifiers: [][]byte{nullifier1},
@@ -163,9 +160,8 @@ func TestMempool(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Nullifiers: [][]byte{nullifier2[:]},
@@ -181,9 +177,8 @@ func TestMempool(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Nullifiers: [][]byte{randomBytes()},
@@ -197,14 +192,13 @@ func TestMempool(t *testing.T) {
 		{
 			name: "valid mint tx",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Asset_ID: pkBytes,
+				Asset_ID: hash.HashFunc(pkBytes),
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
 				MintKey:  pkBytes,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Nullifiers: [][]byte{randomBytes()},
@@ -230,14 +224,13 @@ func TestMempool(t *testing.T) {
 		{
 			name: "mint tx fee too low",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Asset_ID: pkBytes,
+				Asset_ID: hash.HashFunc(pkBytes),
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
 				MintKey:  pkBytes,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Nullifiers: [][]byte{randomBytes()},
@@ -263,14 +256,13 @@ func TestMempool(t *testing.T) {
 		{
 			name: "mint nullifier already in pool",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Asset_ID: pkBytes,
+				Asset_ID: hash.HashFunc(pkBytes),
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
 				MintKey:  pkBytes,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Nullifiers: [][]byte{nullifier1[:]},
@@ -296,14 +288,13 @@ func TestMempool(t *testing.T) {
 		{
 			name: "mint nullifier already in set",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Asset_ID: pkBytes,
+				Asset_ID: hash.HashFunc(pkBytes),
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
 				MintKey:  pkBytes,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Nullifiers: [][]byte{nullifier2[:]},
@@ -329,14 +320,13 @@ func TestMempool(t *testing.T) {
 		{
 			name: "mint txo root not in set",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Asset_ID: pkBytes,
+				Asset_ID: hash.HashFunc(pkBytes),
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
 				MintKey:  pkBytes,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Nullifiers: [][]byte{randomBytes()},
@@ -366,9 +356,8 @@ func TestMempool(t *testing.T) {
 				NewCoins:     20000,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Signature: nil,
@@ -395,9 +384,8 @@ func TestMempool(t *testing.T) {
 				NewCoins:     10000,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Signature: nil,
@@ -424,9 +412,8 @@ func TestMempool(t *testing.T) {
 				NewCoins:     10000,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      bytes.Repeat([]byte{0x11}, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: bytes.Repeat([]byte{0x11}, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Signature: nil,
@@ -453,9 +440,8 @@ func TestMempool(t *testing.T) {
 				NewCoins:     20000,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      bytes.Repeat([]byte{0x11}, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: bytes.Repeat([]byte{0x11}, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 				Signature: nil,
@@ -645,9 +631,8 @@ func TestMempool(t *testing.T) {
 				Amount: 40000,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      bytes.Repeat([]byte{0x11}, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: bytes.Repeat([]byte{0x11}, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 			}),
@@ -664,9 +649,8 @@ func TestMempool(t *testing.T) {
 				Amount: 20000,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      bytes.Repeat([]byte{0x11}, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: bytes.Repeat([]byte{0x11}, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 			}),
@@ -683,9 +667,8 @@ func TestMempool(t *testing.T) {
 				Amount: 10001,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      bytes.Repeat([]byte{0x11}, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: bytes.Repeat([]byte{0x11}, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 			}),
@@ -702,9 +685,8 @@ func TestMempool(t *testing.T) {
 				Amount: 10000,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      bytes.Repeat([]byte{0x11}, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-						Ciphertext:      make([]byte, blockchain.CiphertextLen),
+						Commitment: bytes.Repeat([]byte{0x11}, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
 					},
 				},
 			}),
@@ -743,9 +725,8 @@ func TestFeePerByte(t *testing.T) {
 	tx := transactions.WrapTransaction(&transactions.StandardTransaction{
 		Outputs: []*transactions.Output{
 			{
-				Commitment:      make([]byte, types.CommitmentLen),
-				EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-				Ciphertext:      make([]byte, blockchain.CiphertextLen),
+				Commitment: make([]byte, types.CommitmentLen),
+				Ciphertext: make([]byte, blockchain.CiphertextLen),
 			},
 		},
 		Nullifiers: [][]byte{make([]byte, 32)},
@@ -757,7 +738,7 @@ func TestFeePerByte(t *testing.T) {
 	size, err := tx.SerializedSize()
 	assert.NoError(t, err)
 
-	fpb, ok, err := calcFeePerByte(tx)
+	fpb, ok, err := CalcFeePerByte(tx)
 	assert.True(t, ok)
 	assert.NoError(t, err)
 	assert.Equal(t, types.Amount(tx.GetStandardTransaction().Fee/uint64(size)), fpb)

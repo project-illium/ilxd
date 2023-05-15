@@ -31,6 +31,8 @@ func TestStandardCircuit(t *testing.T) {
 		PublicParams:         [][]byte{raw},
 	}
 
+	usScriptHash := us.Hash()
+
 	_, pub2, err := crypto.GenerateEd25519Key(rand.Reader)
 	assert.NoError(t, err)
 
@@ -41,6 +43,8 @@ func TestStandardCircuit(t *testing.T) {
 		SnarkVerificationKey: randVerificationKey,
 		PublicParams:         [][]byte{raw2},
 	}
+
+	us2ScriptHash := us2.Hash()
 
 	r := make([]byte, 32)
 	rand.Read(r)
@@ -53,22 +57,22 @@ func TestStandardCircuit(t *testing.T) {
 	copy(salt2[:], r2)
 
 	note1 := types.SpendNote{
-		UnlockingScript: us,
-		AssetID:         [32]byte{},
-		Amount:          1000000,
-		State:           [32]byte{},
-		Salt:            salt,
+		ScriptHash: usScriptHash[:],
+		AssetID:    [types.AssetIDLen]byte{},
+		Amount:     1000000,
+		State:      [types.StateLen]byte{},
+		Salt:       salt,
 	}
 
 	commitment, err := note1.Commitment()
 	assert.NoError(t, err)
 
 	note2 := types.SpendNote{
-		UnlockingScript: us2,
-		AssetID:         [32]byte{},
-		Amount:          990000,
-		State:           [32]byte{},
-		Salt:            salt2,
+		ScriptHash: us2ScriptHash[:],
+		AssetID:    [types.AssetIDLen]byte{},
+		Amount:     990000,
+		State:      [types.StateLen]byte{},
+		Salt:       salt2,
 	}
 
 	outputScriptHash := us2.Hash()
@@ -104,16 +108,16 @@ func TestStandardCircuit(t *testing.T) {
 			{
 				Amount:          note1.Amount,
 				Salt:            note1.Salt,
-				AssetID:         [32]byte{},
-				State:           [32]byte{},
+				AssetID:         [types.AssetIDLen]byte{},
+				State:           [types.StateLen]byte{},
 				CommitmentIndex: 0,
 				InclusionProof: standard.InclusionProof{
 					Hashes:      inclusionProof.Hashes,
 					Flags:       inclusionProof.Flags,
 					Accumulator: inclusionProof.Accumulator,
 				},
-				SnarkVerificationKey: note1.UnlockingScript.SnarkVerificationKey,
-				UserParams:           note1.UnlockingScript.PublicParams,
+				SnarkVerificationKey: us.SnarkVerificationKey,
+				UserParams:           us.PublicParams,
 				SnarkProof:           fakeSnarkProof,
 			},
 		},
@@ -122,8 +126,8 @@ func TestStandardCircuit(t *testing.T) {
 				ScriptHash: outputScriptHash[:],
 				Amount:     note2.Amount,
 				Salt:       note2.Salt,
-				State:      [32]byte{},
-				AssetID:    [32]byte{},
+				State:      [types.StateLen]byte{},
+				AssetID:    [types.AssetIDLen]byte{},
 			},
 		},
 	}

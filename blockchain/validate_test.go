@@ -363,9 +363,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -374,9 +373,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier3[:]},
@@ -403,9 +401,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -432,9 +429,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -461,9 +457,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -472,9 +467,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -501,9 +495,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -512,9 +505,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: bytes.Repeat([]byte{0x11}, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -541,9 +533,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier2[:]},
@@ -570,9 +561,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -699,9 +689,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -735,18 +724,18 @@ func TestValidateBlock(t *testing.T) {
 						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
-						Asset_ID:   bytes.Repeat([]byte{0x11}, PubkeyLen),
 						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 					}),
 				}
+				keyHash := hash.HashFunc(blk.Transactions[0].GetMintTransaction().MintKey)
+				blk.Transactions[0].GetMintTransaction().Asset_ID = keyHash
 
 				merkles := BuildMerkleTreeStore(blk.Transactions)
 				header.TxRoot = merkles[len(merkles)-1]
@@ -768,18 +757,19 @@ func TestValidateBlock(t *testing.T) {
 						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
-						Asset_ID:   bytes.Repeat([]byte{0x11}, PubkeyLen),
+						Asset_ID:   bytes.Repeat([]byte{0x11}, AssetIDLen),
 						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 					}),
 				}
+				keyHash := hash.HashFunc(blk.Transactions[0].GetMintTransaction().MintKey)
+				blk.Transactions[0].GetMintTransaction().Asset_ID = keyHash
 
 				merkles := BuildMerkleTreeStore(blk.Transactions)
 				header.TxRoot = merkles[len(merkles)-1]
@@ -801,14 +791,13 @@ func TestValidateBlock(t *testing.T) {
 						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: bytes.Repeat([]byte{0x11}, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
-						Asset_ID:   bytes.Repeat([]byte{0x11}, PubkeyLen),
+						Asset_ID:   bytes.Repeat([]byte{0x11}, AssetIDLen),
 						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 					}),
@@ -816,18 +805,21 @@ func TestValidateBlock(t *testing.T) {
 						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
-						Asset_ID:   bytes.Repeat([]byte{0x11}, PubkeyLen),
+						Asset_ID:   bytes.Repeat([]byte{0x11}, AssetIDLen),
 						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
 					}),
 				}
+				keyHash := hash.HashFunc(blk.Transactions[0].GetMintTransaction().MintKey)
+				blk.Transactions[0].GetMintTransaction().Asset_ID = keyHash
+				keyHash2 := hash.HashFunc(blk.Transactions[1].GetMintTransaction().MintKey)
+				blk.Transactions[1].GetMintTransaction().Asset_ID = keyHash2
 
 				merkles := BuildMerkleTreeStore(blk.Transactions)
 				header.TxRoot = merkles[len(merkles)-1]
@@ -849,18 +841,19 @@ func TestValidateBlock(t *testing.T) {
 						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
-						Asset_ID:   bytes.Repeat([]byte{0x11}, PubkeyLen),
+						Asset_ID:   bytes.Repeat([]byte{0x11}, AssetIDLen),
 						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 						Nullifiers: [][]byte{nullifier2[:]},
 						TxoRoot:    txoRoot[:],
 					}),
 				}
+				keyHash := hash.HashFunc(blk.Transactions[0].GetMintTransaction().MintKey)
+				blk.Transactions[0].GetMintTransaction().Asset_ID = keyHash
 
 				merkles := BuildMerkleTreeStore(blk.Transactions)
 				header.TxRoot = merkles[len(merkles)-1]
@@ -882,12 +875,11 @@ func TestValidateBlock(t *testing.T) {
 						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
-						Asset_ID:   bytes.Repeat([]byte{0x11}, PubkeyLen),
+						Asset_ID:   bytes.Repeat([]byte{0x11}, AssetIDLen),
 						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 						Nullifiers: [][]byte{nullifier[:]},
@@ -916,9 +908,8 @@ func TestValidateBlock(t *testing.T) {
 						NewCoins:     10000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 					}),
@@ -945,9 +936,8 @@ func TestValidateBlock(t *testing.T) {
 						NewCoins:     11000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 					}),
@@ -974,9 +964,8 @@ func TestValidateBlock(t *testing.T) {
 						NewCoins:     10000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 					}),
@@ -1003,9 +992,8 @@ func TestValidateBlock(t *testing.T) {
 						NewCoins:     10000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 					}),
@@ -1014,9 +1002,8 @@ func TestValidateBlock(t *testing.T) {
 						NewCoins:     10000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: bytes.Repeat([]byte{0x11}, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 					}),
@@ -1042,9 +1029,8 @@ func TestValidateBlock(t *testing.T) {
 						Amount: 10000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						ProposalHash: make([]byte, 32),
@@ -1071,9 +1057,8 @@ func TestValidateBlock(t *testing.T) {
 						Amount: 10000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						ProposalHash: make([]byte, 32),
@@ -1100,9 +1085,8 @@ func TestValidateBlock(t *testing.T) {
 						Amount: 11000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						ProposalHash: make([]byte, 32),
@@ -1129,9 +1113,8 @@ func TestValidateBlock(t *testing.T) {
 						Amount: 8000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						ProposalHash: make([]byte, 32),
@@ -1140,9 +1123,8 @@ func TestValidateBlock(t *testing.T) {
 						Amount: 3000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						ProposalHash: make([]byte, 32),
@@ -1170,9 +1152,8 @@ func TestValidateBlock(t *testing.T) {
 						NewCoins:     10000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 					}),
@@ -1205,9 +1186,8 @@ func TestValidateBlock(t *testing.T) {
 						NewCoins:     10000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 					}),
@@ -1241,9 +1221,8 @@ func TestValidateBlock(t *testing.T) {
 						NewCoins:     10000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 					}),
@@ -1276,9 +1255,8 @@ func TestValidateBlock(t *testing.T) {
 						NewCoins:     10000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 					}),
@@ -1311,9 +1289,8 @@ func TestValidateBlock(t *testing.T) {
 						NewCoins:     10000,
 						Outputs: []*transactions.Output{
 							{
-								Commitment:      make([]byte, types.CommitmentLen),
-								EphemeralPubkey: make([]byte, PubkeyLen),
-								Ciphertext:      make([]byte, CiphertextLen),
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 					}),
@@ -1377,9 +1354,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				Validator_ID: peerIDBytes,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1401,9 +1377,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				Validator_ID: []byte{},
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1416,24 +1391,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				Validator_ID: []byte{},
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen+1),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
-					},
-				},
-			}),
-			timestamp:   time.Now(),
-			expectedErr: ruleError(ErrInvalidTx, ""),
-		},
-		{
-			name: "coinbase invalid pubkey len",
-			tx: transactions.WrapTransaction(&transactions.CoinbaseTransaction{
-				Validator_ID: []byte{},
-				Outputs: []*transactions.Output{
-					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen+1),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen+1),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1446,9 +1405,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				Validator_ID: []byte{},
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen+1),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen+1),
 					},
 				},
 			}),
@@ -1462,9 +1420,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				Locktime:   time.Time{}.Unix(),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1488,9 +1445,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				Locktime:   time.Time{}.Unix(),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1504,25 +1460,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				Locktime:   time.Time{}.Unix(),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen+1),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
-					},
-				},
-			}),
-			timestamp:   time.Now(),
-			expectedErr: ruleError(ErrInvalidTx, ""),
-		},
-		{
-			name: "standard invalid pubkey len",
-			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
-				Nullifiers: [][]byte{nullifier.Bytes()},
-				Locktime:   time.Time{}.Unix(),
-				Outputs: []*transactions.Output{
-					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen+1),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen+1),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1536,9 +1475,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				Locktime:   time.Time{}.Unix(),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen+1),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen+1),
 					},
 				},
 			}),
@@ -1552,9 +1490,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				Locktime:   time.Now().Add(time.Hour).Unix(),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1610,9 +1547,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1623,12 +1559,11 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "mint valid variable supply",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
-				Asset_ID: bytes.Repeat([]byte{0x11}, AssetIDLen),
+				Asset_ID: hash.HashFunc(bytes.Repeat([]byte{0x11}, PubkeyLen)),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 				Nullifiers: [][]byte{nullifier.Bytes()},
@@ -1658,9 +1593,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1676,27 +1610,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen+1),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
-					},
-				},
-			}),
-			timestamp:   time.Now(),
-			expectedErr: ruleError(ErrInvalidTx, ""),
-		},
-		{
-			name: "mint invalid pubkey len",
-			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Nullifiers: [][]byte{nullifier.Bytes()},
-				Locktime:   time.Time{}.Unix(),
-				Asset_ID:   hash.HashFunc(nullifier.Bytes()),
-				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
-				Outputs: []*transactions.Output{
-					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen+1),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen+1),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1712,9 +1627,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen+1),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen+1),
 					},
 				},
 			}),
@@ -1730,9 +1644,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1748,9 +1661,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1766,9 +1678,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				DocumentHash: make([]byte, MaxDocumentHashLen+1),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1784,9 +1695,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1803,9 +1713,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1822,9 +1731,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1841,9 +1749,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1856,9 +1763,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				ProposalHash: make([]byte, MaxDocumentHashLen),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1879,9 +1785,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				ProposalHash: make([]byte, MaxDocumentHashLen+1),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1894,24 +1799,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				ProposalHash: make([]byte, MaxDocumentHashLen),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen+1),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
-					},
-				},
-			}),
-			timestamp:   time.Now(),
-			expectedErr: ruleError(ErrInvalidTx, ""),
-		},
-		{
-			name: "treasury invalid pubkey len",
-			tx: transactions.WrapTransaction(&transactions.TreasuryTransaction{
-				ProposalHash: make([]byte, MaxDocumentHashLen),
-				Outputs: []*transactions.Output{
-					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen+1),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen+1),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 			}),
@@ -1924,9 +1813,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 				ProposalHash: make([]byte, MaxDocumentHashLen),
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen+1),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen+1),
 					},
 				},
 			}),

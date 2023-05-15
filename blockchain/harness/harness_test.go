@@ -30,23 +30,26 @@ func TestNewTestHarness(t *testing.T) {
 	assert.NoError(t, err)
 	root := acc.Root()
 
-	nullifer, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].Note.UnlockingScript.SnarkVerificationKey, notes[0].Note.UnlockingScript.PublicParams...)
+	nullifer, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.SnarkVerificationKey, notes[0].UnlockingScript.PublicParams...)
 	assert.NoError(t, err)
 
 	var salt [32]byte
 	rand.Read(salt[:])
+	outUnlockingScript := &types.UnlockingScript{
+		SnarkVerificationKey: notes[0].UnlockingScript.SnarkVerificationKey,
+		PublicParams:         notes[0].UnlockingScript.PublicParams,
+	}
+	outScriptHash := outUnlockingScript.Hash()
 	outNote := &SpendableNote{
 		Note: &types.SpendNote{
-			UnlockingScript: types.UnlockingScript{
-				SnarkVerificationKey: notes[0].Note.UnlockingScript.SnarkVerificationKey,
-				PublicParams:         notes[0].Note.UnlockingScript.PublicParams,
-			},
-			Amount:  notes[0].Note.Amount - 10,
-			AssetID: notes[0].Note.AssetID,
-			State:   notes[0].Note.State,
-			Salt:    salt,
+			ScriptHash: outScriptHash[:],
+			Amount:     notes[0].Note.Amount - 10,
+			AssetID:    notes[0].Note.AssetID,
+			State:      notes[0].Note.State,
+			Salt:       salt,
 		},
-		PrivateKey: notes[0].PrivateKey,
+		UnlockingScript: outUnlockingScript,
+		PrivateKey:      notes[0].PrivateKey,
 	}
 
 	outCommitment, err := outNote.Note.Commitment()
@@ -55,9 +58,8 @@ func TestNewTestHarness(t *testing.T) {
 	tx := transactions.StandardTransaction{
 		Outputs: []*transactions.Output{
 			{
-				Commitment:      outCommitment,
-				EphemeralPubkey: make([]byte, blockchain.PubkeyLen),
-				Ciphertext:      make([]byte, blockchain.CiphertextLen),
+				Commitment: outCommitment,
+				Ciphertext: make([]byte, blockchain.CiphertextLen),
 			},
 		},
 		Nullifiers: [][]byte{nullifer[:]},
@@ -68,8 +70,6 @@ func TestNewTestHarness(t *testing.T) {
 
 	sighash, err := tx.SigHash()
 	assert.NoError(t, err)
-
-	scriptHash := outNote.Note.UnlockingScript.Hash()
 
 	privateParams := standard.PrivateParams{
 		Inputs: []standard.PrivateInput{
@@ -84,14 +84,14 @@ func TestNewTestHarness(t *testing.T) {
 					Flags:       proof.Flags,
 					Accumulator: proof.Accumulator,
 				},
-				SnarkVerificationKey: notes[0].Note.UnlockingScript.SnarkVerificationKey,
-				UserParams:           notes[0].Note.UnlockingScript.PublicParams,
+				SnarkVerificationKey: notes[0].UnlockingScript.SnarkVerificationKey,
+				UserParams:           notes[0].UnlockingScript.PublicParams,
 				SnarkProof:           make([]byte, 100),
 			},
 		},
 		Outputs: []standard.PrivateOutput{
 			{
-				ScriptHash: scriptHash[:],
+				ScriptHash: outScriptHash[:],
 				Amount:     outNote.Note.Amount,
 				Salt:       outNote.Note.Salt,
 				State:      outNote.Note.State,
@@ -105,7 +105,6 @@ func TestNewTestHarness(t *testing.T) {
 		Outputs: []standard.PublicOutput{
 			{
 				Commitment: tx.Outputs[0].Commitment,
-				EncKey:     tx.Outputs[0].EphemeralPubkey,
 				CipherText: tx.Outputs[0].Ciphertext,
 			},
 		},

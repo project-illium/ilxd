@@ -497,16 +497,14 @@ func (tx *MintTransaction) UnmarshalJSON(data []byte) error {
 }
 
 type outputJSON struct {
-	Commitment      types.HexEncodable `json:"commitment"`
-	EphemeralPubkey types.HexEncodable `json:"ephemeral_pubkey"`
-	Ciphertext      types.HexEncodable `json:"ciphertext"`
+	Commitment types.HexEncodable `json:"commitment"`
+	Ciphertext types.HexEncodable `json:"ciphertext"`
 }
 
 func (out *Output) MarshalJSON() ([]byte, error) {
 	o := &outputJSON{
-		Commitment:      out.Commitment,
-		EphemeralPubkey: out.EphemeralPubkey,
-		Ciphertext:      out.Ciphertext,
+		Commitment: out.Commitment,
+		Ciphertext: out.Ciphertext,
 	}
 	return json.Marshal(o)
 }
@@ -517,9 +515,8 @@ func (out *Output) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	out = &Output{
-		Commitment:      o.Commitment,
-		EphemeralPubkey: o.EphemeralPubkey,
-		Ciphertext:      o.Ciphertext,
+		Commitment: o.Commitment,
+		Ciphertext: o.Ciphertext,
 	}
 	return nil
 }

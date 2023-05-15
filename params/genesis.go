@@ -38,9 +38,8 @@ var MainnetGenesisBlock = &blocks.Block{
 					NewCoins:     1 << 60 / 5,
 					Outputs: []*transactions.Output{
 						{
-							Commitment:      []byte{0x00}, //TODO
-							EphemeralPubkey: []byte{0x00}, //TODO
-							Ciphertext:      []byte{0x00}, //TODO
+							Commitment: []byte{0x00}, //TODO
+							Ciphertext: []byte{0x00}, //TODO
 						},
 					},
 					Signature: []byte{0x00}, //TODO
@@ -96,9 +95,8 @@ var RegtestGenesisBlock = &blocks.Block{
 					NewCoins: math.MaxUint64 / 10,
 					Outputs: []*transactions.Output{
 						{
-							Commitment:      make([]byte, 32),  //TODO
-							EphemeralPubkey: make([]byte, 36),  //TODO
-							Ciphertext:      make([]byte, 176), //TODO
+							Commitment: make([]byte, 32),  //TODO
+							Ciphertext: make([]byte, 176), //TODO
 						},
 					},
 					Signature: []byte{0x91, 0x06, 0x11, 0x74, 0x6b, 0x63, 0x67, 0xee,

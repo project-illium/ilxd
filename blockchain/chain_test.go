@@ -50,10 +50,13 @@ func TestBlockchain(t *testing.T) {
 	assert.Error(t, b.ConnectBlock(b.params.GenesisBlock, BFGenesisValidation))
 
 	// Test treasury withdrawal
+	unlockingScript := types.UnlockingScript{}
+	scriptHash := unlockingScript.Hash()
 	note := types.SpendNote{
-		Amount: 10000,
+		ScriptHash: scriptHash[:],
+		Amount:     10000,
 	}
-	scriptHash := note.UnlockingScript.Hash()
+
 	commitment, err := note.Commitment()
 	assert.NoError(t, err)
 	proof, err := zk.CreateSnark(standard.StandardCircuit,
@@ -68,7 +71,6 @@ func TestBlockchain(t *testing.T) {
 			Outputs: []standard.PublicOutput{
 				{
 					Commitment: commitment,
-					EncKey:     nil,
 					CipherText: nil,
 				},
 			},
@@ -86,9 +88,8 @@ func TestBlockchain(t *testing.T) {
 				Amount: 10000,
 				Outputs: []*transactions.Output{
 					{
-						Commitment:      make([]byte, types.CommitmentLen),
-						EphemeralPubkey: make([]byte, PubkeyLen),
-						Ciphertext:      make([]byte, CiphertextLen),
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
 					},
 				},
 				ProposalHash: make([]byte, MaxDocumentHashLen),

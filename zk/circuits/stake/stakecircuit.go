@@ -8,14 +8,15 @@ import (
 	"bytes"
 	"encoding/binary"
 	"github.com/project-illium/ilxd/params/hash"
+	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"time"
 )
 
 type PrivateParams struct {
-	AssetID              [32]byte
-	Salt                 [32]byte
-	State                [32]byte
+	AssetID              [types.AssetIDLen]byte
+	Salt                 [types.SaltLen]byte
+	State                [types.StateLen]byte
 	CommitmentIndex      uint64
 	InclusionProof       standard.InclusionProof
 	SnarkVerificationKey []byte
@@ -57,7 +58,7 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 
 	amountBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(amountBytes, pub.Amount)
-	commitmentPreimage := make([]byte, 0, 32+8+32+32+32)
+	commitmentPreimage := make([]byte, 0, hash.HashSize+8+types.AssetIDLen+types.StateLen+types.SaltLen)
 	commitmentPreimage = append(commitmentPreimage, spendScriptHash...)
 	commitmentPreimage = append(commitmentPreimage, amountBytes...)
 	commitmentPreimage = append(commitmentPreimage, priv.AssetID[:]...)

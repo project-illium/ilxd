@@ -19,7 +19,7 @@ const (
 
 	CiphertextLen = 176
 
-	AssetIDLen = 36
+	AssetIDLen = 32
 
 	MaxDocumentHashLen = 68
 
@@ -401,7 +401,8 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 			if bytes.Equal(tx.MintTransaction.Asset_ID, types.IlliumCoinID[:]) {
 				return ruleError(ErrInvalidTx, "variable supply mint transaction uses illium assetID")
 			}
-			if !bytes.Equal(tx.MintTransaction.Asset_ID, tx.MintTransaction.MintKey) {
+			keyHash := hash.HashFunc(tx.MintTransaction.MintKey)
+			if !bytes.Equal(tx.MintTransaction.Asset_ID, keyHash) {
 				return ruleError(ErrInvalidTx, "variable supply mint transaction invalid assetID")
 			}
 		default:
@@ -437,9 +438,6 @@ func validateOutputs(outputs []*transactions.Output) error {
 	for _, out := range outputs {
 		if len(out.Commitment) != types.CommitmentLen {
 			return ruleError(ErrInvalidTx, "invalid commitment len")
-		}
-		if len(out.EphemeralPubkey) != PubkeyLen {
-			return ruleError(ErrInvalidTx, "ephem pubkey invalid len")
 		}
 		if len(out.Ciphertext) != CiphertextLen {
 			return ruleError(ErrInvalidTx, "ciphertext invalid len")

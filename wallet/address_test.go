@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	crypto2 "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
 	"github.com/stretchr/testify/assert"
@@ -18,10 +19,10 @@ func TestBasicAddress(t *testing.T) {
 	_, pubkey, err := crypto.GenerateEd25519Key(rand.Reader)
 	assert.NoError(t, err)
 
-	_, viewKey, err := GenerateCurve25519Key(rand.Reader)
+	_, viewKey, err := crypto2.GenerateCurve25519Key(rand.Reader)
 	assert.NoError(t, err)
 
-	_, verificationKey, err := GenerateCurve25519Key(rand.Reader)
+	_, verificationKey, err := crypto2.GenerateCurve25519Key(rand.Reader)
 	assert.NoError(t, err)
 
 	verificationKeyRaw, err := verificationKey.Raw()

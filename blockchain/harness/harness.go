@@ -13,8 +13,9 @@ import (
 )
 
 type SpendableNote struct {
-	Note       *types.SpendNote
-	PrivateKey crypto.PrivKey
+	Note            *types.SpendNote
+	UnlockingScript *types.UnlockingScript
+	PrivateKey      crypto.PrivKey
 }
 
 type validator struct {
@@ -47,7 +48,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 		txsPerBlock:    cfg.nTxsPerBlock,
 	}
 
-	genesis, spendNote, err := createGenesisBlock(cfg.params, cfg.networkKey, cfg.spendKey, cfg.initialCoins, cfg.genesisOutputs)
+	genesis, spendableNote, err := createGenesisBlock(cfg.params, cfg.networkKey, cfg.spendKey, cfg.initialCoins, cfg.genesisOutputs)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +57,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 		harness.acc.Insert(output.Commitment, true)
 	}
 
-	commitment, err := spendNote.Commitment()
+	commitment, err := spendableNote.Note.Commitment()
 	if err != nil {
 		return nil, err
 	}
@@ -65,14 +66,11 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 		return nil, err
 	}
 
-	nullifier, err := types.CalculateNullifier(proof.Index, spendNote.Salt, spendNote.UnlockingScript.SnarkVerificationKey, spendNote.UnlockingScript.PublicParams...)
+	nullifier, err := types.CalculateNullifier(proof.Index, spendableNote.Note.Salt, spendableNote.UnlockingScript.SnarkVerificationKey, spendableNote.UnlockingScript.PublicParams...)
 	if err != nil {
 		return nil, err
 	}
-	harness.spendableNotes[nullifier] = &SpendableNote{
-		Note:       spendNote,
-		PrivateKey: cfg.spendKey,
-	}
+	harness.spendableNotes[nullifier] = spendableNote
 
 	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(cfg.params))
 	if err != nil {
@@ -130,7 +128,7 @@ func (h *TestHarness) GenerateBlockWithTransactions(txs []*transactions.Transact
 		if err != nil {
 			return err
 		}
-		nullifier, err := types.CalculateNullifier(proof.Index, sn.Note.Salt, sn.Note.UnlockingScript.SnarkVerificationKey, sn.Note.UnlockingScript.PublicParams...)
+		nullifier, err := types.CalculateNullifier(proof.Index, sn.Note.Salt, sn.UnlockingScript.SnarkVerificationKey, sn.UnlockingScript.PublicParams...)
 		if err != nil {
 			return err
 		}
