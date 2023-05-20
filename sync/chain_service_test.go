@@ -102,4 +102,36 @@ func TestChainService(t *testing.T) {
 	ret3, err = service1.GetBlock(host2.ID(), b4.ID())
 	assert.NoError(t, err)
 	assert.Empty(t, deep.Equal(b4, ret3))
+
+	retID, err := service1.GetBlockID(host2.ID(), b4.Header.Height)
+	assert.NoError(t, err)
+	assert.Equal(t, b4.Header.ID(), retID)
+
+	bestID, bestHeight, err := service1.GetBest(host2.ID())
+	assert.NoError(t, err)
+	b11, h11, _ := testHarness2.Blockchain().BestBlock()
+	assert.Equal(t, h11, bestHeight)
+	assert.Equal(t, b11, bestID)
+
+	stream, err := service1.GetHeadersStream(host2.ID(), 0)
+	assert.NoError(t, err)
+	expected := uint32(0)
+	for h := range stream {
+		assert.Equal(t, expected, h.Height)
+		expected++
+	}
+	assert.Equal(t, uint32(11), expected)
+
+	stream2, err := service1.GetBlockTxsStream(host2.ID(), 0)
+	assert.NoError(t, err)
+	i := uint32(0)
+	for txs := range stream2 {
+		blk, err := testHarness2.Blockchain().GetBlockByHeight(i)
+		assert.NoError(t, err)
+		for x, tx := range blk.Transactions {
+			assert.Equal(t, tx.ID(), txs.Transactions[x].ID())
+		}
+		i++
+	}
+	assert.Equal(t, uint32(11), i)
 }
