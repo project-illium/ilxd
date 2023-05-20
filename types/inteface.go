@@ -7,6 +7,7 @@ package types
 import (
 	"encoding/hex"
 	"encoding/json"
+	"strings"
 )
 
 type Serializable interface {
@@ -22,11 +23,17 @@ func (h HexEncodable) MarshalJSON() ([]byte, error) {
 	return json.Marshal(hex.EncodeToString(h))
 }
 
-func (h HexEncodable) UnmarshalJSON(data []byte) error {
+func (h *HexEncodable) UnmarshalJSON(data []byte) error {
+	if strings.HasPrefix(string(data), `"`) {
+		data = data[1:]
+	}
+	if strings.HasSuffix(string(data), `"`) {
+		data = data[:len(data)-1]
+	}
 	b, err := hex.DecodeString(string(data))
 	if err != nil {
 		return err
 	}
-	h = b
+	*h = b
 	return nil
 }

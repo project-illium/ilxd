@@ -148,7 +148,7 @@ func UnmarshalCurve25519PrivateKey(data []byte) (crypto.PrivKey, error) {
 	case Curve25519PrivateKeySize + Curve25519PublicKeySize:
 		// Remove the redundant public key. See issue #36.
 		redundantPk := data[Curve25519PrivateKeySize:]
-		pk := data[Curve25519PrivateKeySize-Curve25519PublicKeySize : Curve25519PrivateKeySize]
+		pk := data[Curve25519PrivateKeySize : Curve25519PrivateKeySize+Curve25519PublicKeySize]
 		if subtle.ConstantTimeCompare(pk, redundantPk) == 0 {
 			return nil, errors.New("expected redundant Curve25519 public key to be redundant")
 		}

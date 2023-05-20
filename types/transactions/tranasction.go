@@ -9,7 +9,6 @@ import (
 	"errors"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -37,6 +36,14 @@ func WrapTransaction(tx interface{}) *Transaction {
 	return &Transaction{
 		Tx: t,
 	}
+}
+
+type txWrapperJSON struct {
+	StandardTransaction *StandardTransaction `json:"standard_transaction"`
+	MintTransaction     *MintTransaction     `json:"mint_transaction"`
+	StakeTransaction    *StakeTransaction    `json:"stake_transaction"`
+	CoinbaseTransaction *CoinbaseTransaction `json:"coinbase_transaction"`
+	TreasuryTransaction *TreasuryTransaction `json:"treasury_transaction"`
 }
 
 func (tx *Transaction) ID() types.ID {
@@ -122,11 +129,30 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 }
 
 func (tx *Transaction) UnmarshalJSON(data []byte) error {
-	newTx := &Transaction{}
-	if err := protojson.Unmarshal(data, newTx); err != nil {
+	newTx := txWrapperJSON{}
+	if err := json.Unmarshal(data, &newTx); err != nil {
 		return err
 	}
-	tx = newTx
+	if newTx.StakeTransaction != nil {
+		t := WrapTransaction(newTx.StakeTransaction)
+		*tx = *t
+	}
+	if newTx.CoinbaseTransaction != nil {
+		t := WrapTransaction(newTx.CoinbaseTransaction)
+		*tx = *t
+	}
+	if newTx.StandardTransaction != nil {
+		t := WrapTransaction(newTx.StandardTransaction)
+		*tx = *t
+	}
+	if newTx.MintTransaction != nil {
+		t := WrapTransaction(newTx.MintTransaction)
+		*tx = *t
+	}
+	if newTx.TreasuryTransaction != nil {
+		t := WrapTransaction(newTx.TreasuryTransaction)
+		*tx = *t
+	}
 	return nil
 }
 
@@ -194,7 +220,7 @@ func (tx *StandardTransaction) UnmarshalJSON(data []byte) error {
 	for _, n := range newTx.Nullifiers {
 		nullifiers = append(nullifiers, n)
 	}
-	tx = &StandardTransaction{
+	*tx = StandardTransaction{
 		Outputs:    newTx.Outputs,
 		Nullifiers: nullifiers,
 		TxoRoot:    newTx.TxoRoot,
@@ -260,7 +286,7 @@ func (tx *CoinbaseTransaction) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, newTx); err != nil {
 		return err
 	}
-	tx = &CoinbaseTransaction{
+	*tx = CoinbaseTransaction{
 		Validator_ID: newTx.Validator_ID,
 		NewCoins:     newTx.NewCoins,
 		Outputs:      newTx.Outputs,
@@ -329,7 +355,7 @@ func (tx *StakeTransaction) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, newTx); err != nil {
 		return err
 	}
-	tx = &StakeTransaction{
+	*tx = StakeTransaction{
 		Validator_ID: newTx.Validator_ID,
 		Amount:       newTx.Amount,
 		Nullifier:    newTx.Nullifier,
@@ -393,7 +419,7 @@ func (tx *TreasuryTransaction) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, newTx); err != nil {
 		return err
 	}
-	tx = &TreasuryTransaction{
+	*tx = TreasuryTransaction{
 		Amount:       newTx.Amount,
 		Outputs:      newTx.Outputs,
 		ProposalHash: newTx.ProposalHash,
@@ -479,7 +505,7 @@ func (tx *MintTransaction) UnmarshalJSON(data []byte) error {
 	for _, n := range newTx.Nullifiers {
 		nullifiers = append(nullifiers, n)
 	}
-	tx = &MintTransaction{
+	*tx = MintTransaction{
 		Type:         newTx.Type,
 		Asset_ID:     newTx.Asset_ID,
 		DocumentHash: newTx.DocumentHash,
@@ -514,7 +540,7 @@ func (out *Output) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &o); err != nil {
 		return err
 	}
-	out = &Output{
+	*out = Output{
 		Commitment: o.Commitment,
 		Ciphertext: o.Ciphertext,
 	}

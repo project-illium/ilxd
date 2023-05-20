@@ -6,9 +6,6 @@ package mempool
 
 import (
 	"encoding/hex"
-	"encoding/json"
-	"fmt"
-	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/stretchr/testify/assert"
@@ -25,190 +22,190 @@ func TestMempool_EncodeXthinner(t *testing.T) {
 	}{
 		{
 			blockHashes: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
-				"257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3",
-				"cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+				"a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f",
+				"f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d",
 			},
 			mempoolTxs: []*transactions.Transaction{
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // 18f39ef4fbda090e6bb5b32e466bd615a7e1f923d91fefe36141829def2a45fc
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 19200}), // 252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}), // 257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // aaa9f54ea56e2abf1874ca594d262c5e23350f10d3cceaf14c95794b233bedcd
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // 0bc4757779ffb01681696ff4fe8ef43dff4411f81a7c173f55b1601f54fe9097
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}), // a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 313}),   // a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // e11870bd0ca0cd4c846ec100ca264f9968866c4381bcf6f0750b8a89d5b97d84
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d
 			},
 			mempoolFunc: nil,
 			expectedTxids: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
-				"257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3",
-				"cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+				"a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f",
+				"f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d",
 			},
 			expectedRequests: nil,
 		},
 		{
 			blockHashes: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
-				"257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3",
-				"cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+				"a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f",
+				"f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d",
 			},
 			mempoolTxs: []*transactions.Transaction{
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // 18f39ef4fbda090e6bb5b32e466bd615a7e1f923d91fefe36141829def2a45fc
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 19200}), // 252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}), // 257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // aaa9f54ea56e2abf1874ca594d262c5e23350f10d3cceaf14c95794b233bedcd
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // 0bc4757779ffb01681696ff4fe8ef43dff4411f81a7c173f55b1601f54fe9097
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}), // a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 313}),   // a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // e11870bd0ca0cd4c846ec100ca264f9968866c4381bcf6f0750b8a89d5b97d84
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d
 			},
 			mempoolFunc: func(m *Mempool) {
-				id, _ := types.NewIDFromString("257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3")
+				id, _ := types.NewIDFromString("a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f")
 				delete(m.pool, id)
 			},
 			expectedTxids: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
 				"0000000000000000000000000000000000000000000000000000000000000000",
-				"cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b",
+				"f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d",
 			},
 			expectedRequests: []uint32{1},
 		},
 		{
 			blockHashes: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
-				"257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3",
-				"cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+				"a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f",
+				"f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d",
 			},
 			mempoolTxs: []*transactions.Transaction{
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // 18f39ef4fbda090e6bb5b32e466bd615a7e1f923d91fefe36141829def2a45fc
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 19200}), // 252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}), // 257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // aaa9f54ea56e2abf1874ca594d262c5e23350f10d3cceaf14c95794b233bedcd
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // 0bc4757779ffb01681696ff4fe8ef43dff4411f81a7c173f55b1601f54fe9097
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}), // a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 313}),   // a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // e11870bd0ca0cd4c846ec100ca264f9968866c4381bcf6f0750b8a89d5b97d84
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d
 			},
 			mempoolFunc: func(m *Mempool) {
-				id, _ := types.NewIDFromString("252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5")
+				id, _ := types.NewIDFromString("a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a")
 				delete(m.pool, id)
 			},
 			expectedTxids: []string{
 				"0000000000000000000000000000000000000000000000000000000000000000",
-				"257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3",
-				"cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b",
+				"a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f",
+				"f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d",
 			},
 			expectedRequests: []uint32{0},
 		},
 		{
 			blockHashes: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
-				"257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3",
-				"cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+				"a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f",
+				"f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d",
 			},
 			mempoolTxs: []*transactions.Transaction{
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // 18f39ef4fbda090e6bb5b32e466bd615a7e1f923d91fefe36141829def2a45fc
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 19200}), // 252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}), // 257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // aaa9f54ea56e2abf1874ca594d262c5e23350f10d3cceaf14c95794b233bedcd
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // 0bc4757779ffb01681696ff4fe8ef43dff4411f81a7c173f55b1601f54fe9097
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}), // a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 313}),   // a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // e11870bd0ca0cd4c846ec100ca264f9968866c4381bcf6f0750b8a89d5b97d84
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d
 			},
 			mempoolFunc: func(m *Mempool) {
-				id, _ := types.NewIDFromString("cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b")
+				id, _ := types.NewIDFromString("f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d")
 				delete(m.pool, id)
 			},
 			expectedTxids: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
-				"257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+				"a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f",
 				"0000000000000000000000000000000000000000000000000000000000000000",
 			},
 			expectedRequests: []uint32{2},
 		},
 		{
 			blockHashes: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
-				"257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3",
-				"cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+				"a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f",
+				"f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d",
 			},
 			mempoolTxs: []*transactions.Transaction{
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // 18f39ef4fbda090e6bb5b32e466bd615a7e1f923d91fefe36141829def2a45fc
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 19200}), // 252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}), // 257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // aaa9f54ea56e2abf1874ca594d262c5e23350f10d3cceaf14c95794b233bedcd
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // 0bc4757779ffb01681696ff4fe8ef43dff4411f81a7c173f55b1601f54fe9097
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}), // a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 313}),   // a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // e11870bd0ca0cd4c846ec100ca264f9968866c4381bcf6f0750b8a89d5b97d84
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d
 			},
 			mempoolFunc: func(m *Mempool) {
-				tx := transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 58838}) // cd11927462cd7e99c7bbbda269e9736d545c7e1c8280eace536d4cd815eb9b73
+				tx := transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 207}) // f8768e8090f09645358085c23439796579d380ef8b430f7085fd7dcf89c2dfcd
 				m.pool[tx.ID()] = &ttlTx{tx: tx}
 			},
 			expectedTxids: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
-				"257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+				"a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f",
 				"0000000000000000000000000000000000000000000000000000000000000000",
 			},
 			expectedRequests: []uint32{2},
 		},
 		{
 			blockHashes: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
-				"257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3",
-				"cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+				"a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f",
+				"f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d",
 			},
 			mempoolTxs: []*transactions.Transaction{
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // 18f39ef4fbda090e6bb5b32e466bd615a7e1f923d91fefe36141829def2a45fc
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 19200}), // 252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}), // 257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // aaa9f54ea56e2abf1874ca594d262c5e23350f10d3cceaf14c95794b233bedcd
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // 0bc4757779ffb01681696ff4fe8ef43dff4411f81a7c173f55b1601f54fe9097
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}), // a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 313}),   // a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // e11870bd0ca0cd4c846ec100ca264f9968866c4381bcf6f0750b8a89d5b97d84
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d
 			},
 			mempoolFunc: func(m *Mempool) {
-				tx := transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 20870716}) // cd0a76057b7b69b3aca629173f6c7968ed908b843fcb15331def075807180d15
+				tx := transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 18552267}) // f876d5a735409ee6d2864f0ece7199011c13746151ce449bb089bfd4228a6152
 				m.pool[tx.ID()] = &ttlTx{tx: tx}
 			},
 			expectedTxids: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
-				"257973ea2403c0d1080fc5f4ceae5cc08d551c139f19b2ca7215cb4e424519b3",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+				"a7eb22ce649595789acb1a40b5be22409554edd998843ae95c7b74b4dc54560f",
 				"0000000000000000000000000000000000000000000000000000000000000000",
 			},
 			expectedRequests: []uint32{2},
 		},
 		{
 			blockHashes: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
-				"252f180b8a5d799f26a62f6abfdd6013e611c1807db1b67782628b1ddebfeacb",
-				"cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b",
+				"a798055057b39b7f26ebe0e72fc2768f60ca41b5ed66b7ae6b6858d07a6b84db",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+				"f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d",
 			},
 			mempoolTxs: []*transactions.Transaction{
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // 18f39ef4fbda090e6bb5b32e466bd615a7e1f923d91fefe36141829def2a45fc
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 19200}), // 252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 62961}), // 252f180b8a5d799f26a62f6abfdd6013e611c1807db1b67782628b1ddebfeacb
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // aaa9f54ea56e2abf1874ca594d262c5e23350f10d3cceaf14c95794b233bedcd
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // 0bc4757779ffb01681696ff4fe8ef43dff4411f81a7c173f55b1601f54fe9097
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 97286}), // a798055057b39b7f26ebe0e72fc2768f60ca41b5ed66b7ae6b6858d07a6b84db
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}), // a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // e11870bd0ca0cd4c846ec100ca264f9968866c4381bcf6f0750b8a89d5b97d84
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d
 			},
 			mempoolFunc: nil,
 			expectedTxids: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
-				"252f180b8a5d799f26a62f6abfdd6013e611c1807db1b67782628b1ddebfeacb",
-				"cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b",
+				"a798055057b39b7f26ebe0e72fc2768f60ca41b5ed66b7ae6b6858d07a6b84db",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+				"f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d",
 			},
 			expectedRequests: nil,
 		},
 		{
 			blockHashes: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
-				"252f03c3441ecb5bf4c57464b2700b7838f69900b7595512ddb340292efb6a79",
-				"cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b",
+				"a798f493d0b05c9fd373dddbd6236a39354bbbfd6b7452dbd71bb0d31299553f",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+				"f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d",
 			},
 			mempoolTxs: []*transactions.Transaction{
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),     // 18f39ef4fbda090e6bb5b32e466bd615a7e1f923d91fefe36141829def2a45fc
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 19200}),   // 252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 8545591}), // 252f03c3441ecb5bf4c57464b2700b7838f69900b7595512ddb340292efb6a79
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}),   // aaa9f54ea56e2abf1874ca594d262c5e23350f10d3cceaf14c95794b233bedcd
-				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}),   // cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}),    // 0bc4757779ffb01681696ff4fe8ef43dff4411f81a7c173f55b1601f54fe9097
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 25003210}), // a798f493d0b05c9fd373dddbd6236a39354bbbfd6b7452dbd71bb0d31299553f
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}),    // a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}),    // e11870bd0ca0cd4c846ec100ca264f9968866c4381bcf6f0750b8a89d5b97d84
+				transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),      // f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d
 			},
 			mempoolFunc: nil,
 			expectedTxids: []string{
-				"252f033c1d3a74ca98dc58c4458f9323c1ce1a2b4a4738a84b823426f2a786e5",
-				"252f03c3441ecb5bf4c57464b2700b7838f69900b7595512ddb340292efb6a79",
-				"cd0a76f607241837aaa2a2bfae056e03671326e292e56ae6094d02e49eeb351b",
+				"a798f493d0b05c9fd373dddbd6236a39354bbbfd6b7452dbd71bb0d31299553f",
+				"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+				"f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d",
 			},
 			expectedRequests: nil,
 		},
 	}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		m := &Mempool{
 			pool: make(map[types.ID]*ttlTx),
 		}
@@ -219,12 +216,12 @@ func TestMempool_EncodeXthinner(t *testing.T) {
 		blockIDs := make([]types.ID, 0, len(test.blockHashes))
 		for _, h := range test.blockHashes {
 			id, err := hex.DecodeString(h)
-			assert.NoError(t, err)
+			assert.NoErrorf(t, err, "test %d", x)
 			blockIDs = append(blockIDs, types.NewID(id))
 		}
 
 		blk, err := m.EncodeXthinner(blockIDs)
-		assert.NoError(t, err)
+		assert.NoErrorf(t, err, "test %d", x)
 
 		if test.mempoolFunc != nil {
 			test.mempoolFunc(m)
@@ -234,14 +231,14 @@ func TestMempool_EncodeXthinner(t *testing.T) {
 
 		for i := range ret.Transactions {
 			if test.expectedTxids[i] == "0000000000000000000000000000000000000000000000000000000000000000" {
-				assert.Nil(t, ret.Transactions[i])
+				assert.Nilf(t, ret.Transactions[i], "test %d", x)
 			} else {
-				assert.Equal(t, test.expectedTxids[i], ret.Transactions[i].ID().String())
+				assert.Equalf(t, test.expectedTxids[i], ret.Transactions[i].ID().String(), "test %d", x)
 			}
 		}
 
 		for i := range rerequests {
-			assert.Equal(t, test.expectedRequests[i], rerequests[i])
+			assert.Equalf(t, test.expectedRequests[i], rerequests[i], "test %d", x)
 		}
 	}
 }
@@ -261,24 +258,4 @@ func TestBitmapEncoding(t *testing.T) {
 		}
 		assert.Equal(t, test, decodeBitmap(enc))
 	}
-}
-
-func TestMempool_Close(t *testing.T) {
-	i := uint64(51246)
-	for {
-		tx := transactions.WrapTransaction(&transactions.StandardTransaction{
-			Fee: i,
-		})
-		id := tx.ID()
-		if id[0] == 0x25 && id[1] == 0x2f && id[2] == 0x03 {
-			fmt.Println(i, id.String())
-			break
-		}
-		i++
-	}
-}
-
-func TestBlockchainView(t *testing.T) {
-	b, _ := json.MarshalIndent(params.RegestParams.GenesisBlock, "", "    ")
-	fmt.Println(string(b))
 }

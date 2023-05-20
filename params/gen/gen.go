@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
 
-package gen
+package main
 
 import (
 	"encoding/hex"
@@ -20,23 +20,34 @@ import (
 )
 
 type GenerationParams struct {
-	ValidatorKey            string
-	ViewKey                 string
-	InitialCoins            uint64
+	ValidatorKey            string `long:"validatorkey" description:"The genesis validator private key"`
+	ViewKey                 string `long:"viewkey" description:"The genesis view public key"`
+	InitialCoins            uint64 `long:"initialcoins" description:"The number of coins created by the genesis block"`
 	CoinbaseUnlockingScript struct {
-		SnarkVerificationKey string   `json:"snarkVerificationKey"`
-		PublicParams         []string `json:"publicParams"`
+		SnarkVerificationKey string   `long:"unlockingscript.verificationkey" description:"The coinbase's 0th output's unlocking script verification key"`
+		PublicParams         []string `long:"unlockingscript.params" description:"The coinbase's 0th output's unlocking script params"`
 	}
 	CoinbaseNote struct {
-		ScriptHash string `json:"scriptHash"`
-		Amount     uint64 `json:"amount"`
-		AssetID    string `json:"assetID"`
-		State      string `json:"state"`
-		Salt       string `json:"salt"`
+		ScriptHash string `long:"coinbasenote.scripthash" description:"The coinbase's 0th output's' note's' script hash"`
+		Amount     uint64 `long:"coinbasenote.amount" description:"The coinbase's 0th output's' note's amount"`
+		AssetID    string `long:"coinbasenote.assetid" description:"The coinbase's 0th output's' note's amount"`
+		State      string `long:"coinbasenote.state" description:"The coinbase's 0th output's' note's state'"`
+		Salt       string `long:"coinbasenote.salt" description:"The coinbase's 0th output's' note's salt'"`
 	}
 	AdditionalCoinbaseOutputs []transactions.Output
-	Timestamp                 int64
+	Timestamp                 int64 `long:"timestamp" description:"The genesis block timestamp"`
 }
+
+// --validatorkey=080112401e08383f629522149a7505c7668f070bea3007af8ed2b3970e7a2f2456584039de64446ff3730ddbf2219fe1b996316650b747ea90d742c8e22f97bd3c0b616f
+// --viewkey=08041220fd1264c92cc8d0b4fc8bdb811bbbc487734990c85cb42e333d6c86d95ce8b16b
+// --initialcoins=230584300921369395
+// --unlockingscript.verificationkey=0000000000000000000000000000000000000000000000000000000000000000
+// --unlockingscript.params=0000000000000000000000000000000000000000000000000000000000000000
+// --coinbasenote.scripthash=ae09db7cd54f42b490ef09b6bc541af688e4959bb8c53f359a6f56e38ab454a3
+// --coinbasenote.amount=230584300921369395
+// --coinbasenote.assetid=0000000000000000000000000000000000000000000000000000000000000000
+// --coinbasenote.state=0000000000000000000000000000000000000000000000000000000000000000
+// --coinbasenote.salt=09969db4b1ee03587e33c0e66a99fabbde33e3d10dd9642f9493cfac399956fd
 
 func main() {
 	var params GenerationParams
@@ -93,6 +104,31 @@ func main() {
 		log.Fatal(err)
 	}
 
+	coinbaseNoteScriptHash, err := hex.DecodeString(params.CoinbaseNote.ScriptHash)
+	if err != nil {
+		log.Fatal(err)
+	}
+	coinbaseNoteAssetID, err := hex.DecodeString(params.CoinbaseNote.AssetID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	coinbaseNoteState, err := hex.DecodeString(params.CoinbaseNote.State)
+	if err != nil {
+		log.Fatal(err)
+	}
+	coinbaseNoteSalt, err := hex.DecodeString(params.CoinbaseNote.Salt)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	note := types.SpendNote{
+		ScriptHash: coinbaseNoteScriptHash,
+		Amount:     params.CoinbaseNote.Amount,
+		AssetID:    types.NewID(coinbaseNoteAssetID),
+	}
+	copy(note.State[:], coinbaseNoteState)
+	copy(note.Salt[:], coinbaseNoteSalt)
+
 	unlockingParams := make([][]byte, 0, len(params.CoinbaseUnlockingScript.PublicParams))
 	for _, p := range params.CoinbaseUnlockingScript.PublicParams {
 		params, err := hex.DecodeString(p)
@@ -107,26 +143,24 @@ func main() {
 		PublicParams:         unlockingParams,
 	}
 
-	blk.Transactions[0] = transactions.WrapTransaction(&transactions.Transaction_CoinbaseTransaction{
-		CoinbaseTransaction: &transactions.CoinbaseTransaction{
-			Validator_ID: validatorIDBytes,
-			NewCoins:     params.InitialCoins,
-			Outputs:      make([]*transactions.Output, 1),
-			Signature:    nil,
-			Proof:        nil, // TODO
-		},
+	blk.Transactions[0] = transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+		Validator_ID: validatorIDBytes,
+		NewCoins:     params.InitialCoins,
+		Outputs:      make([]*transactions.Output, 1),
+		Signature:    nil,
+		Proof:        nil, // TODO
 	})
 
-	if types.NewID(params.CoinbaseNote.ScriptHash).Compare(unlockingScript.Hash()) != 0 {
+	if types.NewID(note.ScriptHash).Compare(unlockingScript.Hash()) != 0 {
 		log.Fatal("coinbase unlocking script does not match spend note script hash")
 	}
 
-	commitment, err := params.CoinbaseNote.Commitment()
+	commitment, err := note.Commitment()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	cipherText, err := ilxcrypto.Encrypt(viewKey, params.CoinbaseNote.Serialize())
+	cipherText, err := ilxcrypto.Encrypt(viewKey, note.Serialize())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -157,21 +191,19 @@ func main() {
 	}
 	txoRoot := acc.Root().Bytes()
 
-	nullifier, err := types.CalculateNullifier(0, params.CoinbaseNote.Salt, unlockingScript.SnarkVerificationKey, unlockingScript.PublicParams...)
+	nullifier, err := types.CalculateNullifier(0, note.Salt, unlockingScript.SnarkVerificationKey, unlockingScript.PublicParams...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	blk.Transactions[1] = transactions.WrapTransaction(&transactions.Transaction_StakeTransaction{
-		StakeTransaction: &transactions.StakeTransaction{
-			Validator_ID: validatorIDBytes,
-			Amount:       params.CoinbaseNote.Amount,
-			Nullifier:    nullifier[:],
-			TxoRoot:      txoRoot,
-			Locktime:     0,
-			Signature:    nil,
-			Proof:        nil, // TODO
-		},
+	blk.Transactions[1] = transactions.WrapTransaction(&transactions.StakeTransaction{
+		Validator_ID: validatorIDBytes,
+		Amount:       params.CoinbaseNote.Amount,
+		Nullifier:    nullifier[:],
+		TxoRoot:      txoRoot,
+		Locktime:     0,
+		Signature:    nil,
+		Proof:        nil, // TODO
 	})
 
 	sigHash, err = blk.Transactions[1].GetStakeTransaction().SigHash()
@@ -191,5 +223,5 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(out)
+	fmt.Println(string(out))
 }

@@ -17,7 +17,7 @@ import (
 const (
 	PubkeyLen = 36
 
-	CiphertextLen = 176
+	CiphertextLen = 304
 
 	AssetIDLen = 32
 

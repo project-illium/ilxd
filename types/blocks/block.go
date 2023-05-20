@@ -26,6 +26,11 @@ type headerJSON struct {
 	Signature   types.HexEncodable `json:"signature"`
 }
 
+type blockJSON struct {
+	Header       headerJSON                  `json:"header"`
+	Transactions []*transactions.Transaction `json:"transactions"`
+}
+
 func (h *BlockHeader) ID() types.ID {
 	ser, _ := h.Serialize()
 	return types.NewIDFromData(ser)
@@ -165,11 +170,22 @@ func (b *Block) MarshalJSON() ([]byte, error) {
 }
 
 func (b *Block) UnmarshalJSON(data []byte) error {
-	newBlock := &Block{}
-	if err := json.Unmarshal(data, newBlock); err != nil {
+	newBlock := blockJSON{}
+	if err := json.Unmarshal(data, &newBlock); err != nil {
 		return err
 	}
-	b = newBlock
+	*b = Block{
+		Header: &BlockHeader{
+			Version:     newBlock.Header.Version,
+			Height:      newBlock.Header.Height,
+			Parent:      newBlock.Header.Parent,
+			Timestamp:   newBlock.Header.Timestamp,
+			TxRoot:      newBlock.Header.TxRoot,
+			Producer_ID: newBlock.Header.Producer_ID,
+			Signature:   newBlock.Header.Signature,
+		},
+		Transactions: newBlock.Transactions,
+	}
 	return nil
 }
 
