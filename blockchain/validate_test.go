@@ -367,7 +367,7 @@ func TestValidateBlock(t *testing.T) {
 								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
-						Nullifiers: [][]byte{nullifier[:]},
+						Nullifiers: [][]byte{nullifier3[:]},
 						TxoRoot:    txoRoot[:],
 					}),
 					transactions.WrapTransaction(&transactions.StandardTransaction{
@@ -377,7 +377,7 @@ func TestValidateBlock(t *testing.T) {
 								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
-						Nullifiers: [][]byte{nullifier3[:]},
+						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
 					}),
 				}
@@ -506,7 +506,7 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
-								Ciphertext: make([]byte, CiphertextLen),
+								Ciphertext: bytes.Repeat([]byte{0x11}, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -795,11 +795,11 @@ func TestValidateBlock(t *testing.T) {
 								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
-						Nullifiers: [][]byte{nullifier[:]},
-						TxoRoot:    txoRoot[:],
 						Asset_ID:   bytes.Repeat([]byte{0x11}, AssetIDLen),
 						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot[:],
 					}),
 					transactions.WrapTransaction(&transactions.MintTransaction{
 						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
@@ -809,11 +809,11 @@ func TestValidateBlock(t *testing.T) {
 								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
-						Asset_ID:   bytes.Repeat([]byte{0x11}, AssetIDLen),
-						Locktime:   time.Time{}.Unix(),
-						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
+						Asset_ID:   bytes.Repeat([]byte{0x12}, AssetIDLen),
+						Locktime:   time.Time{}.Unix(),
+						MintKey:    bytes.Repeat([]byte{0x12}, PubkeyLen),
 					}),
 				}
 				keyHash := hash.HashFunc(blk.Transactions[0].GetMintTransaction().MintKey)
@@ -999,7 +999,7 @@ func TestValidateBlock(t *testing.T) {
 					}),
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorIDBytes,
-						NewCoins:     10000,
+						NewCoins:     10001,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -1110,7 +1110,7 @@ func TestValidateBlock(t *testing.T) {
 			block: func(blk *blocks.Block) (*blocks.Block, error) {
 				blk.Transactions = []*transactions.Transaction{
 					transactions.WrapTransaction(&transactions.TreasuryTransaction{
-						Amount: 8000,
+						Amount: 3000,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -1120,7 +1120,7 @@ func TestValidateBlock(t *testing.T) {
 						ProposalHash: make([]byte, 32),
 					}),
 					transactions.WrapTransaction(&transactions.TreasuryTransaction{
-						Amount: 3000,
+						Amount: 8000,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
