@@ -133,7 +133,7 @@ var RegestParams = NetworkParams{
 		"/ip6/::/udp/9003/quic",
 	},
 	AddressPrefix:              "reg",
-	GenesisBlock:               nil,
+	GenesisBlock:               RegtestGenesisBlock,
 	EpochLength:                60 * 60 * 24 * 7, // One week
 	TargetDistribution:         1 << 60,
 	InitialDistributionPeriods: 520,

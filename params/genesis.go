@@ -5,20 +5,11 @@
 package params
 
 import (
-	"encoding/json"
+	"encoding/hex"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"time"
 )
-
-func init() {
-	var blk blocks.Block
-	err := json.Unmarshal([]byte(regtestGenesisJSON), &blk)
-	if err != nil {
-		panic(err)
-	}
-	RegestParams.GenesisBlock = &blk
-}
 
 // MainnetGenesisBlock is the genesis block for the mainnet.
 //
@@ -94,43 +85,50 @@ var RegtestViewKey = []byte{
 	0x5c, 0xe8, 0xb1, 0x6b,
 }
 
-var RegtestSpendKey = []byte{}
+var RegtestSpendKey = []byte{} // TODO
 
-var regtestGenesisJSON = `{
-    "header": {
-        "version": 1,
-        "height": 0,
-        "parent": "0000000000000000000000000000000000000000000000000000000000000000",
-        "timestamp": 0,
-        "tx_root": "e9a730339b6f38d83d7d53ef254f88ffd05fb531e56dc78f449bd4898d6269ca",
-        "producer_ID": "",
-        "signature": ""
-    },
-    "transactions": [
-        {
-            "coinbase_transaction": {
-                "validator_ID": "00240801122025fcc0580144b749ecfef69091f978e9a591de9ced30dc6489722a3f3db3ff16",
-                "new_coins": 230584300921369395,
-                "outputs": [
-                    {
-                        "commitment": "924c38053f5f94baba523a83c10dcb94e75f642392e3094107c02d6d8c6c79ed",
-                        "ciphertext": "83a4071ad9f1aa97189bc952d2e9a6a97f9c3077e94e7c4c9e612f865bb6e37ca963bb030509ca5d94212cea7231a433d044e2906dac5376f0ef3908904ed7bc77f54cefb93ac1293b3d074d5dd404dbf3e38288c4e6c82e9a07515ea180ed1481f4994bcde26cb1271042375299d08facaadd3e5ab567b064cb0e27e98b08641b9e30dec14cdf1284ebc483d1ec6b2fba2d001c7327f2b342c8dce3daa128c7080e27b407bc2ff5f7e6ae502c22729744080e2cf86a36bf84a87e56e77c88704c2f112184b80541e2caa309bb1d886ebc82b9adf641c5eb5a95d4f626002a6536df8c376bebae9d93093238135a2ba229ae295dd9e65ab462b7ef8b74e06de9f5975bf78304f809a133c4ece8e301b9fd5fa38318371a054c5e067c6a4c4d6a1e02b5f6e330ac4535596c099c50bd28"
-                    }
-                ],
-                "signature": "47d553bf0c2cd0b1cedcd1d83b3a007c1324d6184ea788bbe9afd532b020d8e06a9a6e391ae681a24e2da565877551f0278d1282c2cfb4ef8f955c77a21bde09",
-                "proof": ""
-            }
-        },
-        {
-            "stake_transaction": {
-                "validator_ID": "00240801122025fcc0580144b749ecfef69091f978e9a591de9ced30dc6489722a3f3db3ff16",
-                "amount": 230584300921369395,
-                "nullifier": "b178667bdbe651d9540bcc21e90a71360a474a5883b9eecc552004b75a681ec8",
-                "txo_root": "22a8ef3ef7e189bbc86b3e10569277db829442e5c8a30f407897842657c7b594",
-                "locktime": 0,
-                "signature": "3a78a3a0740fdc27f4462c27ecdebb4dee4debe7d56ce3bced914a4d85c5059f3f65d6ff23c9d752e6d3c438914ab48cb42232bab664c928a82ef60e22755401",
-                "proof": ""
-            }
-        }
-    ]
-}`
+var RegtestGenesisBlock = &blocks.Block{
+	Header: &blocks.BlockHeader{
+		Version:   1,
+		Height:    0,
+		Parent:    hexToBytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		Timestamp: 0,
+		TxRoot:    hexToBytes("e9a730339b6f38d83d7d53ef254f88ffd05fb531e56dc78f449bd4898d6269ca"),
+	},
+	Transactions: []*transactions.Transaction{
+		{
+			Tx: &transactions.Transaction_CoinbaseTransaction{
+				CoinbaseTransaction: &transactions.CoinbaseTransaction{
+					Validator_ID: hexToBytes("00240801122025fcc0580144b749ecfef69091f978e9a591de9ced30dc6489722a3f3db3ff16"),
+					NewCoins:     230584300921369395,
+					Outputs: []*transactions.Output{
+						{
+							Commitment: hexToBytes("924c38053f5f94baba523a83c10dcb94e75f642392e3094107c02d6d8c6c79ed"),
+							Ciphertext: hexToBytes("83a4071ad9f1aa97189bc952d2e9a6a97f9c3077e94e7c4c9e612f865bb6e37ca963bb030509ca5d94212cea7231a433d044e2906dac5376f0ef3908904ed7bc77f54cefb93ac1293b3d074d5dd404dbf3e38288c4e6c82e9a07515ea180ed1481f4994bcde26cb1271042375299d08facaadd3e5ab567b064cb0e27e98b08641b9e30dec14cdf1284ebc483d1ec6b2fba2d001c7327f2b342c8dce3daa128c7080e27b407bc2ff5f7e6ae502c22729744080e2cf86a36bf84a87e56e77c88704c2f112184b80541e2caa309bb1d886ebc82b9adf641c5eb5a95d4f626002a6536df8c376bebae9d93093238135a2ba229ae295dd9e65ab462b7ef8b74e06de9f5975bf78304f809a133c4ece8e301b9fd5fa38318371a054c5e067c6a4c4d6a1e02b5f6e330ac4535596c099c50bd28"),
+						},
+					},
+					Signature: hexToBytes("47d553bf0c2cd0b1cedcd1d83b3a007c1324d6184ea788bbe9afd532b020d8e06a9a6e391ae681a24e2da565877551f0278d1282c2cfb4ef8f955c77a21bde09"),
+					Proof:     nil, // TODO
+				},
+			},
+		},
+		{
+			Tx: &transactions.Transaction_StakeTransaction{
+				StakeTransaction: &transactions.StakeTransaction{
+					Validator_ID: hexToBytes("00240801122025fcc0580144b749ecfef69091f978e9a591de9ced30dc6489722a3f3db3ff16"),
+					Amount:       230584300921369395,
+					Nullifier:    hexToBytes("b178667bdbe651d9540bcc21e90a71360a474a5883b9eecc552004b75a681ec8"),
+					TxoRoot:      hexToBytes("22a8ef3ef7e189bbc86b3e10569277db829442e5c8a30f407897842657c7b594"),
+					Locktime:     0,
+					Signature:    hexToBytes("3a78a3a0740fdc27f4462c27ecdebb4dee4debe7d56ce3bced914a4d85c5059f3f65d6ff23c9d752e6d3c438914ab48cb42232bab664c928a82ef60e22755401"),
+					Proof:        nil, // TODO
+				},
+			},
+		},
+	},
+}
+
+func hexToBytes(s string) []byte {
+	ret, _ := hex.DecodeString(s)
+	return ret
+}
