@@ -71,7 +71,7 @@ message GetBlockIDReq {
 
 message MsgGetBlockIDResp {
     bytes block_ID       = 1;
-    ErrorResponse error = 2;
+    ErrorResponse error  = 2;
 }
 
 message GetHeadersStreamReq {

@@ -4,7 +4,6 @@
 
 package sync
 
-/*
 import (
 	"context"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -20,174 +19,107 @@ import (
 	"testing"
 )
 
-func TestSyncManagerSyncToCheckpoints(t *testing.T) {
-	mn := mocknet.New()
-
-	ds := mock.NewMapDatastore()
-
-	host1, err := mn.GenPeer()
-	assert.NoError(t, err)
-	network1, err := net.NewNetwork(context.Background(), []net.Option{
-		net.WithHost(host1),
-		net.Params(&params.RegestParams),
-		net.BlockValidator(func(*blocks.XThinnerBlock, peer.ID) error {
-			return nil
-		}),
-		net.MempoolValidator(func(transaction *transactions.Transaction) error {
-			return nil
-		}),
-		net.Datastore(ds),
-	}...)
-	assert.NoError(t, err)
-
-	testHarness1, err := harness.NewTestHarness(harness.DefaultOptions())
-	assert.NoError(t, err)
-
-	err = testHarness1.GenerateBlocks(15100)
-	assert.NoError(t, err)
-
-	chk1, err := testHarness1.Blockchain().GetBlockByHeight(5000)
-	assert.NoError(t, err)
-	chk2, err := testHarness1.Blockchain().GetBlockByHeight(10000)
-	assert.NoError(t, err)
-	chk3, err := testHarness1.Blockchain().GetBlockByHeight(15000)
-	assert.NoError(t, err)
-
-	testHarness1.Blockchain().Params().Checkpoints = []params.Checkpoint{
-		{BlockID: chk1.ID(), Height: 5000},
-		{BlockID: chk2.ID(), Height: 10000},
-		{BlockID: chk3.ID(), Height: 15000},
-	}
-
-	NewChainService(context.Background(), testHarness1.Blockchain().GetBlockByID, testHarness1.Blockchain(), network1, testHarness1.Blockchain().Params())
-
-	host2, err := mn.GenPeer()
-	assert.NoError(t, err)
-	network2, err := net.NewNetwork(context.Background(), []net.Option{
-		net.WithHost(host2),
-		net.Params(&params.RegestParams),
-		net.BlockValidator(func(*blocks.XThinnerBlock, peer.ID) error {
-			return nil
-		}),
-		net.MempoolValidator(func(transaction *transactions.Transaction) error {
-			return nil
-		}),
-		net.Datastore(ds),
-	}...)
-	assert.NoError(t, err)
-
-	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(testHarness1.Blockchain().Params()))
-	assert.NoError(t, err)
-
-	service2 := NewChainService(context.Background(), chain.GetBlockByID, chain, network2, chain.Params())
-
-	assert.NoError(t, mn.LinkAll())
-	assert.NoError(t, mn.ConnectAllButSelf())
-
-	sm := NewSyncManager(context.Background(), chain, network2, chain.Params(), service2)
-
-	err = sm.syncToCheckpoints(0)
-	assert.NoError(t, err)
-
-	blk, err := chain.GetBlockByHeight(testHarness1.Blockchain().Params().Checkpoints[0].Height)
-	assert.NoError(t, err)
-	assert.Equal(t, testHarness1.Blockchain().Params().Checkpoints[0].BlockID, blk.ID())
-
-	blk, err = chain.GetBlockByHeight(testHarness1.Blockchain().Params().Checkpoints[1].Height)
-	assert.NoError(t, err)
-	assert.Equal(t, testHarness1.Blockchain().Params().Checkpoints[1].BlockID, blk.ID())
-
-	blk, err = chain.GetBlockByHeight(testHarness1.Blockchain().Params().Checkpoints[2].Height)
-	assert.NoError(t, err)
-	assert.Equal(t, testHarness1.Blockchain().Params().Checkpoints[2].BlockID, blk.ID())
+type mockNetwork struct {
+	nodes   []*mockNode
+	mn      mocknet.Mocknet
+	harness *harness.TestHarness
 }
 
-func TestSyncManagerQueryPeers(t *testing.T) {
+type mockNode struct {
+	chain   *blockchain.Blockchain
+	network *net.Network
+	service *ChainService
+}
+
+func generateMockNetwork(numNodes int) (*mockNetwork, error) {
 	mn := mocknet.New()
 
-	host0, err := mn.GenPeer()
-	assert.NoError(t, err)
-	network0, err := net.NewNetwork(context.Background(), []net.Option{
-		net.WithHost(host0),
-		net.Params(&params.RegestParams),
-		net.BlockValidator(func(*blocks.XThinnerBlock, peer.ID) error {
-			return nil
-		}),
-		net.MempoolValidator(func(transaction *transactions.Transaction) error {
-			return nil
-		}),
-		net.Datastore(mock.NewMapDatastore()),
-	}...)
-	assert.NoError(t, err)
-
-	host1, err := mn.GenPeer()
-	assert.NoError(t, err)
-	network1, err := net.NewNetwork(context.Background(), []net.Option{
-		net.WithHost(host1),
-		net.Params(&params.RegestParams),
-		net.BlockValidator(func(*blocks.XThinnerBlock, peer.ID) error {
-			return nil
-		}),
-		net.MempoolValidator(func(transaction *transactions.Transaction) error {
-			return nil
-		}),
-		net.Datastore(mock.NewMapDatastore()),
-	}...)
-	assert.NoError(t, err)
-
-	host2, err := mn.GenPeer()
-	assert.NoError(t, err)
-	network2, err := net.NewNetwork(context.Background(), []net.Option{
-		net.WithHost(host2),
-		net.Params(&params.RegestParams),
-		net.BlockValidator(func(*blocks.XThinnerBlock, peer.ID) error {
-			return nil
-		}),
-		net.MempoolValidator(func(transaction *transactions.Transaction) error {
-			return nil
-		}),
-		net.Datastore(mock.NewMapDatastore()),
-	}...)
-	assert.NoError(t, err)
-
-	host3, err := mn.GenPeer()
-	assert.NoError(t, err)
-	network3, err := net.NewNetwork(context.Background(), []net.Option{
-		net.WithHost(host3),
-		net.Params(&params.RegestParams),
-		net.BlockValidator(func(*blocks.XThinnerBlock, peer.ID) error {
-			return nil
-		}),
-		net.MempoolValidator(func(transaction *transactions.Transaction) error {
-			return nil
-		}),
-		net.Datastore(mock.NewMapDatastore()),
-	}...)
-	assert.NoError(t, err)
-
-	assert.NoError(t, mn.LinkAll())
-	assert.NoError(t, mn.ConnectAllButSelf())
-
 	testHarness, err := harness.NewTestHarness(harness.DefaultOptions())
+	if err != nil {
+		return nil, err
+	}
+	err = testHarness.GenerateBlocks(25000)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes := make([]*mockNode, 0, numNodes)
+	for i := 0; i < numNodes; i++ {
+
+		node, err := makeMockNode(mn, testHarness.Blockchain())
+		if err != nil {
+			return nil, err
+		}
+
+		nodes = append(nodes, node)
+	}
+
+	mocknetwork := &mockNetwork{
+		nodes:   nodes,
+		mn:      mn,
+		harness: testHarness,
+	}
+
+	if err := mn.LinkAll(); err != nil {
+		return nil, err
+	}
+	if err := mn.ConnectAllButSelf(); err != nil {
+		return nil, err
+	}
+	return mocknetwork, nil
+}
+
+func makeMockNode(mn mocknet.Mocknet, chain *blockchain.Blockchain) (*mockNode, error) {
+	ds := mock.NewMapDatastore()
+
+	host, err := mn.GenPeer()
+	if err != nil {
+		return nil, err
+	}
+	network, err := net.NewNetwork(context.Background(), []net.Option{
+		net.WithHost(host),
+		net.Params(&params.RegestParams),
+		net.BlockValidator(func(*blocks.XThinnerBlock, peer.ID) error {
+			return nil
+		}),
+		net.MempoolValidator(func(transaction *transactions.Transaction) error {
+			return nil
+		}),
+		net.Datastore(ds),
+	}...)
+	if err != nil {
+		return nil, err
+	}
+
+	service := NewChainService(context.Background(), chain.GetBlockByID, chain, network, chain.Params())
+
+	node := &mockNode{
+		chain:   chain,
+		network: network,
+		service: service,
+	}
+	return node, nil
+}
+
+func TestSync(t *testing.T) {
+	net, err := generateMockNetwork(20)
 	assert.NoError(t, err)
 
-	err = testHarness.GenerateBlocks(10)
+	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(net.harness.Blockchain().Params()))
 	assert.NoError(t, err)
 
-	NewChainService(context.Background(), testHarness.Blockchain().GetBlockByID, testHarness.Blockchain(), network0, testHarness.Blockchain().Params())
-	NewChainService(context.Background(), testHarness.Blockchain().GetBlockByID, testHarness.Blockchain(), network1, testHarness.Blockchain().Params())
-	NewChainService(context.Background(), testHarness.Blockchain().GetBlockByID, testHarness.Blockchain(), network2, testHarness.Blockchain().Params())
-	service := NewChainService(context.Background(), testHarness.Blockchain().GetBlockByID, testHarness.Blockchain(), network3, testHarness.Blockchain().Params())
-
-	sm := NewSyncManager(context.Background(), testHarness.Blockchain(), network2, testHarness.Blockchain().Params(), service)
-
-	m, err := sm.queryPeers(5)
+	node, err := makeMockNode(net.mn, chain)
 	assert.NoError(t, err)
 
-	blkID, err := testHarness.Blockchain().GetBlockIDByHeight(5)
-	assert.NoError(t, err)
+	manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, nil)
 
-	assert.Len(t, m, 1)
-	_, ok := m[blkID]
-	assert.True(t, ok)
-}*/
+	assert.NoError(t, net.mn.LinkAll())
+	assert.NoError(t, net.mn.ConnectAllButSelf())
+
+	manager.Start()
+
+	block, height, _ := chain.BestBlock()
+	block2, height2, _ := net.harness.Blockchain().BestBlock()
+	assert.Equal(t, block2, block)
+	assert.Equal(t, height2, height)
+}

@@ -183,8 +183,8 @@ func (bi *blockIndex) ExtendIndex(header *blocks.BlockHeader) {
 // returned from cache if it exists, otherwise it will be loaded from the
 // database.
 func (bi *blockIndex) GetNodeByHeight(height uint32) (*blockNode, error) {
-	bi.mtx.RLock()
-	defer bi.mtx.RUnlock()
+	bi.mtx.Lock()
+	defer bi.mtx.Unlock()
 
 	node, ok := bi.cacheByHeight[height]
 	if ok {

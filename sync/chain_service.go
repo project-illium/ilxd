@@ -30,6 +30,7 @@ const (
 )
 
 var ErrNotCurrent = errors.New("peer not current")
+var ErrNotFound = errors.New("not found")
 
 type FetchBlockFunc func(blockID types.ID) (*blocks.Block, error)
 
@@ -277,6 +278,10 @@ func (cs *ChainService) GetBlockID(p peer.ID, height uint32) (types.ID, error) {
 		return types.ID{}, err
 	}
 
+	if resp.Error == wire.ErrorResponse_NotFound {
+		return types.ID{}, ErrNotFound
+	}
+
 	if resp.Error != wire.ErrorResponse_None {
 		return types.ID{}, fmt.Errorf("error response from peer: %s", resp.GetError().String())
 	}
@@ -345,6 +350,7 @@ func (cs *ChainService) handleGetHeadersStream(req *wire.GetHeadersStreamReq, s 
 	for i := req.StartHeight; i <= endHeight; i++ {
 		header, err := cs.chain.GetHeaderByHeight(i)
 		if err != nil {
+			s.Close()
 			return err
 		}
 		if err := net.WriteMsg(s, header); err != nil {

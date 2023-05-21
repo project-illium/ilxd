@@ -292,7 +292,10 @@ bucketLoop:
 		for p := range toQuery {
 			go func(pid peer.ID, w *sync.WaitGroup) {
 				defer w.Done()
-				id, err := sm.chainService.GetBlockID(p, height)
+				id, err := sm.chainService.GetBlockID(pid, height)
+				if errors.Is(err, ErrNotFound) {
+					id, _, err = sm.chainService.GetBest(pid)
+				}
 				if err != nil {
 					sm.network.IncreaseBanscore(pid, 0, 20)
 					return
@@ -363,7 +366,7 @@ func (sm *SyncManager) populatePeerBuckets() error {
 		for p := range toQuery {
 			go func(pid peer.ID, w *sync.WaitGroup) {
 				defer w.Done()
-				id, height, err := sm.chainService.GetBest(p)
+				id, height, err := sm.chainService.GetBest(pid)
 				if errors.Is(err, ErrNotCurrent) {
 					return
 				} else if err != nil {
@@ -533,7 +536,7 @@ func (sm *SyncManager) findForkPoint(currentHeight, toHeight uint32, blockMap ma
 			for _, p := range blockMap {
 				go func(pid peer.ID, w *sync.WaitGroup) {
 					defer w.Done()
-					id, err := sm.chainService.GetBlockID(p, getHeight)
+					id, err := sm.chainService.GetBlockID(pid, getHeight)
 					ch <- resp{
 						p:       pid,
 						blockID: id,
@@ -582,7 +585,10 @@ func (sm *SyncManager) downloadHeaders(p peer.ID, startHeight, endHeight uint32)
 			count++
 		}
 		if count == 0 {
-			return nil, errors.New("peer closed stream without sending any headers")
+			if len(headers) == 0 {
+				return nil, errors.New("peer closed stream without sending any headers")
+			}
+			break
 		}
 		if height > endHeight {
 			break
@@ -609,7 +615,10 @@ func (sm *SyncManager) downloadBlockTxs(p peer.ID, startHeight, endHeight uint32
 			count++
 		}
 		if count == 0 {
-			return nil, errors.New("peer closed stream without returning any blocktxs")
+			if len(txs) == 0 {
+				return nil, errors.New("peer closed stream without returning any blocktxs")
+			}
+			break
 		}
 		if height > endHeight {
 			break
