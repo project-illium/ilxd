@@ -217,8 +217,8 @@ syncLoop:
 					}
 					bucket, ok := sm.buckets[banBucket]
 					if ok {
-						for _, p := range bucket {
-							sm.network.IncreaseBanscore(p, 101, 0)
+						for _, p2 := range bucket {
+							sm.network.IncreaseBanscore(p2, 101, 0)
 						}
 					}
 					delete(sm.buckets, banBucket)
@@ -260,7 +260,7 @@ func (sm *SyncManager) bucketPeerDisconnected(_ inet.Network, conn inet.Conn) {
 				sm.buckets[blockID] = append(sm.buckets[blockID][:i], sm.buckets[blockID][i+1:]...)
 			}
 		}
-		if len(bucket) == 0 {
+		if len(sm.buckets[blockID]) == 0 {
 			delete(sm.buckets, blockID)
 		}
 	}
@@ -451,13 +451,13 @@ func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) {
 }
 
 func (sm *SyncManager) downloadEvalWindow(p peer.ID, fromHeight uint32) ([]*blocks.Block, error) {
-	headers, err := sm.downloadHeaders(p, fromHeight, fromHeight+evaluationWindow)
+	headers, err := sm.downloadHeaders(p, fromHeight, fromHeight+evaluationWindow-1)
 	if err != nil {
 		sm.network.IncreaseBanscore(p, 0, 20)
 		return nil, err
 	}
 	blks := make([]*blocks.Block, 0, len(headers))
-	txs, err := sm.downloadBlockTxs(p, fromHeight, fromHeight+evaluationWindow)
+	txs, err := sm.downloadBlockTxs(p, fromHeight, fromHeight+evaluationWindow-1)
 	if err != nil {
 		sm.network.IncreaseBanscore(p, 0, 20)
 		return nil, fmt.Errorf("peer %s block download error %s", p, err)

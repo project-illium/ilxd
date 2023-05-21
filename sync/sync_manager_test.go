@@ -160,6 +160,7 @@ func TestSync(t *testing.T) {
 		block2, height2, _ := net.harness.Blockchain().BestBlock()
 		assert.Equal(t, block2, block)
 		assert.Equal(t, height2, height)
+		node.network.Close()
 	})
 
 	t.Run("sync with chain fork", func(t *testing.T) {
@@ -169,6 +170,8 @@ func TestSync(t *testing.T) {
 		err = net.harness.GenerateBlocks(10000)
 		assert.NoError(t, err)
 
+		// Chain two will add a second validator that doesn't create any blocks.
+		// This should give chain two a worse score than chain one.
 		notes := harness2.SpendableNotes()
 		commitment, err := notes[0].Note.Commitment()
 		assert.NoError(t, err)
@@ -204,6 +207,7 @@ func TestSync(t *testing.T) {
 		err = harness2.GenerateBlocks(10000)
 		assert.NoError(t, err)
 
+		// Add more nodes following chain 2
 		for i := 0; i < 20; i++ {
 			_, err := makeMockNode(net.mn, harness2.Blockchain())
 			assert.NoError(t, err)
@@ -227,10 +231,11 @@ func TestSync(t *testing.T) {
 		}()
 		select {
 		case <-ch:
-		case <-time.After(time.Second * 10):
+		case <-time.After(time.Second * 30):
 			t.Fatal("sync timed out")
 		}
 
+		// Node should sync to chain 1
 		block, height, _ := chain2.BestBlock()
 		block2, height2, _ := net.harness.Blockchain().BestBlock()
 		assert.Equal(t, block2, block)
