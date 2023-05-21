@@ -101,8 +101,13 @@ func (b *Blockchain) checkBlockContext(header *blocks.BlockHeader) error {
 	if !b.validatorSet.ValidatorExists(producerID) {
 		return ruleError(ErrInvalidProducer, "block producer not in validator set")
 	}
-
-	// TODO: verifying a block ID at a checkpoint height matches the checkpoint ID will be done here.
+	if len(b.params.Checkpoints) > 0 && header.Height <= b.params.Checkpoints[len(b.params.Checkpoints)-1].Height {
+		for _, checkpoint := range b.params.Checkpoints {
+			if header.Height == checkpoint.Height && header.ID() != checkpoint.BlockID {
+				return ruleError(ErrInvalidCheckpoint, "block ID does not match checkpoint")
+			}
+		}
+	}
 	return nil
 }
 

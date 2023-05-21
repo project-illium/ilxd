@@ -117,6 +117,7 @@ func TestCheckBlockContext(t *testing.T) {
 	b := Blockchain{
 		index:        index,
 		validatorSet: vs,
+		params:       &params.RegestParams,
 	}
 
 	prev, err := index.Tip().Header()

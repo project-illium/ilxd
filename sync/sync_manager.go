@@ -131,16 +131,16 @@ syncLoop:
 			// with the best chain score.
 			//
 			// Step one is we need to find the fork point.
-			forkPoint, err := sm.findForkPoint(height, height+lookaheadSize, blockMap)
+			forkBlock, forkHeight, err := sm.findForkPoint(height, height+lookaheadSize, blockMap)
 			if err != nil {
 				log.Debugf("Error find fork point. Err: %s", err)
 				continue
 			}
 
 			// Step two is sync up to fork point.
-			if forkPoint > height {
-				for blockID, p := range blockMap {
-					err := sm.syncBlocks(p, height+1, forkPoint, bestID, blockID)
+			if forkHeight > height {
+				for _, p := range blockMap {
+					err := sm.syncBlocks(p, height+1, forkHeight, bestID, forkBlock)
 					if err != nil {
 						log.Debugf("Error syncing blocks. Peer: %s, Err: %s", p, err)
 						continue syncLoop
@@ -151,13 +151,14 @@ syncLoop:
 
 			var (
 				scores      = make(map[types.ID]blockchain.ChainScore)
+				syncTo      = make(map[types.ID]*blocks.Block)
 				tipOfChain  = true
 				firstBlocks = make([]*blocks.Block, 0, len(blockMap))
 			)
 
 			// Step three is to download the evaluation window for each side of the fork.
 			for blockID, p := range blockMap {
-				blks, err := sm.downloadEvalWindow(p, forkPoint+1)
+				blks, err := sm.downloadEvalWindow(p, forkHeight+1)
 				if err != nil {
 					log.Debugf("Sync peer failed to serve evaluation window. Banning. Peer: %s", p)
 					sm.network.IncreaseBanscore(p, 101, 0)
@@ -178,6 +179,7 @@ syncLoop:
 					tipOfChain = false
 				}
 				scores[blockID] = score
+				syncTo[blockID] = blks[len(blks)-1]
 			}
 
 			// Finally, sync to the fork with the best chain score.
@@ -202,11 +204,30 @@ syncLoop:
 			for blockID, p := range blockMap {
 				if blockID != bestID {
 					sm.network.IncreaseBanscore(p, 101, 0)
+					sm.bucketMtx.Lock()
+					var banBucket types.ID
+				bucketLoop:
+					for bucketID, bucket := range sm.buckets {
+						for _, pid := range bucket {
+							if pid == p {
+								banBucket = bucketID
+								break bucketLoop
+							}
+						}
+					}
+					bucket, ok := sm.buckets[banBucket]
+					if ok {
+						for _, p := range bucket {
+							sm.network.IncreaseBanscore(p, 101, 0)
+						}
+					}
+					delete(sm.buckets, banBucket)
+					sm.bucketMtx.Unlock()
 				}
 			}
 
 			currentID, height, _ := sm.chain.BestBlock()
-			err = sm.syncBlocks(blockMap[bestID], height+1, height+lookaheadSize, currentID, bestID)
+			err = sm.syncBlocks(blockMap[bestID], height+1, syncTo[bestID].Header.Height, currentID, syncTo[bestID].ID())
 			if err != nil {
 				log.Debugf("Error syncing blocks. Peer: %s, Err: %s", blockMap[bestID], err)
 				continue syncLoop
@@ -519,14 +540,19 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 	return nil
 }
 
-func (sm *SyncManager) findForkPoint(currentHeight, toHeight uint32, blockMap map[types.ID]peer.ID) (uint32, error) {
+func (sm *SyncManager) findForkPoint(currentHeight, toHeight uint32, blockMap map[types.ID]peer.ID) (types.ID, uint32, error) {
 	type resp struct {
 		p       peer.ID
 		blockID types.ID
 		err     error
 	}
+	var (
+		startHeight = currentHeight
+		midPoint    = currentHeight + (toHeight-currentHeight)/2
+		prevMid     = midPoint
+		midID       types.ID
+	)
 
-	midPoint := (toHeight - currentHeight) / 2
 	for {
 		ch := make(chan resp)
 		wg := sync.WaitGroup{}
@@ -536,7 +562,18 @@ func (sm *SyncManager) findForkPoint(currentHeight, toHeight uint32, blockMap ma
 			for _, p := range blockMap {
 				go func(pid peer.ID, w *sync.WaitGroup) {
 					defer w.Done()
-					id, err := sm.chainService.GetBlockID(pid, getHeight)
+					var (
+						id     types.ID
+						height uint32
+						err    error
+					)
+					id, err = sm.chainService.GetBlockID(pid, getHeight)
+					if errors.Is(err, ErrNotFound) {
+						id, height, err = sm.chainService.GetBest(pid)
+						if height < startHeight || height >= getHeight {
+							err = fmt.Errorf("fork peer %s not returning expected height", pid)
+						}
+					}
 					ch <- resp{
 						p:       pid,
 						blockID: id,
@@ -550,20 +587,25 @@ func (sm *SyncManager) findForkPoint(currentHeight, toHeight uint32, blockMap ma
 		retMap := make(map[types.ID]struct{})
 		for r := range ch {
 			if r.err != nil {
-				return 0, r.err
+				return types.ID{}, 0, r.err
 			}
 			retMap[r.blockID] = struct{}{}
 		}
 		if len(retMap) > 1 {
-			midPoint = (midPoint - currentHeight) / 2
 			toHeight = midPoint
+			midPoint = currentHeight + ((midPoint - currentHeight) / 2)
 		} else {
-			midPoint = (toHeight - midPoint) / 2
 			currentHeight = midPoint
+			midPoint = midPoint + ((toHeight - midPoint) / 2)
+			for k, _ := range retMap {
+				midID = k
+				break
+			}
 		}
-		if toHeight-1 == midPoint {
-			return midPoint, nil
+		if prevMid == midPoint {
+			return midID, midPoint, nil
 		}
+		prevMid = midPoint
 	}
 }
 

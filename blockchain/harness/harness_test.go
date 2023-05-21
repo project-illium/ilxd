@@ -6,6 +6,7 @@ package harness
 
 import (
 	"crypto/rand"
+	"fmt"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -116,4 +117,23 @@ func TestNewTestHarness(t *testing.T) {
 
 	err = h.GenerateBlockWithTransactions([]*transactions.Transaction{transactions.WrapTransaction(&tx)}, []*SpendableNote{outNote})
 	assert.NoError(t, err)
+}
+
+func TestTestHarness_Accumulator(t *testing.T) {
+	b := &types.SpendNote{
+		ScriptHash: []byte{0x11, 0x11},
+		Amount:     0,
+		AssetID:    types.NewID([]byte{0xff, 0xff}),
+		State:      [128]byte{0xff},
+		Salt:       [32]byte{0xff},
+	}
+
+	b2 := *b
+
+	b.ScriptHash = []byte{0xaa, 0xaa}
+	b.AssetID = types.NewID([]byte{0xee, 0xee})
+	b.State = [128]byte{0x33}
+	b.Salt = [32]byte{0x33}
+	fmt.Println(b)
+	fmt.Println(b2)
 }

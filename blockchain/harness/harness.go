@@ -152,3 +152,44 @@ func (h *TestHarness) Accumulator() *blockchain.Accumulator {
 func (h *TestHarness) Blockchain() *blockchain.Blockchain {
 	return h.chain
 }
+
+func (h *TestHarness) Clone() (*TestHarness, error) {
+	newHarness := &TestHarness{
+		acc:            h.acc.Clone(),
+		spendableNotes: make(map[types.Nullifier]*SpendableNote),
+		validators:     make(map[peer.ID]*validator),
+		txsPerBlock:    h.txsPerBlock,
+		timeSource:     h.timeSource,
+	}
+
+	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(h.chain.Params()))
+	if err != nil {
+		return nil, err
+	}
+	_, bestH, _ := h.chain.BestBlock()
+	for i := uint32(1); i <= bestH; i++ {
+		blk, err := h.chain.GetBlockByHeight(i)
+		if err != nil {
+			return nil, err
+		}
+		err = chain.ConnectBlock(blk, blockchain.BFFastAdd)
+		if err != nil {
+			return nil, err
+		}
+	}
+	newHarness.chain = chain
+
+	for k, v := range h.spendableNotes {
+		k2 := types.NewNullifier(make([]byte, len(k)))
+		copy(k2[:], k[:])
+
+		v2 := *v
+		newHarness.spendableNotes[k2] = &v2
+	}
+	for k, v := range h.validators {
+		k2 := k
+		v2 := *v
+		newHarness.validators[k2] = &v2
+	}
+	return newHarness, nil
+}

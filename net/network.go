@@ -94,6 +94,8 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		pstore = cfg.host.Peerstore()
 	}
 
 	conngater, err := NewConnectionGater(cfg.datastore, pstore, cfg.banDuration, cfg.maxBanscore)
@@ -363,6 +365,10 @@ func (n *Network) Routing() routing.Routing {
 
 func (n *Network) Pubsub() *pubsub.PubSub {
 	return n.pubsub
+}
+
+func (n *Network) ConnGater() *ConnectionGater {
+	return n.connGater
 }
 
 func (n *Network) SubscribeBlocks() (*pubsub.Subscription, error) {
