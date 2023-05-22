@@ -154,6 +154,7 @@ syncLoop:
 				syncTo      = make(map[types.ID]*blocks.Block)
 				tipOfChain  = true
 				firstBlocks = make([]*blocks.Block, 0, len(blockMap))
+				firstMap    = make(map[types.ID]types.ID)
 			)
 
 			// Step three is to download the evaluation window for each side of the fork.
@@ -180,6 +181,7 @@ syncLoop:
 				}
 				scores[blockID] = score
 				syncTo[blockID] = blks[len(blks)-1]
+				firstMap[blks[0].ID()] = blockID
 			}
 
 			// Finally, sync to the fork with the best chain score.
@@ -193,6 +195,7 @@ syncLoop:
 					log.Debugf("Sync error choosing between tips: %s", err)
 					continue syncLoop
 				}
+				bestID = firstMap[bestID]
 			} else {
 				for blockID, score := range scores {
 					if score < bestScore {

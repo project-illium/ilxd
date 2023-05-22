@@ -7,6 +7,7 @@ package sync
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -35,14 +36,14 @@ type mockNode struct {
 	service *ChainService
 }
 
-func generateMockNetwork(numNodes int) (*mockNetwork, error) {
+func generateMockNetwork(numNodes, numBlocks int) (*mockNetwork, error) {
 	mn := mocknet.New()
 
 	testHarness, err := harness.NewTestHarness(harness.DefaultOptions())
 	if err != nil {
 		return nil, err
 	}
-	err = testHarness.GenerateBlocks(25000)
+	err = testHarness.GenerateBlocks(numBlocks)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +109,7 @@ func makeMockNode(mn mocknet.Mocknet, chain *blockchain.Blockchain) (*mockNode, 
 }
 
 func TestSync(t *testing.T) {
-	net, err := generateMockNetwork(20)
+	net, err := generateMockNetwork(20, 25000)
 	assert.NoError(t, err)
 
 	t.Run("sync when all nodes agree", func(t *testing.T) {
@@ -241,4 +242,61 @@ func TestSync(t *testing.T) {
 		assert.Equal(t, block2, block)
 		assert.Equal(t, height2, height)
 	})
+	net.mn.Close()
+}
+
+func TestSyncFromChooser(t *testing.T) {
+	net, err := generateMockNetwork(20, 1000)
+	assert.NoError(t, err)
+
+	harness2, err := net.harness.Clone()
+	assert.NoError(t, err)
+	net.harness.GenerateBlocks(50)
+	harness2.GenerateBlocks(100)
+
+	choiceID, err := harness2.Blockchain().GetBlockIDByHeight(1001)
+	assert.NoError(t, err)
+
+	// Add more nodes following chain 2
+	for i := 0; i < 20; i++ {
+		_, err := makeMockNode(net.mn, harness2.Blockchain())
+		assert.NoError(t, err)
+	}
+
+	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(net.harness.Blockchain().Params()))
+	assert.NoError(t, err)
+
+	node, err := makeMockNode(net.mn, chain)
+	assert.NoError(t, err)
+
+	chooser := func(blks []*blocks.Block) (types.ID, error) {
+		for _, blk := range blks {
+			if blk.ID() == choiceID {
+				return blk.ID(), nil
+			}
+		}
+		return types.ID{}, errors.New("choice not found")
+	}
+
+	manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, chooser)
+
+	assert.NoError(t, net.mn.LinkAll())
+	assert.NoError(t, net.mn.ConnectAllButSelf())
+
+	ch := make(chan struct{})
+	go func() {
+		manager.Start()
+		close(ch)
+	}()
+	select {
+	case <-ch:
+	case <-time.After(time.Second * 10):
+		t.Fatal("sync timed out")
+	}
+
+	block, height, _ := chain.BestBlock()
+	block2, height2, _ := harness2.Blockchain().BestBlock()
+	assert.Equal(t, block2, block)
+	assert.Equal(t, height2, height)
+	node.network.Close()
 }
