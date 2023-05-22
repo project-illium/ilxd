@@ -79,10 +79,8 @@ func (sm *SyncManager) Start() {
 	for {
 		err := sm.populatePeerBuckets()
 		if err != nil {
-			select {
-			case <-time.After(time.Second * 10):
-				continue
-			}
+			<-time.After(time.Second * 10)
+			continue
 		}
 		break
 	}
@@ -103,22 +101,19 @@ syncLoop:
 		// fork, we will encounter it as we sync forward.
 		bestID, height, _ := sm.chain.BestBlock()
 		blockMap, err := sm.queryPeersForBlockID(height + lookaheadSize)
-		if err != nil || len(blockMap) == 0 {
-			select {
-			case <-time.After(time.Second * 10):
-				continue
-			}
+		if err != nil {
+			<-time.After(time.Second * 10)
+			continue
 		}
-		if len(blockMap) == 1 {
+		if len(blockMap) == 0 {
+			sm.currentMtx.Lock()
+			defer sm.currentMtx.Unlock()
+			sm.current = true
+			return
+		} else if len(blockMap) == 1 {
 			// All peers agree on the blockID at the requested height. This is good.
 			// We'll just sync up to this height.
 			for blockID, p := range blockMap {
-				if bestID == blockID {
-					sm.currentMtx.Lock()
-					defer sm.currentMtx.Unlock()
-					sm.current = true
-					return
-				}
 				err := sm.syncBlocks(p, height+1, height+lookaheadSize, bestID, blockID)
 				if err != nil {
 					log.Debugf("Error syncing blocks. Peer: %s, Err: %s", p, err)
@@ -159,6 +154,9 @@ syncLoop:
 
 			// Step three is to download the evaluation window for each side of the fork.
 			for blockID, p := range blockMap {
+				if blockID == forkBlock {
+					continue
+				}
 				blks, err := sm.downloadEvalWindow(p, forkHeight+1)
 				if err != nil {
 					log.Debugf("Sync peer failed to serve evaluation window. Banning. Peer: %s", p)
@@ -184,7 +182,7 @@ syncLoop:
 				firstMap[blks[0].ID()] = blockID
 			}
 
-			// Finally, sync to the fork with the best chain score.
+			// Next, select the fork with the best chain score.
 			var (
 				bestScore = blockchain.ChainScore(math.MaxInt32)
 				bestID    types.ID
@@ -204,31 +202,35 @@ syncLoop:
 					}
 				}
 			}
-			for blockID, p := range blockMap {
-				if blockID != bestID {
-					sm.network.IncreaseBanscore(p, 101, 0)
-					sm.bucketMtx.Lock()
-					var banBucket types.ID
-				bucketLoop:
-					for bucketID, bucket := range sm.buckets {
-						for _, pid := range bucket {
-							if pid == p {
-								banBucket = bucketID
-								break bucketLoop
+			// And ban the nodes on bad fork
+			if len(firstBlocks) > 1 {
+				for blockID, p := range blockMap {
+					if blockID != bestID {
+						sm.network.IncreaseBanscore(p, 101, 0)
+						sm.bucketMtx.Lock()
+						var banBucket types.ID
+					bucketLoop:
+						for bucketID, bucket := range sm.buckets {
+							for _, pid := range bucket {
+								if pid == p {
+									banBucket = bucketID
+									break bucketLoop
+								}
 							}
 						}
-					}
-					bucket, ok := sm.buckets[banBucket]
-					if ok {
-						for _, p2 := range bucket {
-							sm.network.IncreaseBanscore(p2, 101, 0)
+						bucket, ok := sm.buckets[banBucket]
+						if ok {
+							for _, p2 := range bucket {
+								sm.network.IncreaseBanscore(p2, 101, 0)
+							}
 						}
+						delete(sm.buckets, banBucket)
+						sm.bucketMtx.Unlock()
 					}
-					delete(sm.buckets, banBucket)
-					sm.bucketMtx.Unlock()
 				}
 			}
 
+			// Finally sync to the best fork.
 			currentID, height, _ := sm.chain.BestBlock()
 			err = sm.syncBlocks(blockMap[bestID], height+1, syncTo[bestID].Header.Height, currentID, syncTo[bestID].ID())
 			if err != nil {
@@ -274,11 +276,13 @@ func (sm *SyncManager) queryPeersForBlockID(height uint32) (map[types.ID]peer.ID
 	if len(peers) == 0 {
 		return nil, errors.New("no peers to query")
 	}
+	_, bestHeight, _ := sm.chain.BestBlock()
 	size := nextHeightQuerySize
 	if len(peers) < nextHeightQuerySize {
 		size = len(peers)
 	}
 
+	// Pick peers at random to query
 	toQuery := make(map[peer.ID]bool)
 	for len(toQuery) < size {
 		p := peers[rand.Intn(len(peers))]
@@ -307,6 +311,7 @@ bucketLoop:
 	type resp struct {
 		p       peer.ID
 		blockID types.ID
+		height  uint32
 	}
 
 	ch := make(chan resp)
@@ -316,9 +321,10 @@ bucketLoop:
 		for p := range toQuery {
 			go func(pid peer.ID, w *sync.WaitGroup) {
 				defer w.Done()
+				h := height
 				id, err := sm.chainService.GetBlockID(pid, height)
 				if errors.Is(err, ErrNotFound) {
-					id, _, err = sm.chainService.GetBest(pid)
+					id, h, err = sm.chainService.GetBest(pid)
 				}
 				if err != nil {
 					sm.network.IncreaseBanscore(pid, 0, 20)
@@ -327,6 +333,7 @@ bucketLoop:
 				ch <- resp{
 					p:       pid,
 					blockID: id,
+					height:  h,
 				}
 			}(p, &wg)
 		}
@@ -336,7 +343,9 @@ bucketLoop:
 	ret := make(map[types.ID]peer.ID)
 	count := 0
 	for r := range ch {
-		ret[r.blockID] = r.p
+		if r.height > bestHeight {
+			ret[r.blockID] = r.p
+		}
 		count++
 	}
 	// If enough peers failed, return error.
@@ -575,6 +584,7 @@ func (sm *SyncManager) findForkPoint(currentHeight, toHeight uint32, blockMap ma
 						id, height, err = sm.chainService.GetBest(pid)
 						if height < startHeight || height >= getHeight {
 							err = fmt.Errorf("fork peer %s not returning expected height", pid)
+							sm.network.IncreaseBanscore(pid, 101, 0)
 						}
 					}
 					ch <- resp{
