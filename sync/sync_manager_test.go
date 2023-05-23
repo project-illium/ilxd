@@ -162,6 +162,7 @@ func TestSync(t *testing.T) {
 		assert.Equal(t, block2, block)
 		assert.Equal(t, height2, height)
 		node.network.Close()
+		chain.Params().Checkpoints = nil
 	})
 
 	t.Run("sync with chain fork", func(t *testing.T) {
