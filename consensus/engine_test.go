@@ -226,4 +226,35 @@ func TestConsensusEngine(t *testing.T) {
 			}
 		}
 	})
+	t.Run("Test block finalization of conflicting blocks", func(t *testing.T) {
+		blk6a := &blocks.Block{Header: &blocks.BlockHeader{Version: 0, Height: 6}}
+		blk6b := &blocks.Block{Header: &blocks.BlockHeader{Version: 1, Height: 6}}
+		cb := make(chan Status)
+		for _, node := range nodes {
+			node.engine.NewBlock(blk6a.Header, true, cb)
+		}
+
+		<-time.After(time.Second * 5)
+
+		cba2 := make(chan Status)
+		cbb2 := make(chan Status)
+		preferred := rand.Intn(2) == 1
+		testNode.engine.NewBlock(blk6a.Header, preferred, cba2)
+		testNode.engine.NewBlock(blk6b.Header, !preferred, cbb2)
+
+		ticker := time.NewTicker(time.Second * 1000)
+		select {
+		case status := <-cba2:
+			assert.Equal(t, status, StatusFinalized)
+		case <-ticker.C:
+			t.Errorf("Failed to finalize block 6a for test node")
+		}
+		select {
+		case status := <-cbb2:
+			assert.Equal(t, status, StatusRejected)
+			assert.False(t, testNode.engine.voteRecords[blk6b.ID()].isPreferred())
+		case <-ticker.C:
+			t.Errorf("Failed to reject block 6b for test node")
+		}
+	})
 }

@@ -101,11 +101,6 @@ type ConsensusEngine struct {
 	rejectedBlocks map[types.ID]struct{}
 	queries        map[string]RequestRecord
 	callbacks      map[types.ID]chan<- Status
-
-	alwaysNo    bool
-	flipFlopper bool
-	flipperVote bool
-	printState  bool
 }
 
 func NewConsensusEngine(ctx context.Context, opts ...Option) (*ConsensusEngine, error) {
@@ -294,16 +289,6 @@ func (eng *ConsensusEngine) handleQuery(req *wire.MsgAvaRequest, remotePeer peer
 				go eng.requestBlock(inv, remotePeer)
 			}
 		}
-
-		if eng.alwaysNo {
-			votes[i] = 0x00
-			continue
-		}
-
-		if eng.flipFlopper {
-			votes[i] = boolToUint8(eng.flipperVote)
-			eng.flipperVote = !eng.flipperVote
-		}
 	}
 	resp := &wire.MsgAvaResponse{
 		Request_ID: req.Request_ID,
@@ -384,15 +369,11 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 			continue
 		}
 		vr.inflightRequests--
-
 		if vr.hasFinalized() {
 			continue
 		}
 
 		if !vr.regsiterVote(resp.Votes[i]) {
-			if eng.printState {
-				vr.printState()
-			}
 			// This vote did not provide any extra information
 			continue
 		}
@@ -409,11 +390,8 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 		}
 
 		if vr.status() == StatusFinalized {
-			if eng.printState {
-				vr.printState()
-			}
 			callback, ok := eng.callbacks[inv]
-			if ok {
+			if ok && callback != nil {
 				go func() {
 					callback <- vr.status()
 				}()
@@ -424,7 +402,7 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 					eng.limitRejected()
 					eng.rejectedBlocks[conflict] = struct{}{}
 					callback, ok := eng.callbacks[conflict]
-					if ok {
+					if ok && callback != nil {
 						go func() {
 							callback <- eng.voteRecords[conflict].status()
 						}()
@@ -436,9 +414,6 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 }
 
 func (eng *ConsensusEngine) pollLoop() {
-	if eng.alwaysNo || eng.flipFlopper {
-		return
-	}
 	invs := eng.getInvsForNextPoll()
 	if len(invs) == 0 {
 		return
@@ -455,7 +430,9 @@ func (eng *ConsensusEngine) pollLoop() {
 
 	invList := make([][]byte, 0, len(invs))
 	for _, inv := range invs {
-		invList = append(invList, inv[:])
+		b := make([]byte, len(inv))
+		copy(b, inv[:])
+		invList = append(invList, b)
 	}
 
 	req := &wire.MsgAvaRequest{
