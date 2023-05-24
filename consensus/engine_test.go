@@ -6,7 +6,6 @@ package consensus
 
 import (
 	"context"
-	"fmt"
 	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/project-illium/ilxd/net"
@@ -307,9 +306,6 @@ func TestConsensusEngine(t *testing.T) {
 			node.engine.NewBlock(blk6b.Header, !preferred, cbb)
 		}
 
-		<-time.After(time.Second * 5)
-		fmt.Println()
-
 		cba2 := make(chan Status)
 		cbb2 := make(chan Status)
 		preferred := rand.Intn(2) == 1
@@ -336,5 +332,44 @@ func TestConsensusEngine(t *testing.T) {
 		case <-ticker.C:
 			t.Errorf("Failed to finalize or reject block 6b for test node")
 		}
+
+		finalized := 0
+		rejected := 0
+	loop:
+		for {
+			select {
+			case status := <-cba:
+				if yes {
+					assert.Equal(t, status, StatusFinalized)
+					assert.True(t, testNode.engine.voteRecords[blk6a.ID()].isPreferred())
+					finalized++
+				} else {
+					assert.Equal(t, status, StatusRejected)
+					assert.False(t, testNode.engine.voteRecords[blk6a.ID()].isPreferred())
+					rejected++
+				}
+				if finalized == 100 && rejected == 100 {
+					break loop
+				}
+			case status := <-cbb:
+				if !yes {
+					assert.Equal(t, status, StatusFinalized)
+					assert.True(t, testNode.engine.voteRecords[blk6b.ID()].isPreferred())
+					finalized++
+				} else {
+					assert.Equal(t, status, StatusRejected)
+					assert.False(t, testNode.engine.voteRecords[blk6b.ID()].isPreferred())
+					rejected++
+				}
+				if finalized == 100 && rejected == 100 {
+					break loop
+				}
+			case <-ticker.C:
+				t.Errorf("Failed to finalize or rejecct block 6a for test node")
+				break loop
+			}
+		}
+		assert.Equal(t, 100, finalized)
+		assert.Equal(t, 100, rejected)
 	})
 }
