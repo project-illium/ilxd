@@ -176,7 +176,7 @@ func (eng *ConsensusEngine) NewBlock(header *blocks.BlockHeader, initialAcceptan
 }
 
 func (eng *ConsensusEngine) handleNewBlock(header *blocks.BlockHeader, initialAcceptancePreference bool, callback chan<- Status) {
-	blockID := header.ID()
+	blockID := header.ID().Clone()
 	_, ok := eng.voteRecords[blockID]
 	if ok {
 		return
@@ -397,14 +397,15 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 				}()
 			}
 			for _, conflict := range eng.conflicts[vr.height] {
-				if conflict != vr.blockID {
-					eng.voteRecords[conflict].Reject()
+				conflictID := conflict.Clone()
+				if conflictID != vr.blockID {
+					eng.voteRecords[conflictID].Reject()
 					eng.limitRejected()
-					eng.rejectedBlocks[conflict] = struct{}{}
-					callback, ok := eng.callbacks[conflict]
+					eng.rejectedBlocks[conflictID] = struct{}{}
+					callback, ok := eng.callbacks[conflictID]
 					if ok && callback != nil {
 						go func() {
-							callback <- eng.voteRecords[conflict].status()
+							callback <- eng.voteRecords[conflictID].status()
 						}()
 					}
 				}
@@ -430,9 +431,8 @@ func (eng *ConsensusEngine) pollLoop() {
 
 	invList := make([][]byte, 0, len(invs))
 	for _, inv := range invs {
-		b := make([]byte, len(inv))
-		copy(b, inv[:])
-		invList = append(invList, b)
+		b := inv.Clone()
+		invList = append(invList, b[:])
 	}
 
 	req := &wire.MsgAvaRequest{

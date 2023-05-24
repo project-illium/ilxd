@@ -30,6 +30,12 @@ func (id ID) Compare(target ID) int {
 	return 0
 }
 
+func (id ID) Clone() ID {
+	var b [len(id)]byte
+	copy(b[:], id[:])
+	return b
+}
+
 func (id ID) String() string {
 	return hex.EncodeToString(id[:])
 }
