@@ -51,8 +51,10 @@ const (
 	// if it hasn't been finalized by avalanche.
 	DeleteInventoryAfter = time.Hour * 6
 
+	// ConsensusProtocol is the libp2p network protocol ID
 	ConsensusProtocol = "consensus"
 
+	// MaxRejectedCache is the maximum size of the rejected cache
 	MaxRejectedCache = 200
 )
 
@@ -69,6 +71,7 @@ type queryMsg struct {
 	remotePeer peer.ID
 }
 
+// newBlockMessage represents new work for the engine.
 type newBlockMessage struct {
 	header                      *blocks.BlockHeader
 	initialAcceptancePreference bool
@@ -81,9 +84,18 @@ type registerVotesMsg struct {
 	resp *wire.MsgAvaResponse
 }
 
+// RequestBlockFunc is called when the engine receives a query from a peer about
+// and unknown block. It should attempt to download the block from the remote peer,
+// validate it, then pass it into the engine.
 type RequestBlockFunc func(blockID types.ID, remotePeer peer.ID)
+
+// HasBlockFunc checks the blockchain to see if we already have the block.
 type HasBlockFunc func(blockID types.ID) bool
 
+// ConsensusEngine implements a form of the avalanche consensus protocol.
+// It primarily consists of an event loop that polls the weighted list of
+// validators for any unfinalized blocks and records the responses. Blocks
+// finalize when the confidence level exceeds the threshold.
 type ConsensusEngine struct {
 	ctx          context.Context
 	network      *net.Network
@@ -103,6 +115,7 @@ type ConsensusEngine struct {
 	callbacks      map[types.ID]chan<- Status
 }
 
+// NewConsensusEngine returns a new ConsensusEngine
 func NewConsensusEngine(ctx context.Context, opts ...Option) (*ConsensusEngine, error) {
 	var cfg config
 	for _, opt := range opts {
@@ -136,6 +149,7 @@ func NewConsensusEngine(ctx context.Context, opts ...Option) (*ConsensusEngine, 
 	return eng, nil
 }
 
+// Close gracefully shutsdown the consensus engine
 func (eng *ConsensusEngine) Close() {
 	close(eng.quit)
 	eng.wg.Wait()
@@ -167,6 +181,10 @@ out:
 	eng.wg.Done()
 }
 
+// NewBlock is used to pass new work in the engine. The callback channel will return the final
+// status (either Finalized or Rejected). Unfinalized but NotPreffered blocks will remain active
+// in the engine until a conflicting block at the same height is finalized. At that point the block
+// will be marked as Rejected.
 func (eng *ConsensusEngine) NewBlock(header *blocks.BlockHeader, initialAcceptancePreference bool, callback chan<- Status) {
 	eng.msgChan <- &newBlockMessage{
 		header:                      header,
@@ -209,6 +227,8 @@ func (eng *ConsensusEngine) handleNewBlock(header *blocks.BlockHeader, initialAc
 	eng.callbacks[blockID] = callback
 }
 
+// HandleNewStream handles incoming streams from peers. We use one stream for
+// incoming and a separate one for outgoing.
 func (eng *ConsensusEngine) HandleNewStream(s inet.Stream) {
 	go eng.handleNewMessage(s)
 }

@@ -11,8 +11,8 @@
 package wire
 
 import (
-	"github.com/project-illium/ilxd/types/blocks"
-	"github.com/project-illium/ilxd/types/transactions"
+	blocks "github.com/project-illium/ilxd/types/blocks"
+	transactions "github.com/project-illium/ilxd/types/transactions"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

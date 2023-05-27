@@ -1,0 +1,158 @@
+syntax = "proto3";
+option go_package="github.com/project-illium/ilxd/rpc/pb";
+
+package pb;
+
+import "transactions.proto";
+
+service BlockchainService {
+    rpc GetMempoolInfo(GetMempoolInfoRequest) returns (GetMempoolInfoResponse) {}
+    rpc GetMempool(GetMempoolRequest) returns (GetMempoolResponse) {}
+    rpc GetBlockchainInfo(GetBlockchainInfoRequest) returns (GetBlockchainInfoResponse) {}
+    rpc GetBlockInfo(GetBlockInfoRequest)returns (GetBlockInfoResponse) {}
+    rpc GetBlock(GetBlockRequest) returns (GetBlockResponse) {}
+    rpc GetCompactBlock(GetCompactBlockRequest) returns (GetCompactBlockResponse) {}
+    rpc GetHeaders(GetHeadersRequest) returns (GetHeadersResponse) {}
+    rpc GetCompactBlocks(GetCompactBlocksRequest) returns (GetCompactBlocksResponse) {}
+    rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse) {}
+    rpc GetMerkleProof(GetMerkleProofRequest) returns (GetMerkleProofResponse) {}
+    rpc GetValidator(GetValidatorRequest) returns (GetValidatorResponse) {}
+    rpc GetValidatorSetInfo(GetValidatorSetInfoRequest) returns (GetValidatorSetInfoResponse) {}
+    rpc GetValidatorSet(GetValidatorSetRequest) returns (GetValidatorSetResponse) {}
+    rpc GetAccumulatorCheckpoint(GetAccumulatorCheckpointRequest) returns (GetAccumulatorCheckpointResponse) {}
+    rpc SubmitTransaction(SubmitTransactionRequest) returns (SubmitTransactionResponse) {}
+    rpc SubscribeBlocks(SubscribeBlocksRequest) returns (stream BlockNotification) {}
+}
+
+service WalletServerService {
+    rpc RegisterAddress(RegisterAddressRequest) returns (RegisterAddressResponse) {}
+    rpc SubscribeAddress(SubscribeAddressRequest) returns (stream SubscribeAddressResponse) {}
+    rpc GetAddressTransactions(GetAddressTransactionsRequest) returns (GetAddressTransactionsResponse) {}
+    rpc GetTxoProof(GetTxoProofRequest) returns (GetTxoProofResponse) {}
+}
+
+service WalletService {
+    rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse) {}
+    rpc GetWalletSeed(GetWalletSeedRequest) returns (GetWalletSeedResponse) {}
+    rpc GetAddresses(GetAddressesRequest) returns (GetAddressesResponse) {}
+    rpc GetNewAddress(GetNewAddressRequest) returns (GetNewAddressResponse) {}
+    rpc GetTransactions(GetTransactionsRequest) returns (GetTransactionsResponse) {}
+    rpc GetUtxos(GetUtxosRequest) returns (GetUtxosResponse) {}
+    rpc GetPrivateKey(GetPrivateKeyRequest) returns (GetPrivateKeyResponse) {}
+    rpc ImportAddress(ImportAddressRequest) returns (ImportAddressResponse) {}
+    rpc CreateMultisigAddress(CreateMultisigAddressRequest) returns (CreateMultisigAddressResponse) {}
+    rpc ProveMultisig(ProveMultisigRequest) returns (ProveMultisigResponse) {}
+    rpc WalletLock(WalletLockRequest) returns (WalletUnlockRequest) {}
+    rpc WalletUnlock(WalletUnlockRequest) returns (WalletUnlockResponse) {}
+    rpc ChangeWalletPassphrase(ChangeWalletPassphraseRequest) returns (ChangeWalletPassphraseResponse) {}
+    rpc DeletePrivateKeys(DeletePrivateKeysRequest) returns (DeletePrivateKeysResponse) {}
+    rpc CreateRawTransaction(CreateRawTransactionRequest) returns (CreateRawTransactionResponse) {}
+    rpc ProveRawTransaction(ProveRawTransactionRequest) returns (ProveRawTransactionRequest) {}
+    rpc BroadcastRawTransaction(BroadcastRawTransactionRequest) returns (BroadcastRawTransactionResponse) {}
+    rpc Stake(StakeRequest) returns (StakeResponse) {}
+    rpc SetAutoStakeRewards(SetAutoStakeRewardsRequest) returns (SetAutoStakeRewardsResponse) {}
+    rpc Spend(SpendRequest) returns (SpendResponse) {}
+}
+
+service NodeService {
+    rpc GetHostInfo(GetHostInfoRequest) returns (GetHostInfoResponse) {}
+    rpc GetPeers(GetPeersRequest) returns (GetPeersResponse) {}
+    rpc AddPeer(AddPeerRequest) returns (AddPeerResponse) {}
+    rpc BlockPeer(BlockPeerRequest) returns (BlockPeerResponse) {}
+    rpc SetLogLevel(SetLogLevelRequest) returns (SetLogLevelResponse) {}
+    rpc GetMinFeePerByte(GetMinFeePerByteRequest) returns (GetMinFeePerByteResponse) {}
+    rpc SetMinFeePerByte(SetMinFeePerByteRequest) returns (SetMinFeePerByteResponse) {}
+    rpc GetMinStake(GetMinStakeRequest) returns (GetMinStakeResponse) {}
+    rpc SetMinStake(SetMinStakeRequest) returns (SetMinStakeResponse) {}
+    rpc GetBlockSizeSoftLimit(GetBlockSizeSoftLimitRequest) returns (GetBlockSizeSoftLimitResponse) {}
+    rpc SetBlockSizeSoftLimit(SetBlockSizeSoftLimitRequest) returns (SetBlockSizeSoftLimitResponse) {}
+    rpc GetTreasuryWhitelist(GetTreasuryWhitelistRequest) returns (GetTreasuryWhitelistResponse) {}
+    rpc WhitelistTreasuryTransaction(WhitelistTreasuryTransactionRequest) returns (WhitelistTreasuryTransactionResponse) {}
+    rpc ReconsiderBlock(ReconsiderBlockRequest) returns (ReconsiderBlockResponse) {}
+    rpc RecomputeChainState(RecomputeChainStateRequest) returns (RecomputeChainStateResponse) {}
+}
+
+message GetMempoolInfoRequest{}
+message GetMempoolInfoResponse {
+    // The count of transactions in the mempool
+    uint32 size = 1;
+    // The size in bytes of all transactions in the mempool
+    uint32 bytes = 2;
+}
+
+message GetMempoolRequest {
+    // When `full_transactions` is true, full transaction data is provided
+    // instead of just transaction hashes. Default is false.
+    bool full_transactions = 1;
+}
+message GetMempoolResponse {
+    message TransactionData {
+        // Either one of the two following is provided, depending on the request.
+        oneof txids_or_txs {
+            // The transaction hash, little-endian.
+            bytes transaction_hash = 1;
+            // The transaction data.
+            Transaction transaction = 2;
+        }
+    }
+
+    // List of unconfirmed transactions.
+    repeated TransactionData transaction_data = 1;
+}
+
+message GetBlockchainInfoRequest {}
+message GetBlockchainInfoResponse {
+
+    // Illium network types
+    enum Network {
+
+        // Live public network with monetary value.
+        MAINNET  = 0;
+        // An isolated environment for automated testing.
+        REGTEST  = 1;
+        // A public environment where monetary value is agreed to be zero,
+        // and some checks for transaction conformity are disabled.
+        TESTNET = 2;
+    }
+
+    // Which network the node is operating on.
+    Network network = 1;
+    // The current number of blocks in the chain.
+    int32 best_height = 2;
+    // The hash of the best (tip) block in the chain.
+    bytes best_block_hash = 3;
+    // The timestamp of the best block.
+    int64 block_time = 4;
+    // When `tx_index` is true, the node has full transaction index enabled.
+    bool tx_index = 5;
+    // The total number of coins in circulation.
+    uint64 ciculating_supply = 6;
+    // The total number of coins staked.
+    uint64 total_staked = 7;
+}
+
+message GetBlockInfoRequest {
+    oneof hash_or_height {
+        // The block hash as a byte array or hex encoded string
+        bytes hash = 1;
+        // The block number.
+        int32 height = 2;
+    }
+}
+message GetBlockInfoResponse {
+    // Marshaled block header data, as well as metadata.
+    BlockInfo info = 1;
+}
+
+message GetBlockInfoRequest {
+    oneof hash_or_height {
+        // The block hash as a byte array or base64 encoded string, little-endian.
+        bytes hash = 1;
+        // The block number.
+        int32 height = 2;
+    }
+}
+message GetBlockInfoResponse {
+    // Marshaled block header data, as well as metadata.
+    BlockInfo info = 1;
+}
