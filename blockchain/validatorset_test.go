@@ -61,7 +61,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(ret1.Nullifiers))
 	assert.Equal(t, types.Amount(20000), stake.Amount)
-	assert.Equal(t, uint32(1), ret1.epochBlocks)
+	assert.Equal(t, uint32(1), ret1.EpochBlocks)
 
 	ret2, err := vs.GetValidator(valID)
 	assert.NoError(t, err)
@@ -71,7 +71,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(ret2.Nullifiers))
 	assert.Equal(t, types.Amount(100000), stake.Amount)
-	assert.Equal(t, uint32(0), ret2.epochBlocks)
+	assert.Equal(t, uint32(0), ret2.EpochBlocks)
 
 	// Check nullifiers are in the nullifier map
 	_, ok = vs.nullifierMap[types.NewNullifier(producerNullifier[:])]
@@ -109,7 +109,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(ret1.Nullifiers))
 	assert.Equal(t, types.Amount(80000), stake.Amount)
-	assert.Equal(t, uint32(0), ret1.epochBlocks)
+	assert.Equal(t, uint32(0), ret1.EpochBlocks)
 
 	// Make sure the first validator was removed
 	_, err = vs.GetValidator(valID)

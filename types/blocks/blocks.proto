@@ -39,3 +39,8 @@ message XThinnerBlock {
         uint32 index            = 2;
     }
 }
+
+message CompressedBlock {
+    uint32 height           = 1;
+    repeated Output outputs = 2;
+}

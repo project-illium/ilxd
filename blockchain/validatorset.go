@@ -67,8 +67,8 @@ type Validator struct {
 	TotalStake       types.Amount
 	Nullifiers       map[types.Nullifier]Stake
 	UnclaimedCoins   types.Amount
+	EpochBlocks      uint32
 	stakeAccumulator float64
-	epochBlocks      uint32
 	dirty            bool
 }
 
@@ -80,7 +80,7 @@ func (v *Validator) Clone() *Validator {
 		Nullifiers:       make(map[types.Nullifier]Stake),
 		UnclaimedCoins:   v.UnclaimedCoins,
 		stakeAccumulator: v.stakeAccumulator,
-		epochBlocks:      v.epochBlocks,
+		EpochBlocks:      v.EpochBlocks,
 	}
 	for n, s := range v.Nullifiers {
 		ret.Nullifiers[n] = Stake{
@@ -106,7 +106,7 @@ type ValidatorSet struct {
 	toDelete     map[peer.ID]struct{}
 	chooser      *weightedrand.Chooser[peer.ID, types.Amount]
 	dirty        bool
-	epochBlocks  uint32
+	EpochBlocks  uint32
 	lastFlush    time.Time
 	mtx          sync.RWMutex
 }
@@ -383,7 +383,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 						TotalStake:     0,
 						Nullifiers:     make(map[types.Nullifier]Stake),
 						UnclaimedCoins: 0,
-						epochBlocks:    0,
+						EpochBlocks:    0,
 						dirty:          true,
 					}
 				} else {
@@ -455,7 +455,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 				copyValidator(valNew, valOld)
 			}
 
-			expectedBlocks := valNew.stakeAccumulator / float64(vs.epochBlocks)
+			expectedBlocks := valNew.stakeAccumulator / float64(vs.EpochBlocks)
 			if expectedBlocks < 1 {
 				expectedBlocks = 1
 			}
@@ -480,25 +480,25 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 				valNew.UnclaimedCoins = valNew.UnclaimedCoins + types.Amount(float64(validatorReward)*(float64(valTotal)/float64(totalStaked)))
 			}
 
-			if valNew.epochBlocks > blockProductionLimit(float64(vs.epochBlocks), expectedBlocks/float64(vs.epochBlocks)) {
+			if valNew.EpochBlocks > blockProductionLimit(float64(vs.EpochBlocks), expectedBlocks/float64(vs.EpochBlocks)) {
 				valNew.UnclaimedCoins = 0
 			}
 
-			if valNew.epochBlocks < blockProductionFloor(float64(vs.epochBlocks), expectedBlocks/float64(vs.epochBlocks)) {
+			if valNew.EpochBlocks < blockProductionFloor(float64(vs.EpochBlocks), expectedBlocks/float64(vs.EpochBlocks)) {
 				valNew.UnclaimedCoins = 0
 			}
 
-			valNew.epochBlocks = 0
+			valNew.EpochBlocks = 0
 			valNew.stakeAccumulator = 0
 			updates[valNew.PeerID] = valNew
 		}
-		vs.epochBlocks = 0
+		vs.EpochBlocks = 0
 	}
 
 	if blk.Header.Height > 0 {
 		blockProducer, ok := vs.validators[producerID]
 		if ok {
-			blockProducer.epochBlocks++
+			blockProducer.EpochBlocks++
 		}
 	}
 
@@ -536,7 +536,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 		vs.chooser, _ = weightedrand.NewChooser(choices...)
 	}
 
-	vs.epochBlocks++
+	vs.EpochBlocks++
 
 	return vs.flush(flushMode, blk.Header.Height)
 }
@@ -566,11 +566,11 @@ func (vs *ValidatorSet) BlockProductionLimit(validatorID peer.ID) (uint32, uint3
 	if !ok {
 		return 0, 0, errors.New("not found")
 	}
-	expectedBlocks := val.stakeAccumulator / float64(vs.epochBlocks)
+	expectedBlocks := val.stakeAccumulator / float64(vs.EpochBlocks)
 	if expectedBlocks < 1 {
 		expectedBlocks = 1
 	}
-	return val.epochBlocks, blockProductionLimit(float64(vs.epochBlocks), expectedBlocks/float64(vs.epochBlocks)), nil
+	return val.EpochBlocks, blockProductionLimit(float64(vs.EpochBlocks), expectedBlocks/float64(vs.EpochBlocks)), nil
 }
 
 // Flush flushes changes from the memory cache to disk.
@@ -651,14 +651,14 @@ func (vs *ValidatorSet) flushToDisk(chainHeight uint32) error {
 }
 
 // Six standard deviations from the expected number of blocks.
-func blockProductionLimit(epochBlocks float64, stakePercentage float64) uint32 {
-	return uint32((epochBlocks * stakePercentage) + (math.Sqrt(epochBlocks*stakePercentage*(1-stakePercentage)) * 6))
+func blockProductionLimit(EpochBlocks float64, stakePercentage float64) uint32 {
+	return uint32((EpochBlocks * stakePercentage) + (math.Sqrt(EpochBlocks*stakePercentage*(1-stakePercentage)) * 6))
 }
 
 // Six standard deviations from the expected number of blocks.
-func blockProductionFloor(epochBlocks float64, stakePercentage float64) uint32 {
-	expectedBlocks := uint32(epochBlocks * stakePercentage)
-	dev := uint32(math.Sqrt(epochBlocks*stakePercentage*(1-stakePercentage)) * 6)
+func blockProductionFloor(EpochBlocks float64, stakePercentage float64) uint32 {
+	expectedBlocks := uint32(EpochBlocks * stakePercentage)
+	dev := uint32(math.Sqrt(EpochBlocks*stakePercentage*(1-stakePercentage)) * 6)
 	if dev > expectedBlocks {
 		return 0
 	}
@@ -668,7 +668,7 @@ func blockProductionFloor(epochBlocks float64, stakePercentage float64) uint32 {
 func copyValidator(dest *Validator, src *Validator) {
 	dest.PeerID = src.PeerID
 	dest.TotalStake = src.TotalStake
-	dest.epochBlocks = src.epochBlocks
+	dest.EpochBlocks = src.EpochBlocks
 	dest.UnclaimedCoins = src.UnclaimedCoins
 	dest.Nullifiers = make(map[types.Nullifier]Stake)
 	for k, v := range src.Nullifiers {

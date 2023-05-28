@@ -4,6 +4,7 @@ option go_package="github.com/project-illium/ilxd/rpc/pb";
 package pb;
 
 import "transactions.proto";
+import "blocks.proto";
 
 service BlockchainService {
     rpc GetMempoolInfo(GetMempoolInfoRequest) returns (GetMempoolInfoResponse) {}
@@ -11,9 +12,9 @@ service BlockchainService {
     rpc GetBlockchainInfo(GetBlockchainInfoRequest) returns (GetBlockchainInfoResponse) {}
     rpc GetBlockInfo(GetBlockInfoRequest)returns (GetBlockInfoResponse) {}
     rpc GetBlock(GetBlockRequest) returns (GetBlockResponse) {}
-    rpc GetCompactBlock(GetCompactBlockRequest) returns (GetCompactBlockResponse) {}
+    rpc GetCompressedBlock(GetCompressedBlockRequest) returns (GetCompressedBlockResponse) {}
     rpc GetHeaders(GetHeadersRequest) returns (GetHeadersResponse) {}
-    rpc GetCompactBlocks(GetCompactBlocksRequest) returns (GetCompactBlocksResponse) {}
+    rpc GetCompressedBlocks(GetCompressedBlocksRequest) returns (GetCompressedBlocksResponse) {}
     rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse) {}
     rpc GetMerkleProof(GetMerkleProofRequest) returns (GetMerkleProofResponse) {}
     rpc GetValidator(GetValidatorRequest) returns (GetValidatorResponse) {}
@@ -72,10 +73,12 @@ service NodeService {
     rpc RecomputeChainState(RecomputeChainStateRequest) returns (RecomputeChainStateResponse) {}
 }
 
+// RPC MESSAGES
+
 message GetMempoolInfoRequest{}
 message GetMempoolInfoResponse {
     // The count of transactions in the mempool
-    uint32 size = 1;
+    uint32 size  = 1;
     // The size in bytes of all transactions in the mempool
     uint32 bytes = 2;
 }
@@ -87,11 +90,11 @@ message GetMempoolRequest {
 }
 message GetMempoolResponse {
     message TransactionData {
-        // Either one of the two following is provided, depending on the request.
+        // Either one of the two following is provided, depending on the request
         oneof txids_or_txs {
-            // The transaction hash, little-endian.
-            bytes transaction_hash = 1;
-            // The transaction data.
+            // The transaction hash, little-endian
+            bytes transaction_ID    = 1;
+            // The transaction data
             Transaction transaction = 2;
         }
     }
@@ -102,57 +105,250 @@ message GetMempoolResponse {
 
 message GetBlockchainInfoRequest {}
 message GetBlockchainInfoResponse {
-
     // Illium network types
     enum Network {
-
-        // Live public network with monetary value.
+        // Live public network with monetary value
         MAINNET  = 0;
-        // An isolated environment for automated testing.
+        // An isolated environment for automated testing
         REGTEST  = 1;
         // A public environment where monetary value is agreed to be zero,
         // and some checks for transaction conformity are disabled.
-        TESTNET = 2;
+        TESTNET  = 2;
     }
 
-    // Which network the node is operating on.
-    Network network = 1;
-    // The current number of blocks in the chain.
-    int32 best_height = 2;
-    // The hash of the best (tip) block in the chain.
-    bytes best_block_hash = 3;
-    // The timestamp of the best block.
-    int64 block_time = 4;
-    // When `tx_index` is true, the node has full transaction index enabled.
-    bool tx_index = 5;
-    // The total number of coins in circulation.
+    // Which network the node is operating on
+    Network network          = 1;
+    // The current number of blocks in the chain
+    int32 best_height        = 2;
+    // The hash of the best (tip) block in the chain
+    bytes best_block_ID      = 3;
+    // The timestamp of the best block
+    int64 block_time         = 4;
+    // When `tx_index` is true, the node has full transaction index enabled
+    bool tx_index            = 5;
+    // The total number of coins in circulation
     uint64 ciculating_supply = 6;
-    // The total number of coins staked.
-    uint64 total_staked = 7;
+    // The total number of coins staked
+    uint64 total_staked      = 7;
 }
 
 message GetBlockInfoRequest {
-    oneof hash_or_height {
+    oneof id_or_height {
         // The block hash as a byte array or hex encoded string
-        bytes hash = 1;
-        // The block number.
-        int32 height = 2;
+        bytes block_ID = 1;
+        // The block number
+        int32 height   = 2;
     }
 }
 message GetBlockInfoResponse {
-    // Marshaled block header data, as well as metadata.
+    // Marshaled block header data, as well as metadata
     BlockInfo info = 1;
 }
 
-message GetBlockInfoRequest {
-    oneof hash_or_height {
-        // The block hash as a byte array or base64 encoded string, little-endian.
-        bytes hash = 1;
-        // The block number.
-        int32 height = 2;
+message GetBlockRequest {
+    oneof id_or_height {
+        // The block hash as a byte array or hex encoded string
+        bytes block_ID = 1;
+        // The block number
+        int32 height   = 2;
     }
 }
-message GetBlockInfoResponse {
-    // Marshaled block header data, as well as metadata.
-    BlockInfo info = 1;
+message GetBlockResponse {
+    // The full block response
+    Block block = 1;
+}
+
+message GetCompressedBlockRequest {
+    oneof id_or_height {
+        // The block hash as a byte array or hex encoded string
+        bytes block_ID = 1;
+        // The block number
+        int32 height   = 2;
+    }
+}
+message GetCompressedBlockResponse {
+    // The compressed block contains only transaction outputs
+    CompressedBlock block = 1;
+}
+
+message GetHeadersRequest {
+    // The height to start receiving headers
+    uint32 start_height = 1;
+    // The last header height to return. Note that a maximum of 2000
+    // blocks will be returned per request. If end_height is > start_height + 1999
+    // then end_height will be set set to start_height + 1999 and 2000 headers
+    // will be returned. If end_height is past the tip of the chain the headers
+    // will be returned up to the tip.
+    //
+    // If end_height is less than start_height 2000 headers will be returned.
+    uint32 end_height   = 2;
+}
+message GetHeadersResponse {
+    repeated BlockHeader headers = 1;
+}
+
+message GetCompressedBlocksRequest {
+    // The height to start receiving headers
+    uint32 start_height = 1;
+    // The last block height to return. Note that a maximum of 2000 blocks will be returned
+    // per request. If end_height is > start_height + 1999 then end_height will be set set
+    // to start_height + 1999 and 2000 compressed blocks will be returned. If end_height is
+    // past the tip of the chain the compressed blocks will be returned up to the tip.
+    //
+    // If end_height is less than start_height 2000 blocks will be returned.
+    uint32 end_height   = 2;
+}
+message GetCompressedBlocksResponse {
+    // The compressed block response
+    repeated CompressedBlock blocks = 1;
+}
+
+message GetTransactionRequest {
+    // A transaction hash
+    bytes transaction_ID = 1;
+}
+message GetTransactionResponse {
+    // The transaction response
+    Transaction tx = 1;
+}
+
+message GetMerkleProofRequest {
+    // A transaction hash
+    bytes transaction_ID = 1;
+}
+message GetMerkleProofResponse {
+    // Block header information for the corresponding transaction
+    BlockInfo block       = 1;
+    // A list containing the transaction hash, the adjacent leaf transaction hash
+    // and the hashes of the highest nodes in the merkle tree not built with the transaction.
+    // Proof hashes are ordered following transaction order, or left to right on the merkle tree
+    repeated bytes hashes = 2;
+    // Binary representing the location of the matching transaction in the full merkle tree,
+    // starting with the root (`1`) at position/level 0, where `1` corresponds
+    // to a left branch and `01` is a right branch.
+    bytes flags = 3;
+}
+
+message GetValidatorRequest {
+    // A serialized validator ID
+    bytes validator_ID = 1;
+}
+message GetValidatorResponse {
+    // The validator response
+    Validator validator = 1;
+}
+
+message GetValidatorSetInfoRequest{}
+message GetValidatorSetInfoResponse{
+    // The total number of coins staked on the network
+    uint64 total_staked   = 1;
+    // The total number of validators on the network
+    uint32 num_validators = 2;
+}
+
+message GetValidatorSetRequest{}
+message GetValidatorSetResponse{
+    // The full list of validators on the network
+    repeated Validator validators = 1;
+}
+
+message GetAccumulatorCheckpointRequest{
+    // The height of the accumulator checkpoint to return.
+    // If there is no checkpoint at that height, the *next*
+    // checkpoint found in the chain will be returned.
+    //
+    // An error will be returned if there is no checkpoint after
+    // the provided height.
+    uint32 height = 1;
+}
+message GetAccumulatorCheckpointResponse{
+    // The height of the checkpoint
+    uint32 height              = 1;
+    // The number of entries in the accumulator at this checkpoint
+    uint64 num_entries         = 2;
+    // The accumulator hashes
+    repeated bytes accumulator = 3;
+}
+
+message SubmitTransactionRequest {
+    // The transaction to submit to the network
+    Transaction transaction = 1;
+}
+message SubmitTransactionResponse {
+    // The transaction ID of the transaction.
+    //
+    // If submission was unsuccessful and error will be returned.
+    bytes transaction_ID = 1;
+}
+
+message SubscribeBlocksRequest {
+    // When full_block is true, a complete marshaled block is sent.
+    // Default is false, block metadata is sent. See `BlockInfo`.
+    bool full_block        = 1;
+
+    // When full_transactions is true, provide full transaction info
+    // for a marshaled block.
+    //
+    // Default is false, only the transaction IDs are included for
+    // a marshaled block.
+    bool full_transactions = 2;
+}
+
+// NOTIFICATIONS
+
+message BlockNotification {
+    // The BlockInfo (including header data) for the block
+    BlockInfo block_info                  = 1;
+    // The blocks transactions (if requested).
+    //
+    // The transactions will either be returned in for or just the txids depending
+    // on the request.
+    repeated TransactionData transactions = 2;
+}
+
+// DATA MESSAGES
+
+message TransactionData {
+    oneof txids_or_txs {
+        // Just the transaction ID
+        bytes transaction_hash = 1;
+        // A marshaled transaction.
+        Transaction transaction = 2;
+    }
+}
+
+message BlockInfo {
+    // The hash of the block header.
+    bytes  block_ID   = 1;
+    // A version number to track software/protocol upgrades.
+    uint32 version    = 2;
+    // The height of the block in the chain.
+    uint32 height     = 3;
+    // The block in the chain right before this one.
+    bytes parent      = 4;
+    // The next block in the chain (or nil if this block is the tip).
+    bytes child       = 5;
+    // The timestamp of the block. Expressed in seconds since 1970-01-01.
+    int64 timestamp   = 6;
+    // The root of the Merkle Tree built from all transactions in the block.
+    bytes tx_root     = 7;
+    // The peerID of the validator that created the block.
+    bytes producer_ID = 8;
+    // The size of the block in bytes.
+    uint32 size       = 9;
+    // The number of transactions in the block.
+    uint32 num_txs    = 10;
+}
+
+message Validator {
+        // The validator ID encoded in bytes.
+        bytes validator_ID        = 1;
+        // The number of coins staked by this validator.
+        uint64 total_stake        = 2;
+        // The nullifiers for the utxos the validator has staked.
+        repeated bytes nullifiers = 3;
+        // The total of any unclaimed validator rewards.
+        uint64 unclaimed_coins    = 4;
+        // The number of blocks this validator has created this epoch.
+        uint32 epoch_blocks       = 5;
 }

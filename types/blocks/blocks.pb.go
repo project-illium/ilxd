@@ -309,6 +309,61 @@ func (x *XThinnerBlock) GetPrefilledTxs() []*XThinnerBlock_PrefilledTransaction 
 	return nil
 }
 
+type CompressedBlock struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Height  uint32                 `protobuf:"varint,1,opt,name=height,proto3" json:"height,omitempty"`
+	Outputs []*transactions.Output `protobuf:"bytes,2,rep,name=outputs,proto3" json:"outputs,omitempty"`
+}
+
+func (x *CompressedBlock) Reset() {
+	*x = CompressedBlock{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_blocks_proto_msgTypes[4]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *CompressedBlock) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompressedBlock) ProtoMessage() {}
+
+func (x *CompressedBlock) ProtoReflect() protoreflect.Message {
+	mi := &file_blocks_proto_msgTypes[4]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompressedBlock.ProtoReflect.Descriptor instead.
+func (*CompressedBlock) Descriptor() ([]byte, []int) {
+	return file_blocks_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CompressedBlock) GetHeight() uint32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *CompressedBlock) GetOutputs() []*transactions.Output {
+	if x != nil {
+		return x.Outputs
+	}
+	return nil
+}
+
 type XThinnerBlock_PrefilledTransaction struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -321,7 +376,7 @@ type XThinnerBlock_PrefilledTransaction struct {
 func (x *XThinnerBlock_PrefilledTransaction) Reset() {
 	*x = XThinnerBlock_PrefilledTransaction{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_blocks_proto_msgTypes[4]
+		mi := &file_blocks_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -334,7 +389,7 @@ func (x *XThinnerBlock_PrefilledTransaction) String() string {
 func (*XThinnerBlock_PrefilledTransaction) ProtoMessage() {}
 
 func (x *XThinnerBlock_PrefilledTransaction) ProtoReflect() protoreflect.Message {
-	mi := &file_blocks_proto_msgTypes[4]
+	mi := &file_blocks_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -412,8 +467,13 @@ var file_blocks_proto_rawDesc = []byte{
 	0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0c, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63,
 	0x74, 0x69, 0x6f, 0x6e, 0x52, 0x0b, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f,
 	0x6e, 0x12, 0x14, 0x0a, 0x05, 0x69, 0x6e, 0x64, 0x65, 0x78, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d,
-	0x52, 0x05, 0x69, 0x6e, 0x64, 0x65, 0x78, 0x42, 0x0b, 0x5a, 0x09, 0x2e, 0x2e, 0x2f, 0x62, 0x6c,
-	0x6f, 0x63, 0x6b, 0x73, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x52, 0x05, 0x69, 0x6e, 0x64, 0x65, 0x78, 0x22, 0x4c, 0x0a, 0x0f, 0x43, 0x6f, 0x6d, 0x70, 0x72,
+	0x65, 0x73, 0x73, 0x65, 0x64, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x12, 0x16, 0x0a, 0x06, 0x68, 0x65,
+	0x69, 0x67, 0x68, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x06, 0x68, 0x65, 0x69, 0x67,
+	0x68, 0x74, 0x12, 0x21, 0x0a, 0x07, 0x6f, 0x75, 0x74, 0x70, 0x75, 0x74, 0x73, 0x18, 0x02, 0x20,
+	0x03, 0x28, 0x0b, 0x32, 0x07, 0x2e, 0x4f, 0x75, 0x74, 0x70, 0x75, 0x74, 0x52, 0x07, 0x6f, 0x75,
+	0x74, 0x70, 0x75, 0x74, 0x73, 0x42, 0x0b, 0x5a, 0x09, 0x2e, 0x2e, 0x2f, 0x62, 0x6c, 0x6f, 0x63,
+	0x6b, 0x73, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -428,27 +488,30 @@ func file_blocks_proto_rawDescGZIP() []byte {
 	return file_blocks_proto_rawDescData
 }
 
-var file_blocks_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_blocks_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_blocks_proto_goTypes = []interface{}{
 	(*BlockHeader)(nil),                        // 0: BlockHeader
 	(*Block)(nil),                              // 1: Block
 	(*BlockTxs)(nil),                           // 2: BlockTxs
 	(*XThinnerBlock)(nil),                      // 3: XThinnerBlock
-	(*XThinnerBlock_PrefilledTransaction)(nil), // 4: XThinnerBlock.PrefilledTransaction
-	(*transactions.Transaction)(nil),           // 5: Transaction
+	(*CompressedBlock)(nil),                    // 4: CompressedBlock
+	(*XThinnerBlock_PrefilledTransaction)(nil), // 5: XThinnerBlock.PrefilledTransaction
+	(*transactions.Transaction)(nil),           // 6: Transaction
+	(*transactions.Output)(nil),                // 7: Output
 }
 var file_blocks_proto_depIdxs = []int32{
 	0, // 0: Block.header:type_name -> BlockHeader
-	5, // 1: Block.transactions:type_name -> Transaction
-	5, // 2: BlockTxs.transactions:type_name -> Transaction
+	6, // 1: Block.transactions:type_name -> Transaction
+	6, // 2: BlockTxs.transactions:type_name -> Transaction
 	0, // 3: XThinnerBlock.header:type_name -> BlockHeader
-	4, // 4: XThinnerBlock.prefilled_txs:type_name -> XThinnerBlock.PrefilledTransaction
-	5, // 5: XThinnerBlock.PrefilledTransaction.transaction:type_name -> Transaction
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	5, // 4: XThinnerBlock.prefilled_txs:type_name -> XThinnerBlock.PrefilledTransaction
+	7, // 5: CompressedBlock.outputs:type_name -> Output
+	6, // 6: XThinnerBlock.PrefilledTransaction.transaction:type_name -> Transaction
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_blocks_proto_init() }
@@ -506,6 +569,18 @@ func file_blocks_proto_init() {
 			}
 		}
 		file_blocks_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*CompressedBlock); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_blocks_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*XThinnerBlock_PrefilledTransaction); i {
 			case 0:
 				return &v.state
@@ -524,7 +599,7 @@ func file_blocks_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_blocks_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
