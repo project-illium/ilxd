@@ -114,11 +114,11 @@ func (m *Mempool) ProcessTransaction(tx *transactions.Transaction) error {
 		return err
 	}
 
-	fpb, isFeePayer, err := CalcFeePerByte(tx)
+	fpkb, isFeePayer, err := CalcFeePerKilobyte(tx)
 	if err != nil {
 		return err
 	}
-	if isFeePayer && fpb < m.cfg.fpb {
+	if isFeePayer && fpkb < m.cfg.fpkb {
 		return policyError(ErrFeeTooLow, "transaction fee is below policy minimum")
 	}
 
@@ -367,7 +367,7 @@ func (m *Mempool) validationTransaction(tx *transactions.Transaction) error {
 	return nil
 }
 
-func CalcFeePerByte(tx *transactions.Transaction) (types.Amount, bool, error) {
+func CalcFeePerKilobyte(tx *transactions.Transaction) (types.Amount, bool, error) {
 	var fee uint64
 	switch t := tx.GetTx().(type) {
 	case *transactions.Transaction_CoinbaseTransaction,
@@ -384,6 +384,7 @@ func CalcFeePerByte(tx *transactions.Transaction) (types.Amount, bool, error) {
 	if err != nil {
 		return 0, false, err
 	}
+	size = size / 1000
 
 	return types.Amount(float64(fee) / float64(size)), true, nil
 }

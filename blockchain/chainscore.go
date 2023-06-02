@@ -37,7 +37,7 @@ func (b *Blockchain) CalcChainScore(blks []*blocks.Block) (ChainScore, error) {
 			validators:   make(map[peer.ID]*Validator),
 			nullifierMap: make(map[types.Nullifier]*Validator),
 			toDelete:     make(map[peer.ID]struct{}),
-			epochBlocks:  b.validatorSet.epochBlocks,
+			EpochBlocks:  b.validatorSet.EpochBlocks,
 			mtx:          sync.RWMutex{},
 		}, // Reads and writes to memory, disk writes are skipped by BFNoFlush.
 		nullifierSet:      b.nullifierSet.Clone(), // Reads from both memory cache and disk db, writes to cache only.

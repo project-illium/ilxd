@@ -12,7 +12,7 @@ import (
 )
 
 type Policy struct {
-	MinFeePerByte      types.Amount
+	MinFeePerKilobyte  types.Amount
 	MinStake           types.Amount
 	BlocksizeSoftLimit uint32
 	MaxMessageSize     uint32
@@ -28,11 +28,11 @@ func (p *Policy) IsPreferredBlock(blk *blocks.Block) (bool, error) {
 		return false, nil
 	}
 	for _, tx := range blk.Transactions {
-		fpb, isFeePayer, err := mempool.CalcFeePerByte(tx)
+		fpkb, isFeePayer, err := mempool.CalcFeePerKilobyte(tx)
 		if err != nil {
 			return false, err
 		}
-		if isFeePayer && fpb < p.MinFeePerByte {
+		if isFeePayer && fpkb < p.MinFeePerKilobyte {
 			return false, nil
 		}
 		switch typ := tx.GetTx().(type) {

@@ -25,7 +25,7 @@ func serializeValidator(v *Validator) ([]byte, error) {
 		TotalStake:       uint64(v.TotalStake),
 		Nullifiers:       make([]*pb.DBValidator_Nullifier, 0, len(v.Nullifiers)),
 		UnclaimedCoins:   uint64(v.UnclaimedCoins),
-		EpochBLocks:      v.epochBlocks,
+		EpochBLocks:      v.EpochBlocks,
 		StakeAccumulator: float32(v.stakeAccumulator),
 	}
 
@@ -55,7 +55,7 @@ func deserializeValidator(ser []byte) (*Validator, error) {
 		TotalStake:       types.Amount(vProto.TotalStake),
 		Nullifiers:       make(map[types.Nullifier]Stake),
 		UnclaimedCoins:   types.Amount(vProto.UnclaimedCoins),
-		epochBlocks:      vProto.EpochBLocks,
+		EpochBlocks:      vProto.EpochBLocks,
 		stakeAccumulator: float64(vProto.StakeAccumulator),
 		dirty:            false,
 	}

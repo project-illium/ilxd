@@ -186,7 +186,13 @@ func (a *Accumulator) GetProof(data []byte) (*InclusionProof, error) {
 			acc = append(acc, peakCopy)
 		}
 	}
-	newProof := &InclusionProof{ID: types.NewID(data), Accumulator: acc, Flags: proof.Flags, Hashes: make([][]byte, len(proof.Hashes)), Index: proof.Index}
+	newProof := &InclusionProof{
+		ID:          types.NewID(data),
+		Accumulator: acc,
+		Flags:       proof.Flags,
+		Hashes:      make([][]byte, len(proof.Hashes)),
+		Index:       proof.Index,
+	}
 	for i := range proof.Hashes {
 		newProof.Hashes[i] = make([]byte, len(proof.Hashes[i]))
 		copy(newProof.Hashes[i], proof.Hashes[i])

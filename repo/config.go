@@ -25,7 +25,7 @@ const (
 	defaultConfigFilename = "ilxd.conf"
 	defaultGrpcPort       = "5001"
 
-	DefaultFeePerByte     = 10
+	DefaultFeePerKilobyte = 10000
 	DefaultMinimumStake   = 1000000
 	DefaultMaxMessageSize = 1 << 23 // 8 MiB
 	DefaultSoftLimit      = 1 << 20 // 1 MiB
@@ -198,7 +198,7 @@ func LoadConfig() (*Config, error) {
 
 	cfg.UserAgent = "/ilxd/" + VersionString() + "/" + cfg.UserAgent
 	if cfg.MinFeePerByte == 0 {
-		cfg.MinFeePerByte = DefaultFeePerByte
+		cfg.MinFeePerByte = DefaultFeePerKilobyte
 	}
 	if cfg.MinStake == 0 {
 		cfg.MinStake = DefaultMinimumStake

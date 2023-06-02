@@ -24,7 +24,7 @@ const (
 func DefaultOptions() Option {
 	return func(cfg *config) error {
 		cfg.params = &params.RegestParams
-		cfg.fpb = repo.DefaultFeePerByte
+		cfg.fpkb = repo.DefaultFeePerKilobyte
 		cfg.minStake = repo.DefaultMinimumStake
 		cfg.sigCache = blockchain.NewSigCache(defaultSigCacheSize)
 		cfg.proofCache = blockchain.NewProofCache(defaultProofCacheSize)
@@ -59,12 +59,12 @@ func Params(params *params.NetworkParams) Option {
 	}
 }
 
-// FeePerByte is the minimum fee per byte to use when admitting
+// FeePerKilobyte is the minimum fee per byte to use when admitting
 // transactions into the mempool. By extension the node will only
 // relay transactions with a fee above this level as well.
-func FeePerByte(fpb types.Amount) Option {
+func FeePerKilobyte(fpkb types.Amount) Option {
 	return func(cfg *config) error {
-		cfg.fpb = fpb
+		cfg.fpkb = fpkb
 		return nil
 	}
 }
@@ -128,7 +128,7 @@ func ProofCache(proofCache *blockchain.ProofCache) Option {
 type config struct {
 	params            *params.NetworkParams
 	chainView         ChainView
-	fpb               types.Amount
+	fpkb              types.Amount
 	minStake          types.Amount
 	sigCache          *blockchain.SigCache
 	proofCache        *blockchain.ProofCache

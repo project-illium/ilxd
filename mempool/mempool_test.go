@@ -721,7 +721,7 @@ func newMockBlockchainView() *mockBlockchainView {
 	}
 }
 
-func TestFeePerByte(t *testing.T) {
+func TestFeePerKilobyte(t *testing.T) {
 	tx := transactions.WrapTransaction(&transactions.StandardTransaction{
 		Outputs: []*transactions.Output{
 			{
@@ -737,11 +737,12 @@ func TestFeePerByte(t *testing.T) {
 	})
 	size, err := tx.SerializedSize()
 	assert.NoError(t, err)
+	size = size / 1000
 
-	fpb, ok, err := CalcFeePerByte(tx)
+	fpkb, ok, err := CalcFeePerKilobyte(tx)
 	assert.True(t, ok)
 	assert.NoError(t, err)
-	assert.Equal(t, types.Amount(tx.GetStandardTransaction().Fee/uint64(size)), fpb)
+	assert.Equal(t, types.Amount(tx.GetStandardTransaction().Fee/uint64(size)), fpkb)
 }
 
 func randomID() types.ID {

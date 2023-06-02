@@ -117,7 +117,7 @@ func TestPutGetDeleteValidator(t *testing.T) {
 			},
 		},
 		UnclaimedCoins: 50,
-		epochBlocks:    17,
+		EpochBlocks:    17,
 		dirty:          true,
 	}
 	assert.NoError(t, dsPutValidator(dbtx, validator))

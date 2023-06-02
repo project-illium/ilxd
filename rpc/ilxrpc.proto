@@ -7,28 +7,86 @@ import "transactions.proto";
 import "blocks.proto";
 
 service BlockchainService {
+    // GetMempoolInfo returns the state of the current mempool
     rpc GetMempoolInfo(GetMempoolInfoRequest) returns (GetMempoolInfoResponse) {}
+
+    // GetMempool returns all the transactions in the mempool
     rpc GetMempool(GetMempoolRequest) returns (GetMempoolResponse) {}
+
+    // GetBlockchainInfo returns data about the blockchain including the most recent
+    // block hash and height.
     rpc GetBlockchainInfo(GetBlockchainInfoRequest) returns (GetBlockchainInfoResponse) {}
+
+    // GetBlockInfo returns a BlockHeader plus some extra metadata.
     rpc GetBlockInfo(GetBlockInfoRequest)returns (GetBlockInfoResponse) {}
+
+    // GetBlock returns the detailed data for a block.
     rpc GetBlock(GetBlockRequest) returns (GetBlockResponse) {}
+
+    // GetCompressedBlock returns a block that is stripped down to just the outputs.
+    // It is the bare minimum information a client side wallet needs to compute its internal
+    // state.
     rpc GetCompressedBlock(GetCompressedBlockRequest) returns (GetCompressedBlockResponse) {}
+
+    // GetHeaders returns a batch of headers according to the request parameters.
     rpc GetHeaders(GetHeadersRequest) returns (GetHeadersResponse) {}
+
+    // GetCompressedBlocks returns a batch of CompressedBlocks according to the request parameters.
     rpc GetCompressedBlocks(GetCompressedBlocksRequest) returns (GetCompressedBlocksResponse) {}
+
+    // GetTransaction returns the transaction for the given transaction ID.
+    //
+    // **Requires TxIndex**
     rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse) {}
+
+    // GetMerkleProof returns a Merkle (SPV) proof for a specific transaction
+    // in the provided block.
+    //
+    // **Requires TxIndex**
     rpc GetMerkleProof(GetMerkleProofRequest) returns (GetMerkleProofResponse) {}
+
+    // GetValidator returns all the information about the given validator including number
+    // of staked coins.
     rpc GetValidator(GetValidatorRequest) returns (GetValidatorResponse) {}
+
+    // GetValidatorSetInfo returns information about the validator set.
     rpc GetValidatorSetInfo(GetValidatorSetInfoRequest) returns (GetValidatorSetInfoResponse) {}
+
+    // GetValidatorSet returns all the validators in the current validator set.
     rpc GetValidatorSet(GetValidatorSetRequest) returns (GetValidatorSetResponse) {}
+
+    // GetAccumulatorCheckpoint returns the accumulator at the requested height.
+    // If there is no checkpoint at that height, the *next* checkpoint found in the
+    // chain will be returned.
     rpc GetAccumulatorCheckpoint(GetAccumulatorCheckpointRequest) returns (GetAccumulatorCheckpointResponse) {}
+
+    // SubmitTransaction validates a transaction and submits it to the network. An error will be returned
+    // if it fails validation.
     rpc SubmitTransaction(SubmitTransactionRequest) returns (SubmitTransactionResponse) {}
+
+    // SubscribeBlocks returns a stream of notifications when new blocks are finalized and
+    // connected to the chain.
     rpc SubscribeBlocks(SubscribeBlocksRequest) returns (stream BlockNotification) {}
 }
 
 service WalletServerService {
-    rpc RegisterAddress(RegisterAddressRequest) returns (RegisterAddressResponse) {}
-    rpc SubscribeAddress(SubscribeAddressRequest) returns (stream SubscribeAddressResponse) {}
-    rpc GetAddressTransactions(GetAddressTransactionsRequest) returns (GetAddressTransactionsResponse) {}
+    // RegisterViewKey registers a new view key with the server. The server will use this key when
+    // attempting to decrypt each output. If outputs decrypt, they will be indexed so the client
+    // can fetch them later.
+    //
+    // To free up resources keys will automatically unregister after some time if the wallet has not
+    // connected in some time.
+    rpc RegisterViewKey(RegisterViewKeyRequest) returns (RecomputeChainStateResponse) {}
+
+    // SubscribeTransactions subscribes to a stream of TransactionsNotifications that match to the
+    // provided view key.
+    rpc SubscribeTransactions(SubscribeTransactionsRequest) returns (stream TransactionNotification) {}
+
+    // GetWalletTransactions returns a list of transactions for the provided view key.
+    rpc GetWalletTransactions(GetWalletTransactionsRequest) returns (GetWalletTransactionsResponse) {}
+
+    // GetTxoProof returns the merkle inclusion proof for the given commitment. This information is needed
+    // by the client to create the zero knowledge proof needed to spend the transaction.
     rpc GetTxoProof(GetTxoProofRequest) returns (GetTxoProofResponse) {}
 }
 
@@ -75,6 +133,7 @@ service NodeService {
 
 // RPC MESSAGES
 
+// BlockchainService
 message GetMempoolInfoRequest{}
 message GetMempoolInfoResponse {
     // The count of transactions in the mempool
@@ -89,16 +148,6 @@ message GetMempoolRequest {
     bool full_transactions = 1;
 }
 message GetMempoolResponse {
-    message TransactionData {
-        // Either one of the two following is provided, depending on the request
-        oneof txids_or_txs {
-            // The transaction hash, little-endian
-            bytes transaction_ID    = 1;
-            // The transaction data
-            Transaction transaction = 2;
-        }
-    }
-
     // List of unconfirmed transactions.
     repeated TransactionData transaction_data = 1;
 }
@@ -294,7 +343,186 @@ message SubscribeBlocksRequest {
     bool full_transactions = 2;
 }
 
+// WalletServerService
+message RegisterViewKeyRequest {
+    // A view key to register with the server.
+    string view_key = 1;
+
+    // The date the address was created. The server will scan historical blocks
+    // for matching transactions from the birthday forward. Please don't use an
+    // earlier birthday than needed as it puts more stress on the server.
+    int64 birthday = 2;
+}
+message RegisterViewKeyResponse {}
+
+message SubscribeTransactionsRequest {
+    // A list of view keys to subscribe to
+    repeated string view_keys   = 1;
+
+    // When include_mempool is true, new unconfirmed transactions from mempool are
+    // included apart from the ones finalized in a block.
+    bool include_mempool        = 2;
+
+    // When include_in_block is true, transactions are included when they are finalized.
+    // This notification is sent in addition to any requested mempool notifications.
+    bool include_in_block       = 3;
+}
+
+message GetWalletTransactionsRequest{
+    // The view key to query transactions
+    string view_key = 1;
+
+    // The number of transactions to skip, starting with the oldest first.
+    // Does not affect results of unconfirmed transactions.
+    uint32 nb_skip = 2;
+    // Specify the number of transactions to fetch.
+    uint32 nb_fetch = 3;
+
+
+    oneof start_block {
+        // Recommended. Only get transactions after (or within) a
+        // starting block identified by hash.
+        bytes block_ID = 4;
+        // Recommended. Only get transactions after (or within) a
+        // starting block identified by block number.
+        int32 height = 5;
+    }
+}
+message GetWalletTransactionsResponse {
+    // A list of transactions as the response
+    repeated Transaction transactions = 1;
+}
+
+message GetTxoProofRequest {
+    // The output commitment to fetch the txo proof for
+    bytes commitment = 1;
+}
+message GetTxoProofResponse {
+    // The commitment this inclusion proof is for
+    bytes commitment           = 1;
+    // The hashes that form the root preimage
+    repeated bytes accumulator = 2;
+    // The merkle hashes linking the commitment to the accumulator
+    repeated bytes hashes      = 3;
+    // Flags indicate whether a hash in the hash list is left or right.
+    // 0 == left, 1 == right.
+    uint64 flags               = 4;
+    // The index of this commitment in the tree
+    uint64 index               = 5;
+}
+
+// WalletService
+message GetBalanceRequest {}
+message GetBalanceResponse {
+    // Balance response
+    uint64 balance = 1;
+}
+
+message GetWalletSeedRequest {}
+message GetWalletSeedResponse {
+    // The wallet's mnemonic seed
+    string mnemonic_seed = 1;
+}
+message GetAddressesRequest {}
+message GetAddressesResponse {
+    // The most recent address generated by the wallet
+    string address = 1;
+}
+message GetNewAddressRequest {}
+message GetNewAddressResponse {
+    // A fresh address generated by the wallet
+    string address = 1;
+}
+message GetTransactionsRequest {
+    // Transaction ID as a byte array or hex encoded string
+    bytes transaction_ID = 1;
+}
+message GetTransactionsResponse {
+    // Returned transaction
+    Transaction tx = 1;
+}
+message GetUtxosRequest {}
+message GetUtxosResponse {}
+message GetPrivateKeyRequest {}
+message GetPrivateKeyResponse {}
+message ImportAddressRequest {}
+message ImportAddressResponse {}
+message CreateMultisigAddressRequest {}
+message CreateMultisigAddressResponse {}
+message ProveMultisigRequest {}
+message ProveMultisigResponse {}
+message WalletLockRequest {}
+message WalletUnlockRequest {}
+message WalletUnlockResponse {}
+message ChangeWalletPassphraseRequest {}
+message ChangeWalletPassphraseResponse {}
+message DeletePrivateKeysRequest {}
+message DeletePrivateKeysResponse {}
+message CreateRawTransactionRequest {}
+message CreateRawTransactionResponse {}
+message ProveRawTransactionRequest {}
+message ProveRawTransactionResponse {}
+message BroadcastRawTransactionRequest {}
+message BroadcastRawTransactionResponse {}
+message StakeRequest {}
+message StakeResponse {}
+message SetAutoStakeRewardsRequest {}
+message SetAutoStakeRewardsResponse {}
+message SpendRequest {}
+message SpendResponse {}
+
+// NodeService
+message GetHostInfoRequest {}
+message GetHostInfoResponse {}
+message GetPeersRequest {}
+message GetPeersResponse {}
+message AddPeerRequest {}
+message AddPeerResponse {}
+message BlockPeerRequest {}
+message BlockPeerResponse {}
+message SetLogLevelRequest {}
+message SetLogLevelResponse {}
+message GetMinFeePerByteRequest {}
+message GetMinFeePerByteResponse {}
+message SetMinFeePerByteRequest {}
+message SetMinFeePerByteResponse {}
+message GetMinStakeRequest {}
+message GetMinStakeResponse {}
+message SetMinStakeRequest {}
+message SetMinStakeResponse {}
+message GetBlockSizeSoftLimitRequest {}
+message GetBlockSizeSoftLimitResponse {}
+message SetBlockSizeSoftLimitRequest {}
+message SetBlockSizeSoftLimitResponse {}
+message GetTreasuryWhitelistRequest {}
+message GetTreasuryWhitelistResponse {}
+message WhitelistTreasuryTransactionRequest {}
+message WhitelistTreasuryTransactionResponse {}
+message ReconsiderBlockRequest {}
+message ReconsiderBlockResponse {}
+message RecomputeChainStateRequest {}
+message RecomputeChainStateResponse {}
+
 // NOTIFICATIONS
+
+message TransactionNotification {
+    // State of the transaction acceptance.
+    enum Type {
+        // A transaction in mempool.
+        UNCONFIRMED = 0;
+        // A transaction in a finalized block.
+        FINALIZED   = 1;
+    }
+
+    // Whether or not the transaction has been included in a block.
+    Type type = 1;
+    oneof transaction {
+        // A transaction included in a block.
+        Transaction finalized_transaction          = 2;
+        // A transaction in mempool.
+        MempoolTransaction unconfirmed_transaction = 3;
+    }
+}
 
 message BlockNotification {
     // The BlockInfo (including header data) for the block
@@ -307,6 +535,18 @@ message BlockNotification {
 }
 
 // DATA MESSAGES
+
+message MempoolTransaction {
+    Transaction transaction = 1;
+    // The time when the transaction was added too the pool.
+    int64 added_time = 2;
+    // The block height when the transaction was added to the pool.
+    int32 added_height = 3;
+    // The total fee the transaction pays.
+    int64 fee = 4;
+    // The fee per kilobyte the transaction pays.
+    int64 fee_per_kilobyte = 5;
+}
 
 message TransactionData {
     oneof txids_or_txs {
