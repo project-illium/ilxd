@@ -398,6 +398,59 @@ func (b *Blockchain) Params() *params.NetworkParams {
 	return b.params
 }
 
+// CurrentSupply returns the current circulating supply of coins.
+func (b *Blockchain) CurrentSupply() (types.Amount, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	dbtx, err := b.ds.NewTransaction(context.Background(), true)
+	if err != nil {
+		return 0, err
+	}
+	defer dbtx.Discard(context.Background())
+
+	supply, err := dsFetchCurrentSupply(dbtx)
+	if err != nil {
+		return 0, err
+	}
+
+	err = dbtx.Commit(context.Background())
+	if err != nil {
+		return 0, err
+	}
+	return supply, nil
+}
+
+// TotalStaked returns the total number of coins staked in the validator set.
+func (b *Blockchain) TotalStaked() types.Amount {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	return b.validatorSet.totalStaked()
+}
+
+// ValidatorSetSize returns the number of validators in the validator set.
+func (b *Blockchain) ValidatorSetSize() int {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	return len(b.validatorSet.validators)
+}
+
+// Validators returns the full list of validators.
+func (b *Blockchain) Validators() []*Validator {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	ret := make([]*Validator, 0, len(b.validatorSet.validators))
+	for _, val := range b.validatorSet.validators {
+		v := &Validator{}
+		copyValidator(v, val)
+		ret = append(ret, v)
+	}
+	return ret
+}
+
 // IsProducerUnderLimit returns whether the given validator is currently under the block production limit.
 func (b *Blockchain) IsProducerUnderLimit(validatorID peer.ID) (bool, error) {
 	b.stateLock.RLock()

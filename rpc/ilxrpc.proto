@@ -265,7 +265,7 @@ message GetBlockchainInfoResponse {
     // Which network the node is operating on
     Network network          = 1;
     // The current number of blocks in the chain
-    int32 best_height        = 2;
+    uint32 best_height        = 2;
     // The hash of the best (tip) block in the chain
     bytes best_block_ID      = 3;
     // The timestamp of the best block
@@ -283,7 +283,7 @@ message GetBlockInfoRequest {
         // The block hash as a byte array or hex encoded string
         bytes block_ID = 1;
         // The block number
-        int32 height   = 2;
+        uint32 height   = 2;
     }
 }
 message GetBlockInfoResponse {
@@ -296,7 +296,7 @@ message GetBlockRequest {
         // The block hash as a byte array or hex encoded string
         bytes block_ID = 1;
         // The block number
-        int32 height   = 2;
+        uint32 height   = 2;
     }
 }
 message GetBlockResponse {
@@ -309,7 +309,7 @@ message GetCompressedBlockRequest {
         // The block hash as a byte array or hex encoded string
         bytes block_ID = 1;
         // The block number
-        int32 height   = 2;
+        uint32 height   = 2;
     }
 }
 message GetCompressedBlockResponse {
@@ -369,10 +369,10 @@ message GetMerkleProofResponse {
     // and the hashes of the highest nodes in the merkle tree not built with the transaction.
     // Proof hashes are ordered following transaction order, or left to right on the merkle tree
     repeated bytes hashes = 2;
-    // Binary representing the location of the matching transaction in the full merkle tree,
-    // starting with the root (`1`) at position/level 0, where `1` corresponds
-    // to a left branch and `01` is a right branch.
-    bytes flags = 3;
+    // The least significant bit in flags corresponds to the last hash in `hashes`. The second least
+    // significant to the second to last hash, and so on. The bit signifies whether the hash should be
+    // prepended (0) or appended (1) when hashing each level in the tree.
+    uint32 flags = 3;
 }
 
 message GetValidatorRequest {
@@ -869,7 +869,7 @@ message MempoolTransaction {
 message TransactionData {
     oneof txids_or_txs {
         // Just the transaction ID
-        bytes transaction_hash = 1;
+        bytes transaction_ID    = 1;
         // A marshaled transaction.
         Transaction transaction = 2;
     }

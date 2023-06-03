@@ -5,7 +5,9 @@
 package blockchain
 
 import (
+	"bytes"
 	"github.com/project-illium/ilxd/params/hash"
+	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"math"
 )
@@ -80,7 +82,7 @@ func BuildMerkleTreeStore(txs []*transactions.Transaction) [][]byte {
 			newHash := hash.HashMerkleBranches(merkles[i], merkles[i])
 			merkles[offset] = newHash
 
-		// The normal case sets the parent node to the double sha256
+		// The normal case sets the parent node to the hash
 		// of the concatentation of the left and right children.
 		default:
 			newHash := hash.HashMerkleBranches(merkles[i], merkles[i+1])
@@ -90,4 +92,41 @@ func BuildMerkleTreeStore(txs []*transactions.Transaction) [][]byte {
 	}
 
 	return merkles
+}
+
+func MerkleInclusionProof(merkleTreeStore [][]byte, txid types.ID) ([][]byte, uint32) {
+	nElements := (len(merkleTreeStore) + 1) / 2
+
+	hashes := make([][]byte, 0, len(merkleTreeStore))
+	flags := uint32(0)
+	start := 0
+	txidClone := txid.Clone()
+	compare := txidClone[:]
+	for {
+		for i := start; i < start+nElements; i++ {
+			if bytes.Equal(merkleTreeStore[i], compare) {
+				if i%2 == 0 {
+					x := make([]byte, len(merkleTreeStore[i+1]))
+					copy(x, merkleTreeStore[i+1])
+					hashes = append(hashes, x)
+					flags <<= 1
+					flags |= 0x01
+					compare = hash.HashMerkleBranches(compare, merkleTreeStore[i+1])
+				} else {
+					x := make([]byte, len(merkleTreeStore[i-1]))
+					copy(x, merkleTreeStore[i-1])
+					hashes = append(hashes, x)
+					flags <<= 1
+					flags |= 0x00
+					compare = hash.HashMerkleBranches(merkleTreeStore[i-1], compare)
+				}
+			}
+		}
+		start += nElements
+		nElements /= 2
+		if start+nElements >= len(merkleTreeStore) {
+			break
+		}
+	}
+	return hashes, flags
 }

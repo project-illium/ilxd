@@ -92,6 +92,15 @@ func (idx *TxIndex) GetTransaction(ds repo.Datastore, txid types.ID) (*transacti
 	return dsTxs.Transactions[pos], nil
 }
 
+// GetContainingBlockID returns the ID of the block containing the transaction.
+func (idx *TxIndex) GetContainingBlockID(ds repo.Datastore, txid types.ID) (types.ID, error) {
+	valueBytes, err := dsFetchIndexValue(ds, idx, txid.String())
+	if err != nil {
+		return types.ID{}, err
+	}
+	return types.NewID(valueBytes[4:]), nil
+}
+
 func DropTxIndex(ds repo.Datastore) error {
 	return dsDropIndex(ds, &TxIndex{})
 }

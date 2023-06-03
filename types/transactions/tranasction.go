@@ -165,11 +165,6 @@ type standardTxJSON struct {
 	Proof      types.HexEncodable   `json:"proof"`
 }
 
-func (tx *StandardTransaction) ID() types.ID {
-	ser, _ := tx.Serialize()
-	return types.NewIDFromData(ser)
-}
-
 func (tx *StandardTransaction) Serialize() ([]byte, error) {
 	return proto.Marshal(tx)
 }
@@ -239,11 +234,6 @@ type coinbaseTxJSON struct {
 	Proof        types.HexEncodable `json:"proof"`
 }
 
-func (tx *CoinbaseTransaction) ID() types.ID {
-	ser, _ := tx.Serialize()
-	return types.NewIDFromData(ser)
-}
-
 func (tx *CoinbaseTransaction) Serialize() ([]byte, error) {
 	return proto.Marshal(tx)
 }
@@ -304,11 +294,6 @@ type stakeTxJSON struct {
 	Locktime     int64              `json:"locktime"`
 	Signature    types.HexEncodable `json:"signature"`
 	Proof        types.HexEncodable `json:"proof"`
-}
-
-func (tx *StakeTransaction) ID() types.ID {
-	ser, _ := tx.Serialize()
-	return types.NewIDFromData(ser)
 }
 
 func (tx *StakeTransaction) Serialize() ([]byte, error) {
@@ -374,11 +359,6 @@ type treasuryTxJSON struct {
 	Proof        types.HexEncodable `json:"proof"`
 }
 
-func (tx *TreasuryTransaction) ID() types.ID {
-	ser, _ := tx.Serialize()
-	return types.NewIDFromData(ser)
-}
-
 func (tx *TreasuryTransaction) Serialize() ([]byte, error) {
 	return proto.Marshal(tx)
 }
@@ -441,11 +421,6 @@ type mintTxJSON struct {
 	Locktime     int64                     `json:"locktime"`
 	Signature    types.HexEncodable        `json:"signature"`
 	Proof        types.HexEncodable        `json:"proof"`
-}
-
-func (tx *MintTransaction) ID() types.ID {
-	ser, _ := tx.Serialize()
-	return types.NewIDFromData(ser)
 }
 
 func (tx *MintTransaction) Serialize() ([]byte, error) {

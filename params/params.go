@@ -26,6 +26,9 @@ type Checkpoint struct {
 }
 
 type NetworkParams struct {
+	// Name is a human-readable string to identify the params
+	Name string
+
 	// ProtocolPrefix defines the prefix for all network protocols.
 	// Using different prefixes for different network effectively
 	// segregates the networks as the handlers do not respond to
@@ -84,6 +87,7 @@ type NetworkParams struct {
 }
 
 var MainnetParams = NetworkParams{
+	Name:           "mainnet",
 	ProtocolPrefix: protocol.ID(path.Join(appProtocol, networkMainnet)),
 	GenesisBlock:   MainnetGenesisBlock,
 	SeedAddrs: []string{
@@ -105,6 +109,7 @@ var MainnetParams = NetworkParams{
 }
 
 var Testnet1Params = NetworkParams{
+	Name:           "testnet1",
 	ProtocolPrefix: protocol.ID(path.Join(appProtocol, networkTestnet1)),
 	SeedAddrs: []string{
 		"/ip4/167.172.126.176/tcp/4001/p2p/12D3KooWHnpVyu9XDeFoAVayqr9hvc9xPqSSHtCSFLEkKgcz5Wro",
@@ -125,6 +130,7 @@ var Testnet1Params = NetworkParams{
 }
 
 var RegestParams = NetworkParams{
+	Name:           "regtest",
 	ProtocolPrefix: protocol.ID(path.Join(appProtocol, networkRegtest)),
 	ListenAddrs: []string{
 		"/ip4/0.0.0.0/tcp/9003",
