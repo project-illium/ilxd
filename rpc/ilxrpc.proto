@@ -91,43 +91,140 @@ service WalletServerService {
 }
 
 service WalletService {
+    // GetBalance returns the combined balance of all addresses in the wallet
     rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse) {}
+
+    // GetWalletSeed returns the mnemonic seed for the wallet. If the wallet
+    // seed has been deleted via the `DeletePrivateKeys` RPC an error will be
+    // returned.
+    //
+    // **Requires wallet to be unlocked**
     rpc GetWalletSeed(GetWalletSeedRequest) returns (GetWalletSeedResponse) {}
+
+    // GetAddresses returns all the addresses created by this wallet
     rpc GetAddresses(GetAddressesRequest) returns (GetAddressesResponse) {}
+
+    // GetNewAddress generates a new address and returns it. Both a new spend key
+    // and view key will be derived from the mnemonic seed.
     rpc GetNewAddress(GetNewAddressRequest) returns (GetNewAddressResponse) {}
+
+    // GetTransactions returns the list of transactions for the wallet
     rpc GetTransactions(GetTransactionsRequest) returns (GetTransactionsResponse) {}
+
+    // GetUtxos returns a list of the wallet's current unspent transaction outputs (UTXOs)
     rpc GetUtxos(GetUtxosRequest) returns (GetUtxosResponse) {}
-    rpc GetPrivateKey(GetPrivateKeyRequest) returns (GetPrivateKeyResponse) {}
+
+    // GetPrivateKeys returns the spend and view keys for the given address
+    //
+    // **Requires wallet to be unlocked**
+    rpc GetPrivateKeys(GetPrivateKeysRequest) returns (GetPrivateKeysResponse) {}
+
+    // ImportAddress imports an address into the wallet. Options are available to control whether
+    // or not, and from what height, the wallet rescans the chain to discover the address' transactions.
     rpc ImportAddress(ImportAddressRequest) returns (ImportAddressResponse) {}
+
+    // CreateMultisigAddress generates a new multisig address using the provided public keys
     rpc CreateMultisigAddress(CreateMultisigAddressRequest) returns (CreateMultisigAddressResponse) {}
+
+    // CreateMultiSignature generates and returns a signature for use when proving a multisig transaction
+    rpc CreateMultiSignature(CreateMultiSignatureRequest) returns (CreateMultiSignatureResponse) {}
+
+    // ProveMultisig creates a proof for a transaction with a multisig input
     rpc ProveMultisig(ProveMultisigRequest) returns (ProveMultisigResponse) {}
-    rpc WalletLock(WalletLockRequest) returns (WalletUnlockRequest) {}
+
+    // WalletLock encrypts the wallet's private keys
+    rpc WalletLock(WalletLockRequest) returns (WalletLockResponse) {}
+
+    // WalletUnlock decrypts the wallet seed and holds it in memory for the specified period of time
     rpc WalletUnlock(WalletUnlockRequest) returns (WalletUnlockResponse) {}
+
+    // ChangeWalletPassphrase changes the passphrase used to encrypt the wallet private keys
     rpc ChangeWalletPassphrase(ChangeWalletPassphraseRequest) returns (ChangeWalletPassphraseResponse) {}
+
+    // DeletePrivateKeys deletes the wallet's private keys and seed from disk essentially turning the wallet
+    // into a watch-only wallet. It will still record incoming transactions but cannot spend them.
+    //
+    // **Requires wallet to be unlocked**
     rpc DeletePrivateKeys(DeletePrivateKeysRequest) returns (DeletePrivateKeysResponse) {}
+
+    // CreateRawTransaction creates a new, unsigned (unproven) transaction using the given parameters
     rpc CreateRawTransaction(CreateRawTransactionRequest) returns (CreateRawTransactionResponse) {}
+
+    // ProveRawTransaction creates the zk-proof for the transaction. Assuming there are no errors, this
+    // transaction should be ready for broadcast.
     rpc ProveRawTransaction(ProveRawTransactionRequest) returns (ProveRawTransactionRequest) {}
+
+    // BroadcastRawTransaction broadcasts a raw transaction to the network
     rpc BroadcastRawTransaction(BroadcastRawTransactionRequest) returns (BroadcastRawTransactionResponse) {}
+
+    // Stake stakes the selected wallet UTXOs and turns the node into a validator
+    //
+    // **Requires wallet to be unlocked**
     rpc Stake(StakeRequest) returns (StakeResponse) {}
+
+    // SetAutoStakeRewards make it such that any validator rewards that are earned are automatically staked
+    //
+    // **Requires wallet to be unlocked**
     rpc SetAutoStakeRewards(SetAutoStakeRewardsRequest) returns (SetAutoStakeRewardsResponse) {}
+
+    // Spend sends coins from the wallet according to the provided parameters
+    //
+    // **Requires wallet to be unlocked**
     rpc Spend(SpendRequest) returns (SpendResponse) {}
 }
 
 service NodeService {
+    // GetHostInfo returns info about the libp2p host
     rpc GetHostInfo(GetHostInfoRequest) returns (GetHostInfoResponse) {}
+
+    // GetPeers returns a list of peers that this node is connected to
     rpc GetPeers(GetPeersRequest) returns (GetPeersResponse) {}
+
+    // AddPeer attempts to connect to the provided peer
     rpc AddPeer(AddPeerRequest) returns (AddPeerResponse) {}
+
+    // BlockPeer blocks the given peer for the provided time period
     rpc BlockPeer(BlockPeerRequest) returns (BlockPeerResponse) {}
+
+    // SetLogLevel changes the logging level of the node
     rpc SetLogLevel(SetLogLevelRequest) returns (SetLogLevelResponse) {}
-    rpc GetMinFeePerByte(GetMinFeePerByteRequest) returns (GetMinFeePerByteResponse) {}
-    rpc SetMinFeePerByte(SetMinFeePerByteRequest) returns (SetMinFeePerByteResponse) {}
+
+    // GetMinFeePerKilobyte returns the node's current minimum transaction fee needed to relay
+    // transactions and admit them into the mempool. Validators will also set their initial preference
+    // for blocks containing transactions with fees below this threshold to not-preferred.
+    rpc GetMinFeePerKilobyte(GetMinFeePerKilobyteRequest) returns (GetMinFeePerKilobyteResponse) {}
+
+    // SetMinFeePerKilobyte sets the node's fee policy
+    rpc SetMinFeePerKilobyte(SetMinFeePerKilobyteRequest) returns (SetMinFeePerKilobyteResponse) {}
+
+    // GetMinStake returns the node's current minimum stake policy. Stake transactions staking less than
+    // this amount will not be admitted into the mempool and will not be relayed. Validators will also
+    // set their initial preference for blocks containing stake transactions below this threshold to
+    // not-preferred.
     rpc GetMinStake(GetMinStakeRequest) returns (GetMinStakeResponse) {}
+
+    // SetMinStake sets the node's minimum stake policy
     rpc SetMinStake(SetMinStakeRequest) returns (SetMinStakeResponse) {}
+
+    // GetBlockSizeSoftLimit returns the node's current blocksize soft limit. Validators will also
+    // set their initial preference for blocks over this size to not-preferred.
     rpc GetBlockSizeSoftLimit(GetBlockSizeSoftLimitRequest) returns (GetBlockSizeSoftLimitResponse) {}
+
+    // SetBlockSizeSoftLimit sets the node's blocksize soft limit policy.
     rpc SetBlockSizeSoftLimit(SetBlockSizeSoftLimitRequest) returns (SetBlockSizeSoftLimitResponse) {}
+
+    // GetTreasuryWhitelist returns the current treasury whitelist for the node. Blocks containing
+    // TreasuryTransactions not found in this list will have their initial preference set to not-preferred.
     rpc GetTreasuryWhitelist(GetTreasuryWhitelistRequest) returns (GetTreasuryWhitelistResponse) {}
-    rpc WhitelistTreasuryTransaction(WhitelistTreasuryTransactionRequest) returns (WhitelistTreasuryTransactionResponse) {}
+
+    // UpdateTreasuryWhitelist adds or removes a transaction to from the treasury whitelist
+    rpc UpdateTreasuryWhitelist(UpdateTreasuryWhitelistRequest) returns (UpdateTreasuryWhitelistResponse) {}
+
+    // ReconsiderBlock tries to reprocess the given block
     rpc ReconsiderBlock(ReconsiderBlockRequest) returns (ReconsiderBlockResponse) {}
+
+    // RecomputeChainState deletes the accumulator, validator set, and nullifier set and rebuilds them by
+    // loading and re-processing all blocks from genesis.
     rpc RecomputeChainState(RecomputeChainStateRequest) returns (RecomputeChainStateResponse) {}
 }
 
@@ -398,17 +495,8 @@ message GetTxoProofRequest {
     bytes commitment = 1;
 }
 message GetTxoProofResponse {
-    // The commitment this inclusion proof is for
-    bytes commitment           = 1;
-    // The hashes that form the root preimage
-    repeated bytes accumulator = 2;
-    // The merkle hashes linking the commitment to the accumulator
-    repeated bytes hashes      = 3;
-    // Flags indicate whether a hash in the hash list is left or right.
-    // 0 == left, 1 == right.
-    uint64 flags               = 4;
-    // The index of this commitment in the tree
-    uint64 index               = 5;
+    // The proof response
+    TxoProof proof = 1;
 }
 
 // WalletService
@@ -442,64 +530,294 @@ message GetTransactionsResponse {
     Transaction tx = 1;
 }
 message GetUtxosRequest {}
-message GetUtxosResponse {}
-message GetPrivateKeyRequest {}
-message GetPrivateKeyResponse {}
-message ImportAddressRequest {}
+message GetUtxosResponse {
+    // The full list of utxos in the wallet
+    repeated Utxo utxos = 1;
+}
+
+message GetPrivateKeysRequest {
+    // The address to fetch private keys for
+    string address = 1;
+}
+message GetPrivateKeysResponse {
+    // The spend private key
+    bytes spend_key = 1;
+    // The view private key
+    bytes view_key  = 2;
+}
+
+message ImportAddressRequest {
+    // The address to import
+    string address          = 1;
+
+    // The spend and view private keys are optional. If they
+    // are nil then this address will essentially be watch-only
+    // and the wallet will not be able to spend from it.
+    bytes spend_key         = 2;
+    bytes view_key          = 3;
+
+    // Should the wallet rescan the blockchain looking for
+    // transactions for this address.
+    bool rescan             = 4;
+    // If so what height should it start the rescan.
+    uint32 rescanFromHeight = 5;
+}
 message ImportAddressResponse {}
-message CreateMultisigAddressRequest {}
-message CreateMultisigAddressResponse {}
-message ProveMultisigRequest {}
-message ProveMultisigResponse {}
+
+message CreateMultisigAddressRequest {
+    // A list of public keys to use for the multisig address
+    repeated bytes pubkeys = 1;
+    // The number of keys required to sign the tranaction to
+    // release the funds.
+    uint32 threshold       = 2;
+
+    // A view key to use with the address
+    bytes view_pubkey      = 3;
+}
+message CreateMultisigAddressResponse {
+    // Multisig address response
+    string address = 1;
+}
+
+message CreateMultiSignatureRequest {
+    oneof tx_or_sighash {
+        // Either provide the transaction so the sighash can be computed
+        Transaction tx = 1;
+        // Or just provide the sighash itself
+        bytes sighash  = 2;
+    }
+
+    // A private key to sign with
+    bytes private_key = 3;
+}
+message CreateMultiSignatureResponse {
+    // A signature covering the sighash
+    bytes signature = 1;
+}
+
+message ProveMultisigRequest {
+    // A transaction to prove. This RPC requires there to be only one
+    // input and that the input be a multisig script.
+    RawTransaction tx   = 1;
+
+    // A list of signatures. Each one must cover the transaction's sighash.
+    repeated bytes sigs = 2;
+}
+message ProveMultisigResponse {
+    // A full transaction with the proof attached
+    Transaction proved_tx = 1;
+}
 message WalletLockRequest {}
-message WalletUnlockRequest {}
+message WalletLockResponse {}
+
+message WalletUnlockRequest {
+    // The wallet passphrase used to decrypt
+    string passphrase = 1;
+    // The duration (in seconds) to leave the wallet decrypted for.
+    // It will automatically be re-encrypted after the duration passes.
+    uint32 duration = 2;
+}
 message WalletUnlockResponse {}
-message ChangeWalletPassphraseRequest {}
+
+message ChangeWalletPassphraseRequest {
+    // Current passphrase
+    string current_passphrase = 1;
+    // Passphrase to change it to
+    string new_passphrase     = 2;
+}
 message ChangeWalletPassphraseResponse {}
+
 message DeletePrivateKeysRequest {}
 message DeletePrivateKeysResponse {}
-message CreateRawTransactionRequest {}
-message CreateRawTransactionResponse {}
-message ProveRawTransactionRequest {}
-message ProveRawTransactionResponse {}
-message BroadcastRawTransactionRequest {}
+
+message CreateRawTransactionRequest {
+    // A list of either utxo commitments or private inputs
+    repeated Input inputs     = 1;
+    // A list of outputs to send coins to
+    repeated Output outputs   = 2;
+    // A bool to control whether the wallet will automatically append a
+    // change output and send the remainder of the coins (minus a fee)
+    // to the change output.
+    bool append_change_output = 3;
+    // If append_change_output is true you can specify the fee amount to use.
+    // If zero the wallet will use its internal fee policy.
+    uint64 fee_per_kilobyte   = 4;
+
+    message Input {
+        oneof commitment_or_private_input {
+            // This is a utxo commitment known to the wallet
+            bytes commitment = 1;
+            // If trying to create a transaction spending a utxo that the
+            // wallet does not know about you must provide the full private
+            // input data.
+            PrivateInput input = 2;
+        }
+    }
+
+    message Output {
+        // Address to send coins to
+        string address = 1;
+        // The amount to send
+        uint64 amount  = 2;
+    }
+}
+message CreateRawTransactionResponse {
+    // Raw transaction response
+    RawTransaction tx = 1;
+}
+
+message ProveRawTransactionRequest {
+    // The raw transaction to prove
+    RawTransaction tx = 1;
+    // The private keys to use to prove the inputs.
+    repeated bytes private_keys = 2;
+}
+message ProveRawTransactionResponse {
+    // A full transaction with the proof attached
+    Transaction proved_tx = 1;
+}
+
+message BroadcastRawTransactionRequest {
+    // A fully proven transaction
+    Transaction tx = 1;
+}
 message BroadcastRawTransactionResponse {}
-message StakeRequest {}
+
+message StakeRequest {
+    // The utxos to stake identified by their commitment hashes
+    repeated bytes commitments = 1;
+}
 message StakeResponse {}
-message SetAutoStakeRewardsRequest {}
+
+message SetAutoStakeRewardsRequest {
+    // Whether to turn on or off autostaking
+    bool autostake = 1;
+}
 message SetAutoStakeRewardsResponse {}
-message SpendRequest {}
+
+message SpendRequest {
+    // Address to send funds to
+    string to_address       = 1;
+    // Amount to send
+    uint64 amount           = 2;
+    // The fee to use for the transaction.
+    // If zero the wallet will use its internal fee policy.
+    uint64 fee_per_kilobyte = 3;
+}
 message SpendResponse {}
 
 // NodeService
 message GetHostInfoRequest {}
-message GetHostInfoResponse {}
+message GetHostInfoResponse {
+    // The host peer ID
+    string peer_ID        = 1;
+    // A list of multiaddrs that this node is listening on
+    repeated string addrs = 2;
+    // The number of peers this node is connected to
+    uint32 peers    = 3;
+    // Is tx index enabled
+    bool tx_index         = 4;
+    // Is the wallet server enabled
+    bool wallet_server    = 5;
+}
+
 message GetPeersRequest {}
-message GetPeersResponse {}
-message AddPeerRequest {}
+message GetPeersResponse {
+    // List of peers
+    repeated Peer peers = 1;
+}
+
+message AddPeerRequest {
+    // The peer addr to add. This must be in multiaddr format and include
+    // the /p2p/<peerID> field.
+    // Ex) /ip4/167.172.126.176/tcp/4001/p2p/12D3KooWHnpVyu9XDeFoAVayqr9hvc9xPqSSHtCSFLEkKgcz5Wro
+    string addr = 1;
+}
 message AddPeerResponse {}
-message BlockPeerRequest {}
+
+message BlockPeerRequest {
+    // Peer ID to block
+    string peer_ID = 1;
+}
 message BlockPeerResponse {}
-message SetLogLevelRequest {}
+
+message SetLogLevelRequest {
+    // The debug level to set the logging to
+    Level level = 1;
+
+    enum Level {
+       DEBUG     = 0;
+       INFO      = 1;
+       WARNING   = 2;
+       ERROR     = 3;
+       CRITICAL  = 4;
+       ALERT     = 5;
+       EMERGENCY = 6;
+    }
+}
 message SetLogLevelResponse {}
-message GetMinFeePerByteRequest {}
-message GetMinFeePerByteResponse {}
-message SetMinFeePerByteRequest {}
-message SetMinFeePerByteResponse {}
+
+message GetMinFeePerKilobyteRequest {}
+message GetMinFeePerKilobyteResponse {
+    // Fee per kilobyte response
+    uint64 fee_per_kilobyte = 1;
+}
+
+message SetMinFeePerKilobyteRequest {
+    // Fee per byte to set
+    uint64 fee_per_kilobyte = 1;
+}
+message SetMinFeePerKilobyteResponse {}
+
 message GetMinStakeRequest {}
-message GetMinStakeResponse {}
-message SetMinStakeRequest {}
+message GetMinStakeResponse {
+    // Minimum stake response
+    uint64 min_stake_amount = 1;
+}
+
+message SetMinStakeRequest {
+    // Minimum stake amount to set
+    uint64 min_stake_amount = 1;
+}
 message SetMinStakeResponse {}
+
 message GetBlockSizeSoftLimitRequest {}
-message GetBlockSizeSoftLimitResponse {}
-message SetBlockSizeSoftLimitRequest {}
+message GetBlockSizeSoftLimitResponse {
+    // Block size response
+    uint32 block_size = 1;
+}
+
+message SetBlockSizeSoftLimitRequest {
+    // Blocksize to set
+    uint32 block_size = 1;
+}
 message SetBlockSizeSoftLimitResponse {}
+
 message GetTreasuryWhitelistRequest {}
-message GetTreasuryWhitelistResponse {}
-message WhitelistTreasuryTransactionRequest {}
-message WhitelistTreasuryTransactionResponse {}
-message ReconsiderBlockRequest {}
+message GetTreasuryWhitelistResponse {
+    // Whitelisted txids
+    repeated bytes txids = 1;
+}
+
+message UpdateTreasuryWhitelistRequest {
+    // Txids to add to the whitelist
+    repeated bytes add    = 1;
+    // Txids to remove from the whitelist
+    repeated bytes remove = 2;
+}
+message UpdateTreasuryWhitelistResponse {}
+
+message ReconsiderBlockRequest {
+    // Block ID to reconsider.
+    bytes block_ID = 1;
+
+    // We likely don't have the block and will have to download it from
+    // another peer. You can set the peer here. If empty we will try to find
+    // it form a few random peers.
+    string download_peer = 2;
+}
 message ReconsiderBlockResponse {}
+
 message RecomputeChainStateRequest {}
 message RecomputeChainStateResponse {}
 
@@ -591,4 +909,74 @@ message Validator {
         uint64 unclaimed_coins    = 4;
         // The number of blocks this validator has created this epoch.
         uint32 epoch_blocks       = 5;
+}
+
+message Utxo {
+    // The commitment associated with the output
+    bytes commitment = 1;
+    // The amount of coins
+    uint64 amount    = 2;
+    // The address that the utxo is associated with
+    string address   = 3;
+}
+
+message RawTransaction {
+    // The transaction as it appears on the network
+    Transaction tx                 = 1;
+    // The private (hidden) data for each input
+    repeated PrivateInput inputs   = 2;
+    // The private (hidden) data for each output
+    repeated PrivateOutput outputs = 3;
+}
+
+message PrivateInput {
+    // The amount of the input
+    uint64 amount                   = 1;
+    // Input salt
+    bytes salt                      = 2;
+    // Input asset ID
+    bytes asset_ID                  = 3;
+    // Input state
+    bytes state                     = 4;
+    // The unlocking function commitment
+    bytes unlocking_script_hash     = 5;
+    // The unlocking function parameters
+    repeated bytes unlocking_params = 6;
+    // The txo proof linking the input
+    // commitment to the accumulator
+    TxoProof txo_proof              = 7;
+}
+
+message PrivateOutput {
+    // Output amount
+    uint64 amount     = 1;
+    // Output salt
+    bytes salt        = 2;
+    // Output asset ID
+    bytes asset_ID    = 3;
+    // Output state
+    bytes state       = 4;
+    // Output scriptHash
+    bytes script_hash = 5;
+}
+
+message TxoProof {
+    // The commitment this inclusion proof is for
+    bytes commitment           = 1;
+    // The hashes that form the root preimage
+    repeated bytes accumulator = 2;
+    // The merkle hashes linking the commitment to the accumulator
+    repeated bytes hashes      = 3;
+    // Flags indicate whether a hash in the hash list is left or right.
+    // 0 == left, 1 == right.
+    uint64 flags               = 4;
+    // The index of this commitment in the tree
+    uint64 index               = 5;
+}
+
+message Peer {
+    // Peer ID
+    string id             = 1;
+    // Multiaddrs
+    repeated string addrs = 2;
 }

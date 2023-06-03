@@ -978,25 +978,65 @@ var WalletServerService_ServiceDesc = grpc.ServiceDesc{
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type WalletServiceClient interface {
+	// GetBalance returns the combined balance of all addresses in the wallet
 	GetBalance(ctx context.Context, in *GetBalanceRequest, opts ...grpc.CallOption) (*GetBalanceResponse, error)
+	// GetWalletSeed returns the mnemonic seed for the wallet. If the wallet
+	// seed has been deleted via the `DeletePrivateKeys` RPC an error will be
+	// returned.
+	//
+	// **Requires wallet to be unlocked**
 	GetWalletSeed(ctx context.Context, in *GetWalletSeedRequest, opts ...grpc.CallOption) (*GetWalletSeedResponse, error)
+	// GetAddresses returns all the addresses created by this wallet
 	GetAddresses(ctx context.Context, in *GetAddressesRequest, opts ...grpc.CallOption) (*GetAddressesResponse, error)
+	// GetNewAddress generates a new address and returns it. Both a new spend key
+	// and view key will be derived from the mnemonic seed.
 	GetNewAddress(ctx context.Context, in *GetNewAddressRequest, opts ...grpc.CallOption) (*GetNewAddressResponse, error)
+	// GetTransactions returns the list of transactions for the wallet
 	GetTransactions(ctx context.Context, in *GetTransactionsRequest, opts ...grpc.CallOption) (*GetTransactionsResponse, error)
+	// GetUtxos returns a list of the wallet's current unspent transaction outputs (UTXOs)
 	GetUtxos(ctx context.Context, in *GetUtxosRequest, opts ...grpc.CallOption) (*GetUtxosResponse, error)
-	GetPrivateKey(ctx context.Context, in *GetPrivateKeyRequest, opts ...grpc.CallOption) (*GetPrivateKeyResponse, error)
+	// GetPrivateKeys returns the spend and view keys for the given address
+	//
+	// **Requires wallet to be unlocked**
+	GetPrivateKeys(ctx context.Context, in *GetPrivateKeysRequest, opts ...grpc.CallOption) (*GetPrivateKeysResponse, error)
+	// ImportAddress imports an address into the wallet. Options are available to control whether
+	// or not, and from what height, the wallet rescans the chain to discover the address' transactions.
 	ImportAddress(ctx context.Context, in *ImportAddressRequest, opts ...grpc.CallOption) (*ImportAddressResponse, error)
+	// CreateMultisigAddress generates a new multisig address using the provided public keys
 	CreateMultisigAddress(ctx context.Context, in *CreateMultisigAddressRequest, opts ...grpc.CallOption) (*CreateMultisigAddressResponse, error)
+	// CreateMultiSignature generates and returns a signature for use when proving a multisig transaction
+	CreateMultiSignature(ctx context.Context, in *CreateMultiSignatureRequest, opts ...grpc.CallOption) (*CreateMultiSignatureResponse, error)
+	// ProveMultisig creates a proof for a transaction with a multisig input
 	ProveMultisig(ctx context.Context, in *ProveMultisigRequest, opts ...grpc.CallOption) (*ProveMultisigResponse, error)
-	WalletLock(ctx context.Context, in *WalletLockRequest, opts ...grpc.CallOption) (*WalletUnlockRequest, error)
+	// WalletLock encrypts the wallet's private keys
+	WalletLock(ctx context.Context, in *WalletLockRequest, opts ...grpc.CallOption) (*WalletLockResponse, error)
+	// WalletUnlock decrypts the wallet seed and holds it in memory for the specified period of time
 	WalletUnlock(ctx context.Context, in *WalletUnlockRequest, opts ...grpc.CallOption) (*WalletUnlockResponse, error)
+	// ChangeWalletPassphrase changes the passphrase used to encrypt the wallet private keys
 	ChangeWalletPassphrase(ctx context.Context, in *ChangeWalletPassphraseRequest, opts ...grpc.CallOption) (*ChangeWalletPassphraseResponse, error)
+	// DeletePrivateKeys deletes the wallet's private keys and seed from disk essentially turning the wallet
+	// into a watch-only wallet. It will still record incoming transactions but cannot spend them.
+	//
+	// **Requires wallet to be unlocked**
 	DeletePrivateKeys(ctx context.Context, in *DeletePrivateKeysRequest, opts ...grpc.CallOption) (*DeletePrivateKeysResponse, error)
+	// CreateRawTransaction creates a new, unsigned (unproven) transaction using the given parameters
 	CreateRawTransaction(ctx context.Context, in *CreateRawTransactionRequest, opts ...grpc.CallOption) (*CreateRawTransactionResponse, error)
+	// ProveRawTransaction creates the zk-proof for the transaction. Assuming there are no errors, this
+	// transaction should be ready for broadcast.
 	ProveRawTransaction(ctx context.Context, in *ProveRawTransactionRequest, opts ...grpc.CallOption) (*ProveRawTransactionRequest, error)
+	// BroadcastRawTransaction broadcasts a raw transaction to the network
 	BroadcastRawTransaction(ctx context.Context, in *BroadcastRawTransactionRequest, opts ...grpc.CallOption) (*BroadcastRawTransactionResponse, error)
+	// Stake stakes the selected wallet UTXOs and turns the node into a validator
+	//
+	// **Requires wallet to be unlocked**
 	Stake(ctx context.Context, in *StakeRequest, opts ...grpc.CallOption) (*StakeResponse, error)
+	// SetAutoStakeRewards make it such that any validator rewards that are earned are automatically staked
+	//
+	// **Requires wallet to be unlocked**
 	SetAutoStakeRewards(ctx context.Context, in *SetAutoStakeRewardsRequest, opts ...grpc.CallOption) (*SetAutoStakeRewardsResponse, error)
+	// Spend sends coins from the wallet according to the provided parameters
+	//
+	// **Requires wallet to be unlocked**
 	Spend(ctx context.Context, in *SpendRequest, opts ...grpc.CallOption) (*SpendResponse, error)
 }
 
@@ -1062,9 +1102,9 @@ func (c *walletServiceClient) GetUtxos(ctx context.Context, in *GetUtxosRequest,
 	return out, nil
 }
 
-func (c *walletServiceClient) GetPrivateKey(ctx context.Context, in *GetPrivateKeyRequest, opts ...grpc.CallOption) (*GetPrivateKeyResponse, error) {
-	out := new(GetPrivateKeyResponse)
-	err := c.cc.Invoke(ctx, "/pb.WalletService/GetPrivateKey", in, out, opts...)
+func (c *walletServiceClient) GetPrivateKeys(ctx context.Context, in *GetPrivateKeysRequest, opts ...grpc.CallOption) (*GetPrivateKeysResponse, error) {
+	out := new(GetPrivateKeysResponse)
+	err := c.cc.Invoke(ctx, "/pb.WalletService/GetPrivateKeys", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1089,6 +1129,15 @@ func (c *walletServiceClient) CreateMultisigAddress(ctx context.Context, in *Cre
 	return out, nil
 }
 
+func (c *walletServiceClient) CreateMultiSignature(ctx context.Context, in *CreateMultiSignatureRequest, opts ...grpc.CallOption) (*CreateMultiSignatureResponse, error) {
+	out := new(CreateMultiSignatureResponse)
+	err := c.cc.Invoke(ctx, "/pb.WalletService/CreateMultiSignature", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *walletServiceClient) ProveMultisig(ctx context.Context, in *ProveMultisigRequest, opts ...grpc.CallOption) (*ProveMultisigResponse, error) {
 	out := new(ProveMultisigResponse)
 	err := c.cc.Invoke(ctx, "/pb.WalletService/ProveMultisig", in, out, opts...)
@@ -1098,8 +1147,8 @@ func (c *walletServiceClient) ProveMultisig(ctx context.Context, in *ProveMultis
 	return out, nil
 }
 
-func (c *walletServiceClient) WalletLock(ctx context.Context, in *WalletLockRequest, opts ...grpc.CallOption) (*WalletUnlockRequest, error) {
-	out := new(WalletUnlockRequest)
+func (c *walletServiceClient) WalletLock(ctx context.Context, in *WalletLockRequest, opts ...grpc.CallOption) (*WalletLockResponse, error) {
+	out := new(WalletLockResponse)
 	err := c.cc.Invoke(ctx, "/pb.WalletService/WalletLock", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -1192,25 +1241,65 @@ func (c *walletServiceClient) Spend(ctx context.Context, in *SpendRequest, opts 
 // All implementations must embed UnimplementedWalletServiceServer
 // for forward compatibility
 type WalletServiceServer interface {
+	// GetBalance returns the combined balance of all addresses in the wallet
 	GetBalance(context.Context, *GetBalanceRequest) (*GetBalanceResponse, error)
+	// GetWalletSeed returns the mnemonic seed for the wallet. If the wallet
+	// seed has been deleted via the `DeletePrivateKeys` RPC an error will be
+	// returned.
+	//
+	// **Requires wallet to be unlocked**
 	GetWalletSeed(context.Context, *GetWalletSeedRequest) (*GetWalletSeedResponse, error)
+	// GetAddresses returns all the addresses created by this wallet
 	GetAddresses(context.Context, *GetAddressesRequest) (*GetAddressesResponse, error)
+	// GetNewAddress generates a new address and returns it. Both a new spend key
+	// and view key will be derived from the mnemonic seed.
 	GetNewAddress(context.Context, *GetNewAddressRequest) (*GetNewAddressResponse, error)
+	// GetTransactions returns the list of transactions for the wallet
 	GetTransactions(context.Context, *GetTransactionsRequest) (*GetTransactionsResponse, error)
+	// GetUtxos returns a list of the wallet's current unspent transaction outputs (UTXOs)
 	GetUtxos(context.Context, *GetUtxosRequest) (*GetUtxosResponse, error)
-	GetPrivateKey(context.Context, *GetPrivateKeyRequest) (*GetPrivateKeyResponse, error)
+	// GetPrivateKeys returns the spend and view keys for the given address
+	//
+	// **Requires wallet to be unlocked**
+	GetPrivateKeys(context.Context, *GetPrivateKeysRequest) (*GetPrivateKeysResponse, error)
+	// ImportAddress imports an address into the wallet. Options are available to control whether
+	// or not, and from what height, the wallet rescans the chain to discover the address' transactions.
 	ImportAddress(context.Context, *ImportAddressRequest) (*ImportAddressResponse, error)
+	// CreateMultisigAddress generates a new multisig address using the provided public keys
 	CreateMultisigAddress(context.Context, *CreateMultisigAddressRequest) (*CreateMultisigAddressResponse, error)
+	// CreateMultiSignature generates and returns a signature for use when proving a multisig transaction
+	CreateMultiSignature(context.Context, *CreateMultiSignatureRequest) (*CreateMultiSignatureResponse, error)
+	// ProveMultisig creates a proof for a transaction with a multisig input
 	ProveMultisig(context.Context, *ProveMultisigRequest) (*ProveMultisigResponse, error)
-	WalletLock(context.Context, *WalletLockRequest) (*WalletUnlockRequest, error)
+	// WalletLock encrypts the wallet's private keys
+	WalletLock(context.Context, *WalletLockRequest) (*WalletLockResponse, error)
+	// WalletUnlock decrypts the wallet seed and holds it in memory for the specified period of time
 	WalletUnlock(context.Context, *WalletUnlockRequest) (*WalletUnlockResponse, error)
+	// ChangeWalletPassphrase changes the passphrase used to encrypt the wallet private keys
 	ChangeWalletPassphrase(context.Context, *ChangeWalletPassphraseRequest) (*ChangeWalletPassphraseResponse, error)
+	// DeletePrivateKeys deletes the wallet's private keys and seed from disk essentially turning the wallet
+	// into a watch-only wallet. It will still record incoming transactions but cannot spend them.
+	//
+	// **Requires wallet to be unlocked**
 	DeletePrivateKeys(context.Context, *DeletePrivateKeysRequest) (*DeletePrivateKeysResponse, error)
+	// CreateRawTransaction creates a new, unsigned (unproven) transaction using the given parameters
 	CreateRawTransaction(context.Context, *CreateRawTransactionRequest) (*CreateRawTransactionResponse, error)
+	// ProveRawTransaction creates the zk-proof for the transaction. Assuming there are no errors, this
+	// transaction should be ready for broadcast.
 	ProveRawTransaction(context.Context, *ProveRawTransactionRequest) (*ProveRawTransactionRequest, error)
+	// BroadcastRawTransaction broadcasts a raw transaction to the network
 	BroadcastRawTransaction(context.Context, *BroadcastRawTransactionRequest) (*BroadcastRawTransactionResponse, error)
+	// Stake stakes the selected wallet UTXOs and turns the node into a validator
+	//
+	// **Requires wallet to be unlocked**
 	Stake(context.Context, *StakeRequest) (*StakeResponse, error)
+	// SetAutoStakeRewards make it such that any validator rewards that are earned are automatically staked
+	//
+	// **Requires wallet to be unlocked**
 	SetAutoStakeRewards(context.Context, *SetAutoStakeRewardsRequest) (*SetAutoStakeRewardsResponse, error)
+	// Spend sends coins from the wallet according to the provided parameters
+	//
+	// **Requires wallet to be unlocked**
 	Spend(context.Context, *SpendRequest) (*SpendResponse, error)
 	mustEmbedUnimplementedWalletServiceServer()
 }
@@ -1237,8 +1326,8 @@ func (UnimplementedWalletServiceServer) GetTransactions(context.Context, *GetTra
 func (UnimplementedWalletServiceServer) GetUtxos(context.Context, *GetUtxosRequest) (*GetUtxosResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUtxos not implemented")
 }
-func (UnimplementedWalletServiceServer) GetPrivateKey(context.Context, *GetPrivateKeyRequest) (*GetPrivateKeyResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetPrivateKey not implemented")
+func (UnimplementedWalletServiceServer) GetPrivateKeys(context.Context, *GetPrivateKeysRequest) (*GetPrivateKeysResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPrivateKeys not implemented")
 }
 func (UnimplementedWalletServiceServer) ImportAddress(context.Context, *ImportAddressRequest) (*ImportAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ImportAddress not implemented")
@@ -1246,10 +1335,13 @@ func (UnimplementedWalletServiceServer) ImportAddress(context.Context, *ImportAd
 func (UnimplementedWalletServiceServer) CreateMultisigAddress(context.Context, *CreateMultisigAddressRequest) (*CreateMultisigAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateMultisigAddress not implemented")
 }
+func (UnimplementedWalletServiceServer) CreateMultiSignature(context.Context, *CreateMultiSignatureRequest) (*CreateMultiSignatureResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateMultiSignature not implemented")
+}
 func (UnimplementedWalletServiceServer) ProveMultisig(context.Context, *ProveMultisigRequest) (*ProveMultisigResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ProveMultisig not implemented")
 }
-func (UnimplementedWalletServiceServer) WalletLock(context.Context, *WalletLockRequest) (*WalletUnlockRequest, error) {
+func (UnimplementedWalletServiceServer) WalletLock(context.Context, *WalletLockRequest) (*WalletLockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WalletLock not implemented")
 }
 func (UnimplementedWalletServiceServer) WalletUnlock(context.Context, *WalletUnlockRequest) (*WalletUnlockResponse, error) {
@@ -1400,20 +1492,20 @@ func _WalletService_GetUtxos_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _WalletService_GetPrivateKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetPrivateKeyRequest)
+func _WalletService_GetPrivateKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPrivateKeysRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(WalletServiceServer).GetPrivateKey(ctx, in)
+		return srv.(WalletServiceServer).GetPrivateKeys(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pb.WalletService/GetPrivateKey",
+		FullMethod: "/pb.WalletService/GetPrivateKeys",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServiceServer).GetPrivateKey(ctx, req.(*GetPrivateKeyRequest))
+		return srv.(WalletServiceServer).GetPrivateKeys(ctx, req.(*GetPrivateKeysRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1450,6 +1542,24 @@ func _WalletService_CreateMultisigAddress_Handler(srv interface{}, ctx context.C
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(WalletServiceServer).CreateMultisigAddress(ctx, req.(*CreateMultisigAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WalletService_CreateMultiSignature_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateMultiSignatureRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).CreateMultiSignature(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.WalletService/CreateMultiSignature",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).CreateMultiSignature(ctx, req.(*CreateMultiSignatureRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1684,8 +1794,8 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _WalletService_GetUtxos_Handler,
 		},
 		{
-			MethodName: "GetPrivateKey",
-			Handler:    _WalletService_GetPrivateKey_Handler,
+			MethodName: "GetPrivateKeys",
+			Handler:    _WalletService_GetPrivateKeys_Handler,
 		},
 		{
 			MethodName: "ImportAddress",
@@ -1694,6 +1804,10 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateMultisigAddress",
 			Handler:    _WalletService_CreateMultisigAddress_Handler,
+		},
+		{
+			MethodName: "CreateMultiSignature",
+			Handler:    _WalletService_CreateMultiSignature_Handler,
 		},
 		{
 			MethodName: "ProveMultisig",
@@ -1748,20 +1862,43 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type NodeServiceClient interface {
+	// GetHostInfo returns info about the libp2p host
 	GetHostInfo(ctx context.Context, in *GetHostInfoRequest, opts ...grpc.CallOption) (*GetHostInfoResponse, error)
+	// GetPeers returns a list of peers that this node is connected to
 	GetPeers(ctx context.Context, in *GetPeersRequest, opts ...grpc.CallOption) (*GetPeersResponse, error)
+	// AddPeer attempts to connect to the provided peer
 	AddPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*AddPeerResponse, error)
+	// BlockPeer blocks the given peer for the provided time period
 	BlockPeer(ctx context.Context, in *BlockPeerRequest, opts ...grpc.CallOption) (*BlockPeerResponse, error)
+	// SetLogLevel changes the logging level of the node
 	SetLogLevel(ctx context.Context, in *SetLogLevelRequest, opts ...grpc.CallOption) (*SetLogLevelResponse, error)
-	GetMinFeePerByte(ctx context.Context, in *GetMinFeePerByteRequest, opts ...grpc.CallOption) (*GetMinFeePerByteResponse, error)
-	SetMinFeePerByte(ctx context.Context, in *SetMinFeePerByteRequest, opts ...grpc.CallOption) (*SetMinFeePerByteResponse, error)
+	// GetMinFeePerKilobyte returns the node's current minimum transaction fee needed to relay
+	// transactions and admit them into the mempool. Validators will also set their initial preference
+	// for blocks containing transactions with fees below this threshold to not-preferred.
+	GetMinFeePerKilobyte(ctx context.Context, in *GetMinFeePerKilobyteRequest, opts ...grpc.CallOption) (*GetMinFeePerKilobyteResponse, error)
+	// SetMinFeePerKilobyte sets the node's fee policy
+	SetMinFeePerKilobyte(ctx context.Context, in *SetMinFeePerKilobyteRequest, opts ...grpc.CallOption) (*SetMinFeePerKilobyteResponse, error)
+	// GetMinStake returns the node's current minimum stake policy. Stake transactions staking less than
+	// this amount will not be admitted into the mempool and will not be relayed. Validators will also
+	// set their initial preference for blocks containing stake transactions below this threshold to
+	// not-preferred.
 	GetMinStake(ctx context.Context, in *GetMinStakeRequest, opts ...grpc.CallOption) (*GetMinStakeResponse, error)
+	// SetMinStake sets the node's minimum stake policy
 	SetMinStake(ctx context.Context, in *SetMinStakeRequest, opts ...grpc.CallOption) (*SetMinStakeResponse, error)
+	// GetBlockSizeSoftLimit returns the node's current blocksize soft limit. Validators will also
+	// set their initial preference for blocks over this size to not-preferred.
 	GetBlockSizeSoftLimit(ctx context.Context, in *GetBlockSizeSoftLimitRequest, opts ...grpc.CallOption) (*GetBlockSizeSoftLimitResponse, error)
+	// SetBlockSizeSoftLimit sets the node's blocksize soft limit policy.
 	SetBlockSizeSoftLimit(ctx context.Context, in *SetBlockSizeSoftLimitRequest, opts ...grpc.CallOption) (*SetBlockSizeSoftLimitResponse, error)
+	// GetTreasuryWhitelist returns the current treasury whitelist for the node. Blocks containing
+	// TreasuryTransactions not found in this list will have their initial preference set to not-preferred.
 	GetTreasuryWhitelist(ctx context.Context, in *GetTreasuryWhitelistRequest, opts ...grpc.CallOption) (*GetTreasuryWhitelistResponse, error)
-	WhitelistTreasuryTransaction(ctx context.Context, in *WhitelistTreasuryTransactionRequest, opts ...grpc.CallOption) (*WhitelistTreasuryTransactionResponse, error)
+	// UpdateTreasuryWhitelist adds or removes a transaction to from the treasury whitelist
+	UpdateTreasuryWhitelist(ctx context.Context, in *UpdateTreasuryWhitelistRequest, opts ...grpc.CallOption) (*UpdateTreasuryWhitelistResponse, error)
+	// ReconsiderBlock tries to reprocess the given block
 	ReconsiderBlock(ctx context.Context, in *ReconsiderBlockRequest, opts ...grpc.CallOption) (*ReconsiderBlockResponse, error)
+	// RecomputeChainState deletes the accumulator, validator set, and nullifier set and rebuilds them by
+	// loading and re-processing all blocks from genesis.
 	RecomputeChainState(ctx context.Context, in *RecomputeChainStateRequest, opts ...grpc.CallOption) (*RecomputeChainStateResponse, error)
 }
 
@@ -1818,18 +1955,18 @@ func (c *nodeServiceClient) SetLogLevel(ctx context.Context, in *SetLogLevelRequ
 	return out, nil
 }
 
-func (c *nodeServiceClient) GetMinFeePerByte(ctx context.Context, in *GetMinFeePerByteRequest, opts ...grpc.CallOption) (*GetMinFeePerByteResponse, error) {
-	out := new(GetMinFeePerByteResponse)
-	err := c.cc.Invoke(ctx, "/pb.NodeService/GetMinFeePerByte", in, out, opts...)
+func (c *nodeServiceClient) GetMinFeePerKilobyte(ctx context.Context, in *GetMinFeePerKilobyteRequest, opts ...grpc.CallOption) (*GetMinFeePerKilobyteResponse, error) {
+	out := new(GetMinFeePerKilobyteResponse)
+	err := c.cc.Invoke(ctx, "/pb.NodeService/GetMinFeePerKilobyte", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *nodeServiceClient) SetMinFeePerByte(ctx context.Context, in *SetMinFeePerByteRequest, opts ...grpc.CallOption) (*SetMinFeePerByteResponse, error) {
-	out := new(SetMinFeePerByteResponse)
-	err := c.cc.Invoke(ctx, "/pb.NodeService/SetMinFeePerByte", in, out, opts...)
+func (c *nodeServiceClient) SetMinFeePerKilobyte(ctx context.Context, in *SetMinFeePerKilobyteRequest, opts ...grpc.CallOption) (*SetMinFeePerKilobyteResponse, error) {
+	out := new(SetMinFeePerKilobyteResponse)
+	err := c.cc.Invoke(ctx, "/pb.NodeService/SetMinFeePerKilobyte", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1881,9 +2018,9 @@ func (c *nodeServiceClient) GetTreasuryWhitelist(ctx context.Context, in *GetTre
 	return out, nil
 }
 
-func (c *nodeServiceClient) WhitelistTreasuryTransaction(ctx context.Context, in *WhitelistTreasuryTransactionRequest, opts ...grpc.CallOption) (*WhitelistTreasuryTransactionResponse, error) {
-	out := new(WhitelistTreasuryTransactionResponse)
-	err := c.cc.Invoke(ctx, "/pb.NodeService/WhitelistTreasuryTransaction", in, out, opts...)
+func (c *nodeServiceClient) UpdateTreasuryWhitelist(ctx context.Context, in *UpdateTreasuryWhitelistRequest, opts ...grpc.CallOption) (*UpdateTreasuryWhitelistResponse, error) {
+	out := new(UpdateTreasuryWhitelistResponse)
+	err := c.cc.Invoke(ctx, "/pb.NodeService/UpdateTreasuryWhitelist", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1912,20 +2049,43 @@ func (c *nodeServiceClient) RecomputeChainState(ctx context.Context, in *Recompu
 // All implementations must embed UnimplementedNodeServiceServer
 // for forward compatibility
 type NodeServiceServer interface {
+	// GetHostInfo returns info about the libp2p host
 	GetHostInfo(context.Context, *GetHostInfoRequest) (*GetHostInfoResponse, error)
+	// GetPeers returns a list of peers that this node is connected to
 	GetPeers(context.Context, *GetPeersRequest) (*GetPeersResponse, error)
+	// AddPeer attempts to connect to the provided peer
 	AddPeer(context.Context, *AddPeerRequest) (*AddPeerResponse, error)
+	// BlockPeer blocks the given peer for the provided time period
 	BlockPeer(context.Context, *BlockPeerRequest) (*BlockPeerResponse, error)
+	// SetLogLevel changes the logging level of the node
 	SetLogLevel(context.Context, *SetLogLevelRequest) (*SetLogLevelResponse, error)
-	GetMinFeePerByte(context.Context, *GetMinFeePerByteRequest) (*GetMinFeePerByteResponse, error)
-	SetMinFeePerByte(context.Context, *SetMinFeePerByteRequest) (*SetMinFeePerByteResponse, error)
+	// GetMinFeePerKilobyte returns the node's current minimum transaction fee needed to relay
+	// transactions and admit them into the mempool. Validators will also set their initial preference
+	// for blocks containing transactions with fees below this threshold to not-preferred.
+	GetMinFeePerKilobyte(context.Context, *GetMinFeePerKilobyteRequest) (*GetMinFeePerKilobyteResponse, error)
+	// SetMinFeePerKilobyte sets the node's fee policy
+	SetMinFeePerKilobyte(context.Context, *SetMinFeePerKilobyteRequest) (*SetMinFeePerKilobyteResponse, error)
+	// GetMinStake returns the node's current minimum stake policy. Stake transactions staking less than
+	// this amount will not be admitted into the mempool and will not be relayed. Validators will also
+	// set their initial preference for blocks containing stake transactions below this threshold to
+	// not-preferred.
 	GetMinStake(context.Context, *GetMinStakeRequest) (*GetMinStakeResponse, error)
+	// SetMinStake sets the node's minimum stake policy
 	SetMinStake(context.Context, *SetMinStakeRequest) (*SetMinStakeResponse, error)
+	// GetBlockSizeSoftLimit returns the node's current blocksize soft limit. Validators will also
+	// set their initial preference for blocks over this size to not-preferred.
 	GetBlockSizeSoftLimit(context.Context, *GetBlockSizeSoftLimitRequest) (*GetBlockSizeSoftLimitResponse, error)
+	// SetBlockSizeSoftLimit sets the node's blocksize soft limit policy.
 	SetBlockSizeSoftLimit(context.Context, *SetBlockSizeSoftLimitRequest) (*SetBlockSizeSoftLimitResponse, error)
+	// GetTreasuryWhitelist returns the current treasury whitelist for the node. Blocks containing
+	// TreasuryTransactions not found in this list will have their initial preference set to not-preferred.
 	GetTreasuryWhitelist(context.Context, *GetTreasuryWhitelistRequest) (*GetTreasuryWhitelistResponse, error)
-	WhitelistTreasuryTransaction(context.Context, *WhitelistTreasuryTransactionRequest) (*WhitelistTreasuryTransactionResponse, error)
+	// UpdateTreasuryWhitelist adds or removes a transaction to from the treasury whitelist
+	UpdateTreasuryWhitelist(context.Context, *UpdateTreasuryWhitelistRequest) (*UpdateTreasuryWhitelistResponse, error)
+	// ReconsiderBlock tries to reprocess the given block
 	ReconsiderBlock(context.Context, *ReconsiderBlockRequest) (*ReconsiderBlockResponse, error)
+	// RecomputeChainState deletes the accumulator, validator set, and nullifier set and rebuilds them by
+	// loading and re-processing all blocks from genesis.
 	RecomputeChainState(context.Context, *RecomputeChainStateRequest) (*RecomputeChainStateResponse, error)
 	mustEmbedUnimplementedNodeServiceServer()
 }
@@ -1949,11 +2109,11 @@ func (UnimplementedNodeServiceServer) BlockPeer(context.Context, *BlockPeerReque
 func (UnimplementedNodeServiceServer) SetLogLevel(context.Context, *SetLogLevelRequest) (*SetLogLevelResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetLogLevel not implemented")
 }
-func (UnimplementedNodeServiceServer) GetMinFeePerByte(context.Context, *GetMinFeePerByteRequest) (*GetMinFeePerByteResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetMinFeePerByte not implemented")
+func (UnimplementedNodeServiceServer) GetMinFeePerKilobyte(context.Context, *GetMinFeePerKilobyteRequest) (*GetMinFeePerKilobyteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMinFeePerKilobyte not implemented")
 }
-func (UnimplementedNodeServiceServer) SetMinFeePerByte(context.Context, *SetMinFeePerByteRequest) (*SetMinFeePerByteResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetMinFeePerByte not implemented")
+func (UnimplementedNodeServiceServer) SetMinFeePerKilobyte(context.Context, *SetMinFeePerKilobyteRequest) (*SetMinFeePerKilobyteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetMinFeePerKilobyte not implemented")
 }
 func (UnimplementedNodeServiceServer) GetMinStake(context.Context, *GetMinStakeRequest) (*GetMinStakeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMinStake not implemented")
@@ -1970,8 +2130,8 @@ func (UnimplementedNodeServiceServer) SetBlockSizeSoftLimit(context.Context, *Se
 func (UnimplementedNodeServiceServer) GetTreasuryWhitelist(context.Context, *GetTreasuryWhitelistRequest) (*GetTreasuryWhitelistResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTreasuryWhitelist not implemented")
 }
-func (UnimplementedNodeServiceServer) WhitelistTreasuryTransaction(context.Context, *WhitelistTreasuryTransactionRequest) (*WhitelistTreasuryTransactionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method WhitelistTreasuryTransaction not implemented")
+func (UnimplementedNodeServiceServer) UpdateTreasuryWhitelist(context.Context, *UpdateTreasuryWhitelistRequest) (*UpdateTreasuryWhitelistResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateTreasuryWhitelist not implemented")
 }
 func (UnimplementedNodeServiceServer) ReconsiderBlock(context.Context, *ReconsiderBlockRequest) (*ReconsiderBlockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReconsiderBlock not implemented")
@@ -2082,38 +2242,38 @@ func _NodeService_SetLogLevel_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _NodeService_GetMinFeePerByte_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetMinFeePerByteRequest)
+func _NodeService_GetMinFeePerKilobyte_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMinFeePerKilobyteRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(NodeServiceServer).GetMinFeePerByte(ctx, in)
+		return srv.(NodeServiceServer).GetMinFeePerKilobyte(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pb.NodeService/GetMinFeePerByte",
+		FullMethod: "/pb.NodeService/GetMinFeePerKilobyte",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NodeServiceServer).GetMinFeePerByte(ctx, req.(*GetMinFeePerByteRequest))
+		return srv.(NodeServiceServer).GetMinFeePerKilobyte(ctx, req.(*GetMinFeePerKilobyteRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _NodeService_SetMinFeePerByte_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetMinFeePerByteRequest)
+func _NodeService_SetMinFeePerKilobyte_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetMinFeePerKilobyteRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(NodeServiceServer).SetMinFeePerByte(ctx, in)
+		return srv.(NodeServiceServer).SetMinFeePerKilobyte(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pb.NodeService/SetMinFeePerByte",
+		FullMethod: "/pb.NodeService/SetMinFeePerKilobyte",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NodeServiceServer).SetMinFeePerByte(ctx, req.(*SetMinFeePerByteRequest))
+		return srv.(NodeServiceServer).SetMinFeePerKilobyte(ctx, req.(*SetMinFeePerKilobyteRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2208,20 +2368,20 @@ func _NodeService_GetTreasuryWhitelist_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
-func _NodeService_WhitelistTreasuryTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(WhitelistTreasuryTransactionRequest)
+func _NodeService_UpdateTreasuryWhitelist_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateTreasuryWhitelistRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(NodeServiceServer).WhitelistTreasuryTransaction(ctx, in)
+		return srv.(NodeServiceServer).UpdateTreasuryWhitelist(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pb.NodeService/WhitelistTreasuryTransaction",
+		FullMethod: "/pb.NodeService/UpdateTreasuryWhitelist",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NodeServiceServer).WhitelistTreasuryTransaction(ctx, req.(*WhitelistTreasuryTransactionRequest))
+		return srv.(NodeServiceServer).UpdateTreasuryWhitelist(ctx, req.(*UpdateTreasuryWhitelistRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2290,12 +2450,12 @@ var NodeService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _NodeService_SetLogLevel_Handler,
 		},
 		{
-			MethodName: "GetMinFeePerByte",
-			Handler:    _NodeService_GetMinFeePerByte_Handler,
+			MethodName: "GetMinFeePerKilobyte",
+			Handler:    _NodeService_GetMinFeePerKilobyte_Handler,
 		},
 		{
-			MethodName: "SetMinFeePerByte",
-			Handler:    _NodeService_SetMinFeePerByte_Handler,
+			MethodName: "SetMinFeePerKilobyte",
+			Handler:    _NodeService_SetMinFeePerKilobyte_Handler,
 		},
 		{
 			MethodName: "GetMinStake",
@@ -2318,8 +2478,8 @@ var NodeService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _NodeService_GetTreasuryWhitelist_Handler,
 		},
 		{
-			MethodName: "WhitelistTreasuryTransaction",
-			Handler:    _NodeService_WhitelistTreasuryTransaction_Handler,
+			MethodName: "UpdateTreasuryWhitelist",
+			Handler:    _NodeService_UpdateTreasuryWhitelist_Handler,
 		},
 		{
 			MethodName: "ReconsiderBlock",
