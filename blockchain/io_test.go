@@ -236,6 +236,14 @@ func TestPutFetchAccumulator(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Empty(t, deep.Equal(acc, acc2))
+
+	assert.NoError(t, dsPutAccumulatorCheckpoint(dbtx, 50000, acc))
+	assert.NoError(t, dbtx.Commit(context.Background()))
+
+	acc2, err = dsFetchAccumulatorCheckpoint(ds, 50000)
+	assert.NoError(t, err)
+
+	assert.Empty(t, deep.Equal(acc, acc2))
 }
 
 func TestPutGetAccumulatorConsistencyStatus(t *testing.T) {

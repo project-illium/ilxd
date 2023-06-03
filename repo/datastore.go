@@ -37,6 +37,8 @@ const (
 	TreasuryBalanceKey = "/ilxd/treasury/"
 	// AccumulatorStateKey is the datastore key for storing the accumulator state.
 	AccumulatorStateKey = "/ilxd/accumulator/"
+	// AccumulatorCheckpointKey is the datastore key for storing accumulator checkpoints.
+	AccumulatorCheckpointKey = "/ilxd/accumulatorcheckpoint/"
 	// CoinSupplyKey is the datastore key for storing the current supply of coins.
 	CoinSupplyKey = "/ilxd/coinsupply/"
 	// IndexerHeightKeyPrefix is the datastore key prefix for mapping indexers to sync heights.

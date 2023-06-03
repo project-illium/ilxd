@@ -20,6 +20,7 @@ import (
 	"github.com/project-illium/ilxd/sync"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
+	"github.com/project-illium/ilxd/types/transactions"
 	"go.uber.org/zap"
 	"sort"
 	stdsync "sync"
@@ -77,7 +78,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 
 	// Policy
 	policy := &Policy{
-		MinFeePerByte:      types.Amount(config.MinFeePerByte),
+		MinFeePerKilobyte:  types.Amount(config.MinFeePerKilobyte),
 		MinStake:           types.Amount(config.MinStake),
 		BlocksizeSoftLimit: config.BlocksizeSoftLimit,
 		MaxMessageSize:     config.MaxMessageSize,
@@ -178,7 +179,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		mempool.Params(netParams),
 		mempool.BlockchainView(chain),
 		mempool.MinStake(policy.MinStake),
-		mempool.FeePerByte(policy.MinFeePerByte),
+		mempool.FeePerKilobyte(policy.MinFeePerKilobyte),
 	}
 
 	mpool, err := mempool.NewMempool(mempoolOpts...)
@@ -242,6 +243,14 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.printListenAddrs()
 
 	return &s, nil
+}
+
+func (s *Server) submitTransaction(tx *transactions.Transaction) error {
+	err := s.mempool.ProcessTransaction(tx)
+	if err != nil {
+		return err
+	}
+	return s.network.BroadcastTransaction(tx)
 }
 
 func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.ID) error {

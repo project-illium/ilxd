@@ -190,6 +190,11 @@ func (tx *StandardTransaction) SigHash() ([]byte, error) {
 	return hash.HashFunc(b), nil
 }
 
+func (tx *StandardTransaction) ID() types.ID {
+	wtx := WrapTransaction(tx)
+	return wtx.ID()
+}
+
 func (tx *StandardTransaction) MarshalJSON() ([]byte, error) {
 	nullifiers := make([]types.HexEncodable, 0, len(tx.Nullifiers))
 	for _, n := range tx.Nullifiers {
@@ -260,6 +265,11 @@ func (tx *CoinbaseTransaction) SigHash() ([]byte, error) {
 	return hash.HashFunc(b), nil
 }
 
+func (tx *CoinbaseTransaction) ID() types.ID {
+	wtx := WrapTransaction(tx)
+	return wtx.ID()
+}
+
 func (tx *CoinbaseTransaction) MarshalJSON() ([]byte, error) {
 	c := &coinbaseTxJSON{
 		Validator_ID: tx.Validator_ID,
@@ -322,6 +332,11 @@ func (tx *StakeTransaction) SigHash() ([]byte, error) {
 	return hash.HashFunc(b), nil
 }
 
+func (tx *StakeTransaction) ID() types.ID {
+	wtx := WrapTransaction(tx)
+	return wtx.ID()
+}
+
 func (tx *StakeTransaction) MarshalJSON() ([]byte, error) {
 	s := &stakeTxJSON{
 		Validator_ID: tx.Validator_ID,
@@ -382,6 +397,11 @@ func (tx *TreasuryTransaction) SigHash() ([]byte, error) {
 	}
 
 	return hash.HashFunc(b), nil
+}
+
+func (tx *TreasuryTransaction) ID() types.ID {
+	wtx := WrapTransaction(tx)
+	return wtx.ID()
 }
 
 func (tx *TreasuryTransaction) MarshalJSON() ([]byte, error) {
@@ -447,6 +467,11 @@ func (tx *MintTransaction) SigHash() ([]byte, error) {
 	}
 
 	return hash.HashFunc(b), nil
+}
+
+func (tx *MintTransaction) ID() types.ID {
+	wtx := WrapTransaction(tx)
+	return wtx.ID()
 }
 
 func (tx *MintTransaction) MarshalJSON() ([]byte, error) {

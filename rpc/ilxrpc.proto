@@ -56,8 +56,9 @@ service BlockchainService {
     rpc GetValidatorSet(GetValidatorSetRequest) returns (GetValidatorSetResponse) {}
 
     // GetAccumulatorCheckpoint returns the accumulator at the requested height.
-    // If there is no checkpoint at that height, the *next* checkpoint found in the
-    // chain will be returned.
+    // If there is no checkpoint at that height, the *prior* checkpoint found in the
+    // chain will be returned. If there is no prior checkpoint (as is prior to the first)
+    // and error will be returned.
     rpc GetAccumulatorCheckpoint(GetAccumulatorCheckpointRequest) returns (GetAccumulatorCheckpointResponse) {}
 
     // SubmitTransaction validates a transaction and submits it to the network. An error will be returned
@@ -399,13 +400,24 @@ message GetValidatorSetResponse{
 }
 
 message GetAccumulatorCheckpointRequest{
-    // The height of the accumulator checkpoint to return.
-    // If there is no checkpoint at that height, the *next*
-    // checkpoint found in the chain will be returned.
-    //
-    // An error will be returned if there is no checkpoint after
-    // the provided height.
-    uint32 height = 1;
+    oneof height_or_timestamp {
+        // The height of the accumulator checkpoint to return.
+        // If there is no checkpoint at that height, the *prior*
+        // checkpoint found in the chain will be returned.
+        //
+        // An error will be returned if there is no checkpoint before
+        // the provided height.
+        uint32 height   = 1;
+
+        // The timestamp of the accumulator checkpoint to return.
+        // If there is no checkpoint at that timestamp, the *prior*
+        // checkpoint found in the chain will be returned.
+        //
+        // An error will be returned if there is no checkpoint before
+        // the provided timestamp.
+        int64 timestamp = 2;
+    }
+
 }
 message GetAccumulatorCheckpointResponse{
     // The height of the checkpoint

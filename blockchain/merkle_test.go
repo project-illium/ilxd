@@ -74,15 +74,17 @@ func TestMerkleInclusionProof(t *testing.T) {
 
 	merkles := BuildMerkleTreeStore([]*transactions.Transaction{d1, d2, d3, d4, d5, d6, d7, d8})
 
-	hashes := MerkleInclusionProof(merkles, h3)
+	hashes, flags := MerkleInclusionProof(merkles, h3)
 	assert.Len(t, hashes, 3)
 	assert.Equal(t, hashes[0], h4[:])
 	assert.Equal(t, hashes[1], h12[:])
 	assert.Equal(t, hashes[2], h5678[:])
+	assert.Equal(t, uint32(5), flags)
 
-	hashes = MerkleInclusionProof(merkles, h8)
+	hashes, flags = MerkleInclusionProof(merkles, h8)
 	assert.Len(t, hashes, 3)
 	assert.Equal(t, hashes[0], h7[:])
 	assert.Equal(t, hashes[1], h56[:])
 	assert.Equal(t, hashes[2], h1234[:])
+	assert.Equal(t, uint32(0), flags)
 }

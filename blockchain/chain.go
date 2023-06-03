@@ -6,6 +6,7 @@ package blockchain
 
 import (
 	"context"
+	"errors"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain/indexers"
@@ -18,6 +19,8 @@ import (
 	"sync"
 	"time"
 )
+
+const accumulatorCheckpointInterval = 100000
 
 type flushMode uint8
 
@@ -244,6 +247,12 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		}
 	}
 
+	if blk.Header.Height%accumulatorCheckpointInterval == 0 {
+		if err := dsPutAccumulatorCheckpoint(dbtx, blk.Header.Height, accumulator); err != nil {
+			return err
+		}
+	}
+
 	if err := b.indexManager.ConnectBlock(dbtx, blk); err != nil {
 		return err
 	}
@@ -391,6 +400,54 @@ func (b *Blockchain) GetValidator(validatorID peer.ID) (*Validator, error) {
 	ret := &Validator{}
 	copyValidator(ret, val)
 	return ret, nil
+}
+
+// GetAccumulatorCheckpointByTimestamp returns the accumulator checkpoint at or prior
+// to the given timestamp.
+// If there is no prior checkpoint and error will be returned.
+func (b *Blockchain) GetAccumulatorCheckpointByTimestamp(timestamp time.Time) (*Accumulator, uint32, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	tip := b.index.Tip()
+
+	priorCheckpoint := (tip.Height() / accumulatorCheckpointInterval) * accumulatorCheckpointInterval
+
+	for {
+		if priorCheckpoint <= 0 {
+			return nil, 0, errors.New("no accumulator checkpoint at genesis")
+		}
+		n, err := b.index.GetNodeByHeight(priorCheckpoint)
+		if err != nil {
+			return nil, 0, err
+		}
+		if timestamp.After(time.Unix(n.timestamp, 0)) {
+			return b.getAccumulatorCheckpointByHeight(priorCheckpoint)
+		}
+		priorCheckpoint -= accumulatorCheckpointInterval
+	}
+}
+
+// GetAccumulatorCheckpointByHeight returns the accumulator checkpoint at the given height.
+// If there is no checkpoint at that height the prior checkpoint will be returned.
+// If there is no prior checkpoint and error will be returned.
+func (b *Blockchain) GetAccumulatorCheckpointByHeight(height uint32) (*Accumulator, uint32, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	return b.getAccumulatorCheckpointByHeight(height)
+}
+
+func (b *Blockchain) getAccumulatorCheckpointByHeight(height uint32) (*Accumulator, uint32, error) {
+	priorHeight := height / accumulatorCheckpointInterval
+	if priorHeight == 0 {
+		return nil, 0, errors.New("no accumulator checkpoint at genesis")
+	}
+	acc, err := dsFetchAccumulatorCheckpoint(b.ds, priorHeight)
+	if err != nil {
+		return nil, 0, err
+	}
+	return acc, priorHeight, nil
 }
 
 // Params returns the current chain parameters use by the blockchain.

@@ -67,7 +67,7 @@ type Config struct {
 	BanDuration       time.Duration `long:"banduration" description:"The duration for which banned peers are banned for" default:"24h"`
 
 	// Policy
-	MinFeePerByte      uint64   `long:"minfeeperbyte" description:"The minimum fee per byte that the node will accept in the mempool and generated blocks"`
+	MinFeePerKilobyte  uint64   `long:"minfeeperkilobyte" description:"The minimum fee per kilobyte that the node will accept in the mempool and generated blocks"`
 	MinStake           uint64   `long:"minstake" description:"The minimum stake required to accept a stake tx into the mempool or a generated block"`
 	TreasuryWhitelist  []string `long:"treasurywhitelist" description:"Allow these treasury txids into the mempool and generated blocks"`
 	BlocksizeSoftLimit uint32   `long:"blocksizesoftlimit" description:"The maximum size block this node will generate"`
@@ -197,8 +197,8 @@ func LoadConfig() (*Config, error) {
 	}
 
 	cfg.UserAgent = "/ilxd/" + VersionString() + "/" + cfg.UserAgent
-	if cfg.MinFeePerByte == 0 {
-		cfg.MinFeePerByte = DefaultFeePerKilobyte
+	if cfg.MinFeePerKilobyte == 0 {
+		cfg.MinFeePerKilobyte = DefaultFeePerKilobyte
 	}
 	if cfg.MinStake == 0 {
 		cfg.MinStake = DefaultMinimumStake

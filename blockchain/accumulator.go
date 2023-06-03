@@ -217,6 +217,10 @@ func (a *Accumulator) DropProof(data []byte) {
 	delete(a.proofs, types.NewID(n))
 }
 
+func (a *Accumulator) Hashes() [][]byte {
+	return a.acc
+}
+
 // Clone returns a copy of the accumulator. Modifications to the copy will not
 // affect the original.
 func (a *Accumulator) Clone() *Accumulator {

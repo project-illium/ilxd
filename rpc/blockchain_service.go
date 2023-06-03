@@ -14,6 +14,7 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"time"
 )
 
 const maxBatchSize = 2000
@@ -346,12 +347,96 @@ func (s *GrpcServer) GetValidatorSet(ctx context.Context, req *pb.GetValidatorSe
 
 // GetAccumulatorCheckpoint returns the accumulator at the requested height.
 func (s *GrpcServer) GetAccumulatorCheckpoint(ctx context.Context, req *pb.GetAccumulatorCheckpointRequest) (*pb.GetAccumulatorCheckpointResponse, error) {
+	var (
+		accumulator *blockchain.Accumulator
+		height      uint32
+		err         error
+	)
+	if req.GetTimestamp() == 0 {
+		accumulator, height, err = s.chain.GetAccumulatorCheckpointByHeight(req.GetHeight())
+	} else {
+		accumulator, height, err = s.chain.GetAccumulatorCheckpointByTimestamp(time.Unix(req.GetTimestamp(), 0))
+	}
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	return &pb.GetAccumulatorCheckpointResponse{
+		Height:      height,
+		NumEntries:  accumulator.NumElements(),
+		Accumulator: accumulator.Hashes(),
+	}, nil
 }
 
 // SubmitTransaction validates a transaction and submits it to the network. An error will be returned if it fails validation.
 func (s *GrpcServer) SubmitTransaction(ctx context.Context, req *pb.SubmitTransactionRequest) (*pb.SubmitTransactionResponse, error) {
+	err := s.broadcastTxFunc(req.Transaction)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	txid := req.Transaction.ID()
+	return &pb.SubmitTransactionResponse{
+		Transaction_ID: txid[:],
+	}, nil
 }
 
 // SubscribeBlocks returns a stream of notifications when new blocks are finalized and connected to the chain.
 func (s *GrpcServer) SubscribeBlocks(req *pb.SubscribeBlocksRequest, stream pb.BlockchainService_SubscribeBlocksServer) error {
+	sub := s.subscribeEvents()
+
+	for {
+		select {
+		case <-s.quit:
+			return nil
+		case n := <-sub.C:
+			if notif, ok := n.(*blockchain.Notification); ok {
+				if notif.Type == blockchain.NTBlockConnected {
+					blk, ok := notif.Data.(*blocks.Block)
+					if !ok {
+						continue
+					}
+					id := blk.Header.ID()
+					size, err := blk.SerializedSize()
+					if err != nil {
+						continue
+					}
+					resp := &pb.BlockNotification{
+						BlockInfo: &pb.BlockInfo{
+							Block_ID:    id[:],
+							Version:     blk.Header.Version,
+							Height:      blk.Header.Height,
+							Parent:      blk.Header.Parent,
+							Child:       nil,
+							Timestamp:   blk.Header.Timestamp,
+							TxRoot:      blk.Header.TxRoot,
+							Producer_ID: blk.Header.Producer_ID,
+							Size:        uint32(size),
+							NumTxs:      uint32(len(blk.Transactions)),
+						},
+						Transactions: make([]*pb.TransactionData, 0, len(blk.Transactions)),
+					}
+					if req.FullBlock {
+						for _, tx := range blk.Transactions {
+							if req.FullTransactions {
+								resp.Transactions = append(resp.Transactions, &pb.TransactionData{
+									TxidsOrTxs: &pb.TransactionData_Transaction{
+										Transaction: tx,
+									},
+								})
+							} else {
+								id := tx.ID()
+								resp.Transactions = append(resp.Transactions, &pb.TransactionData{
+									TxidsOrTxs: &pb.TransactionData_Transaction_ID{
+										Transaction_ID: id[:],
+									},
+								})
+							}
+						}
+					}
+					if err := stream.Send(resp); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
 }

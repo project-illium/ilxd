@@ -5,6 +5,7 @@
 package rpc
 
 import (
+	"crypto/rand"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/blockchain/indexers"
 	"github.com/project-illium/ilxd/mempool"
@@ -12,11 +13,15 @@ import (
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/rpc/pb"
+	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/types/transactions"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"net/http"
 	"sync"
 )
+
+var _ pb.BlockchainServiceServer = (*GrpcServer)(nil)
 
 // GrpcServerConfig hols the various objects needed by the GrpcServer to
 // perform its functions.
@@ -24,10 +29,11 @@ type GrpcServerConfig struct {
 	Server     *grpc.Server
 	HTTPServer *http.Server
 
-	Chain       *blockchain.Blockchain
-	ChainParams *params.NetworkParams
-	Ds          repo.Datastore
-	TxMemPool   *mempool.Mempool
+	Chain           *blockchain.Blockchain
+	BroadcastTxFunc func(tx *transactions.Transaction) error
+	ChainParams     *params.NetworkParams
+	Ds              repo.Datastore
+	TxMemPool       *mempool.Mempool
 
 	TxIndex *indexers.TxIndex
 }
@@ -35,38 +41,86 @@ type GrpcServerConfig struct {
 // GrpcServer is the gRPC server implementation. It holds all the objects
 // necessary to serve the RPCs and implements the bchrpc.proto interface.
 type GrpcServer struct {
-	chain       *blockchain.Blockchain
-	chainParams *params.NetworkParams
-	ds          repo.Datastore
-	txMemPool   *mempool.Mempool
-	network     *net.Network
+	chain           *blockchain.Blockchain
+	chainParams     *params.NetworkParams
+	ds              repo.Datastore
+	txMemPool       *mempool.Mempool
+	network         *net.Network
+	broadcastTxFunc func(tx *transactions.Transaction) error
 
 	txIndex *indexers.TxIndex
 
 	httpServer *http.Server
+	subs       map[types.ID]*subscription
+	subMtx     sync.RWMutex
 	events     chan interface{}
 	quit       chan struct{}
 
-	wg       sync.WaitGroup
-	ready    uint32 // atomic
-	shutdown int32  // atomic
+	pb.UnimplementedBlockchainServiceServer
 }
 
 // NewGrpcServer returns a new GrpcServer which has not yet
 // be started.
 func NewGrpcServer(cfg *GrpcServerConfig) *GrpcServer {
 	s := &GrpcServer{
-		chain:       cfg.Chain,
-		chainParams: cfg.ChainParams,
-		ds:          cfg.Ds,
-		txMemPool:   cfg.TxMemPool,
-		txIndex:     cfg.TxIndex,
-		httpServer:  cfg.HTTPServer,
-		events:      make(chan interface{}),
-		quit:        make(chan struct{}),
-		wg:          sync.WaitGroup{},
+		chain:           cfg.Chain,
+		chainParams:     cfg.ChainParams,
+		ds:              cfg.Ds,
+		txMemPool:       cfg.TxMemPool,
+		broadcastTxFunc: cfg.BroadcastTxFunc,
+		txIndex:         cfg.TxIndex,
+		httpServer:      cfg.HTTPServer,
+		subs:            make(map[types.ID]*subscription),
+		subMtx:          sync.RWMutex{},
+		events:          make(chan interface{}),
+		quit:            make(chan struct{}),
 	}
 	reflection.Register(cfg.Server)
 	pb.RegisterBlockchainServiceServer(cfg.Server, s)
+
+	s.chain.Subscribe(s.handleBlockchainNotifications)
+
 	return s
+}
+
+func (s *GrpcServer) Close() {
+	close(s.quit)
+}
+
+type subscription struct {
+	C    chan interface{}
+	quit chan struct{}
+}
+
+func (sub *subscription) Close() {
+	close(sub.quit)
+}
+
+func (s *GrpcServer) handleBlockchainNotifications(n *blockchain.Notification) {
+	s.subMtx.RLock()
+	defer s.subMtx.RUnlock()
+
+	for _, sub := range s.subs {
+		sub.C <- n
+	}
+}
+
+func (s *GrpcServer) subscribeEvents() *subscription {
+	sub := &subscription{
+		C:    make(chan interface{}),
+		quit: make(chan struct{}),
+	}
+	b := make([]byte, 32)
+	rand.Read(b)
+	s.subMtx.Lock()
+	s.subs[types.NewID(b)] = sub
+	s.subMtx.Unlock()
+
+	go func(sb *subscription, id types.ID) {
+		<-sb.quit
+		s.subMtx.Lock()
+		delete(s.subs, id)
+		s.subMtx.Unlock()
+	}(sub, types.NewID(b))
+	return sub
 }

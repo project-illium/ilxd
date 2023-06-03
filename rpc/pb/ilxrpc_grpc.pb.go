@@ -58,8 +58,9 @@ type BlockchainServiceClient interface {
 	// GetValidatorSet returns all the validators in the current validator set.
 	GetValidatorSet(ctx context.Context, in *GetValidatorSetRequest, opts ...grpc.CallOption) (*GetValidatorSetResponse, error)
 	// GetAccumulatorCheckpoint returns the accumulator at the requested height.
-	// If there is no checkpoint at that height, the *next* checkpoint found in the
-	// chain will be returned.
+	// If there is no checkpoint at that height, the *prior* checkpoint found in the
+	// chain will be returned. If there is no prior checkpoint (as is prior to the first)
+	// and error will be returned.
 	GetAccumulatorCheckpoint(ctx context.Context, in *GetAccumulatorCheckpointRequest, opts ...grpc.CallOption) (*GetAccumulatorCheckpointResponse, error)
 	// SubmitTransaction validates a transaction and submits it to the network. An error will be returned
 	// if it fails validation.
@@ -284,8 +285,9 @@ type BlockchainServiceServer interface {
 	// GetValidatorSet returns all the validators in the current validator set.
 	GetValidatorSet(context.Context, *GetValidatorSetRequest) (*GetValidatorSetResponse, error)
 	// GetAccumulatorCheckpoint returns the accumulator at the requested height.
-	// If there is no checkpoint at that height, the *next* checkpoint found in the
-	// chain will be returned.
+	// If there is no checkpoint at that height, the *prior* checkpoint found in the
+	// chain will be returned. If there is no prior checkpoint (as is prior to the first)
+	// and error will be returned.
 	GetAccumulatorCheckpoint(context.Context, *GetAccumulatorCheckpointRequest) (*GetAccumulatorCheckpointResponse, error)
 	// SubmitTransaction validates a transaction and submits it to the network. An error will be returned
 	// if it fails validation.

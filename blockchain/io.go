@@ -423,6 +423,22 @@ func dsFetchAccumulator(ds repo.Datastore) (*Accumulator, error) {
 	return deserializeAccumulator(ser)
 }
 
+func dsPutAccumulatorCheckpoint(dbtx datastore.Txn, height uint32, accumulator *Accumulator) error {
+	ser, err := serializeAccumulator(accumulator)
+	if err != nil {
+		return err
+	}
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.AccumulatorCheckpointKey+fmt.Sprintf("%010d", int(height))), ser)
+}
+
+func dsFetchAccumulatorCheckpoint(ds repo.Datastore, height uint32) (*Accumulator, error) {
+	ser, err := ds.Get(context.Background(), datastore.NewKey(repo.AccumulatorCheckpointKey+fmt.Sprintf("%010d", int(height))))
+	if err != nil {
+		return nil, err
+	}
+	return deserializeAccumulator(ser)
+}
+
 func dsPutAccumulatorConsistencyStatus(ds repo.Datastore, status setConsistencyStatus) error {
 	b := make([]byte, 2)
 	binary.BigEndian.PutUint16(b, uint16(status))
