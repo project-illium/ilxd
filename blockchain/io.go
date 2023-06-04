@@ -255,6 +255,10 @@ func dsFetchBlockIndexState(ds repo.Datastore) (*blockNode, error) {
 	return node, nil
 }
 
+func dsDeleteBlockIndexState(dbtx datastore.Txn) error {
+	return dbtx.Delete(context.Background(), datastore.NewKey(repo.BlockIndexStateKey))
+}
+
 func dsPutValidatorSetConsistencyStatus(ds repo.Datastore, status setConsistencyStatus) error {
 	b := make([]byte, 2)
 	binary.BigEndian.PutUint16(b, uint16(status))
@@ -308,11 +312,7 @@ func dsDeleteValidatorSet(dbtx datastore.Txn) error {
 	}
 
 	for result, ok := results.NextSync(); ok; result, ok = results.NextSync() {
-		validator, err := deserializeValidator(result.Value)
-		if err != nil {
-			return err
-		}
-		if err := dbtx.Delete(context.Background(), datastore.NewKey(repo.ValidatorDatastoreKeyPrefix+validator.PeerID.String())); err != nil {
+		if err := dbtx.Delete(context.Background(), datastore.NewKey(result.Key)); err != nil {
 			return err
 		}
 	}
@@ -357,12 +357,48 @@ func dsPutNullifiers(dbtx datastore.Txn, nullifiers []types.Nullifier) error {
 	return nil
 }
 
+func dsDeleteNullifierSet(dbtx datastore.Txn) error {
+	q := query.Query{
+		Prefix: repo.NullifierKeyPrefix,
+	}
+
+	results, err := dbtx.Query(context.Background(), q)
+	if err != nil {
+		return err
+	}
+
+	for result, ok := results.NextSync(); ok; result, ok = results.NextSync() {
+		if err := dbtx.Delete(context.Background(), datastore.NewKey(result.Key)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func dsPutTxoSetRoot(dbtx datastore.Txn, txoRoot types.ID) error {
 	return dbtx.Put(context.Background(), datastore.NewKey(repo.TxoRootKeyPrefix+txoRoot.String()), []byte{})
 }
 
 func dsTxoSetRootExists(ds repo.Datastore, txoRoot types.ID) (bool, error) {
 	return ds.Has(context.Background(), datastore.NewKey(repo.TxoRootKeyPrefix+txoRoot.String()))
+}
+
+func dsDeleteTxoRootSet(dbtx datastore.Txn) error {
+	q := query.Query{
+		Prefix: repo.TxoRootKeyPrefix,
+	}
+
+	results, err := dbtx.Query(context.Background(), q)
+	if err != nil {
+		return err
+	}
+
+	for result, ok := results.NextSync(); ok; result, ok = results.NextSync() {
+		if err := dbtx.Delete(context.Background(), datastore.NewKey(result.Key)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func dsDebitTreasury(dbtx datastore.Txn, amount types.Amount) error {
@@ -423,6 +459,10 @@ func dsFetchAccumulator(ds repo.Datastore) (*Accumulator, error) {
 	return deserializeAccumulator(ser)
 }
 
+func dsDeleteAccumulator(dbtx datastore.Txn) error {
+	return dbtx.Delete(context.Background(), datastore.NewKey(repo.AccumulatorStateKey))
+}
+
 func dsPutAccumulatorCheckpoint(dbtx datastore.Txn, height uint32, accumulator *Accumulator) error {
 	ser, err := serializeAccumulator(accumulator)
 	if err != nil {
@@ -443,6 +483,24 @@ func dsPutAccumulatorConsistencyStatus(ds repo.Datastore, status setConsistencyS
 	b := make([]byte, 2)
 	binary.BigEndian.PutUint16(b, uint16(status))
 	return ds.Put(context.Background(), datastore.NewKey(repo.AccumulatorConsistencyStatusKey), b)
+}
+
+func dsDeleteAccumulatorCheckpoints(dbtx datastore.Txn) error {
+	q := query.Query{
+		Prefix: repo.AccumulatorCheckpointKey,
+	}
+
+	results, err := dbtx.Query(context.Background(), q)
+	if err != nil {
+		return err
+	}
+
+	for result, ok := results.NextSync(); ok; result, ok = results.NextSync() {
+		if err := dbtx.Delete(context.Background(), datastore.NewKey(result.Key)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func dsFetchAccumulatorConsistencyStatus(ds repo.Datastore) (setConsistencyStatus, error) {

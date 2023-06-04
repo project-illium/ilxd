@@ -58,7 +58,7 @@ func TestPutGetBlockIDByHeight(t *testing.T) {
 	assert.Equal(t, header.ID(), id)
 }
 
-func TestPutGetBlockIndexState(t *testing.T) {
+func TestPutGetDeleteBlockIndexState(t *testing.T) {
 	ds := mock.NewMapDatastore()
 	header := randomBlockHeader(5, randomID())
 	block := randomBlock(header, 5)
@@ -75,6 +75,13 @@ func TestPutGetBlockIndexState(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, block.ID(), state.blockID)
 	assert.Equal(t, block.Header.Height, state.height)
+
+	dbtx, err = ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
+	assert.NoError(t, dsDeleteBlockIndexState(dbtx))
+	assert.NoError(t, dbtx.Commit(context.Background()))
+	state, err = dsFetchBlockIndexState(ds)
+	assert.Error(t, err)
 }
 
 func TestPutGetValidatorSetConsistencyStatus(t *testing.T) {
@@ -146,13 +153,13 @@ func TestPutGetDeleteValidator(t *testing.T) {
 	dbtx, err = ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 	assert.NoError(t, dsDeleteValidatorSet(dbtx))
+	assert.NoError(t, dbtx.Commit(context.Background()))
 	validators, err = dsFetchValidators(ds)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(validators))
-
 }
 
-func TestPutExistsNullifiers(t *testing.T) {
+func TestPutExistsDeleteNullifiers(t *testing.T) {
 	ds := mock.NewMapDatastore()
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
@@ -169,6 +176,14 @@ func TestPutExistsNullifiers(t *testing.T) {
 	assert.True(t, exists)
 
 	exists, err = dsNullifierExists(ds, types.NewNullifier(n3[:]))
+	assert.NoError(t, err)
+	assert.False(t, exists)
+
+	dbtx, err = ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
+	assert.NoError(t, dsDeleteNullifierSet(dbtx))
+	assert.NoError(t, dbtx.Commit(context.Background()))
+	exists, err = dsNullifierExists(ds, types.NewNullifier(n2[:]))
 	assert.NoError(t, err)
 	assert.False(t, exists)
 }
@@ -191,6 +206,14 @@ func TestPutExistsTxoRoot(t *testing.T) {
 	assert.True(t, exists)
 
 	exists, err = dsTxoSetRootExists(ds, n3)
+	assert.NoError(t, err)
+	assert.False(t, exists)
+
+	dbtx, err = ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
+	assert.NoError(t, dsDeleteTxoRootSet(dbtx))
+	assert.NoError(t, dbtx.Commit(context.Background()))
+	exists, err = dsTxoSetRootExists(ds, n2)
 	assert.NoError(t, err)
 	assert.False(t, exists)
 }
@@ -221,7 +244,7 @@ func TestDebitCreditBalanceTreasury(t *testing.T) {
 	assert.Equal(t, types.Amount(899), balance)
 }
 
-func TestPutFetchAccumulator(t *testing.T) {
+func TestPutFetchDeleteAccumulator(t *testing.T) {
 	ds := mock.NewMapDatastore()
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
@@ -244,6 +267,20 @@ func TestPutFetchAccumulator(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Empty(t, deep.Equal(acc, acc2))
+
+	dbtx, err = ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
+	assert.NoError(t, dsDeleteAccumulator(dbtx))
+	assert.NoError(t, dbtx.Commit(context.Background()))
+	acc2, err = dsFetchAccumulator(ds)
+	assert.Error(t, err)
+
+	dbtx, err = ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
+	assert.NoError(t, dsDeleteAccumulatorCheckpoints(dbtx))
+	assert.NoError(t, dbtx.Commit(context.Background()))
+	acc2, err = dsFetchAccumulatorCheckpoint(ds, 50000)
+	assert.Error(t, err)
 }
 
 func TestPutGetAccumulatorConsistencyStatus(t *testing.T) {

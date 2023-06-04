@@ -40,6 +40,8 @@ type SyncManager struct {
 	bucketMtx       sync.RWMutex
 	currentMtx      sync.RWMutex
 	current         bool
+	syncMtx         sync.Mutex
+	quit            chan struct{}
 }
 
 type ConsensusChooser func([]*blocks.Block) (types.ID, error)
@@ -53,8 +55,10 @@ func NewSyncManager(ctx context.Context, chain *blockchain.Blockchain, network *
 		chain:           chain,
 		consensuChooser: chooser,
 		buckets:         make(map[types.ID][]peer.ID),
+		syncMtx:         sync.Mutex{},
 		bucketMtx:       sync.RWMutex{},
 		currentMtx:      sync.RWMutex{},
+		quit:            make(chan struct{}),
 	}
 	notifier := &inet.NotifyBundle{
 		DisconnectedF: sm.bucketPeerDisconnected,
@@ -66,6 +70,11 @@ func NewSyncManager(ctx context.Context, chain *blockchain.Blockchain, network *
 }
 
 func (sm *SyncManager) Start() {
+	sm.syncMtx.Lock()
+	defer sm.syncMtx.Unlock()
+
+	sm.quit = make(chan struct{})
+
 	_, startheight, _ := sm.chain.BestBlock()
 
 	// Sync up to the checkpoints if we're not already past them.
@@ -79,8 +88,12 @@ func (sm *SyncManager) Start() {
 	for {
 		err := sm.populatePeerBuckets()
 		if err != nil {
-			<-time.After(time.Second * 10)
-			continue
+			select {
+			case <-time.After(time.Second * 10):
+				continue
+			case <-sm.quit:
+				return
+			}
 		}
 		break
 	}
@@ -88,6 +101,11 @@ func (sm *SyncManager) Start() {
 	// Now we can continue to sync the rest of the chain.
 syncLoop:
 	for {
+		select {
+		case <-sm.quit:
+			return
+		default:
+		}
 		sm.currentMtx.RLock()
 		if sm.current {
 			return
@@ -239,6 +257,16 @@ syncLoop:
 			}
 		}
 	}
+}
+
+func (sm *SyncManager) Close() {
+	sm.currentMtx.RLock()
+	defer sm.currentMtx.RUnlock()
+
+	sm.current = false
+	close(sm.quit)
+	sm.syncMtx.Lock()
+	sm.syncMtx.Unlock()
 }
 
 func (sm *SyncManager) IsCurrent() bool {

@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"math/rand"
 )
 
 // GetHostInfo returns info about the libp2p host
@@ -179,9 +180,26 @@ func (s *GrpcServer) UpdateTreasuryWhitelist(ctx context.Context, req *pb.Update
 
 // ReconsiderBlock tries to reprocess the given block
 func (s *GrpcServer) ReconsiderBlock(ctx context.Context, req *pb.ReconsiderBlockRequest) (*pb.ReconsiderBlockResponse, error) {
+	var (
+		p   peer.ID
+		err error
+	)
+	if req.DownloadPeer != "" {
+		p, err = peer.Decode(req.DownloadPeer)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+	} else {
+		peers := s.network.Host().Network().Peers()
+		p = peers[rand.Intn(len(peers))]
+	}
+	s.requestBlockFunc(types.NewID(req.Block_ID), p)
+	return &pb.ReconsiderBlockResponse{}, nil
 }
 
 // RecomputeChainState deletes the accumulator, validator set, and nullifier set and rebuilds them by
 // loading and re-processing all blocks from genesis.
 func (s *GrpcServer) RecomputeChainState(ctx context.Context, req *pb.RecomputeChainStateRequest) (*pb.RecomputeChainStateResponse, error) {
+	go s.reindexChainFunc()
+	return &pb.RecomputeChainStateResponse{}, nil
 }

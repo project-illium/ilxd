@@ -283,7 +283,7 @@ func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.I
 
 func (s *Server) blockConnected(ntf *blockchain.Notification) {
 	blk, ok := ntf.Data.(*blocks.Block)
-	if ntf.Type == blockchain.NTBlockConnected && ok {
+	if ok && ntf.Type == blockchain.NTBlockConnected {
 		s.mempool.RemoveBlockTransactions(blk.Transactions)
 	}
 }
@@ -539,6 +539,15 @@ func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
 		delete(s.inflightRequests, blockID)
 		s.inflightLock.Unlock()
 	})
+}
+
+func (s *Server) reIndexChain() error {
+	s.syncManager.Close()
+	if err := s.blockchain.ReindexChainState(); err != nil {
+		return err
+	}
+	s.syncManager.Start()
+	return nil
 }
 
 // Close shuts down all the parts of the server and blocks until

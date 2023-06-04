@@ -287,6 +287,76 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	return nil
 }
 
+// ReindexChainState deletes all the state data from the database and rebuilds it
+// by loading all blocks from genesis to the tip and re-processing them.
+func (b *Blockchain) ReindexChainState() error {
+	b.stateLock.Lock()
+	defer b.stateLock.Unlock()
+
+	dbtx, err := b.ds.NewTransaction(context.Background(), false)
+	if err != nil {
+		return err
+	}
+	defer dbtx.Discard(context.Background())
+
+	if err := dsDeleteAccumulator(dbtx); err != nil {
+		return err
+	}
+	if err := dsDeleteAccumulatorCheckpoints(dbtx); err != nil {
+		return err
+	}
+	if err := dsDeleteNullifierSet(dbtx); err != nil {
+		return err
+	}
+	if err := dsDeleteTxoRootSet(dbtx); err != nil {
+		return err
+	}
+	if err := dsDeleteBlockIndexState(dbtx); err != nil {
+		return err
+	}
+	if err := dsDeleteValidatorSet(dbtx); err != nil {
+		return err
+	}
+
+	if err := dbtx.Commit(context.Background()); err != nil {
+		return err
+	}
+
+	if err := dsInitCurrentSupply(b.ds); err != nil {
+		return err
+	}
+	if err := dsInitTreasury(b.ds); err != nil {
+		return err
+	}
+
+	i := uint32(0)
+	for {
+		blockID, err := dsFetchBlockIDFromHeight(b.ds, i)
+		if errors.Is(err, datastore.ErrNotFound) {
+			break
+		} else if err != nil {
+			return err
+		}
+
+		blk, err := dsFetchBlock(b.ds, blockID)
+		if err != nil {
+			return err
+		}
+
+		flags := BFNoDupBlockCheck | BFFastAdd
+		if i == 0 {
+			flags = BFNoDupBlockCheck | BFFastAdd | BFGenesisValidation
+		}
+
+		if err := b.ConnectBlock(blk, flags); err != nil {
+			return err
+		}
+		i++
+	}
+
+	return nil
+}
+
 // WeightedRandomValidator returns a validator weighted by their current stake.
 func (b *Blockchain) WeightedRandomValidator() peer.ID {
 	b.stateLock.RLock()

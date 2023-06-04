@@ -6,6 +6,7 @@ package rpc
 
 import (
 	"crypto/rand"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/blockchain/indexers"
 	"github.com/project-illium/ilxd/mempool"
@@ -32,14 +33,16 @@ type GrpcServerConfig struct {
 	Server     *grpc.Server
 	HTTPServer *http.Server
 
-	Chain           *blockchain.Blockchain
-	Network         *net.Network
-	Policy          *policy.Policy
-	BroadcastTxFunc func(tx *transactions.Transaction) error
-	SetLogLevelFunc func(level zapcore.Level)
-	ChainParams     *params.NetworkParams
-	Ds              repo.Datastore
-	TxMemPool       *mempool.Mempool
+	Chain            *blockchain.Blockchain
+	Network          *net.Network
+	Policy           *policy.Policy
+	BroadcastTxFunc  func(tx *transactions.Transaction) error
+	SetLogLevelFunc  func(level zapcore.Level)
+	ReindexChainFunc func()
+	RequestBlockFunc func(blockID types.ID, remotePeer peer.ID)
+	ChainParams      *params.NetworkParams
+	Ds               repo.Datastore
+	TxMemPool        *mempool.Mempool
 
 	TxIndex *indexers.TxIndex
 }
@@ -47,14 +50,16 @@ type GrpcServerConfig struct {
 // GrpcServer is the gRPC server implementation. It holds all the objects
 // necessary to serve the RPCs and implements the ilxdrpc.proto interface.
 type GrpcServer struct {
-	chain           *blockchain.Blockchain
-	chainParams     *params.NetworkParams
-	ds              repo.Datastore
-	txMemPool       *mempool.Mempool
-	network         *net.Network
-	policy          *policy.Policy
-	broadcastTxFunc func(tx *transactions.Transaction) error
-	setLogLevelFunc func(level zapcore.Level)
+	chain            *blockchain.Blockchain
+	chainParams      *params.NetworkParams
+	ds               repo.Datastore
+	txMemPool        *mempool.Mempool
+	network          *net.Network
+	policy           *policy.Policy
+	broadcastTxFunc  func(tx *transactions.Transaction) error
+	setLogLevelFunc  func(level zapcore.Level)
+	reindexChainFunc func()
+	requestBlockFunc func(blockID types.ID, remotePeer peer.ID)
 
 	txIndex *indexers.TxIndex
 
@@ -72,20 +77,22 @@ type GrpcServer struct {
 // be started.
 func NewGrpcServer(cfg *GrpcServerConfig) *GrpcServer {
 	s := &GrpcServer{
-		chain:           cfg.Chain,
-		chainParams:     cfg.ChainParams,
-		ds:              cfg.Ds,
-		txMemPool:       cfg.TxMemPool,
-		network:         cfg.Network,
-		broadcastTxFunc: cfg.BroadcastTxFunc,
-		setLogLevelFunc: cfg.SetLogLevelFunc,
-		txIndex:         cfg.TxIndex,
-		policy:          cfg.Policy,
-		httpServer:      cfg.HTTPServer,
-		subs:            make(map[types.ID]*subscription),
-		subMtx:          sync.RWMutex{},
-		events:          make(chan interface{}),
-		quit:            make(chan struct{}),
+		chain:            cfg.Chain,
+		chainParams:      cfg.ChainParams,
+		ds:               cfg.Ds,
+		txMemPool:        cfg.TxMemPool,
+		network:          cfg.Network,
+		broadcastTxFunc:  cfg.BroadcastTxFunc,
+		setLogLevelFunc:  cfg.SetLogLevelFunc,
+		reindexChainFunc: cfg.ReindexChainFunc,
+		requestBlockFunc: cfg.RequestBlockFunc,
+		txIndex:          cfg.TxIndex,
+		policy:           cfg.Policy,
+		httpServer:       cfg.HTTPServer,
+		subs:             make(map[types.ID]*subscription),
+		subMtx:           sync.RWMutex{},
+		events:           make(chan interface{}),
+		quit:             make(chan struct{}),
 	}
 	reflection.Register(cfg.Server)
 	pb.RegisterBlockchainServiceServer(cfg.Server, s)
