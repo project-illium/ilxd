@@ -133,7 +133,7 @@ func TestMempool(t *testing.T) {
 				Nullifiers: [][]byte{randomBytes()},
 				TxoRoot:    txoRoot[:],
 				Locktime:   0,
-				Fee:        10000,
+				Fee:        10,
 				Proof:      make([]byte, 1000),
 			}),
 			expectedErr: policyError(ErrFeeTooLow, "transaction fee is below policy minimum"),
@@ -236,7 +236,7 @@ func TestMempool(t *testing.T) {
 				Nullifiers: [][]byte{randomBytes()},
 				TxoRoot:    txoRoot[:],
 				Locktime:   0,
-				Fee:        10000,
+				Fee:        10,
 				Proof:      make([]byte, 1000),
 			}),
 			signFunc: func(tx *transactions.Transaction) error {
@@ -703,7 +703,11 @@ func TestMempool(t *testing.T) {
 		if test.expectedErr == nil {
 			assert.NoErrorf(t, err, "mempool test: %s failure", test.name)
 		} else if _, ok := test.expectedErr.(PolicyError); ok {
-			assert.Equalf(t, test.expectedErr.(PolicyError).ErrorCode, err.(PolicyError).ErrorCode, "mempool test: %s: error %s", test.name, err.Error())
+			if _, ok := err.(PolicyError); !ok {
+				t.Errorf("Test %s wrong error type", test.name)
+			} else {
+				assert.Equalf(t, test.expectedErr.(PolicyError).ErrorCode, err.(PolicyError).ErrorCode, "mempool test: %s: error %s", test.name, err.Error())
+			}
 		} else if _, ok := test.expectedErr.(blockchain.RuleError); ok {
 			assert.Equalf(t, test.expectedErr.(blockchain.RuleError).ErrorCode, err.(blockchain.RuleError).ErrorCode, "mempool test: %s: error %s", test.name, err.Error())
 		} else {
@@ -737,12 +741,12 @@ func TestFeePerKilobyte(t *testing.T) {
 	})
 	size, err := tx.SerializedSize()
 	assert.NoError(t, err)
-	size = size / 1000
+	kbs := float64(size) / 1000
 
 	fpkb, ok, err := CalcFeePerKilobyte(tx)
 	assert.True(t, ok)
 	assert.NoError(t, err)
-	assert.Equal(t, types.Amount(tx.GetStandardTransaction().Fee/uint64(size)), fpkb)
+	assert.Equal(t, types.Amount(float64(tx.GetStandardTransaction().Fee)/kbs), fpkb)
 }
 
 func randomID() types.ID {

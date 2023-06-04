@@ -7,6 +7,7 @@ require (
 	github.com/gcash/bchutil v0.0.0-20210113190856-6ea28dff4000
 	github.com/go-test/deep v1.1.0
 	github.com/golang/protobuf v1.5.2
+	github.com/improbable-eng/grpc-web v0.13.0
 	github.com/ipfs/go-cid v0.3.2
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger v0.3.0
@@ -41,6 +42,7 @@ require (
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
 	github.com/dchest/siphash v1.2.2 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
+	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/dgraph-io/badger v1.6.2 // indirect
 	github.com/dgraph-io/ristretto v0.0.2 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
@@ -119,6 +121,7 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
+	github.com/rs/cors v1.7.0 // indirect
 	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect

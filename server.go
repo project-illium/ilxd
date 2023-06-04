@@ -13,6 +13,7 @@ import (
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/blockchain/indexers"
 	"github.com/project-illium/ilxd/consensus"
+	"github.com/project-illium/ilxd/gen"
 	"github.com/project-illium/ilxd/mempool"
 	"github.com/project-illium/ilxd/net"
 	params "github.com/project-illium/ilxd/params"
@@ -54,6 +55,7 @@ type Server struct {
 	engine       *consensus.ConsensusEngine
 	chainService *sync.ChainService
 	syncManager  *sync.SyncManager
+	generator    *gen.BlockGenerator
 	grpcServer   *rpc.GrpcServer
 
 	orphanBlocks map[types.ID]*orphanBlock
@@ -256,6 +258,16 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		return nil, err
 	}
 
+	generator, err := gen.NewBlockGenerator([]gen.Option{
+		gen.Blockchain(chain),
+		gen.PrivateKey(privKey),
+		gen.Mempool(mpool),
+		gen.BroadcastFunc(network.BroadcastBlock),
+	}...)
+	if err != nil {
+		return nil, err
+	}
+
 	s.ctx = ctx
 	s.cancelFunc = cancel
 	s.config = config
@@ -266,6 +278,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.mempool = mpool
 	s.engine = engine
 	s.chainService = sync.NewChainService(ctx, s.fetchBlock, chain, network, netParams)
+	s.syncManager = sync.NewSyncManager(ctx, chain, network, netParams, s.chainService, s.consensusChoose, s.maybeStartGenerating)
 	s.orphanBlocks = make(map[types.ID]*orphanBlock)
 	s.activeInventory = make(map[types.ID]*blocks.Block)
 	s.inflightRequests = make(map[types.ID]bool)
@@ -273,9 +286,12 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.inventoryLock = stdsync.RWMutex{}
 	s.inflightLock = stdsync.RWMutex{}
 	s.policy = policy
+	s.generator = generator
 	s.grpcServer = grpcServer
 
 	chain.Subscribe(s.blockConnected)
+
+	s.syncManager.Start()
 
 	s.printListenAddrs()
 
@@ -587,12 +603,21 @@ func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
 
 func (s *Server) reIndexChain() error {
 	<-s.ready
+	s.generator.Close()
 	s.syncManager.Close()
 	if err := s.blockchain.ReindexChainState(); err != nil {
 		return err
 	}
 	s.syncManager.Start()
 	return nil
+}
+
+func (s *Server) maybeStartGenerating() {
+	<-s.ready
+	_, err := s.blockchain.GetValidator(s.network.Host().ID())
+	if err == nil {
+		s.generator.Start()
+	}
 }
 
 // Close shuts down all the parts of the server and blocks until

@@ -41,12 +41,13 @@ type SyncManager struct {
 	currentMtx      sync.RWMutex
 	current         bool
 	syncMtx         sync.Mutex
+	callback        func()
 	quit            chan struct{}
 }
 
 type ConsensusChooser func([]*blocks.Block) (types.ID, error)
 
-func NewSyncManager(ctx context.Context, chain *blockchain.Blockchain, network *net.Network, params *params.NetworkParams, cs *ChainService, chooser ConsensusChooser) *SyncManager {
+func NewSyncManager(ctx context.Context, chain *blockchain.Blockchain, network *net.Network, params *params.NetworkParams, cs *ChainService, chooser ConsensusChooser, isCurrentCallback func()) *SyncManager {
 	sm := &SyncManager{
 		ctx:             ctx,
 		params:          params,
@@ -58,6 +59,7 @@ func NewSyncManager(ctx context.Context, chain *blockchain.Blockchain, network *
 		syncMtx:         sync.Mutex{},
 		bucketMtx:       sync.RWMutex{},
 		currentMtx:      sync.RWMutex{},
+		callback:        isCurrentCallback,
 		quit:            make(chan struct{}),
 	}
 	notifier := &inet.NotifyBundle{
@@ -124,9 +126,7 @@ syncLoop:
 			continue
 		}
 		if len(blockMap) == 0 {
-			sm.currentMtx.Lock()
-			defer sm.currentMtx.Unlock()
-			sm.current = true
+			sm.SetCurrent()
 			return
 		} else if len(blockMap) == 1 {
 			// All peers agree on the blockID at the requested height. This is good.
@@ -281,6 +281,9 @@ func (sm *SyncManager) SetCurrent() {
 	defer sm.currentMtx.Unlock()
 
 	sm.current = true
+	if sm.callback != nil {
+		sm.callback()
+	}
 }
 
 func (sm *SyncManager) bucketPeerDisconnected(_ inet.Network, conn inet.Conn) {

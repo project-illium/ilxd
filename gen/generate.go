@@ -63,12 +63,12 @@ func NewBlockGenerator(opts ...Option) (*BlockGenerator, error) {
 		tickInterval:   cfg.tickInterval,
 		chain:          cfg.chain,
 		broadcast:      cfg.broadcastFunc,
-		quit:           make(chan struct{}),
 	}
 
 	return g, nil
 }
 func (g *BlockGenerator) Start() {
+	g.quit = make(chan struct{})
 	go g.eventLoop()
 }
 

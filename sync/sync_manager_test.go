@@ -143,7 +143,7 @@ func TestSync(t *testing.T) {
 		node, err := makeMockNode(net.mn, chain)
 		assert.NoError(t, err)
 
-		manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, nil)
+		manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, nil, nil)
 
 		assert.NoError(t, net.mn.LinkAll())
 		assert.NoError(t, net.mn.ConnectAllButSelf())
@@ -223,7 +223,7 @@ func TestSync(t *testing.T) {
 		node2, err := makeMockNode(net.mn, chain2)
 		assert.NoError(t, err)
 
-		manager2 := NewSyncManager(context.Background(), chain2, node2.network, chain2.Params(), node2.service, nil)
+		manager2 := NewSyncManager(context.Background(), chain2, node2.network, chain2.Params(), node2.service, nil, nil)
 
 		assert.NoError(t, net.mn.LinkAll())
 		assert.NoError(t, net.mn.ConnectAllButSelf())
@@ -281,7 +281,7 @@ func TestSyncFromChooser(t *testing.T) {
 		return types.ID{}, errors.New("choice not found")
 	}
 
-	manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, chooser)
+	manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, chooser, nil)
 
 	assert.NoError(t, net.mn.LinkAll())
 	assert.NoError(t, net.mn.ConnectAllButSelf())
@@ -336,7 +336,7 @@ func TestSyncWithNodesAtDifferentHeights(t *testing.T) {
 		return types.ID{}, errors.New("choice not found")
 	}
 
-	manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, chooser)
+	manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, chooser, nil)
 
 	assert.NoError(t, net.mn.LinkAll())
 	assert.NoError(t, net.mn.ConnectAllButSelf())

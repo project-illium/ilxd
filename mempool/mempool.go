@@ -384,7 +384,7 @@ func CalcFeePerKilobyte(tx *transactions.Transaction) (types.Amount, bool, error
 	if err != nil {
 		return 0, false, err
 	}
-	size = size / 1000
+	kbs := float64(size) / 1000
 
-	return types.Amount(float64(fee) / float64(size)), true, nil
+	return types.Amount(float64(fee) / kbs), true, nil
 }
