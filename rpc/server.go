@@ -11,10 +11,12 @@ import (
 	"github.com/project-illium/ilxd/mempool"
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/params"
+	"github.com/project-illium/ilxd/policy"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/rpc/pb"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"net/http"
@@ -22,6 +24,7 @@ import (
 )
 
 var _ pb.BlockchainServiceServer = (*GrpcServer)(nil)
+var _ pb.NodeServiceServer = (*GrpcServer)(nil)
 
 // GrpcServerConfig hols the various objects needed by the GrpcServer to
 // perform its functions.
@@ -30,7 +33,10 @@ type GrpcServerConfig struct {
 	HTTPServer *http.Server
 
 	Chain           *blockchain.Blockchain
+	Network         *net.Network
+	Policy          *policy.Policy
 	BroadcastTxFunc func(tx *transactions.Transaction) error
+	SetLogLevelFunc func(level zapcore.Level)
 	ChainParams     *params.NetworkParams
 	Ds              repo.Datastore
 	TxMemPool       *mempool.Mempool
@@ -39,14 +45,16 @@ type GrpcServerConfig struct {
 }
 
 // GrpcServer is the gRPC server implementation. It holds all the objects
-// necessary to serve the RPCs and implements the bchrpc.proto interface.
+// necessary to serve the RPCs and implements the ilxdrpc.proto interface.
 type GrpcServer struct {
 	chain           *blockchain.Blockchain
 	chainParams     *params.NetworkParams
 	ds              repo.Datastore
 	txMemPool       *mempool.Mempool
 	network         *net.Network
+	policy          *policy.Policy
 	broadcastTxFunc func(tx *transactions.Transaction) error
+	setLogLevelFunc func(level zapcore.Level)
 
 	txIndex *indexers.TxIndex
 
@@ -57,6 +65,7 @@ type GrpcServer struct {
 	quit       chan struct{}
 
 	pb.UnimplementedBlockchainServiceServer
+	pb.UnimplementedNodeServiceServer
 }
 
 // NewGrpcServer returns a new GrpcServer which has not yet
@@ -67,8 +76,11 @@ func NewGrpcServer(cfg *GrpcServerConfig) *GrpcServer {
 		chainParams:     cfg.ChainParams,
 		ds:              cfg.Ds,
 		txMemPool:       cfg.TxMemPool,
+		network:         cfg.Network,
 		broadcastTxFunc: cfg.BroadcastTxFunc,
+		setLogLevelFunc: cfg.SetLogLevelFunc,
 		txIndex:         cfg.TxIndex,
+		policy:          cfg.Policy,
 		httpServer:      cfg.HTTPServer,
 		subs:            make(map[types.ID]*subscription),
 		subMtx:          sync.RWMutex{},
@@ -77,6 +89,7 @@ func NewGrpcServer(cfg *GrpcServerConfig) *GrpcServer {
 	}
 	reflection.Register(cfg.Server)
 	pb.RegisterBlockchainServiceServer(cfg.Server, s)
+	pb.RegisterNodeServiceServer(cfg.Server, s)
 
 	s.chain.Subscribe(s.handleBlockchainNotifications)
 

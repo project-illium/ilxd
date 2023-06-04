@@ -71,7 +71,7 @@ type Config struct {
 	MinStake           uint64   `long:"minstake" description:"The minimum stake required to accept a stake tx into the mempool or a generated block"`
 	TreasuryWhitelist  []string `long:"treasurywhitelist" description:"Allow these treasury txids into the mempool and generated blocks"`
 	BlocksizeSoftLimit uint32   `long:"blocksizesoftlimit" description:"The maximum size block this node will generate"`
-	MaxMessageSize     uint32   `long:"maxmessagesize" description:"The maximum size of a network message. This is a hard limit. Setting this value different than all other nodes could fork you off the network."`
+	MaxMessageSize     int      `long:"maxmessagesize" description:"The maximum size of a network message. This is a hard limit. Setting this value different than all other nodes could fork you off the network."`
 
 	RPCOpts RPCOptions `group:"RPC Options"`
 }

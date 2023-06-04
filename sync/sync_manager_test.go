@@ -15,6 +15,7 @@ import (
 	"github.com/project-illium/ilxd/blockchain/harness"
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/params"
+	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
@@ -93,6 +94,7 @@ func makeMockNode(mn mocknet.Mocknet, chain *blockchain.Blockchain) (*mockNode, 
 		net.Datastore(ds),
 		net.BanDuration(time.Hour),
 		net.MaxBanscore(100),
+		net.MaxMessageSize(repo.DefaultMaxMessageSize),
 	}...)
 	if err != nil {
 		return nil, err

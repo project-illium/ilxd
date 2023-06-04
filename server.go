@@ -16,6 +16,7 @@ import (
 	"github.com/project-illium/ilxd/mempool"
 	"github.com/project-illium/ilxd/net"
 	params "github.com/project-illium/ilxd/params"
+	policy2 "github.com/project-illium/ilxd/policy"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/sync"
 	"github.com/project-illium/ilxd/types"
@@ -61,7 +62,7 @@ type Server struct {
 
 	inflightRequests map[types.ID]bool
 	inflightLock     stdsync.RWMutex
-	policy           *Policy
+	policy           *policy2.Policy
 }
 
 // BuildServer is the constructor for the server. We pass in the config file here
@@ -77,18 +78,18 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	}
 
 	// Policy
-	policy := &Policy{
-		MinFeePerKilobyte:  types.Amount(config.MinFeePerKilobyte),
-		MinStake:           types.Amount(config.MinStake),
-		BlocksizeSoftLimit: config.BlocksizeSoftLimit,
-		MaxMessageSize:     config.MaxMessageSize,
-	}
+	policy := policy2.NewPolicy(
+		types.Amount(config.MinFeePerKilobyte),
+		types.Amount(config.MinStake),
+		config.BlocksizeSoftLimit,
+	)
+
 	for _, id := range config.TreasuryWhitelist {
 		w, err := types.NewIDFromString(id)
 		if err != nil {
 			return nil, err
 		}
-		s.policy.TreasuryWhitelist = append(s.policy.TreasuryWhitelist, w)
+		s.policy.AddToTreasuryWhitelist(w)
 	}
 
 	// Parameter selection
@@ -178,8 +179,8 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		mempool.ProofCache(proofCache),
 		mempool.Params(netParams),
 		mempool.BlockchainView(chain),
-		mempool.MinStake(policy.MinStake),
-		mempool.FeePerKilobyte(policy.MinFeePerKilobyte),
+		mempool.MinStake(policy.GetMinStake()),
+		mempool.FeePerKilobyte(policy.GetMinFeePerKilobyte()),
 	}
 
 	mpool, err := mempool.NewMempool(mempoolOpts...)
@@ -199,6 +200,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		net.MempoolValidator(mpool.ProcessTransaction),
 		net.MaxBanscore(config.MaxBanscore),
 		net.BanDuration(config.BanDuration),
+		net.MaxMessageSize(config.MaxMessageSize),
 	}
 	if config.DisableNATPortMap {
 		networkOpts = append(networkOpts, net.DisableNatPortMap())

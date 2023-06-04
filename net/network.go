@@ -209,7 +209,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		host,
 		pubsub.WithNoAuthor(),
 		pubsub.WithDiscovery(discovery.NewRoutingDiscovery(idht)),
-		pubsub.WithMaxMessageSize(1<<23),
+		pubsub.WithMaxMessageSize(cfg.maxMessageSize),
 		pubsub.WithMessageIdFn(func(pmsg *pb.Message) string {
 			h := hash.HashFunc(pmsg.Data)
 			return string(h[:])

@@ -106,12 +106,20 @@ func WithHost(host host.Host) Option {
 	}
 }
 
+func MaxMessageSize(maxMessageSize int) Option {
+	return func(cfg *config) error {
+		cfg.maxMessageSize = maxMessageSize
+		return nil
+	}
+}
+
 type config struct {
 	params            *params.NetworkParams
 	userAgent         string
 	seedAddrs         []string
 	listenAddrs       []string
 	disableNatPortMap bool
+	maxMessageSize    int
 	host              host.Host
 	privateKey        crypto.PrivKey
 	datastore         repo.Datastore

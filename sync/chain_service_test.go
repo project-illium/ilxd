@@ -12,6 +12,7 @@ import (
 	"github.com/project-illium/ilxd/blockchain/harness"
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/params"
+	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -36,6 +37,7 @@ func TestChainService(t *testing.T) {
 			return nil
 		}),
 		net.Datastore(ds),
+		net.MaxMessageSize(repo.DefaultMaxMessageSize),
 	}...)
 	assert.NoError(t, err)
 
@@ -59,6 +61,7 @@ func TestChainService(t *testing.T) {
 			return nil
 		}),
 		net.Datastore(ds),
+		net.MaxMessageSize(repo.DefaultMaxMessageSize),
 	}...)
 	assert.NoError(t, err)
 
