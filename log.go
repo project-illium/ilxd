@@ -58,7 +58,7 @@ var logLevelSeverity = map[zapcore.Level]string{
 	zapcore.FatalLevel:  "EMERGENCY",
 }
 
-func setupLogging(logDir, level string, testnet bool) error {
+func setupLogging(logDir, level string, testnet bool) (*zap.AtomicLevel, error) {
 	var cfg zap.Config
 	if testnet {
 		cfg = zap.NewDevelopmentConfig()
@@ -68,7 +68,7 @@ func setupLogging(logDir, level string, testnet bool) error {
 
 	logLevel, ok := LogLevelMap[strings.ToLower(level)]
 	if !ok {
-		return errors.New("invalid log level")
+		return nil, errors.New("invalid log level")
 	}
 	cfg.Encoding = "console"
 	cfg.Level = zap.NewAtomicLevelAt(logLevel)
@@ -109,12 +109,12 @@ func setupLogging(logDir, level string, testnet bool) error {
 
 		logger, err = cfg.Build(zap.Hooks(lumberjackZapHook))
 		if err != nil {
-			return err
+			return nil, err
 		}
 	} else {
 		logger, err = cfg.Build()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	zap.ReplaceGlobals(logger)
@@ -124,5 +124,5 @@ func setupLogging(logDir, level string, testnet bool) error {
 	net.UpdateLogger()
 	blockchain.UpdateLogger()
 	consensus.UpdateLogger()
-	return nil
+	return &cfg.Level, nil
 }

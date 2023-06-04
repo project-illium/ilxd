@@ -18,6 +18,7 @@ import (
 	params "github.com/project-illium/ilxd/params"
 	policy2 "github.com/project-illium/ilxd/policy"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/rpc"
 	"github.com/project-illium/ilxd/sync"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
@@ -53,6 +54,7 @@ type Server struct {
 	engine       *consensus.ConsensusEngine
 	chainService *sync.ChainService
 	syncManager  *sync.SyncManager
+	grpcServer   *rpc.GrpcServer
 
 	orphanBlocks map[types.ID]*orphanBlock
 	orphanLock   stdsync.RWMutex
@@ -63,6 +65,8 @@ type Server struct {
 	inflightRequests map[types.ID]bool
 	inflightLock     stdsync.RWMutex
 	policy           *policy2.Policy
+
+	ready chan struct{}
 }
 
 // BuildServer is the constructor for the server. We pass in the config file here
@@ -70,10 +74,12 @@ type Server struct {
 func BuildServer(config *repo.Config) (*Server, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	s := Server{}
+	s := Server{ready: make(chan struct{})}
+	defer close(s.ready)
 
 	// Logging
-	if err := setupLogging(config.LogDir, config.LogLevel, config.Testnet); err != nil {
+	zapLevel, err := setupLogging(config.LogDir, config.LogLevel, config.Testnet)
+	if err != nil {
 		return nil, err
 	}
 
@@ -148,6 +154,14 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	// Create the blockchain
 	sigCache := blockchain.NewSigCache(blockchain.DefaultSigCacheSize)
 	proofCache := blockchain.NewProofCache(blockchain.DefaultProofCacheSize)
+	var (
+		indexerList []indexers.Indexer
+		txIndex     *indexers.TxIndex
+	)
+	if !config.NoTxIndex {
+		txIndex = indexers.NewTxIndex()
+		indexerList = append(indexerList, txIndex)
+	}
 
 	blockchainOpts := []blockchain.Option{
 		blockchain.Params(netParams),
@@ -156,6 +170,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		blockchain.MaxTxoRoots(blockchain.DefaultMaxTxoRoots),
 		blockchain.SignatureCache(sigCache),
 		blockchain.SnarkProofCache(proofCache),
+		blockchain.Indexers(indexerList),
 	}
 
 	if config.DropTxIndex {
@@ -222,6 +237,25 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		return nil, err
 	}
 
+	grpcServer, err := newGrpcServer(config.RPCOpts, &rpc.GrpcServerConfig{
+		Server:           nil,
+		HTTPServer:       nil,
+		Chain:            chain,
+		Network:          network,
+		Policy:           policy,
+		BroadcastTxFunc:  s.submitTransaction,
+		SetLogLevelFunc:  zapLevel.SetLevel,
+		ReindexChainFunc: s.reIndexChain,
+		RequestBlockFunc: s.requestBlock,
+		ChainParams:      netParams,
+		Ds:               ds,
+		TxMemPool:        mpool,
+		TxIndex:          txIndex,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	s.ctx = ctx
 	s.cancelFunc = cancel
 	s.config = config
@@ -239,6 +273,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.inventoryLock = stdsync.RWMutex{}
 	s.inflightLock = stdsync.RWMutex{}
 	s.policy = policy
+	s.grpcServer = grpcServer
 
 	chain.Subscribe(s.blockConnected)
 
@@ -248,6 +283,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 }
 
 func (s *Server) submitTransaction(tx *transactions.Transaction) error {
+	<-s.ready
 	err := s.mempool.ProcessTransaction(tx)
 	if err != nil {
 		return err
@@ -256,6 +292,7 @@ func (s *Server) submitTransaction(tx *transactions.Transaction) error {
 }
 
 func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.ID) error {
+	<-s.ready
 	_, height, _ := s.blockchain.BestBlock()
 	if !s.syncManager.IsCurrent() && xThinnerBlk.Header.Height != height+1 {
 		return errors.New("not current")
@@ -282,6 +319,7 @@ func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.I
 }
 
 func (s *Server) blockConnected(ntf *blockchain.Notification) {
+	<-s.ready
 	blk, ok := ntf.Data.(*blocks.Block)
 	if ok && ntf.Type == blockchain.NTBlockConnected {
 		s.mempool.RemoveBlockTransactions(blk.Transactions)
@@ -289,6 +327,7 @@ func (s *Server) blockConnected(ntf *blockchain.Notification) {
 }
 
 func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck bool) error {
+	<-s.ready
 	err := s.blockchain.CheckConnectBlock(blk)
 	switch err.(type) {
 	case blockchain.OrphanBlockError:
@@ -405,6 +444,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 }
 
 func (s *Server) decodeXthinner(xThinnerBlk *blocks.XThinnerBlock, relayingPeer peer.ID) (*blocks.Block, error) {
+	<-s.ready
 	blk, missing := s.mempool.DecodeXthinner(xThinnerBlk)
 	if len(missing) > 0 {
 		txs, err := s.chainService.GetBlockTxs(relayingPeer, xThinnerBlk.ID(), missing)
@@ -434,6 +474,7 @@ func (s *Server) decodeXthinner(xThinnerBlk *blocks.XThinnerBlock, relayingPeer 
 }
 
 func (s *Server) fetchBlockTxids(blk *blocks.Block, p peer.ID) (*blocks.Block, error) {
+	<-s.ready
 	txids, err := s.chainService.GetBlockTxids(p, blk.ID())
 	if err != nil {
 		return nil, err
@@ -461,6 +502,7 @@ func (s *Server) fetchBlockTxids(blk *blocks.Block, p peer.ID) (*blocks.Block, e
 }
 
 func (s *Server) fetchBlock(blockID types.ID) (*blocks.Block, error) {
+	<-s.ready
 	s.inventoryLock.RLock()
 	defer s.inventoryLock.RUnlock()
 
@@ -472,6 +514,7 @@ func (s *Server) fetchBlock(blockID types.ID) (*blocks.Block, error) {
 }
 
 func (s *Server) consensusChoose(blks []*blocks.Block) (types.ID, error) {
+	<-s.ready
 	height := blks[0].Header.Height
 	for _, blk := range blks {
 		if blk.Header.Height != height {
@@ -509,6 +552,7 @@ func (s *Server) consensusChoose(blks []*blocks.Block) (types.ID, error) {
 }
 
 func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
+	<-s.ready
 	if !s.syncManager.IsCurrent() {
 		return
 	}
@@ -542,6 +586,7 @@ func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
 }
 
 func (s *Server) reIndexChain() error {
+	<-s.ready
 	s.syncManager.Close()
 	if err := s.blockchain.ReindexChainState(); err != nil {
 		return err
@@ -553,6 +598,7 @@ func (s *Server) reIndexChain() error {
 // Close shuts down all the parts of the server and blocks until
 // they finish closing.
 func (s *Server) Close() error {
+	<-s.ready
 	s.cancelFunc()
 	if err := s.network.Close(); err != nil {
 		return err

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/gcash/bchutil"
 	"github.com/jessevdk/go-flags"
+	"github.com/multiformats/go-multiaddr"
 	"io"
 	"net"
 	"os"
@@ -23,7 +24,7 @@ import (
 const (
 	DefaultLogFilename    = "ilxd.log"
 	defaultConfigFilename = "ilxd.conf"
-	defaultGrpcPort       = "5001"
+	defaultGrpcPort       = 5001
 
 	DefaultFeePerKilobyte = 10000
 	DefaultMinimumStake   = 1000000
@@ -80,7 +81,7 @@ type RPCOptions struct {
 	RPCCert       string   `long:"rpccert" description:"A path to the SSL certificate to use with gRPC"`
 	RPCKey        string   `long:"rpckey" description:"A path to the SSL key to use with gRPC"`
 	ExternalIPs   []string `long:"externalips" description:"This option should be used to specify the external IP address if using the auto-generated SSL certificate"`
-	GrpcListeners []string `long:"grpclisten" description:"Add an interface/port to listen for experimental gRPC connections (default port:5001)"`
+	GrpcListener  string   `long:"grpclisten" description:"Add an interface/port to listen for experimental gRPC connections in multiaddr format (default:/ip4/127.0.0.1/tcp/5001)"`
 	GrpcAuthToken string   `long:"grpcauthtoken" description:"Set a token here if you want to enable client authentication with gRPC"`
 }
 
@@ -171,16 +172,16 @@ func LoadConfig() (*Config, error) {
 	}
 
 	// Default RPC to listen on localhost only.
-	if len(cfg.RPCOpts.GrpcListeners) == 0 {
+	if cfg.RPCOpts.GrpcListener == "" {
 		addrs, err := net.LookupHost("localhost")
+		if err != nil || len(addrs) == 0 {
+			return nil, errors.New("error determining local host for grpc server")
+		}
+		ma, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", addrs[0], defaultGrpcPort))
 		if err != nil {
 			return nil, err
 		}
-		cfg.RPCOpts.GrpcListeners = make([]string, 0, len(addrs))
-		for _, addr := range addrs {
-			addr = net.JoinHostPort(addr, defaultGrpcPort)
-			cfg.RPCOpts.GrpcListeners = append(cfg.RPCOpts.GrpcListeners, addr)
-		}
+		cfg.RPCOpts.GrpcListener = ma.String()
 	}
 
 	if cfg.RPCOpts.RPCCert == "" && cfg.RPCOpts.RPCKey == "" {

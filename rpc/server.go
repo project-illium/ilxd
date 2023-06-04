@@ -38,7 +38,7 @@ type GrpcServerConfig struct {
 	Policy           *policy.Policy
 	BroadcastTxFunc  func(tx *transactions.Transaction) error
 	SetLogLevelFunc  func(level zapcore.Level)
-	ReindexChainFunc func()
+	ReindexChainFunc func() error
 	RequestBlockFunc func(blockID types.ID, remotePeer peer.ID)
 	ChainParams      *params.NetworkParams
 	Ds               repo.Datastore
@@ -58,7 +58,7 @@ type GrpcServer struct {
 	policy           *policy.Policy
 	broadcastTxFunc  func(tx *transactions.Transaction) error
 	setLogLevelFunc  func(level zapcore.Level)
-	reindexChainFunc func()
+	reindexChainFunc func() error
 	requestBlockFunc func(blockID types.ID, remotePeer peer.ID)
 
 	txIndex *indexers.TxIndex
