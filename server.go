@@ -289,7 +289,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.generator = generator
 	s.grpcServer = grpcServer
 
-	chain.Subscribe(s.blockConnected)
+	chain.Subscribe(s.handleBlockchainNotification)
 
 	s.syncManager.Start()
 
@@ -334,11 +334,26 @@ func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.I
 	return s.processBlock(blk, p, false)
 }
 
-func (s *Server) blockConnected(ntf *blockchain.Notification) {
+func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 	<-s.ready
-	blk, ok := ntf.Data.(*blocks.Block)
-	if ok && ntf.Type == blockchain.NTBlockConnected {
-		s.mempool.RemoveBlockTransactions(blk.Transactions)
+
+	switch ntf.Type {
+	case blockchain.NTBlockConnected:
+		if blk, ok := ntf.Data.(*blocks.Block); ok {
+			s.mempool.RemoveBlockTransactions(blk.Transactions)
+		}
+	case blockchain.NTAddValidator:
+		if pid, ok := ntf.Data.(peer.ID); ok && pid == s.network.Host().ID() {
+			if !s.generator.Active() {
+				s.generator.Start()
+			}
+		}
+	case blockchain.NTRemoveValidator:
+		if pid, ok := ntf.Data.(peer.ID); ok && pid == s.network.Host().ID() {
+			if s.generator.Active() {
+				s.generator.Close()
+			}
+		}
 	}
 }
 

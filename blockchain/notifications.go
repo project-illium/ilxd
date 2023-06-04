@@ -4,7 +4,9 @@
 
 package blockchain
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // NotificationType represents the type of a notification message.
 type NotificationType int
@@ -21,12 +23,16 @@ type NotificationCallback func(*Notification)
 const (
 	// NTBlockConnected indicates the associated block was connected to the chain.
 	NTBlockConnected = iota
+	NTAddValidator
+	NTRemoveValidator
 )
 
 // notificationTypeStrings is a map of notification types back to their constant
 // names for pretty printing.
 var notificationTypeStrings = map[NotificationType]string{
-	NTBlockConnected: "NTBlockConnected",
+	NTBlockConnected:  "NTBlockConnected",
+	NTAddValidator:    "NTAddValidator",
+	NTRemoveValidator: "NTRemoveValidator",
 }
 
 // String returns the NotificationType in human-readable form.
@@ -52,6 +58,7 @@ type Notification struct {
 func (b *Blockchain) Subscribe(callback NotificationCallback) {
 	b.notificationsLock.Lock()
 	b.notifications = append(b.notifications, callback)
+	b.validatorSet.SubscribeEvents(callback)
 	b.notificationsLock.Unlock()
 }
 

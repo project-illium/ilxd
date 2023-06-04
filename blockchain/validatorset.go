@@ -99,16 +99,18 @@ func (v *Validator) Clone() *Validator {
 // change and committing one to disk only to have to go to disk and undo
 // the change would increase overhead.
 type ValidatorSet struct {
-	params       *params.NetworkParams
-	ds           repo.Datastore
-	validators   map[peer.ID]*Validator
-	nullifierMap map[types.Nullifier]*Validator
-	toDelete     map[peer.ID]struct{}
-	chooser      *weightedrand.Chooser[peer.ID, types.Amount]
-	dirty        bool
-	EpochBlocks  uint32
-	lastFlush    time.Time
-	mtx          sync.RWMutex
+	params        *params.NetworkParams
+	ds            repo.Datastore
+	validators    map[peer.ID]*Validator
+	nullifierMap  map[types.Nullifier]*Validator
+	toDelete      map[peer.ID]struct{}
+	chooser       *weightedrand.Chooser[peer.ID, types.Amount]
+	dirty         bool
+	EpochBlocks   uint32
+	lastFlush     time.Time
+	notifications []NotificationCallback
+	notifMtx      sync.RWMutex
+	mtx           sync.RWMutex
 }
 
 // NewValidatorSet returns a new, uninitialized, ValidatorSet.
@@ -288,6 +290,21 @@ func (vs *ValidatorSet) ValidatorExists(id peer.ID) bool {
 
 	_, ok := vs.validators[id]
 	return ok
+}
+
+func (vs *ValidatorSet) SubscribeEvents(callback NotificationCallback) {
+	vs.notifMtx.Lock()
+	vs.notifications = append(vs.notifications, callback)
+	vs.notifMtx.Unlock()
+}
+
+func (vs *ValidatorSet) sendNotification(peerID peer.ID, typ NotificationType) {
+	vs.notifMtx.RLock()
+	n := Notification{Type: typ, Data: peerID}
+	for _, callback := range vs.notifications {
+		callback(&n)
+	}
+	vs.notifMtx.RUnlock()
 }
 
 // NullifierExists returns whether or not a nullifier exists in the set.
@@ -505,6 +522,9 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 	for _, val := range updates {
 		val.dirty = true
 		vs.dirty = true
+		if _, ok := vs.validators[val.PeerID]; !ok {
+			vs.sendNotification(val.PeerID, NTAddValidator)
+		}
 		vs.validators[val.PeerID] = val
 	}
 
@@ -521,6 +541,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 		if len(val.Nullifiers) == 0 {
 			vs.toDelete[val.PeerID] = struct{}{}
 			delete(vs.validators, val.PeerID)
+			vs.sendNotification(val.PeerID, NTRemoveValidator)
 		}
 	}
 

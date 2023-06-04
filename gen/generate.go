@@ -13,6 +13,7 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"sort"
+	"sync"
 	"time"
 )
 
@@ -29,6 +30,8 @@ type BlockGenerator struct {
 	tickInterval   time.Duration
 	chain          *blockchain.Blockchain
 	broadcast      func(blk *blocks.XThinnerBlock) error
+	active         bool
+	activeMtx      sync.RWMutex
 	quit           chan struct{}
 }
 
@@ -63,17 +66,34 @@ func NewBlockGenerator(opts ...Option) (*BlockGenerator, error) {
 		tickInterval:   cfg.tickInterval,
 		chain:          cfg.chain,
 		broadcast:      cfg.broadcastFunc,
+		activeMtx:      sync.RWMutex{},
+		active:         false,
 	}
 
 	return g, nil
 }
 func (g *BlockGenerator) Start() {
+	g.activeMtx.Lock()
+	defer g.activeMtx.Unlock()
+	g.active = true
+
 	g.quit = make(chan struct{})
 	go g.eventLoop()
 }
 
 func (g *BlockGenerator) Close() {
+	g.activeMtx.Lock()
+	defer g.activeMtx.Unlock()
+
+	g.active = false
 	close(g.quit)
+}
+
+func (g *BlockGenerator) Active() bool {
+	g.activeMtx.RLock()
+	defer g.activeMtx.RUnlock()
+
+	return g.active
 }
 
 func (g *BlockGenerator) eventLoop() {
