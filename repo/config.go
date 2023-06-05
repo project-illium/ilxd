@@ -78,11 +78,12 @@ type Config struct {
 }
 
 type RPCOptions struct {
-	RPCCert       string   `long:"rpccert" description:"A path to the SSL certificate to use with gRPC"`
-	RPCKey        string   `long:"rpckey" description:"A path to the SSL key to use with gRPC"`
-	ExternalIPs   []string `long:"externalips" description:"This option should be used to specify the external IP address if using the auto-generated SSL certificate"`
-	GrpcListener  string   `long:"grpclisten" description:"Add an interface/port to listen for experimental gRPC connections in multiaddr format (default:/ip4/127.0.0.1/tcp/5001)"`
-	GrpcAuthToken string   `long:"grpcauthtoken" description:"Set a token here if you want to enable client authentication with gRPC"`
+	RPCCert            string   `long:"rpccert" description:"A path to the SSL certificate to use with gRPC"`
+	RPCKey             string   `long:"rpckey" description:"A path to the SSL key to use with gRPC"`
+	ExternalIPs        []string `long:"externalips" description:"This option should be used to specify the external IP address if using the auto-generated SSL certificate."`
+	GrpcListener       string   `long:"grpclisten" description:"Add an interface/port to listen for experimental gRPC connections in multiaddr format (default:/ip4/127.0.0.1/tcp/5001)"`
+	GrpcAuthToken      string   `long:"grpcauthtoken" description:"Set a token here if you want to enable client authentication with gRPC."`
+	DisableNodeService bool     `long:"disablenodeservice" description:"Disable the node RPC service."`
 }
 
 // LoadConfig initializes and parses the config using a config file and command

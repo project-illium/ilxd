@@ -1872,6 +1872,8 @@ type NodeServiceClient interface {
 	AddPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*AddPeerResponse, error)
 	// BlockPeer blocks the given peer for the provided time period
 	BlockPeer(ctx context.Context, in *BlockPeerRequest, opts ...grpc.CallOption) (*BlockPeerResponse, error)
+	// UnblockPeer removes a peer from the block list
+	UnblockPeer(ctx context.Context, in *UnblockPeerRequest, opts ...grpc.CallOption) (*UnblockPeerResponse, error)
 	// SetLogLevel changes the logging level of the node
 	SetLogLevel(ctx context.Context, in *SetLogLevelRequest, opts ...grpc.CallOption) (*SetLogLevelResponse, error)
 	// GetMinFeePerKilobyte returns the node's current minimum transaction fee needed to relay
@@ -1942,6 +1944,15 @@ func (c *nodeServiceClient) AddPeer(ctx context.Context, in *AddPeerRequest, opt
 func (c *nodeServiceClient) BlockPeer(ctx context.Context, in *BlockPeerRequest, opts ...grpc.CallOption) (*BlockPeerResponse, error) {
 	out := new(BlockPeerResponse)
 	err := c.cc.Invoke(ctx, "/pb.NodeService/BlockPeer", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeServiceClient) UnblockPeer(ctx context.Context, in *UnblockPeerRequest, opts ...grpc.CallOption) (*UnblockPeerResponse, error) {
+	out := new(UnblockPeerResponse)
+	err := c.cc.Invoke(ctx, "/pb.NodeService/UnblockPeer", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2059,6 +2070,8 @@ type NodeServiceServer interface {
 	AddPeer(context.Context, *AddPeerRequest) (*AddPeerResponse, error)
 	// BlockPeer blocks the given peer for the provided time period
 	BlockPeer(context.Context, *BlockPeerRequest) (*BlockPeerResponse, error)
+	// UnblockPeer removes a peer from the block list
+	UnblockPeer(context.Context, *UnblockPeerRequest) (*UnblockPeerResponse, error)
 	// SetLogLevel changes the logging level of the node
 	SetLogLevel(context.Context, *SetLogLevelRequest) (*SetLogLevelResponse, error)
 	// GetMinFeePerKilobyte returns the node's current minimum transaction fee needed to relay
@@ -2107,6 +2120,9 @@ func (UnimplementedNodeServiceServer) AddPeer(context.Context, *AddPeerRequest) 
 }
 func (UnimplementedNodeServiceServer) BlockPeer(context.Context, *BlockPeerRequest) (*BlockPeerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BlockPeer not implemented")
+}
+func (UnimplementedNodeServiceServer) UnblockPeer(context.Context, *UnblockPeerRequest) (*UnblockPeerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnblockPeer not implemented")
 }
 func (UnimplementedNodeServiceServer) SetLogLevel(context.Context, *SetLogLevelRequest) (*SetLogLevelResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetLogLevel not implemented")
@@ -2222,6 +2238,24 @@ func _NodeService_BlockPeer_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(NodeServiceServer).BlockPeer(ctx, req.(*BlockPeerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NodeService_UnblockPeer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnblockPeerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServiceServer).UnblockPeer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.NodeService/UnblockPeer",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServiceServer).UnblockPeer(ctx, req.(*UnblockPeerRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2446,6 +2480,10 @@ var NodeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BlockPeer",
 			Handler:    _NodeService_BlockPeer_Handler,
+		},
+		{
+			MethodName: "UnblockPeer",
+			Handler:    _NodeService_UnblockPeer_Handler,
 		},
 		{
 			MethodName: "SetLogLevel",

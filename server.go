@@ -251,19 +251,18 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	}
 
 	grpcServer, err := newGrpcServer(config.RPCOpts, &rpc.GrpcServerConfig{
-		Server:           nil,
-		HTTPServer:       nil,
-		Chain:            chain,
-		Network:          network,
-		Policy:           policy,
-		BroadcastTxFunc:  s.submitTransaction,
-		SetLogLevelFunc:  zapLevel.SetLevel,
-		ReindexChainFunc: s.reIndexChain,
-		RequestBlockFunc: s.requestBlock,
-		ChainParams:      netParams,
-		Ds:               ds,
-		TxMemPool:        mpool,
-		TxIndex:          txIndex,
+		Chain:              chain,
+		Network:            network,
+		Policy:             policy,
+		BroadcastTxFunc:    s.submitTransaction,
+		SetLogLevelFunc:    zapLevel.SetLevel,
+		ReindexChainFunc:   s.reIndexChain,
+		RequestBlockFunc:   s.requestBlock,
+		ChainParams:        netParams,
+		Ds:                 ds,
+		TxMemPool:          mpool,
+		TxIndex:            txIndex,
+		DisableNodeService: config.RPCOpts.DisableNodeService,
 	})
 	if err != nil {
 		return nil, err

@@ -47,7 +47,6 @@ func main() {
 	if configFile == "" {
 		configFile = filepath.Join(repo.DefaultHomeDir, defaultConfigFilename)
 	}
-	fmt.Println(configFile)
 
 	var opts options
 	parser := flags.NewParser(&opts, flags.Default)
@@ -69,6 +68,7 @@ func main() {
 	parser = flags.NewNamedParser("ilxcli", flags.HelpFlag)
 	parser.AddGroup("Connection options", "Configuration options for connecting to ilxd", &opts)
 
+	// Blockchain service
 	parser.AddCommand("getmempoolinfo", "Returns the state of the current mempool", "Returns the state of the current mempool", &GetMempoolInfo{&opts})
 	parser.AddCommand("getmempool", "Returns all the transactions in the mempool", "Returns all the transactions in the mempool", &GetMempool{&opts})
 	parser.AddCommand("getblockchaininfo", "Returns data about the blockchain", "Returns data about the blockchain including the most recent block hash and height", &GetBlockchainInfo{&opts})
@@ -83,7 +83,29 @@ func main() {
 	parser.AddCommand("getaccumulatorcheckpoint", "Returns the accumulator at the requested height", "Returns the accumulator at the requested height. If there is no checkpoint at that height, the *prior* checkpoint found in the chain will be returned. If there is no prior checkpoint (as is prior to the first), an error will be returned.", &GetAccumulatorCheckpoint{opts: &opts})
 	parser.AddCommand("submittransaction", "Validates a transaction and submits it to the network", "Validates a transaction and submits it to the network. An error will be returned if it fails validation.", &SubmitTransaction{opts: &opts})
 
+	// Node service
+	parser.AddCommand("gethostinfo", "Returns info about the libp2p host", "Returns info about the libp2p host", &GetHostInfo{opts: &opts})
+	parser.AddCommand("getpeers", "Returns a list of peers that this node is connected to", "Returns a list of peers that this node is connected to", &GetPeers{opts: &opts})
+	parser.AddCommand("addpeer", "Attempts to connect to the provided peer", "Attempts to connect to the provided peer", &AddPeer{opts: &opts})
+	parser.AddCommand("blockpeer", "Blocks the given peer for the provided time period", "Blocks the given peer for the provided time period", &BlockPeer{opts: &opts})
+	parser.AddCommand("unblockpeer", "Removes a peer from the block list", "Removes a peer from the block list", &UnblockPeer{opts: &opts})
+	parser.AddCommand("setloglevel", "Changes the logging level of the node", "Changes the logging level of the node", &SetLogLevel{opts: &opts})
+	parser.AddCommand("getminfeeperkilobyte", "Returns the node's current minimum transaction fee", "Returns the node's current minimum transaction fee needed to relay transactions and admit them into the mempool. Validators will also set their initial preference for blocks containing transactions with fees below this threshold to not-preferred.", &GetMinFeePerKilobyte{opts: &opts})
+	parser.AddCommand("setminfeeperkilobyte", "Sets the node's fee policy", "Sets the node's fee policy", &SetMinFeePerKilobyte{opts: &opts})
+	parser.AddCommand("getminstake", "Returns the node's current minimum stake policy", "Returns the node's current minimum stake policy. Stake transactions staking less than this amount will not be admitted into the mempool and will not be relayed. Validators will also set their initial preference for blocks containing stake transactions below this threshold to not-preferred.", &GetMinStake{opts: &opts})
+	parser.AddCommand("setminstake", "Sets the node's minimum stake policy", "Sets the node's minimum stake policy", &SetMinStake{opts: &opts})
+	parser.AddCommand("getblocksizesoftlimit", "Returns the node's current blocksize soft limit", "Returns the node's current blocksize soft limit. Validators will also set their initial preference for blocks over this size to not-preferred.", &GetBlockSizeSoftLimit{opts: &opts})
+	parser.AddCommand("setblocksizesoftlimit", "Sets the node's blocksize soft limit policy", "Sets the node's blocksize soft limit policy.", &SetBlockSizeSoftLimit{opts: &opts})
+	parser.AddCommand("gettreasurywhitelist", "Returns the current treasury whitelist for the node", "Returns the current treasury whitelist for the node. Blocks containing TreasuryTransactions not found in this list will have their initial preference set to not-preferred.", &GetTreasuryWhitelist{opts: &opts})
+	parser.AddCommand("updatetreasurywhitelist", "Adds or removes a transaction from the treasury whitelist", "Adds or removes a transaction from the treasury whitelist", &UpdateTreasuryWhitelist{opts: &opts})
+	parser.AddCommand("reconsiderblock", "Tries to reprocess the given block", "Tries to reprocess the given block", &ReconsiderBlock{opts: &opts})
+	parser.AddCommand("recomputechainstate", "Rebuilds the entire chain state from genesis", "Deletes the accumulator, validator set, and nullifier set and rebuilds them by loading and re-processing all blocks from genesis.", &RecomputeChainState{opts: &opts})
+
 	if _, err := parser.Parse(); err != nil {
+		if e, ok := err.(*flags.Error); ok && e.Type == flags.ErrHelp {
+			fmt.Println(err)
+			os.Exit(0)
+		}
 		log.Fatal(err)
 	}
 
@@ -119,4 +141,27 @@ func makeBlockchainClient(opts *options) (pb.BlockchainServiceClient, error) {
 		return nil, err
 	}
 	return pb.NewBlockchainServiceClient(conn), nil
+}
+
+func makeNodeClient(opts *options) (pb.NodeServiceClient, error) {
+	certFile := repo.CleanAndExpandPath(opts.RPCCert)
+
+	creds, err := credentials.NewClientTLSFromFile(certFile, "localhost")
+	if err != nil {
+		return nil, err
+	}
+	ma, err := multiaddr.NewMultiaddr(opts.ServerAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	netAddr, err := manet.ToNetAddr(ma)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := grpc.Dial(netAddr.String(), grpc.WithTransportCredentials(creds))
+	if err != nil {
+		return nil, err
+	}
+	return pb.NewNodeServiceClient(conn), nil
 }

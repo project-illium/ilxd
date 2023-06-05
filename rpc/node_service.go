@@ -89,6 +89,19 @@ func (s *GrpcServer) BlockPeer(ctx context.Context, req *pb.BlockPeerRequest) (*
 	return &pb.BlockPeerResponse{}, nil
 }
 
+// UnblockPeer removes a peer from the block list
+func (s *GrpcServer) UnblockPeer(ctx context.Context, req *pb.UnblockPeerRequest) (*pb.UnblockPeerResponse, error) {
+	peerID, err := peer.Decode(req.Peer_ID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	err = s.network.ConnGater().UnblockPeer(peerID)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &pb.UnblockPeerResponse{}, nil
+}
+
 // SetLogLevel changes the logging level of the node
 func (s *GrpcServer) SetLogLevel(ctx context.Context, req *pb.SetLogLevelRequest) (*pb.SetLogLevelResponse, error) {
 	var logLevelSeverity = map[pb.SetLogLevelRequest_Level]zapcore.Level{

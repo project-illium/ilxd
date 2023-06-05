@@ -33,16 +33,17 @@ type GrpcServerConfig struct {
 	Server     *grpc.Server
 	HTTPServer *http.Server
 
-	Chain            *blockchain.Blockchain
-	Network          *net.Network
-	Policy           *policy.Policy
-	BroadcastTxFunc  func(tx *transactions.Transaction) error
-	SetLogLevelFunc  func(level zapcore.Level)
-	ReindexChainFunc func() error
-	RequestBlockFunc func(blockID types.ID, remotePeer peer.ID)
-	ChainParams      *params.NetworkParams
-	Ds               repo.Datastore
-	TxMemPool        *mempool.Mempool
+	Chain              *blockchain.Blockchain
+	Network            *net.Network
+	Policy             *policy.Policy
+	BroadcastTxFunc    func(tx *transactions.Transaction) error
+	SetLogLevelFunc    func(level zapcore.Level)
+	ReindexChainFunc   func() error
+	RequestBlockFunc   func(blockID types.ID, remotePeer peer.ID)
+	ChainParams        *params.NetworkParams
+	Ds                 repo.Datastore
+	TxMemPool          *mempool.Mempool
+	DisableNodeService bool
 
 	TxIndex *indexers.TxIndex
 }
@@ -96,7 +97,9 @@ func NewGrpcServer(cfg *GrpcServerConfig) *GrpcServer {
 	}
 	reflection.Register(cfg.Server)
 	pb.RegisterBlockchainServiceServer(cfg.Server, s)
-	pb.RegisterNodeServiceServer(cfg.Server, s)
+	if !cfg.DisableNodeService {
+		pb.RegisterNodeServiceServer(cfg.Server, s)
+	}
 
 	s.chain.Subscribe(s.handleBlockchainNotifications)
 

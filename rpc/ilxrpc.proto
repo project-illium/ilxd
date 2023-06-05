@@ -187,6 +187,9 @@ service NodeService {
     // BlockPeer blocks the given peer for the provided time period
     rpc BlockPeer(BlockPeerRequest) returns (BlockPeerResponse) {}
 
+    // UnblockPeer removes a peer from the block list
+    rpc UnblockPeer(UnblockPeerRequest) returns (UnblockPeerResponse) {}
+
     // SetLogLevel changes the logging level of the node
     rpc SetLogLevel(SetLogLevelRequest) returns (SetLogLevelResponse) {}
 
@@ -752,6 +755,12 @@ message BlockPeerRequest {
     string peer_ID = 1;
 }
 message BlockPeerResponse {}
+
+message UnblockPeerRequest {
+    // Peer ID to unblock
+    string peer_ID = 1;
+}
+message UnblockPeerResponse {}
 
 message SetLogLevelRequest {
     // The debug level to set the logging to
