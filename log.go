@@ -88,7 +88,7 @@ func setupLogging(logDir, level string, testnet bool) (*zap.AtomicLevel, error) 
 		enc.AppendString("[" + levelToColor[level].Add(logLevelSeverity[level]) + "]")
 	}
 	cfg.EncoderConfig.EncodeLevel = customLevelEncoder
-	cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	cfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
 	cfg.DisableCaller = true
 	cfg.EncoderConfig.ConsoleSeparator = "  "
 

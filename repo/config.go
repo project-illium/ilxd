@@ -120,18 +120,19 @@ func LoadConfig() (*Config, error) {
 		preCfg.ConfigFile = filepath.Join(cfg.DataDir, defaultConfigFilename)
 	}
 
+	// Load additional config from file.
+	var configFileError error
+	parser := flags.NewParser(&cfg, flags.Default)
+
 	// Show the version and exit if the version flag was specified.
 	appName := filepath.Base(os.Args[0])
 	appName = strings.TrimSuffix(appName, filepath.Ext(appName))
 	usageMessage := fmt.Sprintf("Use %s -h to show usage", appName)
-	if preCfg.ShowVersion {
+	if cfg.ShowVersion {
 		fmt.Println(appName, "version", VersionString())
 		os.Exit(0)
 	}
 
-	// Load additional config from file.
-	var configFileError error
-	parser := flags.NewParser(&cfg, flags.Default)
 	if _, err := os.Stat(preCfg.ConfigFile); os.IsNotExist(err) {
 		err := createDefaultConfigFile(preCfg.ConfigFile, cfg.Testnet)
 		if err != nil {
@@ -163,7 +164,7 @@ func LoadConfig() (*Config, error) {
 	}
 
 	if cfg.LogDir == "" {
-		cfg.LogDir = cleanAndExpandPath(path.Join(cfg.DataDir, "logs", netStr))
+		cfg.LogDir = CleanAndExpandPath(path.Join(cfg.DataDir, "logs", netStr))
 	}
 
 	// Warn about missing config file only after all other configuration is
@@ -191,7 +192,7 @@ func LoadConfig() (*Config, error) {
 		cfg.RPCOpts.RPCKey = path.Join(cfg.DataDir, "rpc.key")
 	}
 
-	cfg.DataDir = cleanAndExpandPath(path.Join(cfg.DataDir, netStr))
+	cfg.DataDir = CleanAndExpandPath(path.Join(cfg.DataDir, netStr))
 	if !fileExists(cfg.RPCOpts.RPCKey) && !fileExists(cfg.RPCOpts.RPCCert) {
 		err := genCertPair(cfg.RPCOpts.RPCCert, cfg.RPCOpts.RPCKey, cfg.RPCOpts.ExternalIPs)
 		if err != nil {
@@ -256,9 +257,9 @@ func createDefaultConfigFile(destinationPath string, testnet bool) error {
 	return nil
 }
 
-// cleanAndExpandPath expands environment variables and leading ~ in the
+// CleanAndExpandPath expands environment variables and leading ~ in the
 // passed path, cleans the result, and returns it.
-func cleanAndExpandPath(path string) string {
+func CleanAndExpandPath(path string) string {
 	// Expand initial ~ to OS specific home directory.
 	if strings.HasPrefix(path, "~") {
 		homeDir := filepath.Dir(DefaultHomeDir)

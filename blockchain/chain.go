@@ -98,20 +98,20 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 		if err := b.ConnectBlock(b.params.GenesisBlock, BFGenesisValidation); err != nil {
 			return nil, err
 		}
-	}
-	if err := b.index.Init(); err != nil {
-		return nil, err
-	}
+	} else {
+		if err := b.index.Init(); err != nil {
+			return nil, err
+		}
 
-	if err := b.accumulatorDB.Init(b.index.Tip()); err != nil {
-		return nil, err
-	}
+		if err := b.accumulatorDB.Init(b.index.Tip()); err != nil {
+			return nil, err
+		}
 
+		if err := b.indexManager.Init(b.index.Tip().Height(), b.GetBlockByHeight); err != nil {
+			return nil, err
+		}
+	}
 	if err := b.validatorSet.Init(b.index.Tip()); err != nil {
-		return nil, err
-	}
-
-	if err := b.indexManager.Init(b.index.Tip().Height(), b.GetBlockByHeight); err != nil {
 		return nil, err
 	}
 	return b, nil

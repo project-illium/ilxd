@@ -669,6 +669,8 @@ func (s *Server) Close() error {
 	if err := s.blockchain.Close(); err != nil {
 		return err
 	}
+	s.generator.Close()
+	s.syncManager.Close()
 	s.engine.Close()
 	s.mempool.Close()
 	return nil
