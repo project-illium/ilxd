@@ -133,6 +133,9 @@ func (bi *blockIndex) Init() error {
 	if err != nil {
 		return err
 	}
+	if parent == nil {
+		return nil
+	}
 
 	for i := 0; i < blockIndexCacheSize-1; i++ {
 		parent, err = parent.Parent()

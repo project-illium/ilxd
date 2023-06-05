@@ -282,7 +282,7 @@ func (sm *SyncManager) SetCurrent() {
 
 	sm.current = true
 	if sm.callback != nil {
-		sm.callback()
+		go sm.callback()
 	}
 }
 

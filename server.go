@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	badger "github.com/ipfs/go-ds-badger"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -291,7 +292,16 @@ func BuildServer(config *repo.Config) (*Server, error) {
 
 	chain.Subscribe(s.handleBlockchainNotification)
 
-	s.syncManager.Start()
+	go s.syncManager.Start()
+
+	// If we are the genesis validator then start generating immediately.
+	_, height, _ := chain.BestBlock()
+	if height == 0 {
+		if chain.Validators()[0].PeerID == network.Host().ID() {
+			generator.Start()
+		}
+		s.syncManager.SetCurrent()
+	}
 
 	s.printListenAddrs()
 
@@ -664,6 +674,15 @@ func (s *Server) limitOrphans() {
 }
 
 func (s *Server) printListenAddrs() {
+
+	fmt.Println(`.__.__  .__  .__`)
+	fmt.Println(`|__|  | |  | |__|__ __  _____`)
+	fmt.Println(`|  |  | |  | |  |  |  \/     \`)
+	fmt.Println(`|  |  |_|  |_|  |  |  /  Y Y  \`)
+	fmt.Println(`|__|____/____/__|____/|__|_|  /`)
+	fmt.Println(`                            \/`)
+	fmt.Println()
+
 	log.Infof("PeerID: %s", s.network.Host().ID().String())
 	var lisAddrs []string
 	ifaceAddrs := s.network.Host().Addrs()
