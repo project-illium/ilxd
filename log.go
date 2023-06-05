@@ -90,6 +90,7 @@ func setupLogging(logDir, level string, testnet bool) (*zap.AtomicLevel, error) 
 	cfg.EncoderConfig.EncodeLevel = customLevelEncoder
 	cfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
 	cfg.DisableCaller = true
+	cfg.DisableStacktrace = true
 	cfg.EncoderConfig.ConsoleSeparator = "  "
 
 	var (

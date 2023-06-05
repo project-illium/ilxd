@@ -281,7 +281,7 @@ message GetBlockchainInfoResponse {
 
 message GetBlockInfoRequest {
     oneof id_or_height {
-        // The block hash as a byte array or hex encoded string
+        // The block hash as a byte array
         bytes block_ID = 1;
         // The block number
         uint32 height   = 2;
@@ -294,7 +294,7 @@ message GetBlockInfoResponse {
 
 message GetBlockRequest {
     oneof id_or_height {
-        // The block hash as a byte array or hex encoded string
+        // The block hash as a byte array
         bytes block_ID = 1;
         // The block number
         uint32 height   = 2;
@@ -307,7 +307,7 @@ message GetBlockResponse {
 
 message GetCompressedBlockRequest {
     oneof id_or_height {
-        // The block hash as a byte array or hex encoded string
+        // The block hash as a byte array
         bytes block_ID = 1;
         // The block number
         uint32 height   = 2;
@@ -534,7 +534,7 @@ message GetNewAddressResponse {
     string address = 1;
 }
 message GetTransactionsRequest {
-    // Transaction ID as a byte array or hex encoded string
+    // Transaction ID as a byte array
     bytes transaction_ID = 1;
 }
 message GetTransactionsResponse {
