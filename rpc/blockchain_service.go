@@ -335,12 +335,16 @@ func (s *GrpcServer) GetValidatorSet(ctx context.Context, req *pb.GetValidatorSe
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		resp.Validators = append(resp.Validators, &pb.Validator{
+		val := &pb.Validator{
 			Validator_ID:   valID,
 			TotalStake:     uint64(v.TotalStake),
 			UnclaimedCoins: uint64(v.UnclaimedCoins),
 			EpochBlocks:    v.EpochBlocks,
-		})
+		}
+		for nullifier := range v.Nullifiers {
+			val.Nullifiers = append(val.Nullifiers, nullifier[:])
+		}
+		resp.Validators = append(resp.Validators, val)
 	}
 	return resp, nil
 }

@@ -18,6 +18,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -25,29 +26,32 @@ const (
 	defaultConfigFilename  = "ilxcli.conf"
 )
 
-type cfgfile struct {
-	ConfigFile string `short:"C" long:"configfile" description:"Path to configuration file"`
-}
-
 type options struct {
-	cfgfile
 	ShowVersion bool   `short:"v" long:"version" description:"Display version information and exit"`
+	ConfigFile  string `short:"C" long:"configfile" description:"Path to configuration file"`
 	AuthToken   string `short:"t" long:"authtoken" description:"The ilxd node gRPC authentican token if needed"`
 	ServerAddr  string `short:"a" long:"serveraddr" description:"The address of the ilxd gRPC server (in multiaddr format)" default:"/ip4/127.0.0.1/tcp/5001"`
 	RPCCert     string `long:"rpccert" description:"A path to the SSL certificate to use with gRPC (this is only need if using a self-signed cert)" default:"~/.ilxd/rpc.cert"`
 }
 
 func main() {
-	var preCfg cfgfile
-	parser := flags.NewParser(&preCfg, flags.Default)
 
-	if preCfg.ConfigFile == "" {
-		preCfg.ConfigFile = filepath.Join(repo.DefaultHomeDir, defaultConfigFilename)
+	var configFile string
+	for i, arg := range os.Args {
+		if strings.HasPrefix(arg, "--configfile=") {
+			configFile = strings.Split(arg, "--configfile=")[1]
+		} else if arg == "-C" && len(os.Args) > i+1 {
+			configFile = os.Args[i+1]
+		}
 	}
+	if configFile == "" {
+		configFile = filepath.Join(repo.DefaultHomeDir, defaultConfigFilename)
+	}
+	fmt.Println(configFile)
 
 	var opts options
-	parser = flags.NewParser(&opts, flags.Default)
-	err := flags.NewIniParser(parser).ParseFile(preCfg.ConfigFile)
+	parser := flags.NewParser(&opts, flags.Default)
+	err := flags.NewIniParser(parser).ParseFile(configFile)
 	if err != nil {
 		if _, ok := err.(*os.PathError); !ok {
 			fmt.Fprintf(os.Stderr, "Error parsing config "+
@@ -57,6 +61,10 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+	if len(os.Args) == 2 && os.Args[1] == "-v" {
+		fmt.Println(repo.VersionString())
+		return
+	}
 
 	parser = flags.NewNamedParser("ilxcli", flags.HelpFlag)
 	parser.AddGroup("Connection options", "Configuration options for connecting to ilxd", &opts)
@@ -65,9 +73,20 @@ func main() {
 	parser.AddCommand("getmempool", "Returns all the transactions in the mempool", "Returns all the transactions in the mempool", &GetMempool{&opts})
 	parser.AddCommand("getblockchaininfo", "Returns data about the blockchain", "Returns data about the blockchain including the most recent block hash and height", &GetBlockchainInfo{&opts})
 	parser.AddCommand("getblockinfo", "Returns a block header plus some extra metadata", "Returns a block header plus some extra metadata", &GetBlockInfo{opts: &opts})
+	parser.AddCommand("getblock", "Returns the detailed data for a block", "Returns the detailed data for a block", &GetBlock{opts: &opts})
+	parser.AddCommand("getcompressedblock", "Returns a block in compressed format", "Returns a block that is stripped down to just the outputs. It is the bare minimum information a client side wallet needs to compute its internal state.", &GetCompressedBlock{opts: &opts})
+	parser.AddCommand("gettransaction", "Returns the transaction for the given transaction ID", "Returns the transaction for the given transaction ID. Requires TxIndex.", &GetTransaction{opts: &opts})
+	parser.AddCommand("getmerkleproof", "Returns a Merkle (SPV) proof for a specific transaction in the provided block", "Returns a Merkle (SPV) proof for a specific transaction in the provided block. Requires TxIndex.", &GetMerkleProof{opts: &opts})
+	parser.AddCommand("getvalidator", "Returns all the information about the given validator", "Returns all the information about the given validator including the number of staked coins.", &GetValidator{opts: &opts})
+	parser.AddCommand("getvalidatorsetinfo", "Returns information about the validator set", "Returns information about the validator set.", &GetValidatorSetInfo{opts: &opts})
+	parser.AddCommand("getvalidatorset", "Returns all the validators in the current validator set", "Returns all the validators in the current validator set.", &GetValidatorSet{opts: &opts})
+	parser.AddCommand("getaccumulatorcheckpoint", "Returns the accumulator at the requested height", "Returns the accumulator at the requested height. If there is no checkpoint at that height, the *prior* checkpoint found in the chain will be returned. If there is no prior checkpoint (as is prior to the first), an error will be returned.", &GetAccumulatorCheckpoint{opts: &opts})
+	parser.AddCommand("submittransaction", "Validates a transaction and submits it to the network", "Validates a transaction and submits it to the network. An error will be returned if it fails validation.", &SubmitTransaction{opts: &opts})
+
 	if _, err := parser.Parse(); err != nil {
 		log.Fatal(err)
 	}
+
 }
 
 func makeContext(authToken string) context.Context {
