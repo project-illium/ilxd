@@ -129,12 +129,22 @@ func BuildServer(config *repo.Config) (*Server, error) {
 			return nil, err
 		}
 	} else {
-		privKey, _, err = repo.GenerateNetworkKeypair()
-		if err != nil {
-			return nil, err
-		}
-		if err := repo.PutNetworkKey(ds, privKey); err != nil {
-			return nil, err
+		if netParams.Name == params.RegestParams.Name {
+			privKey, err = crypto.UnmarshalPrivateKey(params.RegtestGenesisKey)
+			if err != nil {
+				return nil, err
+			}
+			if err := repo.PutNetworkKey(ds, privKey); err != nil {
+				return nil, err
+			}
+		} else {
+			privKey, _, err = repo.GenerateNetworkKeypair()
+			if err != nil {
+				return nil, err
+			}
+			if err := repo.PutNetworkKey(ds, privKey); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -294,6 +304,8 @@ func BuildServer(config *repo.Config) (*Server, error) {
 
 	go s.syncManager.Start()
 
+	s.printListenAddrs()
+
 	// If we are the genesis validator then start generating immediately.
 	_, height, _ := chain.BestBlock()
 	if height == 0 {
@@ -302,8 +314,6 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		}
 		s.syncManager.SetCurrent()
 	}
-
-	s.printListenAddrs()
 
 	return &s, nil
 }
@@ -674,14 +684,12 @@ func (s *Server) limitOrphans() {
 }
 
 func (s *Server) printListenAddrs() {
-
 	fmt.Println(`.__.__  .__  .__`)
 	fmt.Println(`|__|  | |  | |__|__ __  _____`)
 	fmt.Println(`|  |  | |  | |  |  |  \/     \`)
 	fmt.Println(`|  |  |_|  |_|  |  |  /  Y Y  \`)
 	fmt.Println(`|__|____/____/__|____/|__|_|  /`)
 	fmt.Println(`                            \/`)
-	fmt.Println()
 
 	log.Infof("PeerID: %s", s.network.Host().ID().String())
 	var lisAddrs []string
@@ -693,4 +701,5 @@ func (s *Server) printListenAddrs() {
 	for _, addr := range lisAddrs {
 		log.Infof("Listening on %s", addr)
 	}
+	log.Infof("gRPC server listening on %s", s.config.RPCOpts.GrpcListener)
 }

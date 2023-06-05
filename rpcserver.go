@@ -68,8 +68,6 @@ func newGrpcServer(cfgOpts repo.RPCOptions, rpcCfg *rpc.GrpcServerConfig) (*rpc.
 
 	gRPCServer := rpc.NewGrpcServer(rpcCfg)
 
-	log.Infof("gRPC server listening on %s", ma)
-
 	go func() {
 		if err := httpServer.ListenAndServeTLS(cfgOpts.RPCCert, cfgOpts.RPCKey); err != nil {
 			log.Debugf("Finished serving gRPC: %v", err)

@@ -155,7 +155,7 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 		}
 		if lastFlushHeight == tip.Height() {
 			// We're good
-			return nil
+			break
 		} else if lastFlushHeight < tip.Height() {
 			// Load the missing blocks from disk and
 			// apply any changes to the validator set.

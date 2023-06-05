@@ -75,10 +75,14 @@ func NewBlockGenerator(opts ...Option) (*BlockGenerator, error) {
 func (g *BlockGenerator) Start() {
 	g.activeMtx.Lock()
 	defer g.activeMtx.Unlock()
+	if g.active {
+		return
+	}
 	g.active = true
 
 	g.quit = make(chan struct{})
 	go g.eventLoop()
+	log.Info("Block generator active")
 }
 
 func (g *BlockGenerator) Close() {

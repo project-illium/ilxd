@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/consensus"
+	"github.com/project-illium/ilxd/gen"
+	"github.com/project-illium/ilxd/sync"
 	"path"
 	"strings"
 
@@ -86,7 +88,7 @@ func setupLogging(logDir, level string, testnet bool) (*zap.AtomicLevel, error) 
 		enc.AppendString("[" + levelToColor[level].Add(logLevelSeverity[level]) + "]")
 	}
 	cfg.EncoderConfig.EncodeLevel = customLevelEncoder
-	cfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
+	cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	cfg.DisableCaller = true
 	cfg.EncoderConfig.ConsoleSeparator = "  "
 
@@ -98,8 +100,8 @@ func setupLogging(logDir, level string, testnet bool) (*zap.AtomicLevel, error) 
 		logRotator := &lumberjack.Logger{
 			Filename:   path.Join(logDir, repo.DefaultLogFilename),
 			MaxSize:    10, // Megabytes
-			MaxBackups: 3,
 			MaxAge:     30, // Days
+			MaxBackups: 3,
 		}
 
 		lumberjackZapHook := func(e zapcore.Entry) error {
@@ -124,5 +126,7 @@ func setupLogging(logDir, level string, testnet bool) (*zap.AtomicLevel, error) 
 	net.UpdateLogger()
 	blockchain.UpdateLogger()
 	consensus.UpdateLogger()
+	gen.UpdateLogger()
+	sync.UpdateLogger()
 	return &cfg.Level, nil
 }
