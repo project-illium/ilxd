@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	pb "github.com/libp2p/go-libp2p/core/crypto/pb"
+	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/nacl/box"
 	"io"
 )
@@ -40,7 +41,7 @@ type Curve25519PublicKey struct {
 
 // GenerateCurve25519Key generates a new Curve25519 private and public key pair.
 func GenerateCurve25519Key(src io.Reader) (crypto.PrivKey, crypto.PubKey, error) {
-	priv, pub, err := box.GenerateKey(src)
+	pub, priv, err := box.GenerateKey(src)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -56,6 +57,36 @@ func GenerateCurve25519Key(src io.Reader) (crypto.PrivKey, crypto.PubKey, error)
 			k: pub,
 		},
 		nil
+}
+
+func Curve25519PrivateKeyFromEd25519(privKey crypto.PrivKey) (crypto.PrivKey, error) {
+	raw, err := privKey.Raw()
+	if err != nil {
+		return nil, err
+	}
+	var (
+		curve25519Key [32]byte
+		ed25519Key    [64]byte
+	)
+	copy(ed25519Key[:], raw)
+	privateKeyToCurve25519(&curve25519Key, &ed25519Key)
+	return UnmarshalCurve25519PrivateKey(curve25519Key[:])
+}
+
+func Curve25519PublicKeyFromEd25519(pubKey crypto.PubKey) (crypto.PubKey, error) {
+	raw, err := pubKey.Raw()
+	if err != nil {
+		return nil, err
+	}
+	var (
+		curve25519Key [32]byte
+		ed25519Key    [32]byte
+	)
+	copy(ed25519Key[:], raw)
+	if err := publicKeyToCurve25519(&curve25519Key, &ed25519Key); err != nil {
+		return nil, err
+	}
+	return UnmarshalCurve25519PublicKey(curve25519Key[:])
 }
 
 // Type of the private key (Curve25519).
@@ -79,6 +110,10 @@ func (k *Curve25519PrivateKey) pubKeyBytes() []byte {
 	return k.k[Curve25519PrivateKeySize:]
 }
 
+func (k *Curve25519PrivateKey) privKeyBytes() []byte {
+	return k.k[:Curve25519PrivateKeySize]
+}
+
 // Equals compares two Curve25519 private keys.
 func (k *Curve25519PrivateKey) Equals(o crypto.Key) bool {
 	cdk, ok := o.(*Curve25519PrivateKey)
@@ -91,8 +126,18 @@ func (k *Curve25519PrivateKey) Equals(o crypto.Key) bool {
 
 // GetPublic returns an Curve25519 public key from a private key.
 func (k *Curve25519PrivateKey) GetPublic() crypto.PubKey {
-	var pubkey [32]byte
+	var (
+		pubkey  [32]byte
+		privkey [32]byte
+		zero    [32]byte
+	)
 	copy(pubkey[:], k.pubKeyBytes())
+	copy(privkey[:], k.privKeyBytes())
+
+	if bytes.Equal(pubkey[:], zero[:]) {
+		curve25519.ScalarBaseMult(&pubkey, &privkey)
+	}
+
 	return &Curve25519PublicKey{k: &pubkey}
 }
 
@@ -100,6 +145,11 @@ func (k *Curve25519PrivateKey) GetPublic() crypto.PubKey {
 // This is a noop.
 func (k *Curve25519PrivateKey) Sign(msg []byte) ([]byte, error) {
 	return nil, ErrSigNoop
+}
+
+// Decrypt attempts to decrypt ciphertext using the private key.
+func (k *Curve25519PrivateKey) Decrypt(cipherText []byte) ([]byte, error) {
+	return Decrypt(k, cipherText)
 }
 
 // Type of the public key (Curve25519).
@@ -126,6 +176,11 @@ func (k *Curve25519PublicKey) Equals(o crypto.Key) bool {
 // This is a noop.
 func (k *Curve25519PublicKey) Verify(data []byte, sig []byte) (bool, error) {
 	return false, ErrSigNoop
+}
+
+// Encrypt encrypts the plaintext using the public key and returns the ciphertext.
+func (k *Curve25519PublicKey) Encrypt(plaintext []byte) ([]byte, error) {
+	return Encrypt(k, plaintext)
 }
 
 // UnmarshalCurve25519PublicKey returns a public key from input bytes.

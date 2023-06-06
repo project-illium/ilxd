@@ -38,6 +38,7 @@ func Encrypt(pubKey crypto.PubKey, plaintext []byte) ([]byte, error) {
 	// Encrypt with nacl
 	var (
 		ciphertext []byte
+		pt         = make([]byte, len(plaintext))
 		nonce      [24]byte
 		n          = make([]byte, 24)
 	)
@@ -46,7 +47,9 @@ func Encrypt(pubKey crypto.PubKey, plaintext []byte) ([]byte, error) {
 		return nil, err
 	}
 	copy(nonce[:], n)
-	ciphertext = box.Seal(ciphertext, plaintext, &nonce, curve25519PubKey.k, ephemPriv)
+	copy(pt, plaintext)
+
+	ciphertext = box.Seal(ciphertext, pt, &nonce, curve25519PubKey.k, ephemPriv)
 
 	// Prepend the ephemeral public key
 	ciphertext = append(ephemPub[:], ciphertext...)
