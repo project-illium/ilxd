@@ -10,6 +10,7 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain/indexers"
+	"github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
@@ -201,7 +202,7 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	accumulator := b.accumulatorDB.Accumulator()
 	blockCointainsOutputs := false
 	treasuryWidthdrawl := types.Amount(0)
-	matches := b.scanner.ScanOutputs(blk.Outputs())
+	matches := b.scanner.ScanOutputs(blk)
 	for _, tx := range blk.Transactions {
 		for _, out := range tx.Outputs() {
 			_, ok := matches[types.NewID(out.Commitment)]
@@ -286,7 +287,16 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 
 	// Notify subscribers of new block.
 	b.sendNotification(NTBlockConnected, blk)
-
+	if len(matches) > 0 {
+		acc := b.accumulatorDB.Accumulator()
+		for commitment, match := range matches {
+			proof, err := acc.GetProof(commitment.Bytes())
+			if err == nil {
+				match.InclusionProof = proof
+			}
+		}
+		b.sendNotification(NTScanMatches, matches)
+	}
 	return nil
 }
 
@@ -509,6 +519,23 @@ func (b *Blockchain) GetAccumulatorCheckpointByHeight(height uint32) (*Accumulat
 	defer b.stateLock.RUnlock()
 
 	return b.getAccumulatorCheckpointByHeight(height)
+}
+
+// AddScanKeys adds additional keys to attempt to decrypt transaction outputs with.
+func (b *Blockchain) AddScanKeys(keys ...*crypto.Curve25519PrivateKey) {
+	b.stateLock.Lock()
+	defer b.stateLock.Unlock()
+
+	b.scanner.AddKeys(keys...)
+}
+
+// GetInclusionProof returns an inclusion proof for the input if the blockchain scanner
+// had the encryption key *before* the commitment was processed in a block.
+func (b *Blockchain) GetInclusionProof(commitment types.ID) (*InclusionProof, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	return b.accumulatorDB.Accumulator().GetProof(commitment.Bytes())
 }
 
 func (b *Blockchain) getAccumulatorCheckpointByHeight(height uint32) (*Accumulator, uint32, error) {
