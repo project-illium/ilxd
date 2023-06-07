@@ -123,7 +123,7 @@ func main() {
 
 	note := types.SpendNote{
 		ScriptHash: coinbaseNoteScriptHash,
-		Amount:     params.CoinbaseNote.Amount,
+		Amount:     types.Amount(params.CoinbaseNote.Amount),
 		AssetID:    types.NewID(coinbaseNoteAssetID),
 	}
 	copy(note.State[:], coinbaseNoteState)

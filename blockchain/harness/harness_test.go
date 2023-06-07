@@ -74,7 +74,7 @@ func TestNewTestHarness(t *testing.T) {
 	privateParams := standard.PrivateParams{
 		Inputs: []standard.PrivateInput{
 			{
-				Amount:          notes[0].Note.Amount,
+				Amount:          uint64(notes[0].Note.Amount),
 				Salt:            notes[0].Note.Salt,
 				AssetID:         notes[0].Note.AssetID,
 				State:           notes[0].Note.State,
@@ -92,7 +92,7 @@ func TestNewTestHarness(t *testing.T) {
 		Outputs: []standard.PrivateOutput{
 			{
 				ScriptHash: outScriptHash[:],
-				Amount:     outNote.Note.Amount,
+				Amount:     uint64(outNote.Note.Amount),
 				Salt:       outNote.Note.Salt,
 				State:      outNote.Note.State,
 				AssetID:    outNote.Note.AssetID,

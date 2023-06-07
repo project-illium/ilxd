@@ -106,7 +106,7 @@ func TestStandardCircuit(t *testing.T) {
 	privateParams := &standard.PrivateParams{
 		Inputs: []standard.PrivateInput{
 			{
-				Amount:          note1.Amount,
+				Amount:          uint64(note1.Amount),
 				Salt:            note1.Salt,
 				AssetID:         [types.AssetIDLen]byte{},
 				State:           [types.StateLen]byte{},
@@ -124,7 +124,7 @@ func TestStandardCircuit(t *testing.T) {
 		Outputs: []standard.PrivateOutput{
 			{
 				ScriptHash: outputScriptHash[:],
-				Amount:     note2.Amount,
+				Amount:     uint64(note2.Amount),
 				Salt:       note2.Salt,
 				State:      [types.StateLen]byte{},
 				AssetID:    [types.AssetIDLen]byte{},

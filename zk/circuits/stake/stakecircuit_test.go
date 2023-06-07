@@ -103,7 +103,7 @@ func TestStakeCircuit(t *testing.T) {
 	publicParams := &stake.PublicParams{
 		TXORoot:   root.Bytes(),
 		SigHash:   sigHash,
-		Amount:    note1.Amount,
+		Amount:    uint64(note1.Amount),
 		Nullifier: nullifier[:],
 	}
 

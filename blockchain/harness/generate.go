@@ -99,7 +99,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				scriptHash := unlockingScript.Hash()
 				outputNote := &types.SpendNote{
 					ScriptHash: scriptHash[:],
-					Amount:     (sn.Note.Amount / uint64(outputsPerTx)) - fee,
+					Amount:     (sn.Note.Amount / types.Amount(outputsPerTx)) - types.Amount(fee),
 					AssetID:    types.IlliumCoinID,
 					Salt:       salt,
 					State:      [types.StateLen]byte{},
@@ -150,7 +150,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 			privateParams := &standard.PrivateParams{
 				Inputs: []standard.PrivateInput{
 					{
-						Amount:          sn.Note.Amount,
+						Amount:          uint64(sn.Note.Amount),
 						Salt:            sn.Note.Salt,
 						AssetID:         sn.Note.AssetID,
 						State:           [types.StateLen]byte{},
@@ -170,7 +170,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				scriptHash := outNote.UnlockingScript.Hash()
 				privateParams.Outputs = append(privateParams.Outputs, standard.PrivateOutput{
 					State:      [types.StateLen]byte{},
-					Amount:     outNote.Note.Amount,
+					Amount:     uint64(outNote.Note.Amount),
 					Salt:       outNote.Note.Salt,
 					AssetID:    outNote.Note.AssetID,
 					ScriptHash: scriptHash[:],
@@ -336,7 +336,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	note1ScriptHash := note1UnlockingScript.Hash()
 	note1 := &types.SpendNote{
 		ScriptHash: note1ScriptHash[:],
-		Amount:     initialCoins / 2,
+		Amount:     types.Amount(initialCoins) / 2,
 		AssetID:    types.IlliumCoinID,
 		Salt:       salt1,
 		State:      [types.StateLen]byte{},
@@ -352,7 +352,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	note2ScriptHash := note2UnlockingScript.Hash()
 	note2 := &types.SpendNote{
 		ScriptHash: note2ScriptHash[:],
-		Amount:     initialCoins / 2,
+		Amount:     types.Amount(initialCoins) / 2,
 		AssetID:    types.IlliumCoinID,
 		Salt:       salt2,
 		State:      [types.StateLen]byte{},

@@ -69,7 +69,7 @@ func TestGenerator(t *testing.T) {
 
 	stakeTx := &transactions.StakeTransaction{
 		Validator_ID: pidBytes,
-		Amount:       notes[0].Note.Amount,
+		Amount:       uint64(notes[0].Note.Amount),
 		Nullifier:    nullifier[:],
 		TxoRoot:      root[:],
 		Locktime:     0,
