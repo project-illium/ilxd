@@ -295,7 +295,7 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 				match.AccIndex = proof.Index
 			}
 		}
-		b.sendNotification(NTScanMatches, &ScanUpdate{
+		b.sendNotification(NTScanUpdate, &ScanUpdate{
 			matches: matches,
 			blk:     blk,
 		})

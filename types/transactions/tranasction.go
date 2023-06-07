@@ -66,6 +66,21 @@ func (tx *Transaction) Outputs() []*Output {
 	return outputs
 }
 
+func (tx *Transaction) Nullifiers() []types.Nullifier {
+	nullifiers := make([]types.Nullifier, 0, 1)
+	switch tx := tx.GetTx().(type) {
+	case *Transaction_StandardTransaction:
+		for _, n := range tx.StandardTransaction.Nullifiers {
+			nullifiers = append(nullifiers, types.NewNullifier(n))
+		}
+	case *Transaction_MintTransaction:
+		for _, n := range tx.MintTransaction.Nullifiers {
+			nullifiers = append(nullifiers, types.NewNullifier(n))
+		}
+	}
+	return nullifiers
+}
+
 func (tx *Transaction) Serialize() ([]byte, error) {
 	return proto.Marshal(tx)
 }
