@@ -16,10 +16,9 @@ import (
 // ScanMatch represents an output that has decrypted with one of
 // our scan keys.
 type ScanMatch struct {
-	Key            *crypto.Curve25519PrivateKey
-	OutputIndex    int
-	Transaction    *transactions.Transaction
-	InclusionProof *InclusionProof
+	Key         *crypto.Curve25519PrivateKey
+	OutputIndex int
+	Transaction *transactions.Transaction
 }
 
 type scanWork struct {

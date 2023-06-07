@@ -45,6 +45,7 @@ func (b *Blockchain) CalcChainScore(blks []*blocks.Block) (ChainScore, error) {
 		sigCache:          NewSigCache(DefaultSigCacheSize),
 		proofCache:        NewProofCache(DefaultProofCacheSize),
 		indexManager:      indexers.NewIndexManager(nil, nil),
+		scanner:           NewTransactionScanner(),
 		notificationsLock: sync.RWMutex{},
 		stateLock:         sync.RWMutex{},
 	}

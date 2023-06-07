@@ -288,13 +288,6 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	// Notify subscribers of new block.
 	b.sendNotification(NTBlockConnected, blk)
 	if len(matches) > 0 {
-		acc := b.accumulatorDB.Accumulator()
-		for commitment, match := range matches {
-			proof, err := acc.GetProof(commitment.Bytes())
-			if err == nil {
-				match.InclusionProof = proof
-			}
-		}
 		b.sendNotification(NTScanMatches, matches)
 	}
 	return nil
@@ -531,11 +524,12 @@ func (b *Blockchain) AddScanKeys(keys ...*crypto.Curve25519PrivateKey) {
 
 // GetInclusionProof returns an inclusion proof for the input if the blockchain scanner
 // had the encryption key *before* the commitment was processed in a block.
-func (b *Blockchain) GetInclusionProof(commitment types.ID) (*InclusionProof, error) {
+func (b *Blockchain) GetInclusionProof(commitment types.ID) (*InclusionProof, types.ID, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
 
-	return b.accumulatorDB.Accumulator().GetProof(commitment.Bytes())
+	proof, err := b.accumulatorDB.Accumulator().GetProof(commitment.Bytes())
+	return proof, b.index.Tip().ID(), err
 }
 
 func (b *Blockchain) getAccumulatorCheckpointByHeight(height uint32) (*Accumulator, uint32, error) {
