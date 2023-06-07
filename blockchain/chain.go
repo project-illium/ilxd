@@ -288,7 +288,15 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	// Notify subscribers of new block.
 	b.sendNotification(NTBlockConnected, blk)
 	if len(matches) > 0 {
+		acc := b.accumulatorDB.Accumulator()
+		for commitment, match := range matches {
+			proof, err := acc.GetProof(commitment.Bytes())
+			if err == nil {
+				match.AccIndex = proof.Index
+			}
+		}
 		b.sendNotification(NTScanMatches, matches)
+
 	}
 	return nil
 }

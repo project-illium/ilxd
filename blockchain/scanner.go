@@ -20,6 +20,7 @@ type ScanMatch struct {
 	OutputIndex   int
 	DecryptedNote []byte
 	Transaction   *transactions.Transaction
+	AccIndex      uint64
 }
 
 type scanWork struct {
