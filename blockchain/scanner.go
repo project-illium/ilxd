@@ -16,9 +16,10 @@ import (
 // ScanMatch represents an output that has decrypted with one of
 // our scan keys.
 type ScanMatch struct {
-	Key         *crypto.Curve25519PrivateKey
-	OutputIndex int
-	Transaction *transactions.Transaction
+	Key           *crypto.Curve25519PrivateKey
+	OutputIndex   int
+	DecryptedNote []byte
+	Transaction   *transactions.Transaction
 }
 
 type scanWork struct {
@@ -112,12 +113,13 @@ func (s *TransactionScanner) scanHandler() {
 		case w := <-s.workChan:
 			if w != nil {
 				for _, k := range s.keys {
-					_, err := k.Decrypt(w.tx.Outputs()[w.index].Ciphertext)
+					decrypted, err := k.Decrypt(w.tx.Outputs()[w.index].Ciphertext)
 					if err == nil {
 						s.resultChan <- &ScanMatch{
-							Key:         k,
-							OutputIndex: w.index,
-							Transaction: w.tx,
+							Key:           k,
+							DecryptedNote: decrypted,
+							OutputIndex:   w.index,
+							Transaction:   w.tx,
 						}
 					} else {
 						s.resultChan <- nil
