@@ -61,6 +61,11 @@ func (s *TransactionScanner) ScanOutputs(blk *blocks.Block) map[types.ID]*ScanMa
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
+	ret := make(map[types.ID]*ScanMatch)
+	if len(s.keys) == 0 {
+		return ret
+	}
+
 	maxGoRoutines := runtime.NumCPU() * 3
 	if maxGoRoutines <= 0 {
 		maxGoRoutines = 1
@@ -93,7 +98,6 @@ func (s *TransactionScanner) ScanOutputs(blk *blocks.Block) map[types.ID]*ScanMa
 		close(s.workChan)
 	}()
 
-	ret := make(map[types.ID]*ScanMatch)
 	for i := 0; i < outputs; i++ {
 		match := <-s.resultChan
 		if match != nil {
