@@ -50,6 +50,7 @@ type Blockchain struct {
 	sigCache          *SigCache
 	proofCache        *ProofCache
 	indexManager      *indexers.IndexManager
+	scanner           *TransactionScanner
 	notifications     []NotificationCallback
 	notificationsLock sync.RWMutex
 
@@ -77,6 +78,7 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 		nullifierSet:      NewNullifierSet(cfg.datastore, cfg.maxNullifiers),
 		txoRootSet:        NewTxoRootSet(cfg.datastore, cfg.maxTxoRoots),
 		indexManager:      indexers.NewIndexManager(cfg.datastore, cfg.indexers),
+		scanner:           NewTransactionScanner(cfg.scanKeys...),
 		sigCache:          cfg.sigCache,
 		proofCache:        cfg.proofCache,
 		stateLock:         sync.RWMutex{},
@@ -199,9 +201,11 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	accumulator := b.accumulatorDB.Accumulator()
 	blockCointainsOutputs := false
 	treasuryWidthdrawl := types.Amount(0)
+	matches := b.scanner.ScanOutputs(blk.Outputs())
 	for _, tx := range blk.Transactions {
 		for _, out := range tx.Outputs() {
-			accumulator.Insert(out.Commitment, false)
+			_, ok := matches[types.NewID(out.Commitment)]
+			accumulator.Insert(out.Commitment, ok)
 			blockCointainsOutputs = true
 		}
 		if treasuryTx, ok := tx.Tx.(*transactions.Transaction_TreasuryTransaction); ok {
