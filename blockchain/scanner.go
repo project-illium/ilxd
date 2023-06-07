@@ -13,13 +13,18 @@ import (
 	"sync"
 )
 
+// ScanUpdate is used to update subscribes when a new block is connected.
+type ScanUpdate struct {
+	matches map[types.ID]*ScanMatch
+	blk     *blocks.Block
+}
+
 // ScanMatch represents an output that has decrypted with one of
 // our scan keys.
 type ScanMatch struct {
 	Key           *crypto.Curve25519PrivateKey
-	OutputIndex   int
+	Commitment    types.ID
 	DecryptedNote []byte
-	Transaction   *transactions.Transaction
 	AccIndex      uint64
 }
 
@@ -102,7 +107,7 @@ func (s *TransactionScanner) ScanOutputs(blk *blocks.Block) map[types.ID]*ScanMa
 	for i := 0; i < outputs; i++ {
 		match := <-s.resultChan
 		if match != nil {
-			ret[types.NewID(match.Transaction.Outputs()[match.OutputIndex].Commitment)] = match
+			ret[match.Commitment] = match
 		}
 	}
 	return ret
@@ -118,9 +123,8 @@ func (s *TransactionScanner) scanHandler() {
 					if err == nil {
 						s.resultChan <- &ScanMatch{
 							Key:           k,
+							Commitment:    types.NewID(w.tx.Outputs()[w.index].Commitment),
 							DecryptedNote: decrypted,
-							OutputIndex:   w.index,
-							Transaction:   w.tx,
 						}
 					} else {
 						s.resultChan <- nil
