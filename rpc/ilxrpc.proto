@@ -139,6 +139,9 @@ service WalletService {
     // WalletUnlock decrypts the wallet seed and holds it in memory for the specified period of time
     rpc WalletUnlock(WalletUnlockRequest) returns (WalletUnlockResponse) {}
 
+    // SetWalletPassphrase encrypts the wallet for the first time
+    rpc SetWalletPassphrase(SetWalletPassphraseRequest) returns (SetWalletPassphraseResponse) {}
+
     // ChangeWalletPassphrase changes the passphrase used to encrypt the wallet private keys
     rpc ChangeWalletPassphrase(ChangeWalletPassphraseRequest) returns (ChangeWalletPassphraseResponse) {}
 
@@ -633,6 +636,12 @@ message WalletUnlockRequest {
     uint32 duration = 2;
 }
 message WalletUnlockResponse {}
+
+message SetWalletPassphraseRequest {
+    // Wallet passphrase
+    string passphrase = 1;
+}
+message SetWalletPassphraseResponse{}
 
 message ChangeWalletPassphraseRequest {
     // Current passphrase

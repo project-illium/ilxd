@@ -1014,6 +1014,8 @@ type WalletServiceClient interface {
 	WalletLock(ctx context.Context, in *WalletLockRequest, opts ...grpc.CallOption) (*WalletLockResponse, error)
 	// WalletUnlock decrypts the wallet seed and holds it in memory for the specified period of time
 	WalletUnlock(ctx context.Context, in *WalletUnlockRequest, opts ...grpc.CallOption) (*WalletUnlockResponse, error)
+	// SetWalletPassphrase encrypts the wallet for the first time
+	SetWalletPassphrase(ctx context.Context, in *SetWalletPassphraseRequest, opts ...grpc.CallOption) (*SetWalletPassphraseResponse, error)
 	// ChangeWalletPassphrase changes the passphrase used to encrypt the wallet private keys
 	ChangeWalletPassphrase(ctx context.Context, in *ChangeWalletPassphraseRequest, opts ...grpc.CallOption) (*ChangeWalletPassphraseResponse, error)
 	// DeletePrivateKeys deletes the wallet's private keys and seed from disk essentially turning the wallet
@@ -1167,6 +1169,15 @@ func (c *walletServiceClient) WalletUnlock(ctx context.Context, in *WalletUnlock
 	return out, nil
 }
 
+func (c *walletServiceClient) SetWalletPassphrase(ctx context.Context, in *SetWalletPassphraseRequest, opts ...grpc.CallOption) (*SetWalletPassphraseResponse, error) {
+	out := new(SetWalletPassphraseResponse)
+	err := c.cc.Invoke(ctx, "/pb.WalletService/SetWalletPassphrase", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *walletServiceClient) ChangeWalletPassphrase(ctx context.Context, in *ChangeWalletPassphraseRequest, opts ...grpc.CallOption) (*ChangeWalletPassphraseResponse, error) {
 	out := new(ChangeWalletPassphraseResponse)
 	err := c.cc.Invoke(ctx, "/pb.WalletService/ChangeWalletPassphrase", in, out, opts...)
@@ -1277,6 +1288,8 @@ type WalletServiceServer interface {
 	WalletLock(context.Context, *WalletLockRequest) (*WalletLockResponse, error)
 	// WalletUnlock decrypts the wallet seed and holds it in memory for the specified period of time
 	WalletUnlock(context.Context, *WalletUnlockRequest) (*WalletUnlockResponse, error)
+	// SetWalletPassphrase encrypts the wallet for the first time
+	SetWalletPassphrase(context.Context, *SetWalletPassphraseRequest) (*SetWalletPassphraseResponse, error)
 	// ChangeWalletPassphrase changes the passphrase used to encrypt the wallet private keys
 	ChangeWalletPassphrase(context.Context, *ChangeWalletPassphraseRequest) (*ChangeWalletPassphraseResponse, error)
 	// DeletePrivateKeys deletes the wallet's private keys and seed from disk essentially turning the wallet
@@ -1348,6 +1361,9 @@ func (UnimplementedWalletServiceServer) WalletLock(context.Context, *WalletLockR
 }
 func (UnimplementedWalletServiceServer) WalletUnlock(context.Context, *WalletUnlockRequest) (*WalletUnlockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WalletUnlock not implemented")
+}
+func (UnimplementedWalletServiceServer) SetWalletPassphrase(context.Context, *SetWalletPassphraseRequest) (*SetWalletPassphraseResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetWalletPassphrase not implemented")
 }
 func (UnimplementedWalletServiceServer) ChangeWalletPassphrase(context.Context, *ChangeWalletPassphraseRequest) (*ChangeWalletPassphraseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChangeWalletPassphrase not implemented")
@@ -1620,6 +1636,24 @@ func _WalletService_WalletUnlock_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _WalletService_SetWalletPassphrase_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetWalletPassphraseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).SetWalletPassphrase(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.WalletService/SetWalletPassphrase",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).SetWalletPassphrase(ctx, req.(*SetWalletPassphraseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _WalletService_ChangeWalletPassphrase_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ChangeWalletPassphraseRequest)
 	if err := dec(in); err != nil {
@@ -1822,6 +1856,10 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "WalletUnlock",
 			Handler:    _WalletService_WalletUnlock_Handler,
+		},
+		{
+			MethodName: "SetWalletPassphrase",
+			Handler:    _WalletService_SetWalletPassphrase_Handler,
 		},
 		{
 			MethodName: "ChangeWalletPassphrase",
