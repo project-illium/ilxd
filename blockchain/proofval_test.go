@@ -22,16 +22,16 @@ func TestProofValidator(t *testing.T) {
 
 	spendKey, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	assert.NoError(t, err)
-	_, verificationKey, err := crypto.GenerateEd25519Key(rand.Reader)
-	assert.NoError(t, err)
-	verificationKeyBytes, err := crypto.MarshalPublicKey(verificationKey)
-	assert.NoError(t, err)
+
+	mockScriptCommitment := make([]byte, 32)
+	rand.Read(mockScriptCommitment)
+
 	spendPubkeyBytes, err := crypto.MarshalPublicKey(spendKey.GetPublic())
 	assert.NoError(t, err)
 
 	inUnlockingScript := types.UnlockingScript{
-		SnarkVerificationKey: verificationKeyBytes,
-		PublicParams:         [][]byte{spendPubkeyBytes},
+		ScriptCommitment: mockScriptCommitment,
+		ScriptParams:     [][]byte{spendPubkeyBytes},
 	}
 	inScriptHash := inUnlockingScript.Hash()
 	inNote := &types.SpendNote{
@@ -45,8 +45,8 @@ func TestProofValidator(t *testing.T) {
 	assert.NoError(t, err)
 
 	outUnlockingScript := types.UnlockingScript{
-		SnarkVerificationKey: verificationKeyBytes,
-		PublicParams:         [][]byte{spendPubkeyBytes},
+		ScriptCommitment: mockScriptCommitment,
+		ScriptParams:     [][]byte{spendPubkeyBytes},
 	}
 	outScriptHash := outUnlockingScript.Hash()
 	outNote := &types.SpendNote{
@@ -63,7 +63,7 @@ func TestProofValidator(t *testing.T) {
 	acc.Insert(inCommitment, true)
 	root := acc.Root()
 
-	inNullifier, err := types.CalculateNullifier(0, inNote.Salt, inUnlockingScript.SnarkVerificationKey, inUnlockingScript.PublicParams...)
+	inNullifier, err := types.CalculateNullifier(0, inNote.Salt, inUnlockingScript.ScriptCommitment, inUnlockingScript.ScriptParams...)
 	assert.NoError(t, err)
 
 	fakeProof := make([]byte, 8000)

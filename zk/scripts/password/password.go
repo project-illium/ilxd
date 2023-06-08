@@ -19,16 +19,16 @@ func PasswordScript(privateParams, publicParams interface{}) bool {
 	if !ok {
 		return false
 	}
-	pub, ok := publicParams.(*standard.UnlockingSnarkParams)
+	pub, ok := publicParams.(*standard.UnlockingScriptInputs)
 	if !ok {
 		return false
 	}
 
-	if len(pub.UserParams) != 1 {
+	if len(pub.ScriptParams) != 1 {
 		return false
 	}
 
-	hash := pub.UserParams[0]
+	hash := pub.ScriptParams[0]
 	calculatedHash := blake2b.Sum256(priv.Password)
 	return bytes.Equal(hash, calculatedHash[:])
 }

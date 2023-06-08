@@ -18,16 +18,16 @@ func TransferScript(privateParams, publicParams interface{}) bool {
 	if !ok {
 		return false
 	}
-	pub, ok := publicParams.(*standard.UnlockingSnarkParams)
+	pub, ok := publicParams.(*standard.UnlockingScriptInputs)
 	if !ok {
 		return false
 	}
 
-	if len(pub.UserParams) != 1 {
+	if len(pub.ScriptParams) != 1 {
 		return false
 	}
 
-	pubkey, err := crypto.UnmarshalPublicKey(pub.UserParams[0])
+	pubkey, err := crypto.UnmarshalPublicKey(pub.ScriptParams[0])
 	if err != nil {
 		return false
 	}

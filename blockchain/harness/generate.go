@@ -16,7 +16,6 @@ import (
 	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/ilxd/zk/circuits/stake"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
-	"github.com/project-illium/ilxd/zk/scripts/transfer"
 	"time"
 )
 
@@ -59,7 +58,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				return nil, nil, err
 			}
 
-			nullifier, err := types.CalculateNullifier(inclusionProof.Index, sn.Note.Salt, sn.UnlockingScript.SnarkVerificationKey, sn.UnlockingScript.PublicParams...)
+			nullifier, err := types.CalculateNullifier(inclusionProof.Index, sn.Note.Salt, sn.UnlockingScript.ScriptCommitment, sn.UnlockingScript.ScriptParams...)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -80,21 +79,16 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				if err != nil {
 					return nil, nil, err
 				}
-				_, verificationKey, err := crypto.GenerateEd25519Key(rand.Reader)
-				if err != nil {
-					return nil, nil, err
-				}
-				verificationKeyBytes, err := crypto.MarshalPublicKey(verificationKey)
-				if err != nil {
-					return nil, nil, err
-				}
+
+				mockStandardScriptCommitment := make([]byte, 32)
+				rand.Read(mockStandardScriptCommitment)
 
 				var salt [types.SaltLen]byte
 				rand.Read(salt[:])
 
 				unlockingScript := &types.UnlockingScript{
-					SnarkVerificationKey: verificationKeyBytes,
-					PublicParams:         [][]byte{pubKeyBytes},
+					ScriptCommitment: mockStandardScriptCommitment,
+					ScriptParams:     [][]byte{pubKeyBytes},
 				}
 				scriptHash := unlockingScript.Hash()
 				outputNote := &types.SpendNote{
@@ -115,7 +109,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 					return nil, nil, err
 				}
 
-				outNullifier, err := types.CalculateNullifier(nCommitments-1, outputNote.Salt, unlockingScript.SnarkVerificationKey, unlockingScript.PublicParams...)
+				outNullifier, err := types.CalculateNullifier(nCommitments-1, outputNote.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -144,8 +138,8 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				return nil, nil, err
 			}
 
-			mockUnlockingProof := make([]byte, 3500)
-			rand.Read(mockUnlockingProof)
+			mockUnlockingSig := make([]byte, 32)
+			rand.Read(mockUnlockingSig)
 
 			privateParams := &standard.PrivateParams{
 				Inputs: []standard.PrivateInput{
@@ -160,9 +154,9 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 							Flags:       inclusionProof.Flags,
 							Accumulator: inclusionProof.Accumulator,
 						},
-						SnarkVerificationKey: sn.UnlockingScript.SnarkVerificationKey,
-						UserParams:           sn.UnlockingScript.PublicParams,
-						SnarkProof:           mockUnlockingProof,
+						ScriptCommitment: sn.UnlockingScript.ScriptCommitment,
+						ScriptParams:     sn.UnlockingScript.ScriptParams,
+						UnlockingParams:  [][]byte{mockUnlockingSig},
 					},
 				},
 			}
@@ -316,22 +310,17 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	var salt1 [32]byte
 	rand.Read(salt1[:])
 
-	_, verificationKey, err := crypto.GenerateEd25519Key(rand.Reader)
-	if err != nil {
-		return nil, nil, err
-	}
-	verificationKeyBytes, err := crypto.MarshalPublicKey(verificationKey)
-	if err != nil {
-		return nil, nil, err
-	}
+	mockStandardScriptCommitment := make([]byte, 32)
+	rand.Read(mockStandardScriptCommitment)
+
 	spendPubkeyBytes, err := crypto.MarshalPublicKey(spendKey.GetPublic())
 	if err != nil {
 		return nil, nil, err
 	}
 
 	note1UnlockingScript := &types.UnlockingScript{
-		SnarkVerificationKey: verificationKeyBytes,
-		PublicParams:         [][]byte{spendPubkeyBytes},
+		ScriptCommitment: mockStandardScriptCommitment,
+		ScriptParams:     [][]byte{spendPubkeyBytes},
 	}
 	note1ScriptHash := note1UnlockingScript.Hash()
 	note1 := &types.SpendNote{
@@ -346,8 +335,8 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	rand.Read(salt2[:])
 
 	note2UnlockingScript := &types.UnlockingScript{
-		SnarkVerificationKey: verificationKeyBytes,
-		PublicParams:         [][]byte{spendPubkeyBytes},
+		ScriptCommitment: mockStandardScriptCommitment,
+		ScriptParams:     [][]byte{spendPubkeyBytes},
 	}
 	note2ScriptHash := note2UnlockingScript.Hash()
 	note2 := &types.SpendNote{
@@ -407,11 +396,11 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	// Finally we're going to create the zk-snark proof for the coinbase
 	// transaction.
 
-	nullifier1, err := types.CalculateNullifier(0, salt1, note1UnlockingScript.SnarkVerificationKey, note1UnlockingScript.PublicParams...)
+	nullifier1, err := types.CalculateNullifier(0, salt1, note1UnlockingScript.ScriptCommitment, note1UnlockingScript.ScriptParams...)
 	if err != nil {
 		return nil, nil, err
 	}
-	nullifier2, err := types.CalculateNullifier(1, salt2, note2UnlockingScript.SnarkVerificationKey, note2UnlockingScript.PublicParams...)
+	nullifier2, err := types.CalculateNullifier(1, salt2, note2UnlockingScript.ScriptCommitment, note2UnlockingScript.ScriptParams...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -495,13 +484,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	stakeTx.Signature = sig2
 
 	// And generate the zk-snark proof
-	unlockingParams := &standard.UnlockingSnarkParams{PublicParams: standard.PublicParams{SigHash: sigHash2}, UserParams: [][]byte{spendPubkeyBytes}}
 	sig3, err := spendKey.Sign(sigHash2)
-	if err != nil {
-		return nil, nil, err
-	}
-	unlockingPriv := &transfer.PrivateParams{Signature: sig3}
-	unlockingProof, err := zk.CreateSnark(transfer.TransferScript, unlockingPriv, unlockingParams)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -522,9 +505,9 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 			Flags:       inclusionProof.Flags,
 			Accumulator: inclusionProof.Accumulator,
 		},
-		SnarkVerificationKey: verificationKeyBytes,
-		UserParams:           [][]byte{spendPubkeyBytes},
-		SnarkProof:           unlockingProof,
+		ScriptCommitment: mockStandardScriptCommitment,
+		ScriptParams:     [][]byte{spendPubkeyBytes},
+		UnlockingParams:  [][]byte{sig3},
 	}
 
 	proof2, err := zk.CreateSnark(stake.StakeCircuit, privateParams2, publicParams2)

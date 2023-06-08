@@ -22,10 +22,9 @@ func TestStakeCircuit(t *testing.T) {
 	defaultTimeBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(defaultTimeBytes, uint64(defaultTime.Unix()))
 
-	_, verificationKey, err := crypto.GenerateEd25519Key(rand.Reader)
-	assert.NoError(t, err)
-	verificationKeyBytes, err := crypto.MarshalPublicKey(verificationKey)
-	assert.NoError(t, err)
+	scriptCommitment := make([]byte, 32)
+	rand.Read(scriptCommitment)
+
 	_, pub1, err := crypto.GenerateEd25519Key(rand.Reader)
 	assert.NoError(t, err)
 	pub1bytes, err := crypto.MarshalPublicKey(pub1)
@@ -39,11 +38,11 @@ func TestStakeCircuit(t *testing.T) {
 	pub3bytes, err := crypto.MarshalPublicKey(pub3)
 	assert.NoError(t, err)
 
-	userParams := [][]byte{{0x02}, pub1bytes, pub2bytes, pub3bytes}
+	scriptParams := [][]byte{{0x02}, pub1bytes, pub2bytes, pub3bytes}
 
 	script := types.UnlockingScript{
-		SnarkVerificationKey: verificationKeyBytes,
-		PublicParams:         userParams,
+		ScriptCommitment: scriptCommitment,
+		ScriptParams:     scriptParams,
 	}
 	scriptHash := script.Hash()
 
@@ -79,10 +78,13 @@ func TestStakeCircuit(t *testing.T) {
 	sigHash := make([]byte, 32)
 	rand.Read(sigHash)
 
-	fakeSnarkProof := make([]byte, 32)
-	rand.Read(fakeSnarkProof)
+	fakeSig1 := make([]byte, 32)
+	rand.Read(fakeSig1)
 
-	nullifier, err := types.CalculateNullifier(inclusionProof.Index, note1.Salt, verificationKeyBytes, userParams...)
+	fakeSig2 := make([]byte, 32)
+	rand.Read(fakeSig2)
+
+	nullifier, err := types.CalculateNullifier(inclusionProof.Index, note1.Salt, scriptCommitment, scriptParams...)
 	assert.NoError(t, err)
 
 	privateParams := &stake.PrivateParams{
@@ -95,9 +97,9 @@ func TestStakeCircuit(t *testing.T) {
 			Hashes:      inclusionProof.Hashes,
 			Flags:       inclusionProof.Flags,
 		},
-		SnarkVerificationKey: verificationKeyBytes,
-		UserParams:           userParams,
-		SnarkProof:           fakeSnarkProof,
+		ScriptCommitment: scriptCommitment,
+		ScriptParams:     scriptParams,
+		UnlockingParams:  [][]byte{fakeSig1, fakeSig2},
 	}
 
 	publicParams := &stake.PublicParams{

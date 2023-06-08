@@ -14,14 +14,14 @@ import (
 )
 
 type PrivateParams struct {
-	AssetID              [types.AssetIDLen]byte
-	Salt                 [types.SaltLen]byte
-	State                [types.StateLen]byte
-	CommitmentIndex      uint64
-	InclusionProof       standard.InclusionProof
-	SnarkVerificationKey []byte
-	UserParams           [][]byte
-	SnarkProof           []byte
+	AssetID          [types.AssetIDLen]byte
+	Salt             [types.SaltLen]byte
+	State            [types.StateLen]byte
+	CommitmentIndex  uint64
+	InclusionProof   standard.InclusionProof
+	ScriptCommitment []byte
+	ScriptParams     [][]byte
+	UnlockingParams  [][]byte
 }
 
 type PublicParams struct {
@@ -32,11 +32,11 @@ type PublicParams struct {
 	Locktime  time.Time
 }
 
-type UnlockingSnarkParams struct {
+type UnlockingScriptInputs struct {
 	InputIndex    int
 	PrivateParams PrivateParams
 	PublicParams  PublicParams
-	UserParams    [][]byte
+	ScriptParams  [][]byte
 }
 
 func StakeCircuit(privateParams, publicParams interface{}) bool {
@@ -50,8 +50,8 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	}
 
 	// First obtain the hash of the spendScript.
-	spendScriptPreimage := priv.SnarkVerificationKey
-	for _, param := range priv.UserParams {
+	spendScriptPreimage := priv.ScriptCommitment
+	for _, param := range priv.ScriptParams {
 		spendScriptPreimage = append(spendScriptPreimage, param...)
 	}
 	spendScriptHash := hash.HashFunc(spendScriptPreimage)
@@ -72,14 +72,14 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	}
 
 	// Validate the unlocking snark.
-	unlockingParams := &UnlockingSnarkParams{
+	unlockingParams := &UnlockingScriptInputs{
 		InputIndex:    0,
 		PrivateParams: *priv,
 		PublicParams:  *pub,
-		UserParams:    priv.UserParams,
+		ScriptParams:  priv.ScriptParams,
 	}
 
-	valid, err := ValidateUnlockingSnark(priv.SnarkVerificationKey, unlockingParams, priv.SnarkProof)
+	valid, err := ValidateUnlockingScript(priv.ScriptCommitment, unlockingParams, priv.UnlockingParams)
 	if !valid || err != nil {
 		return false
 	}
@@ -90,8 +90,8 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	nullifierPreimage := make([]byte, 0, 8+32+100)
 	nullifierPreimage = append(nullifierPreimage, commitmentIndexBytes...)
 	nullifierPreimage = append(nullifierPreimage, priv.Salt[:]...)
-	nullifierPreimage = append(nullifierPreimage, priv.SnarkVerificationKey...)
-	for _, param := range priv.UserParams {
+	nullifierPreimage = append(nullifierPreimage, priv.ScriptCommitment...)
+	for _, param := range priv.ScriptParams {
 		nullifierPreimage = append(nullifierPreimage, param...)
 	}
 	calculatedNullifier := hash.HashFunc(nullifierPreimage)
@@ -102,8 +102,8 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	return true
 }
 
-// ValidateUnlockingSnark is a placeholder. Normally this would be part of the overall circuit to validate
-// the inner snark recursively.
-func ValidateUnlockingSnark(snarkVerificationKey []byte, publicParams *UnlockingSnarkParams, proof []byte) (bool, error) {
+// ValidateUnlockingScript is a placeholder. Normally this would be part of the overall circuit to validate
+// the functional commitment.
+func ValidateUnlockingScript(scriptCommitment []byte, scriptParams *UnlockingScriptInputs, unlockingParams [][]byte) (bool, error) {
 	return true, nil
 }

@@ -23,14 +23,14 @@ const (
 )
 
 type UnlockingScript struct {
-	SnarkVerificationKey []byte
-	PublicParams         [][]byte
+	ScriptCommitment []byte
+	ScriptParams     [][]byte
 }
 
 func (u *UnlockingScript) Serialize() []byte {
-	ser := make([]byte, len(u.SnarkVerificationKey))
-	copy(ser, u.SnarkVerificationKey)
-	for _, param := range u.PublicParams {
+	ser := make([]byte, len(u.ScriptCommitment))
+	copy(ser, u.ScriptCommitment)
+	for _, param := range u.ScriptParams {
 		p := make([]byte, len(param))
 		copy(p, param)
 		ser = append(ser, p...)

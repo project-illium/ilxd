@@ -66,7 +66,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 		return nil, err
 	}
 
-	nullifier, err := types.CalculateNullifier(proof.Index, spendableNote.Note.Salt, spendableNote.UnlockingScript.SnarkVerificationKey, spendableNote.UnlockingScript.PublicParams...)
+	nullifier, err := types.CalculateNullifier(proof.Index, spendableNote.Note.Salt, spendableNote.UnlockingScript.ScriptCommitment, spendableNote.UnlockingScript.ScriptParams...)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (h *TestHarness) GenerateBlockWithTransactions(txs []*transactions.Transact
 		if err != nil {
 			return err
 		}
-		nullifier, err := types.CalculateNullifier(proof.Index, sn.Note.Salt, sn.UnlockingScript.SnarkVerificationKey, sn.UnlockingScript.PublicParams...)
+		nullifier, err := types.CalculateNullifier(proof.Index, sn.Note.Salt, sn.UnlockingScript.ScriptCommitment, sn.UnlockingScript.ScriptParams...)
 		if err != nil {
 			return err
 		}

@@ -181,7 +181,7 @@ func TestSync(t *testing.T) {
 		assert.NoError(t, err)
 		proof, err := harness2.Accumulator().GetProof(commitment)
 		assert.NoError(t, err)
-		nullifier, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.SnarkVerificationKey, notes[0].UnlockingScript.PublicParams...)
+		nullifier, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
 		assert.NoError(t, err)
 		root := harness2.Accumulator().Root()
 		sk, pk, err := crypto.GenerateEd25519Key(rand.Reader)

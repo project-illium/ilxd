@@ -30,14 +30,14 @@ func TestNewTestHarness(t *testing.T) {
 	assert.NoError(t, err)
 	root := acc.Root()
 
-	nullifer, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.SnarkVerificationKey, notes[0].UnlockingScript.PublicParams...)
+	nullifer, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
 	assert.NoError(t, err)
 
 	var salt [32]byte
 	rand.Read(salt[:])
 	outUnlockingScript := &types.UnlockingScript{
-		SnarkVerificationKey: notes[0].UnlockingScript.SnarkVerificationKey,
-		PublicParams:         notes[0].UnlockingScript.PublicParams,
+		ScriptCommitment: notes[0].UnlockingScript.ScriptCommitment,
+		ScriptParams:     notes[0].UnlockingScript.ScriptParams,
 	}
 	outScriptHash := outUnlockingScript.Hash()
 	outNote := &SpendableNote{
@@ -84,9 +84,9 @@ func TestNewTestHarness(t *testing.T) {
 					Flags:       proof.Flags,
 					Accumulator: proof.Accumulator,
 				},
-				SnarkVerificationKey: notes[0].UnlockingScript.SnarkVerificationKey,
-				UserParams:           notes[0].UnlockingScript.PublicParams,
-				SnarkProof:           make([]byte, 100),
+				ScriptCommitment: notes[0].UnlockingScript.ScriptCommitment,
+				ScriptParams:     notes[0].UnlockingScript.ScriptParams,
+				UnlockingParams:  [][]byte{make([]byte, 64)},
 			},
 		},
 		Outputs: []standard.PrivateOutput{

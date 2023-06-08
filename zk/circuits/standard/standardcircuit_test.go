@@ -23,12 +23,12 @@ func TestStandardCircuit(t *testing.T) {
 	raw, err := pub.Raw()
 	assert.NoError(t, err)
 
-	randVerificationKey := make([]byte, 32)
-	rand.Read(randVerificationKey)
+	randScriptCommitment := make([]byte, 32)
+	rand.Read(randScriptCommitment)
 
 	us := types.UnlockingScript{
-		SnarkVerificationKey: randVerificationKey,
-		PublicParams:         [][]byte{raw},
+		ScriptCommitment: randScriptCommitment,
+		ScriptParams:     [][]byte{raw},
 	}
 
 	usScriptHash := us.Hash()
@@ -40,8 +40,8 @@ func TestStandardCircuit(t *testing.T) {
 	assert.NoError(t, err)
 
 	us2 := types.UnlockingScript{
-		SnarkVerificationKey: randVerificationKey,
-		PublicParams:         [][]byte{raw2},
+		ScriptCommitment: randScriptCommitment,
+		ScriptParams:     [][]byte{raw2},
 	}
 
 	us2ScriptHash := us2.Hash()
@@ -97,11 +97,11 @@ func TestStandardCircuit(t *testing.T) {
 	sigHash := make([]byte, 32)
 	rand.Read(sigHash)
 
-	nullifier, err := types.CalculateNullifier(inclusionProof.Index, note1.Salt, us.SnarkVerificationKey, us.PublicParams...)
+	nullifier, err := types.CalculateNullifier(inclusionProof.Index, note1.Salt, us.ScriptCommitment, us.ScriptParams...)
 	assert.NoError(t, err)
 
-	fakeSnarkProof := make([]byte, 32)
-	rand.Read(fakeSnarkProof)
+	fakeSig := make([]byte, 32)
+	rand.Read(fakeSig)
 
 	privateParams := &standard.PrivateParams{
 		Inputs: []standard.PrivateInput{
@@ -116,9 +116,9 @@ func TestStandardCircuit(t *testing.T) {
 					Flags:       inclusionProof.Flags,
 					Accumulator: inclusionProof.Accumulator,
 				},
-				SnarkVerificationKey: us.SnarkVerificationKey,
-				UserParams:           us.PublicParams,
-				SnarkProof:           fakeSnarkProof,
+				ScriptCommitment: us.ScriptCommitment,
+				ScriptParams:     us.ScriptParams,
+				UnlockingParams:  [][]byte{fakeSig},
 			},
 		},
 		Outputs: []standard.PrivateOutput{

@@ -20,27 +20,27 @@ func MultisigScript(privateParams, publicParams interface{}) bool {
 	if !ok {
 		return false
 	}
-	pub, ok := publicParams.(*standard.UnlockingSnarkParams)
+	pub, ok := publicParams.(*standard.UnlockingScriptInputs)
 	if !ok {
 		return false
 	}
-	if len(pub.UserParams) < 2 {
+	if len(pub.ScriptParams) < 2 {
 		return false
 	}
-	if len(pub.UserParams[0]) != 1 {
+	if len(pub.ScriptParams[0]) != 1 {
 		return false
 	}
 
-	pubkeys := make([]crypto.PubKey, len(pub.UserParams)-1)
-	for i := 1; i < len(pub.UserParams); i++ {
-		key, err := crypto.UnmarshalPublicKey(pub.UserParams[i])
+	pubkeys := make([]crypto.PubKey, len(pub.ScriptParams)-1)
+	for i := 1; i < len(pub.ScriptParams); i++ {
+		key, err := crypto.UnmarshalPublicKey(pub.ScriptParams[i])
 		if err != nil {
 			return false
 		}
 		pubkeys[i-1] = key
 	}
 
-	valid, err := ValidateMultiSignature(pub.UserParams[0][0], pubkeys, priv.Signatures, priv.SigBitField, pub.PublicParams.SigHash)
+	valid, err := ValidateMultiSignature(pub.ScriptParams[0][0], pubkeys, priv.Signatures, priv.SigBitField, pub.PublicParams.SigHash)
 	if err != nil || !valid {
 		return false
 	}

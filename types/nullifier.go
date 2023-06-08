@@ -60,16 +60,16 @@ func NewNullifierFromString(n string) (Nullifier, error) {
 }
 
 // CalculateNullifier calculates and returns the nullifier for the given inputs.
-func CalculateNullifier(commitmentIndex uint64, salt [32]byte, snarkVerificationKey []byte, params ...[]byte) (Nullifier, error) {
+func CalculateNullifier(commitmentIndex uint64, salt [32]byte, scriptCommitment []byte, scriptParams ...[]byte) (Nullifier, error) {
 	indexBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(indexBytes, commitmentIndex)
 
-	ser := make([]byte, 0, 8+32+32+(len(params)*32))
+	ser := make([]byte, 0, 8+32+32+(len(scriptParams)*32))
 
 	ser = append(ser, indexBytes...)
 	ser = append(ser, salt[:]...)
-	ser = append(ser, snarkVerificationKey...)
-	for _, params := range params {
+	ser = append(ser, scriptCommitment...)
+	for _, params := range scriptParams {
 		ser = append(ser, params...)
 	}
 	h := hash.HashFunc(ser)

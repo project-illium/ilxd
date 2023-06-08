@@ -24,8 +24,8 @@ type GenerationParams struct {
 	ViewKey                 string `long:"viewkey" description:"The genesis view public key"`
 	InitialCoins            uint64 `long:"initialcoins" description:"The number of coins created by the genesis block"`
 	CoinbaseUnlockingScript struct {
-		SnarkVerificationKey string   `long:"unlockingscript.verificationkey" description:"The coinbase's 0th output's unlocking script verification key"`
-		PublicParams         []string `long:"unlockingscript.params" description:"The coinbase's 0th output's unlocking script params"`
+		ScriptCommitment string   `long:"unlockingscript.scriptcommitment" description:"The coinbase's 0th output's unlocking script commitment"`
+		ScriptParams     []string `long:"unlockingscript.params" description:"The coinbase's 0th output's unlocking script params"`
 	}
 	CoinbaseNote struct {
 		ScriptHash string `long:"coinbasenote.scripthash" description:"The coinbase's 0th output's' note's' script hash"`
@@ -99,7 +99,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	snarkKeyBytes, err := hex.DecodeString(params.CoinbaseUnlockingScript.SnarkVerificationKey)
+	scriptCommitmentBytes, err := hex.DecodeString(params.CoinbaseUnlockingScript.ScriptCommitment)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -129,8 +129,8 @@ func main() {
 	copy(note.State[:], coinbaseNoteState)
 	copy(note.Salt[:], coinbaseNoteSalt)
 
-	unlockingParams := make([][]byte, 0, len(params.CoinbaseUnlockingScript.PublicParams))
-	for _, p := range params.CoinbaseUnlockingScript.PublicParams {
+	unlockingParams := make([][]byte, 0, len(params.CoinbaseUnlockingScript.ScriptCommitment))
+	for _, p := range params.CoinbaseUnlockingScript.ScriptParams {
 		params, err := hex.DecodeString(p)
 		if err != nil {
 			log.Fatal(err)
@@ -139,8 +139,8 @@ func main() {
 	}
 
 	unlockingScript := types.UnlockingScript{
-		SnarkVerificationKey: snarkKeyBytes,
-		PublicParams:         unlockingParams,
+		ScriptCommitment: scriptCommitmentBytes,
+		ScriptParams:     unlockingParams,
 	}
 
 	blk.Transactions[0] = transactions.WrapTransaction(&transactions.CoinbaseTransaction{
@@ -191,7 +191,7 @@ func main() {
 	}
 	txoRoot := acc.Root().Bytes()
 
-	nullifier, err := types.CalculateNullifier(0, note.Salt, unlockingScript.SnarkVerificationKey, unlockingScript.PublicParams...)
+	nullifier, err := types.CalculateNullifier(0, note.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
 	if err != nil {
 		log.Fatal(err)
 	}

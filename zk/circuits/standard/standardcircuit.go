@@ -27,15 +27,15 @@ type InclusionProof struct {
 }
 
 type PrivateInput struct {
-	Amount               uint64
-	Salt                 [types.SaltLen]byte
-	AssetID              [types.AssetIDLen]byte
-	State                [types.StateLen]byte
-	CommitmentIndex      uint64
-	InclusionProof       InclusionProof
-	SnarkVerificationKey []byte
-	UserParams           [][]byte
-	SnarkProof           []byte
+	Amount           uint64
+	Salt             [types.SaltLen]byte
+	AssetID          [types.AssetIDLen]byte
+	State            [types.StateLen]byte
+	CommitmentIndex  uint64
+	InclusionProof   InclusionProof
+	ScriptCommitment []byte
+	ScriptParams     [][]byte
+	UnlockingParams  [][]byte
 }
 
 type PrivateOutput struct {
@@ -68,11 +68,11 @@ type PublicParams struct {
 	Locktime   time.Time
 }
 
-type UnlockingSnarkParams struct {
+type UnlockingScriptInputs struct {
 	InputIndex    int
 	PrivateParams PrivateParams
 	PublicParams  PublicParams
-	UserParams    [][]byte
+	ScriptParams  [][]byte
 }
 
 // This whole function is a placeholder for the actual zk-snark circuit. We enumerate it
@@ -94,8 +94,8 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 
 	for i, in := range priv.Inputs {
 		// First obtain the hash of the spendScript.
-		spendScriptPreimage := in.SnarkVerificationKey
-		for _, param := range in.UserParams {
+		spendScriptPreimage := in.ScriptCommitment
+		for _, param := range in.ScriptParams {
 			spendScriptPreimage = append(spendScriptPreimage, param...)
 		}
 		spendScriptHash := hash.HashFunc(spendScriptPreimage)
@@ -119,14 +119,14 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 		}
 
 		// Validate the unlocking snark.
-		unlockingParams := &UnlockingSnarkParams{
+		unlockingParams := &UnlockingScriptInputs{
 			InputIndex:    i,
 			PrivateParams: *priv,
 			PublicParams:  *pub,
-			UserParams:    in.UserParams,
+			ScriptParams:  in.ScriptParams,
 		}
 
-		valid, err := ValidateUnlockingSnark(in.SnarkVerificationKey, unlockingParams, in.SnarkProof)
+		valid, err := ValidateUnlockingScript(in.ScriptCommitment, unlockingParams, in.UnlockingParams)
 		if !valid || err != nil {
 			return false
 		}
@@ -137,8 +137,8 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 		nullifierPreimage := make([]byte, 0, 8+32+100)
 		nullifierPreimage = append(nullifierPreimage, commitmentIndexBytes...)
 		nullifierPreimage = append(nullifierPreimage, in.Salt[:]...)
-		nullifierPreimage = append(nullifierPreimage, in.SnarkVerificationKey...)
-		for _, param := range in.UserParams {
+		nullifierPreimage = append(nullifierPreimage, in.ScriptCommitment...)
+		for _, param := range in.ScriptParams {
 			nullifierPreimage = append(nullifierPreimage, param...)
 		}
 		calculatedNullifier := hash.HashFunc(nullifierPreimage)
@@ -261,9 +261,9 @@ func ValidateInclusionProof(outputCommitment []byte, commitmentIndex uint64, has
 	return bytes.Equal(calculatedRoot, root)
 }
 
-// ValidateUnlockingSnark is a placeholder. Normally this would be part of the overall circuit to validate
-// the inner snark recursively.
-func ValidateUnlockingSnark(snarkVerificationKey []byte, publicParams *UnlockingSnarkParams, proof []byte) (bool, error) {
+// ValidateUnlockingScript is a placeholder. Normally this would be part of the overall circuit to validate
+// the functional commitment.
+func ValidateUnlockingScript(scriptCommitment []byte, scriptParams *UnlockingScriptInputs, unlockingParams [][]byte) (bool, error) {
 	return true, nil
 }
 
