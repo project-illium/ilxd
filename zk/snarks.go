@@ -9,7 +9,7 @@ import (
 	"errors"
 )
 
-const proofSize = 5000
+const MockProofSize = 9000
 
 type CircuitFunc func(privateParams, publicParams interface{}) bool
 
@@ -22,7 +22,7 @@ func CreateSnark(circuit CircuitFunc, privateParams, publicParams interface{}) (
 		return nil, errors.New("invalid parameters")
 	}
 
-	proof := make([]byte, proofSize)
+	proof := make([]byte, MockProofSize)
 	rand.Read(proof)
 	return proof, nil
 }
