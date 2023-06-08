@@ -60,7 +60,7 @@ func TestProofValidator(t *testing.T) {
 	assert.NoError(t, err)
 
 	acc := NewAccumulator()
-	acc.Insert(inCommitment, true)
+	acc.Insert(inCommitment[:], true)
 	root := acc.Root()
 
 	inNullifier, err := types.CalculateNullifier(0, inNote.Salt, inUnlockingScript.ScriptCommitment, inUnlockingScript.ScriptParams...)
@@ -72,7 +72,7 @@ func TestProofValidator(t *testing.T) {
 	standardTx := &transactions.StandardTransaction{
 		Outputs: []*transactions.Output{
 			{
-				Commitment: outCommitment,
+				Commitment: outCommitment[:],
 			},
 		},
 		Nullifiers: [][]byte{inNullifier[:]},
@@ -95,7 +95,7 @@ func TestProofValidator(t *testing.T) {
 		NewTokens: 100,
 		Outputs: []*transactions.Output{
 			{
-				Commitment: outCommitment,
+				Commitment: outCommitment[:],
 			},
 		},
 		Fee:        0,
@@ -107,7 +107,7 @@ func TestProofValidator(t *testing.T) {
 		Amount: 2000000,
 		Outputs: []*transactions.Output{
 			{
-				Commitment: outCommitment,
+				Commitment: outCommitment[:],
 			},
 		},
 		Proof: fakeProof,
@@ -116,7 +116,7 @@ func TestProofValidator(t *testing.T) {
 		NewCoins: 3000000,
 		Outputs: []*transactions.Output{
 			{
-				Commitment: outCommitment,
+				Commitment: outCommitment[:],
 			},
 		},
 		Proof: fakeProof,

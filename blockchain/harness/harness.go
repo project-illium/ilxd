@@ -61,7 +61,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 	if err != nil {
 		return nil, err
 	}
-	proof, err := harness.acc.GetProof(commitment)
+	proof, err := harness.acc.GetProof(commitment[:])
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (h *TestHarness) GenerateBlockWithTransactions(txs []*transactions.Transact
 		if err != nil {
 			return err
 		}
-		proof, err := h.acc.GetProof(commitment)
+		proof, err := h.acc.GetProof(commitment[:])
 		if err != nil {
 			return err
 		}

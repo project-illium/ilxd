@@ -179,7 +179,7 @@ func TestSync(t *testing.T) {
 		notes := harness2.SpendableNotes()
 		commitment, err := notes[0].Note.Commitment()
 		assert.NoError(t, err)
-		proof, err := harness2.Accumulator().GetProof(commitment)
+		proof, err := harness2.Accumulator().GetProof(commitment[:])
 		assert.NoError(t, err)
 		nullifier, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
 		assert.NoError(t, err)

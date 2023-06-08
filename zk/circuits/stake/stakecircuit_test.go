@@ -62,7 +62,7 @@ func TestStakeCircuit(t *testing.T) {
 	assert.NoError(t, err)
 
 	acc := blockchain.NewAccumulator()
-	acc.Insert(commitment, true)
+	acc.Insert(commitment[:], true)
 
 	for i := uint32(0); i < 10; i++ {
 		iBytes := make([]byte, 32)
@@ -72,7 +72,7 @@ func TestStakeCircuit(t *testing.T) {
 
 	root := acc.Root()
 
-	inclusionProof, err := acc.GetProof(commitment)
+	inclusionProof, err := acc.GetProof(commitment[:])
 	assert.NoError(t, err)
 
 	sigHash := make([]byte, 32)

@@ -26,7 +26,7 @@ func TestNewTestHarness(t *testing.T) {
 	inCommitment, err := notes[0].Note.Commitment()
 
 	acc := h.Accumulator()
-	proof, err := acc.GetProof(inCommitment)
+	proof, err := acc.GetProof(inCommitment[:])
 	assert.NoError(t, err)
 	root := acc.Root()
 
@@ -58,7 +58,7 @@ func TestNewTestHarness(t *testing.T) {
 	tx := transactions.StandardTransaction{
 		Outputs: []*transactions.Output{
 			{
-				Commitment: outCommitment,
+				Commitment: outCommitment[:],
 				Ciphertext: make([]byte, blockchain.CiphertextLen),
 			},
 		},

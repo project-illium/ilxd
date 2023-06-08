@@ -166,7 +166,7 @@ func main() {
 	}
 
 	output0 := &transactions.Output{
-		Commitment: commitment,
+		Commitment: commitment[:],
 		Ciphertext: cipherText,
 	}
 	blk.Transactions[0].GetCoinbaseTransaction().Outputs[0] = output0

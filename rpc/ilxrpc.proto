@@ -966,9 +966,9 @@ message PrivateInput {
     // Input state
     bytes state                     = 4;
     // The unlocking function commitment
-    bytes unlocking_script_hash     = 5;
+    bytes script_commitment     = 5;
     // The unlocking function parameters
-    repeated bytes unlocking_params = 6;
+    repeated bytes script_params = 6;
     // The txo proof linking the input
     // commitment to the accumulator
     TxoProof txo_proof              = 7;

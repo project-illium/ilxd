@@ -70,7 +70,7 @@ func TestBlockchain(t *testing.T) {
 		}, &standard.PublicParams{
 			Outputs: []standard.PublicOutput{
 				{
-					Commitment: commitment,
+					Commitment: commitment[:],
 					CipherText: nil,
 				},
 			},

@@ -53,7 +53,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 			if err != nil {
 				return nil, nil, err
 			}
-			inclusionProof, err := acc.GetProof(commitment)
+			inclusionProof, err := acc.GetProof(commitment[:])
 			if err != nil {
 				return nil, nil, err
 			}
@@ -121,7 +121,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				}
 
 				outputs = append(outputs, &transactions.Output{
-					Commitment: outputCommitment,
+					Commitment: outputCommitment[:],
 					Ciphertext: make([]byte, blockchain.CiphertextLen),
 				})
 			}
@@ -370,11 +370,11 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		NewCoins:     initialCoins,
 		Outputs: []*transactions.Output{
 			{
-				Commitment: commitment1,
+				Commitment: commitment1[:],
 				Ciphertext: make([]byte, blockchain.CiphertextLen),
 			},
 			{
-				Commitment: commitment2,
+				Commitment: commitment2[:],
 				Ciphertext: make([]byte, blockchain.CiphertextLen),
 			},
 		},
@@ -408,10 +408,10 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	publicParams := &standard.PublicParams{
 		Outputs: []standard.PublicOutput{
 			{
-				Commitment: commitment1,
+				Commitment: commitment1[:],
 			},
 			{
-				Commitment: commitment2,
+				Commitment: commitment2[:],
 			},
 		},
 		Nullifiers: [][]byte{nullifier1.Bytes(), nullifier2.Bytes()},
@@ -459,7 +459,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		acc.Insert(output.Commitment, i == 0)
 	}
 	txoRoot := acc.Root()
-	inclusionProof, err := acc.GetProof(commitment1)
+	inclusionProof, err := acc.GetProof(commitment1[:])
 	if err != nil {
 		return nil, nil, err
 	}

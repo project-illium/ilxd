@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/project-illium/ilxd/params/hash"
 )
 
 var IlliumCoinID = NewID(bytes.Repeat([]byte{0x00}, 32))
@@ -54,9 +53,9 @@ type SpendNote struct {
 
 // Commitment serializes and hashes the data in the note and
 // returns the hash.
-func (s *SpendNote) Commitment() ([]byte, error) {
+func (s *SpendNote) Commitment() (ID, error) {
 	ser := s.Serialize()
-	return hash.HashFunc(ser), nil
+	return NewIDFromData(ser), nil
 }
 
 func (s *SpendNote) Serialize() []byte {
