@@ -5,6 +5,7 @@
 package blockchain
 
 import (
+	"errors"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
@@ -188,6 +189,10 @@ func (bi *blockIndex) ExtendIndex(header *blocks.BlockHeader) {
 func (bi *blockIndex) GetNodeByHeight(height uint32) (*blockNode, error) {
 	bi.mtx.Lock()
 	defer bi.mtx.Unlock()
+
+	if height > bi.tip.height {
+		return nil, errors.New("height beyond chain tip")
+	}
 
 	node, ok := bi.cacheByHeight[height]
 	if ok {

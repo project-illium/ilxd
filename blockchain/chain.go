@@ -484,7 +484,7 @@ func (b *Blockchain) GetAccumulatorCheckpointByTimestamp(timestamp time.Time) (*
 
 	for {
 		if priorCheckpoint <= 0 {
-			return nil, 0, errors.New("no accumulator checkpoint at genesis")
+			return nil, 0, ErrNoCheckpoint
 		}
 		n, err := b.index.GetNodeByHeight(priorCheckpoint)
 		if err != nil {

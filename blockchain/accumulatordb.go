@@ -6,11 +6,14 @@ package blockchain
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/project-illium/ilxd/repo"
 	"sync"
 	"time"
 )
+
+var ErrNoCheckpoint = errors.New("no accumulator checkpoint")
 
 // AccumulatorDB is responsible for persisting the accumulator on disk.
 // It maintains a memory cache and periodically flushes to disk. This will
