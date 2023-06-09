@@ -25,15 +25,15 @@ const accumulatorCheckpointInterval = 100000
 type flushMode uint8
 
 const (
-	// flushRequired is used to signal that a validator set flush must take place.
-	flushRequired flushMode = iota
+	// FlushRequired is used to signal that a validator set flush must take place.
+	FlushRequired flushMode = iota
 
-	// flushPeriodic will flush if a certain time interval has passed since the last
+	// FlushPeriodic will flush if a certain time interval has passed since the last
 	// flush.
-	flushPeriodic
+	FlushPeriodic
 
-	// flushNop signals to skip the flush.
-	flushNop
+	// FlushNop signals to skip the flush.
+	FlushNop
 )
 
 // Blockchain is a class which handles all the functionality needed for maintaining
@@ -123,10 +123,10 @@ func (b *Blockchain) Close() error {
 	defer b.stateLock.Unlock()
 
 	tip := b.index.Tip()
-	if err := b.validatorSet.Flush(flushRequired, tip.height); err != nil {
+	if err := b.validatorSet.Flush(FlushRequired, tip.height); err != nil {
 		return err
 	}
-	return b.accumulatorDB.Flush(flushRequired, tip.height)
+	return b.accumulatorDB.Flush(FlushRequired, tip.height)
 }
 
 // CheckConnectBlock checks that the block is valid for the current state of the blockchain
@@ -268,9 +268,9 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	// rolling back the changes if the rest of this function errors. The only possible error is
 	// an error flushing to disk, which we will just log. Any errors we should be able to repair
 	// later.
-	flushMode := flushPeriodic
+	flushMode := FlushPeriodic
 	if flags.HasFlag(BFNoFlush) {
-		flushMode = flushNop
+		flushMode = FlushNop
 	}
 	if err := b.validatorSet.CommitBlock(blk, validatorReward, flushMode); err != nil {
 		log.Errorf("Commit Block: Error flushing validator set: %s", err.Error())

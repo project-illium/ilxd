@@ -50,7 +50,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 		Amount:       100000,
 		Nullifier:    nullifier[:],
 	})
-	assert.NoError(t, vs.CommitBlock(blk, 0, flushRequired))
+	assert.NoError(t, vs.CommitBlock(blk, 0, FlushRequired))
 
 	// Check both validators are committed and return values are correct
 	ret1, err := vs.GetValidator(producerID)
@@ -98,7 +98,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 			Nullifiers: [][]byte{nullifier[:]},
 		}),
 	}
-	assert.NoError(t, vs.CommitBlock(blk2, 10000, flushRequired))
+	assert.NoError(t, vs.CommitBlock(blk2, 10000, FlushRequired))
 
 	// Check the second validator committed correctly
 	ret1, err = vs.GetValidator(valID2)
@@ -133,7 +133,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 			Nullifiers: [][]byte{producerNullifier[:]},
 		}),
 	}
-	assert.NoError(t, vs.CommitBlock(blk3, 100000, flushRequired))
+	assert.NoError(t, vs.CommitBlock(blk3, 100000, FlushRequired))
 
 	// Make sure the producer was removed
 	_, err = vs.GetValidator(producerID)
@@ -157,7 +157,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 			Nullifier:    nullifier2[:],
 		}),
 	}
-	assert.NoError(t, vs.CommitBlock(blk4, 0, flushRequired))
+	assert.NoError(t, vs.CommitBlock(blk4, 0, FlushRequired))
 
 	// Should be no change in these variables since this is a restake
 	ret1, err = vs.GetValidator(valID2)
@@ -169,7 +169,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	blk5 := randomBlock(randomBlockHeader(5, randomID()), 1)
 	blk5.Header.Producer_ID = producerIDBytes
 	blk5.Header.Timestamp = blk4.Header.Timestamp + int64(ValidatorExpiration.Seconds()) + 1
-	assert.NoError(t, vs.CommitBlock(blk5, 100000, flushRequired))
+	assert.NoError(t, vs.CommitBlock(blk5, 100000, FlushRequired))
 
 	ret1, err = vs.GetValidator(valID2)
 	assert.Error(t, err)
@@ -190,7 +190,7 @@ func TestValidatorSet_Init(t *testing.T) {
 
 	// Init with flush height at genesis
 	vs = NewValidatorSet(&params.RegestParams, mock.NewMapDatastore())
-	assert.NoError(t, vs.CommitBlock(params.RegestParams.GenesisBlock, 0, flushRequired))
+	assert.NoError(t, vs.CommitBlock(params.RegestParams.GenesisBlock, 0, FlushRequired))
 	assert.NoError(t, vs.Init(index.Tip()))
 
 	// Set status to flush ongoing and re-init
@@ -213,7 +213,7 @@ func TestValidatorSetMethods(t *testing.T) {
 		Amount:       100000,
 		Nullifier:    nullifier[:],
 	})
-	assert.NoError(t, vs.CommitBlock(blk, 0, flushRequired))
+	assert.NoError(t, vs.CommitBlock(blk, 0, FlushRequired))
 
 	ret, err := vs.GetValidator(valID)
 	assert.NoError(t, err)

@@ -26,7 +26,7 @@ func TestAccumulatorDB_Commit(t *testing.T) {
 	}
 
 	// Commit entries and force a flush.
-	err := adb.Commit(acc, 1, flushRequired)
+	err := adb.Commit(acc, 1, FlushRequired)
 	assert.NoError(t, err)
 
 	// Check last flush height and consistency status are as expected.
@@ -50,7 +50,7 @@ func TestAccumulatorDB_Commit(t *testing.T) {
 	// enough time has passed since the last flush.
 	accOld := acc.Clone()
 	acc.Insert([]byte{0x00}, false)
-	err = adb.Commit(acc, 2, flushPeriodic)
+	err = adb.Commit(acc, 2, FlushPeriodic)
 	assert.NoError(t, err)
 
 	// Confirm the last flush height and consistency status
@@ -85,7 +85,7 @@ func TestAccumulatorDB_Init(t *testing.T) {
 	}
 
 	// Commit entries and force a flush.
-	err := adb.Commit(acc, 1, flushRequired)
+	err := adb.Commit(acc, 1, FlushRequired)
 	assert.NoError(t, err)
 
 	// Recreate the accumulator db.

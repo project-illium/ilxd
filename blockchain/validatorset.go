@@ -199,7 +199,7 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 					}
 				}
 
-				if err := vs.CommitBlock(blk, validatorReward, flushPeriodic); err != nil {
+				if err := vs.CommitBlock(blk, validatorReward, FlushPeriodic); err != nil {
 					return err
 				}
 				if node.height == tip.height {
@@ -210,7 +210,7 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 					return err
 				}
 			}
-			if err := vs.Flush(flushRequired, tip.height); err != nil {
+			if err := vs.Flush(FlushRequired, tip.height); err != nil {
 				return err
 			}
 		} else if lastFlushHeight > tip.Height() {
@@ -241,7 +241,7 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 		if err := dsPutValidatorSetConsistencyStatus(vs.ds, scsEmpty); err != nil {
 			return err
 		}
-		if err := vs.CommitBlock(vs.params.GenesisBlock, 0, flushRequired); err != nil {
+		if err := vs.CommitBlock(vs.params.GenesisBlock, 0, FlushRequired); err != nil {
 			return err
 		}
 		return vs.Init(tip)
@@ -609,14 +609,14 @@ func (vs *ValidatorSet) Flush(mode flushMode, chainHeight uint32) error {
 // This method is NOT safe for concurrent access.
 func (vs *ValidatorSet) flush(mode flushMode, chainHeight uint32) error {
 	switch mode {
-	case flushRequired:
+	case FlushRequired:
 		return vs.flushToDisk(chainHeight)
-	case flushPeriodic:
+	case FlushPeriodic:
 		if vs.lastFlush.Add(maxTimeBetweenFlushes).Before(time.Now()) {
 			return vs.flushToDisk(chainHeight)
 		}
 		return nil
-	case flushNop:
+	case FlushNop:
 		return nil
 	default:
 		return fmt.Errorf("unsupported flushmode for the validator set")

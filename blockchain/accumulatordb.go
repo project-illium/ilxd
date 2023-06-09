@@ -92,7 +92,7 @@ func (adb *AccumulatorDB) Init(tip *blockNode) error {
 						return err
 					}
 				}
-				if err := adb.Flush(flushRequired, tip.height); err != nil {
+				if err := adb.Flush(FlushRequired, tip.height); err != nil {
 					return err
 				}
 			} else if lastFlushHeight > tip.Height() {
@@ -149,14 +149,14 @@ func (adb *AccumulatorDB) Flush(mode flushMode, chainHeight uint32) error {
 
 func (adb *AccumulatorDB) flush(mode flushMode, acc *Accumulator, chainHeight uint32) error {
 	switch mode {
-	case flushRequired:
+	case FlushRequired:
 		return adb.flushToDisk(acc, chainHeight)
-	case flushPeriodic:
+	case FlushPeriodic:
 		if adb.lastFlush.Add(maxTimeBetweenFlushes).Before(time.Now()) {
 			return adb.flushToDisk(acc, chainHeight)
 		}
 		return nil
-	case flushNop:
+	case FlushNop:
 		return nil
 	default:
 		return fmt.Errorf("unsupported flushmode for the accumulator db")
