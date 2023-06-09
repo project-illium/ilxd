@@ -1001,10 +1001,16 @@ type WalletServiceClient interface {
 	//
 	// **Requires wallet to be unlocked**
 	GetPrivateKeys(ctx context.Context, in *GetPrivateKeysRequest, opts ...grpc.CallOption) (*GetPrivateKeysResponse, error)
-	// ImportAddress imports an address into the wallet. Options are available to control whether
-	// or not, and from what height, the wallet rescans the chain to discover the address' transactions.
+	// ImportAddress imports a watch address into the wallet.
 	ImportAddress(ctx context.Context, in *ImportAddressRequest, opts ...grpc.CallOption) (*ImportAddressResponse, error)
+	// CreateMultisigSpendKeypair generates a spend keypair for use in a multisig address
+	CreateMultisigSpendKeypair(ctx context.Context, in *CreateMultisigSpendKeypairRequest, opts ...grpc.CallOption) (*CreateMultisigSpendKeypairResponse, error)
+	// CreateMultisigViewKeypair generates a view keypair for use in a multisig address
+	CreateMultisigViewKeypair(ctx context.Context, in *CreateMultisigViewKeypairRequest, opts ...grpc.CallOption) (*CreateMultisigViewKeypairResponse, error)
 	// CreateMultisigAddress generates a new multisig address using the provided public keys
+	//
+	// Note this address is *not* imported. You will need to call `ImportAddress` if you want to watch
+	// it.
 	CreateMultisigAddress(ctx context.Context, in *CreateMultisigAddressRequest, opts ...grpc.CallOption) (*CreateMultisigAddressResponse, error)
 	// CreateMultiSignature generates and returns a signature for use when proving a multisig transaction
 	CreateMultiSignature(ctx context.Context, in *CreateMultiSignatureRequest, opts ...grpc.CallOption) (*CreateMultiSignatureResponse, error)
@@ -1118,6 +1124,24 @@ func (c *walletServiceClient) GetPrivateKeys(ctx context.Context, in *GetPrivate
 func (c *walletServiceClient) ImportAddress(ctx context.Context, in *ImportAddressRequest, opts ...grpc.CallOption) (*ImportAddressResponse, error) {
 	out := new(ImportAddressResponse)
 	err := c.cc.Invoke(ctx, "/pb.WalletService/ImportAddress", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *walletServiceClient) CreateMultisigSpendKeypair(ctx context.Context, in *CreateMultisigSpendKeypairRequest, opts ...grpc.CallOption) (*CreateMultisigSpendKeypairResponse, error) {
+	out := new(CreateMultisigSpendKeypairResponse)
+	err := c.cc.Invoke(ctx, "/pb.WalletService/CreateMultisigSpendKeypair", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *walletServiceClient) CreateMultisigViewKeypair(ctx context.Context, in *CreateMultisigViewKeypairRequest, opts ...grpc.CallOption) (*CreateMultisigViewKeypairResponse, error) {
+	out := new(CreateMultisigViewKeypairResponse)
+	err := c.cc.Invoke(ctx, "/pb.WalletService/CreateMultisigViewKeypair", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1275,10 +1299,16 @@ type WalletServiceServer interface {
 	//
 	// **Requires wallet to be unlocked**
 	GetPrivateKeys(context.Context, *GetPrivateKeysRequest) (*GetPrivateKeysResponse, error)
-	// ImportAddress imports an address into the wallet. Options are available to control whether
-	// or not, and from what height, the wallet rescans the chain to discover the address' transactions.
+	// ImportAddress imports a watch address into the wallet.
 	ImportAddress(context.Context, *ImportAddressRequest) (*ImportAddressResponse, error)
+	// CreateMultisigSpendKeypair generates a spend keypair for use in a multisig address
+	CreateMultisigSpendKeypair(context.Context, *CreateMultisigSpendKeypairRequest) (*CreateMultisigSpendKeypairResponse, error)
+	// CreateMultisigViewKeypair generates a view keypair for use in a multisig address
+	CreateMultisigViewKeypair(context.Context, *CreateMultisigViewKeypairRequest) (*CreateMultisigViewKeypairResponse, error)
 	// CreateMultisigAddress generates a new multisig address using the provided public keys
+	//
+	// Note this address is *not* imported. You will need to call `ImportAddress` if you want to watch
+	// it.
 	CreateMultisigAddress(context.Context, *CreateMultisigAddressRequest) (*CreateMultisigAddressResponse, error)
 	// CreateMultiSignature generates and returns a signature for use when proving a multisig transaction
 	CreateMultiSignature(context.Context, *CreateMultiSignatureRequest) (*CreateMultiSignatureResponse, error)
@@ -1346,6 +1376,12 @@ func (UnimplementedWalletServiceServer) GetPrivateKeys(context.Context, *GetPriv
 }
 func (UnimplementedWalletServiceServer) ImportAddress(context.Context, *ImportAddressRequest) (*ImportAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ImportAddress not implemented")
+}
+func (UnimplementedWalletServiceServer) CreateMultisigSpendKeypair(context.Context, *CreateMultisigSpendKeypairRequest) (*CreateMultisigSpendKeypairResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateMultisigSpendKeypair not implemented")
+}
+func (UnimplementedWalletServiceServer) CreateMultisigViewKeypair(context.Context, *CreateMultisigViewKeypairRequest) (*CreateMultisigViewKeypairResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateMultisigViewKeypair not implemented")
 }
 func (UnimplementedWalletServiceServer) CreateMultisigAddress(context.Context, *CreateMultisigAddressRequest) (*CreateMultisigAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateMultisigAddress not implemented")
@@ -1542,6 +1578,42 @@ func _WalletService_ImportAddress_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(WalletServiceServer).ImportAddress(ctx, req.(*ImportAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WalletService_CreateMultisigSpendKeypair_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateMultisigSpendKeypairRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).CreateMultisigSpendKeypair(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.WalletService/CreateMultisigSpendKeypair",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).CreateMultisigSpendKeypair(ctx, req.(*CreateMultisigSpendKeypairRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WalletService_CreateMultisigViewKeypair_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateMultisigViewKeypairRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).CreateMultisigViewKeypair(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.WalletService/CreateMultisigViewKeypair",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).CreateMultisigViewKeypair(ctx, req.(*CreateMultisigViewKeypairRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1836,6 +1908,14 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ImportAddress",
 			Handler:    _WalletService_ImportAddress_Handler,
+		},
+		{
+			MethodName: "CreateMultisigSpendKeypair",
+			Handler:    _WalletService_CreateMultisigSpendKeypair_Handler,
+		},
+		{
+			MethodName: "CreateMultisigViewKeypair",
+			Handler:    _WalletService_CreateMultisigViewKeypair_Handler,
 		},
 		{
 			MethodName: "CreateMultisigAddress",

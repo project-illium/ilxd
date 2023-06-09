@@ -53,54 +53,56 @@ func (adb *AccumulatorDB) Init(tip *blockNode) error {
 		}
 		adb.lastFlush = time.Now()
 		adb.acc = acc
-		if lastFlushHeight == tip.Height() {
-			// We're good
-			return nil
-		} else if lastFlushHeight < tip.Height() {
-			// Load the missing blocks from disk and
-			// apply any changes to the accumulator.
-			var (
-				node = tip
-				err  error
-			)
-			for {
-				if node.height == lastFlushHeight+1 {
-					break
-				}
-				node, err = node.Parent()
-				if err != nil {
-					return err
-				}
+		if tip != nil {
+			if lastFlushHeight == tip.Height() {
+				// We're good
+				return nil
+			} else if lastFlushHeight < tip.Height() {
+				// Load the missing blocks from disk and
+				// apply any changes to the accumulator.
+				var (
+					node = tip
+					err  error
+				)
+				for {
+					if node.height == lastFlushHeight+1 {
+						break
+					}
+					node, err = node.Parent()
+					if err != nil {
+						return err
+					}
 
-			}
-			for {
-				blk, err := node.Block()
-				if err != nil {
+				}
+				for {
+					blk, err := node.Block()
+					if err != nil {
+						return err
+					}
+					for _, out := range blk.Outputs() {
+						// FIXME: the init function will ultimately need
+						// to take in a list of commitments to protect.
+						adb.acc.Insert(out.Commitment, false)
+					}
+					if node.height == tip.height {
+						break
+					}
+					node, err = node.Child()
+					if err != nil {
+						return err
+					}
+				}
+				if err := adb.Flush(flushRequired, tip.height); err != nil {
 					return err
 				}
-				for _, out := range blk.Outputs() {
-					// FIXME: the init function will ultimately need
-					// to take in a list of commitments to protect.
-					adb.acc.Insert(out.Commitment, false)
-				}
-				if node.height == tip.height {
-					break
-				}
-				node, err = node.Child()
-				if err != nil {
-					return err
-				}
+			} else if lastFlushHeight > tip.Height() {
+				// This really should never happen.
+				// If we're here it's unlikely the tip node
+				// has any attached children that we can use
+				// to load the blocks and remove the changes
+				// from the accumulator. Panic?
+				log.Fatal("AccumulatorDB last flush ahead of chain tip. Unable to repair. Use --reindexchainstate")
 			}
-			if err := adb.Flush(flushRequired, tip.height); err != nil {
-				return err
-			}
-		} else if lastFlushHeight > tip.Height() {
-			// This really should never happen.
-			// If we're here it's unlikely the tip node
-			// has any attached children that we can use
-			// to load the blocks and remove the changes
-			// from the accumulator. Panic?
-			log.Fatal("AccumulatorDB last flush ahead of chain tip. Unable to repair. Use --reindexchainstate")
 		}
 	case scsFlushOngoing:
 		// Let's hope this never happens because at present we

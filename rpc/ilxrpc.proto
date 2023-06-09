@@ -120,11 +120,19 @@ service WalletService {
     // **Requires wallet to be unlocked**
     rpc GetPrivateKeys(GetPrivateKeysRequest) returns (GetPrivateKeysResponse) {}
 
-    // ImportAddress imports an address into the wallet. Options are available to control whether
-    // or not, and from what height, the wallet rescans the chain to discover the address' transactions.
+    // ImportAddress imports a watch address into the wallet.
     rpc ImportAddress(ImportAddressRequest) returns (ImportAddressResponse) {}
 
+    // CreateMultisigSpendKeypair generates a spend keypair for use in a multisig address
+    rpc CreateMultisigSpendKeypair(CreateMultisigSpendKeypairRequest) returns (CreateMultisigSpendKeypairResponse) {}
+
+    // CreateMultisigViewKeypair generates a view keypair for use in a multisig address
+    rpc CreateMultisigViewKeypair(CreateMultisigViewKeypairRequest) returns (CreateMultisigViewKeypairResponse) {}
+
     // CreateMultisigAddress generates a new multisig address using the provided public keys
+    //
+    // Note this address is *not* imported. You will need to call `ImportAddress` if you want to watch
+    // it.
     rpc CreateMultisigAddress(CreateMultisigAddressRequest) returns (CreateMultisigAddressResponse) {}
 
     // CreateMultiSignature generates and returns a signature for use when proving a multisig transaction
@@ -542,7 +550,7 @@ message GetNewAddressResponse {
 message GetTransactionsRequest {}
 message GetTransactionsResponse {
     // All transactions in the wallet
-    repeated Transaction txs = 1;
+    repeated WalletTransaction txs = 1;
 }
 message GetUtxosRequest {}
 message GetUtxosResponse {
@@ -565,11 +573,17 @@ message ImportAddressRequest {
     // The address to import
     string address          = 1;
 
-    // The spend and view private keys are optional. If they
-    // are nil then this address will essentially be watch-only
-    // and the wallet will not be able to spend from it.
-    bytes spend_key         = 2;
-    bytes view_key          = 3;
+    // The address contains a scriptHash. We also
+    // need what's behind the hash in order to
+    // import an address and detect spends.
+    //
+    // This is the serialized unlocking script
+    // <scriptCommitment><scriptParams>
+    bytes unlockingScript   = 2;
+
+    // The view private key needed to decrypt and
+    // detect transactions.
+    bytes viewPrivateKey    = 3;
 
     // Should the wallet rescan the blockchain looking for
     // transactions for this address.
@@ -578,6 +592,22 @@ message ImportAddressRequest {
     uint32 rescanFromHeight = 5;
 }
 message ImportAddressResponse {}
+
+message CreateMultisigSpendKeypairRequest{}
+message CreateMultisigSpendKeypairResponse{
+    // A private key response
+    bytes privkey = 1;
+    // The corresponding public key
+    bytes pubkey = 2;
+}
+
+message CreateMultisigViewKeypairRequest{}
+message CreateMultisigViewKeypairResponse{
+    // A private key response
+    bytes privkey = 1;
+    // The corresponding public key
+    bytes pubkey = 2;
+}
 
 message CreateMultisigAddressRequest {
     // A list of public keys to use for the multisig address
@@ -945,6 +975,10 @@ message Utxo {
     uint64 amount    = 2;
     // The address that the utxo is associated with
     string address   = 3;
+    // Whether or not this is a watch only utxo.
+    // We canot spend watch only utxos without the
+    // private key.
+    bool watchOnly = 4;
 }
 
 message RawTransaction {
@@ -1006,4 +1040,14 @@ message Peer {
     string id             = 1;
     // Multiaddrs
     repeated string addrs = 2;
+}
+
+message WalletTransaction {
+    // Transaction ID
+    bytes transaction_ID = 1;
+    // The net number of coins coming into the wallet
+    // Positive = receive
+    // Negative = send
+    uint64 netCoins      = 2;
+
 }

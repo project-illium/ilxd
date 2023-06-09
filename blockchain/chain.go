@@ -10,7 +10,6 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain/indexers"
-	"github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
@@ -51,7 +50,6 @@ type Blockchain struct {
 	sigCache          *SigCache
 	proofCache        *ProofCache
 	indexManager      *indexers.IndexManager
-	scanner           *TransactionScanner
 	notifications     []NotificationCallback
 	notificationsLock sync.RWMutex
 
@@ -79,7 +77,6 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 		nullifierSet:      NewNullifierSet(cfg.datastore, cfg.maxNullifiers),
 		txoRootSet:        NewTxoRootSet(cfg.datastore, cfg.maxTxoRoots),
 		indexManager:      indexers.NewIndexManager(cfg.datastore, cfg.indexers),
-		scanner:           NewTransactionScanner(cfg.scanKeys...),
 		sigCache:          cfg.sigCache,
 		proofCache:        cfg.proofCache,
 		stateLock:         sync.RWMutex{},
@@ -202,11 +199,9 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	accumulator := b.accumulatorDB.Accumulator()
 	blockCointainsOutputs := false
 	treasuryWidthdrawl := types.Amount(0)
-	matches := b.scanner.ScanOutputs(blk)
 	for _, tx := range blk.Transactions {
 		for _, out := range tx.Outputs() {
-			_, ok := matches[types.NewID(out.Commitment)]
-			accumulator.Insert(out.Commitment, ok)
+			accumulator.Insert(out.Commitment, false)
 			blockCointainsOutputs = true
 		}
 		if treasuryTx, ok := tx.Tx.(*transactions.Transaction_TreasuryTransaction); ok {
@@ -287,20 +282,7 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 
 	// Notify subscribers of new block.
 	b.sendNotification(NTBlockConnected, blk)
-	if len(matches) > 0 {
-		acc := b.accumulatorDB.Accumulator()
-		for commitment, match := range matches {
-			proof, err := acc.GetProof(commitment.Bytes())
-			if err == nil {
-				match.AccIndex = proof.Index
-			}
-		}
-		b.sendNotification(NTScanUpdate, &ScanUpdate{
-			matches: matches,
-			blk:     blk,
-		})
 
-	}
 	return nil
 }
 
@@ -523,14 +505,6 @@ func (b *Blockchain) GetAccumulatorCheckpointByHeight(height uint32) (*Accumulat
 	defer b.stateLock.RUnlock()
 
 	return b.getAccumulatorCheckpointByHeight(height)
-}
-
-// AddScanKeys adds additional keys to attempt to decrypt transaction outputs with.
-func (b *Blockchain) AddScanKeys(keys ...*crypto.Curve25519PrivateKey) {
-	b.stateLock.Lock()
-	defer b.stateLock.Unlock()
-
-	b.scanner.AddKeys(keys...)
 }
 
 // GetInclusionProof returns an inclusion proof for the input if the blockchain scanner

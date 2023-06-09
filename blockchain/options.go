@@ -6,7 +6,6 @@ package blockchain
 
 import (
 	"github.com/project-illium/ilxd/blockchain/indexers"
-	"github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/repo/mock"
@@ -69,16 +68,6 @@ func SignatureCache(sigCache *SigCache) Option {
 	}
 }
 
-// ScanKeys is a list of keys to use to attempt to decrypt outputs. This
-// doesn't technically have to be done inside the blockchain but it saves
-// some resources to not have to calculate the accumulator hashes twice.
-func ScanKeys(keys ...*crypto.Curve25519PrivateKey) Option {
-	return func(cfg *config) error {
-		cfg.scanKeys = keys
-		return nil
-	}
-}
-
 // SnarkProofCache caches proof validation so we don't need to expend
 // extra CPU to validate zk-snark proofs more than once.
 //
@@ -126,7 +115,6 @@ type config struct {
 	indexers      []indexers.Indexer
 	maxNullifiers uint
 	maxTxoRoots   uint
-	scanKeys      []*crypto.Curve25519PrivateKey
 }
 
 func (cfg *config) validate() error {
