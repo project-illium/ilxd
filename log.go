@@ -11,6 +11,7 @@ import (
 	"github.com/project-illium/ilxd/consensus"
 	"github.com/project-illium/ilxd/gen"
 	"github.com/project-illium/ilxd/sync"
+	"github.com/project-illium/walletlib"
 	"path"
 	"strings"
 
@@ -129,5 +130,6 @@ func setupLogging(logDir, level string, testnet bool) (*zap.AtomicLevel, error) 
 	consensus.UpdateLogger()
 	gen.UpdateLogger()
 	sync.UpdateLogger()
+	walletlib.UpdateLogger()
 	return &cfg.Level, nil
 }

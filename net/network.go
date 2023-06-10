@@ -12,7 +12,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/libp2p/go-libp2p/p2p/host/autorelay"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/project-illium/ilxd/blockchain"
@@ -22,8 +21,7 @@ import (
 	"github.com/project-illium/ilxd/types/transactions"
 	"time"
 
-	libp2p "github.com/libp2p/go-libp2p"
-	connmgr "github.com/libp2p/go-libp2p-connmgr"
+	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pb "github.com/libp2p/go-libp2p-pubsub/pb"
@@ -34,6 +32,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/routing"
 	discovery "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
+	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/multiformats/go-multiaddr"
 )
@@ -79,15 +78,20 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	}
 
 	var (
-		idht *dht.IpfsDHT
-		cmgr coreconmgr.ConnManager = connmgr.NewConnManager(
-			100,         // Lowwater
-			400,         // HighWater,
-			time.Minute, // GracePeriod
-		)
+		idht   *dht.IpfsDHT
 		pstore peerstore.Peerstore
+		cmgr   coreconmgr.ConnManager
 		err    error
 	)
+
+	cmgr, err = connmgr.NewConnManager(
+		100, // Lowwater
+		400, // HighWater,
+		connmgr.WithGracePeriod(time.Minute),
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	if cfg.host == nil {
 		pstore, err = pstoreds.NewPeerstore(ctx, cfg.datastore, pstoreds.DefaultOpts())
@@ -145,7 +149,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		// Let this host use relays and advertise itself on relays if
 		// it finds it is behind NAT. Use libp2p.Relay(options...) to
 		// enable active relays and more.
-		libp2p.EnableAutoRelay(autorelay.WithPeerSource(peerSource, 0)),
+		libp2p.EnableAutoRelayWithPeerSource(peerSource),
 		// If you want to help other peers to figure out if they are behind
 		// NATs, you can launch the server-side of AutoNAT too (AutoRelay
 		// already runs the client)

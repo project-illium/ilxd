@@ -25,6 +25,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/walletlib"
 	"go.uber.org/zap"
 	"sort"
 	stdsync "sync"
@@ -58,6 +59,7 @@ type Server struct {
 	syncManager  *sync.SyncManager
 	generator    *gen.BlockGenerator
 	grpcServer   *rpc.GrpcServer
+	wallet       *walletlib.Wallet
 
 	orphanBlocks map[types.ID]*orphanBlock
 	orphanLock   stdsync.RWMutex
@@ -88,12 +90,12 @@ func BuildServer(config *repo.Config) (*Server, error) {
 
 	// Policy
 	policy := policy2.NewPolicy(
-		types.Amount(config.MinFeePerKilobyte),
-		types.Amount(config.MinStake),
-		config.BlocksizeSoftLimit,
+		types.Amount(config.Policy.MinFeePerKilobyte),
+		types.Amount(config.Policy.MinStake),
+		config.Policy.BlocksizeSoftLimit,
 	)
 
-	for _, id := range config.TreasuryWhitelist {
+	for _, id := range config.Policy.TreasuryWhitelist {
 		w, err := types.NewIDFromString(id)
 		if err != nil {
 			return nil, err
@@ -115,53 +117,6 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	ds, err := badger.NewDatastore(config.DataDir, &badger.DefaultOptions)
 	if err != nil {
 		return nil, err
-	}
-
-	// Load or create the private key for the node
-	var privKey crypto.PrivKey
-	has, err := repo.HasNetworkKey(ds)
-	if err != nil {
-		return nil, err
-	}
-	if has {
-		privKey, err = repo.LoadNetworkKey(ds)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		if netParams.Name == params.RegestParams.Name {
-			privKey, err = crypto.UnmarshalPrivateKey(params.RegtestGenesisKey)
-			if err != nil {
-				return nil, err
-			}
-			if err := repo.PutNetworkKey(ds, privKey); err != nil {
-				return nil, err
-			}
-		} else {
-			privKey, _, err = repo.GenerateNetworkKeypair()
-			if err != nil {
-				return nil, err
-			}
-			if err := repo.PutNetworkKey(ds, privKey); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	// Select seed addresses
-	var seedAddrs []string
-	if config.SeedAddrs != nil {
-		seedAddrs = config.SeedAddrs
-	} else {
-		seedAddrs = netParams.SeedAddrs
-	}
-
-	// Select listen addresses
-	var listenAddrs []string
-	if config.ListenAddrs != nil {
-		listenAddrs = config.ListenAddrs
-	} else {
-		listenAddrs = netParams.ListenAddrs
 	}
 
 	// Create the blockchain
@@ -201,6 +156,66 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		return nil, err
 	}
 
+	// Create wallet
+	wallet, err := walletlib.NewWallet([]walletlib.Option{
+		walletlib.DataDir(config.WalletDir),
+		walletlib.Params(netParams),
+		walletlib.FeePerKB(policy.GetMinFeePerKilobyte()),
+		walletlib.GetBlockFunction(chain.GetBlockByHeight),
+		walletlib.GetAccumulatorCheckpointFunction(chain.GetAccumulatorCheckpointByHeight),
+		walletlib.BroadcastFunction(s.submitTransaction),
+	}...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load or create the private key for the node
+	var privKey crypto.PrivKey
+	has, err := repo.HasNetworkKey(ds)
+	if err != nil {
+		return nil, err
+	}
+	if has {
+		privKey, err = repo.LoadNetworkKey(ds)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if netParams.Name == params.RegestParams.Name {
+			privKey, err = crypto.UnmarshalPrivateKey(params.RegtestGenesisKey)
+			if err != nil {
+				return nil, err
+			}
+			if err := repo.PutNetworkKey(ds, privKey); err != nil {
+				return nil, err
+			}
+		} else {
+			privKey, err = wallet.NetworkKey()
+			if err != nil {
+				return nil, err
+			}
+			if err := repo.PutNetworkKey(ds, privKey); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Select seed addresses
+	var seedAddrs []string
+	if config.SeedAddrs != nil {
+		seedAddrs = config.SeedAddrs
+	} else {
+		seedAddrs = netParams.SeedAddrs
+	}
+
+	// Select listen addresses
+	var listenAddrs []string
+	if config.ListenAddrs != nil {
+		listenAddrs = config.ListenAddrs
+	} else {
+		listenAddrs = netParams.ListenAddrs
+	}
+
 	// Mempool
 	mempoolOpts := []mempool.Option{
 		mempool.SignatureCache(sigCache),
@@ -228,7 +243,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		net.MempoolValidator(mpool.ProcessTransaction),
 		net.MaxBanscore(config.MaxBanscore),
 		net.BanDuration(config.BanDuration),
-		net.MaxMessageSize(config.MaxMessageSize),
+		net.MaxMessageSize(config.Policy.MaxMessageSize),
 	}
 	if config.DisableNATPortMap {
 		networkOpts = append(networkOpts, net.DisableNatPortMap())
@@ -298,12 +313,15 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.policy = policy
 	s.generator = generator
 	s.grpcServer = grpcServer
+	s.wallet = wallet
 
 	chain.Subscribe(s.handleBlockchainNotification)
 
-	go s.syncManager.Start()
-
 	s.printListenAddrs()
+
+	s.wallet.Start()
+
+	go s.syncManager.Start()
 
 	// If we are the genesis validator then start generating immediately.
 	_, height, _ := chain.BestBlock()
@@ -360,6 +378,7 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 	case blockchain.NTBlockConnected:
 		if blk, ok := ntf.Data.(*blocks.Block); ok {
 			s.mempool.RemoveBlockTransactions(blk.Transactions)
+			s.wallet.ConnectBlock(blk)
 		}
 	case blockchain.NTAddValidator:
 		if pid, ok := ntf.Data.(peer.ID); ok && pid == s.network.Host().ID() {

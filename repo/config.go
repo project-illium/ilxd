@@ -54,7 +54,8 @@ type Config struct {
 	ShowVersion       bool          `short:"v" long:"version" description:"Display version information and exit"`
 	ConfigFile        string        `short:"C" long:"configfile" description:"Path to configuration file"`
 	DataDir           string        `short:"d" long:"datadir" description:"Directory to store data"`
-	LogDir            string        `long:"logdir" description:"Directory to log output."`
+	LogDir            string        `long:"logdir" description:"Directory to log output"`
+	WalletDir         string        `long:"walletdir" description:"Directory to store wallet data"`
 	LogLevel          string        `short:"l" long:"loglevel" description:"Set the logging level [debug, info, notice, error, alert, critical, emergency]." default:"info"`
 	SeedAddrs         []string      `long:"seedaddr" description:"Override the default seed addresses with the provided values"`
 	ListenAddrs       []string      `long:"listenaddr" description:"Override the default listen addresses with the provided values"`
@@ -67,14 +68,16 @@ type Config struct {
 	MaxBanscore       uint32        `long:"maxbanscore" description:"The maximum ban score a peer is allowed to have before getting banned" default:"100"`
 	BanDuration       time.Duration `long:"banduration" description:"The duration for which banned peers are banned for" default:"24h"`
 
-	// Policy
+	Policy  Policy     `group:"Policy"`
+	RPCOpts RPCOptions `group:"RPC Options"`
+}
+
+type Policy struct {
 	MinFeePerKilobyte  uint64   `long:"minfeeperkilobyte" description:"The minimum fee per kilobyte that the node will accept in the mempool and generated blocks"`
 	MinStake           uint64   `long:"minstake" description:"The minimum stake required to accept a stake tx into the mempool or a generated block"`
 	TreasuryWhitelist  []string `long:"treasurywhitelist" description:"Allow these treasury txids into the mempool and generated blocks"`
 	BlocksizeSoftLimit uint32   `long:"blocksizesoftlimit" description:"The maximum size block this node will generate"`
 	MaxMessageSize     int      `long:"maxmessagesize" description:"The maximum size of a network message. This is a hard limit. Setting this value different than all other nodes could fork you off the network."`
-
-	RPCOpts RPCOptions `group:"RPC Options"`
 }
 
 type RPCOptions struct {
@@ -167,6 +170,15 @@ func LoadConfig() (*Config, error) {
 	if cfg.LogDir == "" {
 		cfg.LogDir = CleanAndExpandPath(path.Join(cfg.DataDir, "logs", netStr))
 	}
+	if cfg.WalletDir == "" {
+		cfg.WalletDir = CleanAndExpandPath(path.Join(cfg.DataDir, "wallet", netStr))
+		if _, err := os.Stat(cfg.WalletDir); os.IsNotExist(err) {
+			err := os.MkdirAll(filepath.Dir(cfg.WalletDir), 0700)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 
 	// Warn about missing config file only after all other configuration is
 	// done.  This prevents the warning on help messages and invalid
@@ -202,17 +214,17 @@ func LoadConfig() (*Config, error) {
 	}
 
 	cfg.UserAgent = "/ilxd/" + VersionString() + "/" + cfg.UserAgent
-	if cfg.MinFeePerKilobyte == 0 {
-		cfg.MinFeePerKilobyte = DefaultFeePerKilobyte
+	if cfg.Policy.MinFeePerKilobyte == 0 {
+		cfg.Policy.MinFeePerKilobyte = DefaultFeePerKilobyte
 	}
-	if cfg.MinStake == 0 {
-		cfg.MinStake = DefaultMinimumStake
+	if cfg.Policy.MinStake == 0 {
+		cfg.Policy.MinStake = DefaultMinimumStake
 	}
-	if cfg.BlocksizeSoftLimit == 0 {
-		cfg.BlocksizeSoftLimit = DefaultSoftLimit
+	if cfg.Policy.BlocksizeSoftLimit == 0 {
+		cfg.Policy.BlocksizeSoftLimit = DefaultSoftLimit
 	}
-	if cfg.MaxMessageSize == 0 {
-		cfg.MaxMessageSize = DefaultMaxMessageSize
+	if cfg.Policy.MaxMessageSize == 0 {
+		cfg.Policy.MaxMessageSize = DefaultMaxMessageSize
 	}
 
 	return &cfg, nil
