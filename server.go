@@ -5,9 +5,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ipfs/go-datastore"
 	badger "github.com/ipfs/go-ds-badger"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -70,6 +72,9 @@ type Server struct {
 	inflightRequests map[types.ID]bool
 	inflightLock     stdsync.RWMutex
 	policy           *policy2.Policy
+	autoStake        bool
+	autoStakeLock    stdsync.RWMutex
+	networkKey       crypto.PrivKey
 
 	ready chan struct{}
 }
@@ -266,18 +271,21 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	}
 
 	grpcServer, err := newGrpcServer(config.RPCOpts, &rpc.GrpcServerConfig{
-		Chain:              chain,
-		Network:            network,
-		Policy:             policy,
-		BroadcastTxFunc:    s.submitTransaction,
-		SetLogLevelFunc:    zapLevel.SetLevel,
-		ReindexChainFunc:   s.reIndexChain,
-		RequestBlockFunc:   s.requestBlock,
-		ChainParams:        netParams,
-		Ds:                 ds,
-		TxMemPool:          mpool,
-		TxIndex:            txIndex,
-		DisableNodeService: config.RPCOpts.DisableNodeService,
+		Chain:                chain,
+		Network:              network,
+		Policy:               policy,
+		Wallet:               wallet,
+		BroadcastTxFunc:      s.submitTransaction,
+		SetLogLevelFunc:      zapLevel.SetLevel,
+		ReindexChainFunc:     s.reIndexChain,
+		RequestBlockFunc:     s.requestBlock,
+		AutoStakeFunc:        s.setAutostake,
+		ChainParams:          netParams,
+		Ds:                   ds,
+		TxMemPool:            mpool,
+		TxIndex:              txIndex,
+		DisableNodeService:   config.RPCOpts.DisableNodeService,
+		DisableWalletService: config.RPCOpts.DisableWalletService,
 	})
 	if err != nil {
 		return nil, err
@@ -290,6 +298,11 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		gen.BroadcastFunc(network.BroadcastBlock),
 	}...)
 	if err != nil {
+		return nil, err
+	}
+
+	autostake, err := ds.Get(context.Background(), datastore.NewKey(repo.AutostakeDatastoreKey))
+	if err != nil && !errors.Is(datastore.ErrNotFound, err) {
 		return nil, err
 	}
 
@@ -310,10 +323,13 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.orphanLock = stdsync.RWMutex{}
 	s.inventoryLock = stdsync.RWMutex{}
 	s.inflightLock = stdsync.RWMutex{}
+	s.autoStakeLock = stdsync.RWMutex{}
 	s.policy = policy
 	s.generator = generator
 	s.grpcServer = grpcServer
 	s.wallet = wallet
+	s.autoStake = bytes.Equal(autostake, []byte{0x01})
+	s.networkKey = privKey
 
 	chain.Subscribe(s.handleBlockchainNotification)
 
@@ -392,7 +408,33 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 				s.generator.Close()
 			}
 		}
+	case blockchain.NTNewEpoch:
+		validator, err := s.blockchain.GetValidator(s.network.Host().ID())
+		if err == nil && validator.UnclaimedCoins > 0 {
+			s.autoStakeLock.RLock()
+			defer s.autoStakeLock.RUnlock()
+
+			tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.networkKey)
+			if err != nil {
+				log.Errorf("Error building auto coinbase transaction: %s", err)
+			}
+			if err := s.submitTransaction(tx); err != nil {
+				log.Errorf("Error submitting auto coinbase transaction: %s", err)
+			}
+		}
 	}
+}
+
+func (s *Server) setAutostake(autostake bool) error {
+	s.autoStakeLock.Lock()
+	defer s.autoStakeLock.Unlock()
+
+	b := []byte{0x00}
+	if autostake {
+		b = []byte{0x01}
+	}
+	s.autoStake = autostake
+	return s.ds.Put(context.Background(), datastore.NewKey(repo.AutostakeDatastoreKey), b)
 }
 
 func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck bool) error {

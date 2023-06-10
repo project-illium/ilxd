@@ -25,6 +25,7 @@ const (
 	NTBlockConnected = iota
 	NTAddValidator
 	NTRemoveValidator
+	NTNewEpoch
 )
 
 // notificationTypeStrings is a map of notification types back to their constant
@@ -33,6 +34,7 @@ var notificationTypeStrings = map[NotificationType]string{
 	NTBlockConnected:  "NTBlockConnected",
 	NTAddValidator:    "NTAddValidator",
 	NTRemoveValidator: "NTRemoveValidator",
+	NTNewEpoch:        "NTNewEpoch",
 }
 
 // String returns the NotificationType in human-readable form.

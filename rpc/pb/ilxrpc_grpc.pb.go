@@ -988,7 +988,9 @@ type WalletServiceClient interface {
 	//
 	// **Requires wallet to be unlocked**
 	GetWalletSeed(ctx context.Context, in *GetWalletSeedRequest, opts ...grpc.CallOption) (*GetWalletSeedResponse, error)
-	// GetAddresses returns all the addresses created by this wallet
+	// GetAddress returns the most recent address of the wallet.
+	GetAddress(ctx context.Context, in *GetAddressRequest, opts ...grpc.CallOption) (*GetAddressResponse, error)
+	// GetAddresses returns all the addresses create by the wallet.
 	GetAddresses(ctx context.Context, in *GetAddressesRequest, opts ...grpc.CallOption) (*GetAddressesResponse, error)
 	// GetNewAddress generates a new address and returns it. Both a new spend key
 	// and view key will be derived from the mnemonic seed.
@@ -997,10 +999,10 @@ type WalletServiceClient interface {
 	GetTransactions(ctx context.Context, in *GetTransactionsRequest, opts ...grpc.CallOption) (*GetTransactionsResponse, error)
 	// GetUtxos returns a list of the wallet's current unspent transaction outputs (UTXOs)
 	GetUtxos(ctx context.Context, in *GetUtxosRequest, opts ...grpc.CallOption) (*GetUtxosResponse, error)
-	// GetPrivateKeys returns the spend and view keys for the given address
+	// GetPrivateKey returns the serialized spend and view keys for the given address
 	//
 	// **Requires wallet to be unlocked**
-	GetPrivateKeys(ctx context.Context, in *GetPrivateKeysRequest, opts ...grpc.CallOption) (*GetPrivateKeysResponse, error)
+	GetPrivateKey(ctx context.Context, in *GetPrivateKeyRequest, opts ...grpc.CallOption) (*GetPrivateKeyResponse, error)
 	// ImportAddress imports a watch address into the wallet.
 	ImportAddress(ctx context.Context, in *ImportAddressRequest, opts ...grpc.CallOption) (*ImportAddressResponse, error)
 	// CreateMultisigSpendKeypair generates a spend keypair for use in a multisig address
@@ -1033,9 +1035,7 @@ type WalletServiceClient interface {
 	CreateRawTransaction(ctx context.Context, in *CreateRawTransactionRequest, opts ...grpc.CallOption) (*CreateRawTransactionResponse, error)
 	// ProveRawTransaction creates the zk-proof for the transaction. Assuming there are no errors, this
 	// transaction should be ready for broadcast.
-	ProveRawTransaction(ctx context.Context, in *ProveRawTransactionRequest, opts ...grpc.CallOption) (*ProveRawTransactionRequest, error)
-	// BroadcastRawTransaction broadcasts a raw transaction to the network
-	BroadcastRawTransaction(ctx context.Context, in *BroadcastRawTransactionRequest, opts ...grpc.CallOption) (*BroadcastRawTransactionResponse, error)
+	ProveRawTransaction(ctx context.Context, in *ProveRawTransactionRequest, opts ...grpc.CallOption) (*ProveRawTransactionResponse, error)
 	// Stake stakes the selected wallet UTXOs and turns the node into a validator
 	//
 	// **Requires wallet to be unlocked**
@@ -1070,6 +1070,15 @@ func (c *walletServiceClient) GetBalance(ctx context.Context, in *GetBalanceRequ
 func (c *walletServiceClient) GetWalletSeed(ctx context.Context, in *GetWalletSeedRequest, opts ...grpc.CallOption) (*GetWalletSeedResponse, error) {
 	out := new(GetWalletSeedResponse)
 	err := c.cc.Invoke(ctx, "/pb.WalletService/GetWalletSeed", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *walletServiceClient) GetAddress(ctx context.Context, in *GetAddressRequest, opts ...grpc.CallOption) (*GetAddressResponse, error) {
+	out := new(GetAddressResponse)
+	err := c.cc.Invoke(ctx, "/pb.WalletService/GetAddress", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1112,9 +1121,9 @@ func (c *walletServiceClient) GetUtxos(ctx context.Context, in *GetUtxosRequest,
 	return out, nil
 }
 
-func (c *walletServiceClient) GetPrivateKeys(ctx context.Context, in *GetPrivateKeysRequest, opts ...grpc.CallOption) (*GetPrivateKeysResponse, error) {
-	out := new(GetPrivateKeysResponse)
-	err := c.cc.Invoke(ctx, "/pb.WalletService/GetPrivateKeys", in, out, opts...)
+func (c *walletServiceClient) GetPrivateKey(ctx context.Context, in *GetPrivateKeyRequest, opts ...grpc.CallOption) (*GetPrivateKeyResponse, error) {
+	out := new(GetPrivateKeyResponse)
+	err := c.cc.Invoke(ctx, "/pb.WalletService/GetPrivateKey", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1229,18 +1238,9 @@ func (c *walletServiceClient) CreateRawTransaction(ctx context.Context, in *Crea
 	return out, nil
 }
 
-func (c *walletServiceClient) ProveRawTransaction(ctx context.Context, in *ProveRawTransactionRequest, opts ...grpc.CallOption) (*ProveRawTransactionRequest, error) {
-	out := new(ProveRawTransactionRequest)
+func (c *walletServiceClient) ProveRawTransaction(ctx context.Context, in *ProveRawTransactionRequest, opts ...grpc.CallOption) (*ProveRawTransactionResponse, error) {
+	out := new(ProveRawTransactionResponse)
 	err := c.cc.Invoke(ctx, "/pb.WalletService/ProveRawTransaction", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *walletServiceClient) BroadcastRawTransaction(ctx context.Context, in *BroadcastRawTransactionRequest, opts ...grpc.CallOption) (*BroadcastRawTransactionResponse, error) {
-	out := new(BroadcastRawTransactionResponse)
-	err := c.cc.Invoke(ctx, "/pb.WalletService/BroadcastRawTransaction", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1286,7 +1286,9 @@ type WalletServiceServer interface {
 	//
 	// **Requires wallet to be unlocked**
 	GetWalletSeed(context.Context, *GetWalletSeedRequest) (*GetWalletSeedResponse, error)
-	// GetAddresses returns all the addresses created by this wallet
+	// GetAddress returns the most recent address of the wallet.
+	GetAddress(context.Context, *GetAddressRequest) (*GetAddressResponse, error)
+	// GetAddresses returns all the addresses create by the wallet.
 	GetAddresses(context.Context, *GetAddressesRequest) (*GetAddressesResponse, error)
 	// GetNewAddress generates a new address and returns it. Both a new spend key
 	// and view key will be derived from the mnemonic seed.
@@ -1295,10 +1297,10 @@ type WalletServiceServer interface {
 	GetTransactions(context.Context, *GetTransactionsRequest) (*GetTransactionsResponse, error)
 	// GetUtxos returns a list of the wallet's current unspent transaction outputs (UTXOs)
 	GetUtxos(context.Context, *GetUtxosRequest) (*GetUtxosResponse, error)
-	// GetPrivateKeys returns the spend and view keys for the given address
+	// GetPrivateKey returns the serialized spend and view keys for the given address
 	//
 	// **Requires wallet to be unlocked**
-	GetPrivateKeys(context.Context, *GetPrivateKeysRequest) (*GetPrivateKeysResponse, error)
+	GetPrivateKey(context.Context, *GetPrivateKeyRequest) (*GetPrivateKeyResponse, error)
 	// ImportAddress imports a watch address into the wallet.
 	ImportAddress(context.Context, *ImportAddressRequest) (*ImportAddressResponse, error)
 	// CreateMultisigSpendKeypair generates a spend keypair for use in a multisig address
@@ -1331,9 +1333,7 @@ type WalletServiceServer interface {
 	CreateRawTransaction(context.Context, *CreateRawTransactionRequest) (*CreateRawTransactionResponse, error)
 	// ProveRawTransaction creates the zk-proof for the transaction. Assuming there are no errors, this
 	// transaction should be ready for broadcast.
-	ProveRawTransaction(context.Context, *ProveRawTransactionRequest) (*ProveRawTransactionRequest, error)
-	// BroadcastRawTransaction broadcasts a raw transaction to the network
-	BroadcastRawTransaction(context.Context, *BroadcastRawTransactionRequest) (*BroadcastRawTransactionResponse, error)
+	ProveRawTransaction(context.Context, *ProveRawTransactionRequest) (*ProveRawTransactionResponse, error)
 	// Stake stakes the selected wallet UTXOs and turns the node into a validator
 	//
 	// **Requires wallet to be unlocked**
@@ -1359,6 +1359,9 @@ func (UnimplementedWalletServiceServer) GetBalance(context.Context, *GetBalanceR
 func (UnimplementedWalletServiceServer) GetWalletSeed(context.Context, *GetWalletSeedRequest) (*GetWalletSeedResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetWalletSeed not implemented")
 }
+func (UnimplementedWalletServiceServer) GetAddress(context.Context, *GetAddressRequest) (*GetAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAddress not implemented")
+}
 func (UnimplementedWalletServiceServer) GetAddresses(context.Context, *GetAddressesRequest) (*GetAddressesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAddresses not implemented")
 }
@@ -1371,8 +1374,8 @@ func (UnimplementedWalletServiceServer) GetTransactions(context.Context, *GetTra
 func (UnimplementedWalletServiceServer) GetUtxos(context.Context, *GetUtxosRequest) (*GetUtxosResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUtxos not implemented")
 }
-func (UnimplementedWalletServiceServer) GetPrivateKeys(context.Context, *GetPrivateKeysRequest) (*GetPrivateKeysResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetPrivateKeys not implemented")
+func (UnimplementedWalletServiceServer) GetPrivateKey(context.Context, *GetPrivateKeyRequest) (*GetPrivateKeyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPrivateKey not implemented")
 }
 func (UnimplementedWalletServiceServer) ImportAddress(context.Context, *ImportAddressRequest) (*ImportAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ImportAddress not implemented")
@@ -1410,11 +1413,8 @@ func (UnimplementedWalletServiceServer) DeletePrivateKeys(context.Context, *Dele
 func (UnimplementedWalletServiceServer) CreateRawTransaction(context.Context, *CreateRawTransactionRequest) (*CreateRawTransactionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateRawTransaction not implemented")
 }
-func (UnimplementedWalletServiceServer) ProveRawTransaction(context.Context, *ProveRawTransactionRequest) (*ProveRawTransactionRequest, error) {
+func (UnimplementedWalletServiceServer) ProveRawTransaction(context.Context, *ProveRawTransactionRequest) (*ProveRawTransactionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ProveRawTransaction not implemented")
-}
-func (UnimplementedWalletServiceServer) BroadcastRawTransaction(context.Context, *BroadcastRawTransactionRequest) (*BroadcastRawTransactionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method BroadcastRawTransaction not implemented")
 }
 func (UnimplementedWalletServiceServer) Stake(context.Context, *StakeRequest) (*StakeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Stake not implemented")
@@ -1470,6 +1470,24 @@ func _WalletService_GetWalletSeed_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(WalletServiceServer).GetWalletSeed(ctx, req.(*GetWalletSeedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WalletService_GetAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAddressRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).GetAddress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.WalletService/GetAddress",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).GetAddress(ctx, req.(*GetAddressRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1546,20 +1564,20 @@ func _WalletService_GetUtxos_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _WalletService_GetPrivateKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetPrivateKeysRequest)
+func _WalletService_GetPrivateKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPrivateKeyRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(WalletServiceServer).GetPrivateKeys(ctx, in)
+		return srv.(WalletServiceServer).GetPrivateKey(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pb.WalletService/GetPrivateKeys",
+		FullMethod: "/pb.WalletService/GetPrivateKey",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServiceServer).GetPrivateKeys(ctx, req.(*GetPrivateKeysRequest))
+		return srv.(WalletServiceServer).GetPrivateKey(ctx, req.(*GetPrivateKeyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1798,24 +1816,6 @@ func _WalletService_ProveRawTransaction_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _WalletService_BroadcastRawTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BroadcastRawTransactionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WalletServiceServer).BroadcastRawTransaction(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pb.WalletService/BroadcastRawTransaction",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServiceServer).BroadcastRawTransaction(ctx, req.(*BroadcastRawTransactionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _WalletService_Stake_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StakeRequest)
 	if err := dec(in); err != nil {
@@ -1886,6 +1886,10 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _WalletService_GetWalletSeed_Handler,
 		},
 		{
+			MethodName: "GetAddress",
+			Handler:    _WalletService_GetAddress_Handler,
+		},
+		{
 			MethodName: "GetAddresses",
 			Handler:    _WalletService_GetAddresses_Handler,
 		},
@@ -1902,8 +1906,8 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _WalletService_GetUtxos_Handler,
 		},
 		{
-			MethodName: "GetPrivateKeys",
-			Handler:    _WalletService_GetPrivateKeys_Handler,
+			MethodName: "GetPrivateKey",
+			Handler:    _WalletService_GetPrivateKey_Handler,
 		},
 		{
 			MethodName: "ImportAddress",
@@ -1956,10 +1960,6 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ProveRawTransaction",
 			Handler:    _WalletService_ProveRawTransaction_Handler,
-		},
-		{
-			MethodName: "BroadcastRawTransaction",
-			Handler:    _WalletService_BroadcastRawTransaction_Handler,
 		},
 		{
 			MethodName: "Stake",

@@ -219,7 +219,10 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		}
 	}
 
-	var validatorReward types.Amount
+	var (
+		validatorReward types.Amount
+		newEpoch        bool
+	)
 	if flags.HasFlag(BFGenesisValidation) {
 		if err := dsIncrementCurrentSupply(dbtx, types.Amount(blk.Transactions[0].GetCoinbaseTransaction().NewCoins)); err != nil {
 			return err
@@ -243,6 +246,7 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 			}
 
 			validatorReward = coinbase - types.Amount(treasuryCredit)
+			newEpoch = true
 		}
 	}
 
@@ -282,6 +286,9 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 
 	// Notify subscribers of new block.
 	b.sendNotification(NTBlockConnected, blk)
+	if newEpoch {
+		b.sendNotification(NTNewEpoch, nil)
+	}
 
 	return nil
 }

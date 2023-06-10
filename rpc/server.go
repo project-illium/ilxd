@@ -17,6 +17,7 @@ import (
 	"github.com/project-illium/ilxd/rpc/pb"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/walletlib"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -33,17 +34,20 @@ type GrpcServerConfig struct {
 	Server     *grpc.Server
 	HTTPServer *http.Server
 
-	Chain              *blockchain.Blockchain
-	Network            *net.Network
-	Policy             *policy.Policy
-	BroadcastTxFunc    func(tx *transactions.Transaction) error
-	SetLogLevelFunc    func(level zapcore.Level)
-	ReindexChainFunc   func() error
-	RequestBlockFunc   func(blockID types.ID, remotePeer peer.ID)
-	ChainParams        *params.NetworkParams
-	Ds                 repo.Datastore
-	TxMemPool          *mempool.Mempool
-	DisableNodeService bool
+	Chain                *blockchain.Blockchain
+	Network              *net.Network
+	Wallet               *walletlib.Wallet
+	Policy               *policy.Policy
+	BroadcastTxFunc      func(tx *transactions.Transaction) error
+	SetLogLevelFunc      func(level zapcore.Level)
+	ReindexChainFunc     func() error
+	RequestBlockFunc     func(blockID types.ID, remotePeer peer.ID)
+	AutoStakeFunc        func(bool) error
+	ChainParams          *params.NetworkParams
+	Ds                   repo.Datastore
+	TxMemPool            *mempool.Mempool
+	DisableNodeService   bool
+	DisableWalletService bool
 
 	TxIndex *indexers.TxIndex
 }
@@ -57,10 +61,12 @@ type GrpcServer struct {
 	txMemPool        *mempool.Mempool
 	network          *net.Network
 	policy           *policy.Policy
+	wallet           *walletlib.Wallet
 	broadcastTxFunc  func(tx *transactions.Transaction) error
 	setLogLevelFunc  func(level zapcore.Level)
 	reindexChainFunc func() error
 	requestBlockFunc func(blockID types.ID, remotePeer peer.ID)
+	autoStakeFunc    func(bool) error
 
 	txIndex *indexers.TxIndex
 
@@ -72,6 +78,7 @@ type GrpcServer struct {
 
 	pb.UnimplementedBlockchainServiceServer
 	pb.UnimplementedNodeServiceServer
+	pb.UnimplementedWalletServiceServer
 }
 
 // NewGrpcServer returns a new GrpcServer which has not yet
@@ -83,10 +90,12 @@ func NewGrpcServer(cfg *GrpcServerConfig) *GrpcServer {
 		ds:               cfg.Ds,
 		txMemPool:        cfg.TxMemPool,
 		network:          cfg.Network,
+		wallet:           cfg.Wallet,
 		broadcastTxFunc:  cfg.BroadcastTxFunc,
 		setLogLevelFunc:  cfg.SetLogLevelFunc,
 		reindexChainFunc: cfg.ReindexChainFunc,
 		requestBlockFunc: cfg.RequestBlockFunc,
+		autoStakeFunc:    cfg.AutoStakeFunc,
 		txIndex:          cfg.TxIndex,
 		policy:           cfg.Policy,
 		httpServer:       cfg.HTTPServer,
@@ -99,6 +108,9 @@ func NewGrpcServer(cfg *GrpcServerConfig) *GrpcServer {
 	pb.RegisterBlockchainServiceServer(cfg.Server, s)
 	if !cfg.DisableNodeService {
 		pb.RegisterNodeServiceServer(cfg.Server, s)
+	}
+	if !cfg.DisableWalletService {
+		pb.RegisterWalletServiceServer(cfg.Server, s)
 	}
 
 	s.chain.Subscribe(s.handleBlockchainNotifications)

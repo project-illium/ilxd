@@ -47,6 +47,8 @@ const (
 	IndexKeyPrefix = "/ilxd/index/"
 	// ConnGaterKeyPrefix is the datastore namespace key used by the conngater.
 	ConnGaterKeyPrefix = "/ilxd/conngater/"
+	// AutostakeDatastoreKey is the datastore key used to store the autostake bool.
+	AutostakeDatastoreKey = "/ilxd/autostake/"
 )
 
 type Datastore interface {
