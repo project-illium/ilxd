@@ -193,7 +193,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 			return nil, err
 		}
 	} else {
-		if netParams.Name == params.RegestParams.Name {
+		if netParams.Name == params.RegestParams.Name && config.RegtestVal {
 			privKey, err = crypto.UnmarshalPrivateKey(params.RegtestGenesisKey)
 			if err != nil {
 				return nil, err
@@ -360,10 +360,9 @@ func BuildServer(config *repo.Config) (*Server, error) {
 
 func (s *Server) submitTransaction(tx *transactions.Transaction) error {
 	<-s.ready
-	err := s.mempool.ProcessTransaction(tx)
-	if err != nil {
-		return err
-	}
+	// Pubsub has the mempool validation handler register on it, so function
+	// will submit it to the mempool, validate it, and return an error if
+	// validation fails.
 	return s.network.BroadcastTransaction(tx)
 }
 
@@ -727,20 +726,20 @@ func (s *Server) maybeStartGenerating() {
 func (s *Server) Close() error {
 	<-s.ready
 	s.cancelFunc()
-	if err := s.network.Close(); err != nil {
-		return err
-	}
-	if err := s.ds.Close(); err != nil {
-		return err
-	}
-	if err := s.blockchain.Close(); err != nil {
-		return err
-	}
 	s.generator.Close()
 	s.syncManager.Close()
 	s.engine.Close()
 	s.mempool.Close()
 	s.wallet.Close()
+	if err := s.network.Close(); err != nil {
+		return err
+	}
+	if err := s.blockchain.Close(); err != nil {
+		return err
+	}
+	if err := s.ds.Close(); err != nil {
+		return err
+	}
 	return nil
 }
 

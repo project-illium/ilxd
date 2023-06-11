@@ -89,8 +89,10 @@ func (g *BlockGenerator) Close() {
 	g.activeMtx.Lock()
 	defer g.activeMtx.Unlock()
 
-	g.active = false
-	close(g.quit)
+	if g.active {
+		g.active = false
+		close(g.quit)
+	}
 }
 
 func (g *BlockGenerator) Active() bool {
@@ -153,6 +155,9 @@ func (g *BlockGenerator) generateBlock() error {
 	// nullifier from being in the same block. We'll loop through
 	// and remove any spends of stake if they were in the mempool.
 	txs := g.mpool.GetTransactions()
+	if len(txs) == 0 {
+		return nil
+	}
 	checkNullifiers := make(map[types.Nullifier]bool)
 	for _, tx := range txs {
 		if stake := tx.GetStakeTransaction(); stake != nil {

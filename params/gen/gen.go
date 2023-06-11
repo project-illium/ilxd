@@ -44,7 +44,7 @@ type GenerationParams struct {
 // --unlockingscript.scriptcommitment=0000000000000000000000000000000000000000000000000000000000000000
 // --unlockingscript.params=0000000000000000000000000000000000000000000000000000000000000000
 // --coinbasenote.scripthash=ae09db7cd54f42b490ef09b6bc541af688e4959bb8c53f359a6f56e38ab454a3
-// --coinbasenote.amount=230584300921369395
+// --coinbasenote.amount=115292150460684697
 // --coinbasenote.assetid=0000000000000000000000000000000000000000000000000000000000000000
 // --coinbasenote.state=0000000000000000000000000000000000000000000000000000000000000000
 // --coinbasenote.salt=09969db4b1ee03587e33c0e66a99fabbde33e3d10dd9642f9493cfac399956fd
@@ -65,9 +65,12 @@ func main() {
 		params.ValidatorKey = hex.EncodeToString(sk)
 
 		keys, _ := kc.PrivateKeys()
+		var ul types.UnlockingScript
+		var sh types.ID
+		var vieKey crypto.PubKey
 		for k := range keys {
 			spendKey := k.SpendKey()
-			vieKey := k.ViewKey().GetPublic()
+			vieKey = k.ViewKey().GetPublic()
 			sk2, _ := crypto.MarshalPublicKey(vieKey)
 
 			params.CoinbaseUnlockingScript.ScriptCommitment = hex.EncodeToString(walletlib.MockBasicUnlockScriptCommitment)
@@ -77,12 +80,30 @@ func main() {
 			raw, _ := spendKey.GetPublic().Raw()
 			params.CoinbaseUnlockingScript.ScriptParams = []string{hex.EncodeToString(raw)}
 
-			ul := types.UnlockingScript{
+			ul = types.UnlockingScript{
 				ScriptCommitment: walletlib.MockBasicUnlockScriptCommitment,
 				ScriptParams:     [][]byte{raw},
 			}
-			sh := ul.Hash()
+			sh = ul.Hash()
 			params.CoinbaseNote.ScriptHash = hex.EncodeToString(sh[:])
+		}
+
+		note2 := types.SpendNote{
+			ScriptHash: sh[:],
+			Amount:     115292150460684697,
+			AssetID:    types.IlliumCoinID,
+			State:      [128]byte{},
+		}
+		salt2, _ := hex.DecodeString("d9348297fbcc1a2aa1591701b6a749d253789b5ef97ef576b8b931a3093e07f9")
+		copy(note2.Salt[:], salt2)
+
+		ct, _ := vieKey.(*ilxcrypto.Curve25519PublicKey).Encrypt(note2.Serialize())
+
+		params.AdditionalCoinbaseOutputs = []transactions.Output{
+			{
+				Commitment: com[:],
+				Ciphertext: ct,
+			},
 		}
 	*/
 

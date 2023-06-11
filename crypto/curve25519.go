@@ -126,17 +126,8 @@ func (k *Curve25519PrivateKey) Equals(o crypto.Key) bool {
 
 // GetPublic returns an Curve25519 public key from a private key.
 func (k *Curve25519PrivateKey) GetPublic() crypto.PubKey {
-	var (
-		pubkey  [32]byte
-		privkey [32]byte
-		zero    [32]byte
-	)
+	var pubkey [32]byte
 	copy(pubkey[:], k.pubKeyBytes())
-	copy(privkey[:], k.privKeyBytes())
-
-	if bytes.Equal(pubkey[:], zero[:]) {
-		curve25519.ScalarBaseMult(&pubkey, &privkey)
-	}
 
 	return &Curve25519PublicKey{k: &pubkey}
 }
@@ -199,6 +190,7 @@ func UnmarshalCurve25519PublicKey(data []byte) (crypto.PubKey, error) {
 
 // UnmarshalCurve25519PrivateKey returns a private key from input bytes.
 func UnmarshalCurve25519PrivateKey(data []byte) (crypto.PrivKey, error) {
+	var privKey [64]byte
 	switch len(data) {
 	case Curve25519PrivateKeySize + Curve25519PublicKeySize:
 		// Remove the redundant public key. See issue #36.
@@ -207,12 +199,16 @@ func UnmarshalCurve25519PrivateKey(data []byte) (crypto.PrivKey, error) {
 		if subtle.ConstantTimeCompare(pk, redundantPk) == 0 {
 			return nil, errors.New("expected redundant Curve25519 public key to be redundant")
 		}
-
-		// No point in storing the extra data.
-		newKey := make([]byte, Curve25519PrivateKeySize)
-		copy(newKey, data[:Curve25519PrivateKeySize])
-		data = newKey
+		copy(privKey[:], data)
 	case Curve25519PrivateKeySize:
+		var (
+			pubkey  [32]byte
+			privkey [32]byte
+		)
+		copy(privkey[:], data[:Curve25519PrivateKeySize])
+		curve25519.ScalarBaseMult(&pubkey, &privkey)
+		copy(privKey[:Curve25519PrivateKeySize], privkey[:])
+		copy(privKey[Curve25519PrivateKeySize:], pubkey[:])
 	default:
 		return nil, fmt.Errorf(
 			"expected Curve25519 data size to be %d or %d, got %d",
@@ -221,9 +217,6 @@ func UnmarshalCurve25519PrivateKey(data []byte) (crypto.PrivKey, error) {
 			len(data),
 		)
 	}
-
-	var privKey [64]byte
-	copy(privKey[:Curve25519PrivateKeySize], data)
 
 	return &Curve25519PrivateKey{
 		k: &privKey,

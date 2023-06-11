@@ -280,6 +280,7 @@ func (sm *SyncManager) SetCurrent() {
 	sm.currentMtx.Lock()
 	defer sm.currentMtx.Unlock()
 
+	log.Info("Blockchain synced to tip")
 	sm.current = true
 	if sm.callback != nil {
 		go sm.callback()

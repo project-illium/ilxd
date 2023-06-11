@@ -47,7 +47,9 @@ func main() {
 	for sig := range c {
 		if sig == os.Kill || sig == os.Interrupt {
 			log.Info("ilxd gracefully shutting down")
-			server.Close()
+			if err := server.Close(); err != nil {
+				log.Errorf("Shutdown error: %s", err)
+			}
 			os.Exit(1)
 		}
 	}

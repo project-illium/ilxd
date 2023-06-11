@@ -98,7 +98,7 @@ func (tx *Transaction) Deserialize(data []byte) error {
 	if err := proto.Unmarshal(data, newTx); err != nil {
 		return err
 	}
-	tx = newTx
+	tx.Tx = newTx.Tx
 	return nil
 }
 
@@ -189,7 +189,12 @@ func (tx *StandardTransaction) Deserialize(data []byte) error {
 	if err := proto.Unmarshal(data, newTx); err != nil {
 		return err
 	}
-	tx = newTx
+	tx.Fee = newTx.Fee
+	tx.Locktime = newTx.Locktime
+	tx.Proof = newTx.Proof
+	tx.Outputs = newTx.Outputs
+	tx.TxoRoot = newTx.TxoRoot
+	tx.Nullifiers = newTx.Nullifiers
 	return nil
 }
 
@@ -263,7 +268,11 @@ func (tx *CoinbaseTransaction) Deserialize(data []byte) error {
 	if err := proto.Unmarshal(data, newTx); err != nil {
 		return err
 	}
-	tx = newTx
+	tx.Signature = newTx.Signature
+	tx.Proof = newTx.Proof
+	tx.Outputs = newTx.Outputs
+	tx.NewCoins = newTx.NewCoins
+	tx.Validator_ID = newTx.Validator_ID
 	return nil
 }
 
@@ -330,7 +339,13 @@ func (tx *StakeTransaction) Deserialize(data []byte) error {
 	if err := proto.Unmarshal(data, newTx); err != nil {
 		return err
 	}
-	tx = newTx
+	tx.Validator_ID = newTx.Validator_ID
+	tx.Locktime = newTx.Locktime
+	tx.Proof = newTx.Proof
+	tx.TxoRoot = newTx.TxoRoot
+	tx.Signature = newTx.Signature
+	tx.Amount = newTx.Amount
+	tx.Nullifier = newTx.Nullifier
 	return nil
 }
 
@@ -398,7 +413,10 @@ func (tx *TreasuryTransaction) Deserialize(data []byte) error {
 	if err := proto.Unmarshal(data, newTx); err != nil {
 		return err
 	}
-	tx = newTx
+	tx.Proof = newTx.Proof
+	tx.Outputs = newTx.Outputs
+	tx.Outputs = newTx.Outputs
+	tx.ProposalHash = newTx.ProposalHash
 	return nil
 }
 
@@ -467,7 +485,17 @@ func (tx *MintTransaction) Deserialize(data []byte) error {
 	if err := proto.Unmarshal(data, newTx); err != nil {
 		return err
 	}
-	tx = newTx
+	tx.Fee = newTx.Fee
+	tx.Locktime = newTx.Locktime
+	tx.Proof = newTx.Proof
+	tx.Outputs = newTx.Outputs
+	tx.TxoRoot = newTx.TxoRoot
+	tx.Nullifiers = newTx.Nullifiers
+	tx.Asset_ID = newTx.Asset_ID
+	tx.Type = newTx.Type
+	tx.MintKey = newTx.MintKey
+	tx.NewTokens = newTx.NewTokens
+	tx.DocumentHash = newTx.DocumentHash
 	return nil
 }
 

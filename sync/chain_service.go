@@ -20,6 +20,7 @@ import (
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/types/wire"
 	"google.golang.org/protobuf/proto"
+	"io"
 	"time"
 )
 
@@ -74,16 +75,27 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 		default:
 		}
 
-		req := new(wire.MsgChainServiceRequest)
-		if err := net.ReadMsg(cs.ctx, reader, req); err != nil {
-			log.Debugf("Error reading from block service stream: peer: %s, error: %s", remotePeer, err.Error())
+		msgBytes, err := reader.ReadMsg()
+		if err != nil {
+			reader.ReleaseMsg(msgBytes)
+			if err == io.EOF {
+				s.Close()
+				return
+			}
+			log.Debugf("Error reading from chain service stream: peer: %s, error: %s", remotePeer, err.Error())
+			s.Reset()
 			return
 		}
+		req := new(wire.MsgChainServiceRequest)
+		if err := proto.Unmarshal(msgBytes, req); err != nil {
+			reader.ReleaseMsg(msgBytes)
+			log.Debugf("Error unmarshalling chain service message: peer: %s, error: %s", remotePeer, err.Error())
+			s.Reset()
+			return
+		}
+		reader.ReleaseMsg(msgBytes)
 
-		var (
-			resp proto.Message
-			err  error
-		)
+		var resp proto.Message
 		switch m := req.Msg.(type) {
 		case *wire.MsgChainServiceRequest_GetBlockTxs:
 			resp, err = cs.handleGetBlockTxs(m.GetBlockTxs)
@@ -96,17 +108,19 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 		case *wire.MsgChainServiceRequest_GetBest:
 			resp, err = cs.handleGetBest(m.GetBest)
 		case *wire.MsgChainServiceRequest_GetHeadersStream:
-			err := cs.handleGetHeadersStream(m.GetHeadersStream, s)
+			err = cs.handleGetHeadersStream(m.GetHeadersStream, s)
 			if err != nil {
 				log.Errorf("Error sending header response to peer: %s, error: %s", remotePeer, err.Error())
+				s.Reset()
+				return
 			}
-			return
 		case *wire.MsgChainServiceRequest_GetBlockTxsStream:
-			err := cs.handleGetBlockTxsStream(m.GetBlockTxsStream, s)
+			err = cs.handleGetBlockTxsStream(m.GetBlockTxsStream, s)
 			if err != nil {
 				log.Errorf("Error sending block txs response to peer: %s, error: %s", remotePeer, err.Error())
+				s.Reset()
+				return
 			}
-			return
 		}
 		if err != nil {
 			log.Errorf("Error handing block service message to peer: %s, error: %s", remotePeer, err.Error())

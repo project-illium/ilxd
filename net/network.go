@@ -204,7 +204,9 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	// this is an example and the peer will die as soon as it finishes, so
 	// it is unnecessary to put strain on the network.
 	for _, addr := range seedAddrs {
-		host.Connect(ctx, addr)
+		if err := host.Connect(ctx, addr); err != nil {
+			log.Errorf("Error connecting to seed: %s", err)
+		}
 	}
 
 	// create a new PubSub service using the GossipSub router
@@ -230,11 +232,11 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	}
 
 	err = ps.RegisterTopicValidator(TransactionsTopic, pubsub.ValidatorEx(func(ctx context.Context, p peer.ID, m *pubsub.Message) pubsub.ValidationResult {
-		var tx transactions.Transaction
+		tx := &transactions.Transaction{}
 		if err := tx.Deserialize(m.Data); err != nil {
 			return pubsub.ValidationReject
 		}
-		err := cfg.acceptToMempool(&tx)
+		err := cfg.acceptToMempool(tx)
 		switch err.(type) {
 		case mempool.PolicyError:
 			// Policy errors do no penalize peer
