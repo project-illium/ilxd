@@ -101,6 +101,32 @@ func main() {
 	parser.AddCommand("reconsiderblock", "Tries to reprocess the given block", "Tries to reprocess the given block", &ReconsiderBlock{opts: &opts})
 	parser.AddCommand("recomputechainstate", "Rebuilds the entire chain state from genesis", "Deletes the accumulator, validator set, and nullifier set and rebuilds them by loading and re-processing all blocks from genesis.", &RecomputeChainState{opts: &opts})
 
+	// Wallet service
+	parser.AddCommand("getbalance", "Returns the combined balance of all addresses in the wallet", "Returns the combined balance of all addresses in the wallet", &GetBalance{opts: &opts})
+	parser.AddCommand("getwalletseed", "Returns the mnemonic seed for the wallet", "Returns the mnemonic seed for the wallet. If the wallet seed has been deleted, an error will be returned.", &GetWalletSeed{opts: &opts})
+	parser.AddCommand("getaddress", "Returns the most recent address of the wallet", "Returns the most recent address of the wallet", &GetAddress{opts: &opts})
+	parser.AddCommand("getaddresses", "Returns all the addresses created by this wallet", "Returns all the addresses created by this wallet", &GetAddresses{opts: &opts})
+	parser.AddCommand("getnewaddress", "Generates a new address and returns it", "Generates a new address and returns it. Both a new spend key and view key will be derived from the mnemonic seed.", &GetNewAddress{opts: &opts})
+	parser.AddCommand("gettransactions", "Returns the list of transactions for the wallet", "Returns the list of transactions for the wallet", &GetTransactions{opts: &opts})
+	parser.AddCommand("getutxos", "Returns a list of the wallet's current unspent transaction outputs (UTXOs)", "Returns a list of the wallet's current unspent transaction outputs (UTXOs)", &GetUtxos{opts: &opts})
+	parser.AddCommand("getprivatekeys", "Returns the serialized spend and view keys for the given address", "Returns the serialized spend and view keys for the given address", &GetPrivateKey{opts: &opts})
+	parser.AddCommand("importaddress", "Imports a watch address into the wallet", "Imports a watch address into the wallet", &ImportAddress{opts: &opts})
+	parser.AddCommand("createmultisigspendkeypair", "Generates a spend keypair for use in a multisig address", "Generates a spend keypair for use in a multisig address", &CreateMultisigSpendKeypair{opts: &opts})
+	parser.AddCommand("createmultisigviewkeypair", "Generates a view keypair for use in a multisig address", "Generates a view keypair for use in a multisig address", &CreateMultisigViewKeypair{opts: &opts})
+	parser.AddCommand("createmultisigaddress", "Generates a new multisig address using the provided public keys", "Generates a new multisig address using the provided public keys", &CreateMultisigAddress{opts: &opts})
+	parser.AddCommand("createmultisignature", "Generates and returns a signature for use when proving a multisig transaction", "Generates and returns a signature for use when proving a multisig transaction", &CreateMultiSignature{opts: &opts})
+	parser.AddCommand("provemultisig", "Creates a proof for a transaction with a multisig input", "Creates a proof for a transaction with a multisig input", &ProveMultisig{opts: &opts})
+	parser.AddCommand("walletlock", "Encrypts the wallet's private keys", "Encrypts the wallet's private keys", &WalletLock{opts: &opts})
+	parser.AddCommand("walletunlock", "Decrypts the wallet seed and holds it in memory for the specified period of time", "Decrypts the wallet seed and holds it in memory for the specified period of time", &WalletUnlock{opts: &opts})
+	parser.AddCommand("setwalletpassphrase", "Encrypts the wallet for the first time", "Encrypts the wallet for the first time", &SetWalletPassphrase{opts: &opts})
+	parser.AddCommand("changewalletpassphrase", "Changes the passphrase used to encrypt the wallet private keys", "Changes the passphrase used to encrypt the wallet private keys", &ChangeWalletPassphrase{opts: &opts})
+	parser.AddCommand("deleteprivatekeys", "Deletes the wallet's private keys and seed from disk", "Deletes the wallet's private keys and seed from disk essentially turning the wallet into a watch-only wallet. It will still record incoming transactions but cannot spend them.", &DeletePrivateKeys{opts: &opts})
+	parser.AddCommand("createrawtransaction", "Creates a new, unsigned (unproven) transaction using the given parameters", "Creates a new, unsigned (unproven) transaction using the given parameters", &CreateRawTransaction{opts: &opts})
+	parser.AddCommand("proverawtransaction", "Creates the zk-proof for the transaction", "Creates the zk-proof for the transaction. Assuming there are no errors, this transaction should be ready for broadcast.", &ProveRawTransaction{opts: &opts})
+	parser.AddCommand("stake", "Stakes the selected wallet UTXOs and turns the node into a validator", "Stakes the selected wallet UTXOs and turns the node into a validator", &Stake{opts: &opts})
+	parser.AddCommand("setautostakerewards", "Automatically stakes validator rewards", "Automatically stakes validator rewards", &SetAutoStakeRewards{opts: &opts})
+	parser.AddCommand("spend", "Sends coins from the wallet", "Sends coins from the wallet according to the provided parameters", &Spend{opts: &opts})
+
 	if _, err := parser.Parse(); err != nil {
 		if e, ok := err.(*flags.Error); ok && e.Type == flags.ErrHelp {
 			fmt.Println(err)
@@ -164,4 +190,27 @@ func makeNodeClient(opts *options) (pb.NodeServiceClient, error) {
 		return nil, err
 	}
 	return pb.NewNodeServiceClient(conn), nil
+}
+
+func makeWalletClient(opts *options) (pb.WalletServiceClient, error) {
+	certFile := repo.CleanAndExpandPath(opts.RPCCert)
+
+	creds, err := credentials.NewClientTLSFromFile(certFile, "localhost")
+	if err != nil {
+		return nil, err
+	}
+	ma, err := multiaddr.NewMultiaddr(opts.ServerAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	netAddr, err := manet.ToNetAddr(ma)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := grpc.Dial(netAddr.String(), grpc.WithTransportCredentials(creds))
+	if err != nil {
+		return nil, err
+	}
+	return pb.NewWalletServiceClient(conn), nil
 }

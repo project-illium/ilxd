@@ -25,6 +25,7 @@ import (
 	pb "github.com/project-illium/ilxd/rpc/pb"
 )
 
+// GetBalance returns the combined balance of all addresses in the wallet
 func (s *GrpcServer) GetBalance(ctx context.Context, req *pb.GetBalanceRequest) (*pb.GetBalanceResponse, error) {
 	balance, err := s.wallet.Balance()
 	if err != nil {
@@ -35,6 +36,11 @@ func (s *GrpcServer) GetBalance(ctx context.Context, req *pb.GetBalanceRequest) 
 	}, nil
 }
 
+// GetWalletSeed returns the mnemonic seed for the wallet. If the wallet
+// seed has been deleted via the `DeletePrivateKeys` RPC an error will be
+// returned.
+//
+// **Requires wallet to be unlocked**
 func (s *GrpcServer) GetWalletSeed(ctx context.Context, req *pb.GetWalletSeedRequest) (*pb.GetWalletSeedResponse, error) {
 	seed, err := s.wallet.MnemonicSeed()
 	if errors.Is(err, walletlib.ErrEncryptedKeychain) {
@@ -51,6 +57,7 @@ func (s *GrpcServer) GetWalletSeed(ctx context.Context, req *pb.GetWalletSeedReq
 	}, nil
 }
 
+// GetAddress returns the most recent address of the wallet.
 func (s *GrpcServer) GetAddress(ctx context.Context, req *pb.GetAddressRequest) (*pb.GetAddressResponse, error) {
 	addr, err := s.wallet.Address()
 	if err != nil {
@@ -61,6 +68,7 @@ func (s *GrpcServer) GetAddress(ctx context.Context, req *pb.GetAddressRequest) 
 	}, nil
 }
 
+// GetAddresses returns all the addresses create by the wallet.
 func (s *GrpcServer) GetAddresses(ctx context.Context, req *pb.GetAddressesRequest) (*pb.GetAddressesResponse, error) {
 	addrs, err := s.wallet.Addresses()
 	if err != nil {
@@ -75,6 +83,8 @@ func (s *GrpcServer) GetAddresses(ctx context.Context, req *pb.GetAddressesReque
 	return resp, nil
 }
 
+// GetNewAddress generates a new address and returns it. Both a new spend key
+// and view key will be derived from the mnemonic seed.
 func (s *GrpcServer) GetNewAddress(ctx context.Context, req *pb.GetNewAddressRequest) (*pb.GetNewAddressResponse, error) {
 	addr, err := s.wallet.NewAddress()
 	if errors.Is(err, walletlib.ErrEncryptedKeychain) {
@@ -91,6 +101,7 @@ func (s *GrpcServer) GetNewAddress(ctx context.Context, req *pb.GetNewAddressReq
 	}, nil
 }
 
+// GetTransactions returns the list of transactions for the wallet
 func (s *GrpcServer) GetTransactions(ctx context.Context, req *pb.GetTransactionsRequest) (*pb.GetTransactionsResponse, error) {
 	txs, err := s.wallet.Transactions()
 	if err != nil {
@@ -108,6 +119,7 @@ func (s *GrpcServer) GetTransactions(ctx context.Context, req *pb.GetTransaction
 	return resp, nil
 }
 
+// GetUtxos returns a list of the wallet's current unspent transaction outputs (UTXOs)
 func (s *GrpcServer) GetUtxos(ctx context.Context, req *pb.GetUtxosRequest) (*pb.GetUtxosResponse, error) {
 	notes, err := s.wallet.Notes()
 	if err != nil {
@@ -127,6 +139,9 @@ func (s *GrpcServer) GetUtxos(ctx context.Context, req *pb.GetUtxosRequest) (*pb
 	return resp, nil
 }
 
+// GetPrivateKey returns the serialized spend and view keys for the given address
+//
+// **Requires wallet to be unlocked**
 func (s *GrpcServer) GetPrivateKey(ctx context.Context, req *pb.GetPrivateKeyRequest) (*pb.GetPrivateKeyResponse, error) {
 	keys, err := s.wallet.PrivateKeys()
 	if errors.Is(err, walletlib.ErrEncryptedKeychain) {
@@ -152,6 +167,7 @@ func (s *GrpcServer) GetPrivateKey(ctx context.Context, req *pb.GetPrivateKeyReq
 	return nil, status.Error(codes.NotFound, err.Error())
 }
 
+// ImportAddress imports a watch address into the wallet.
 func (s *GrpcServer) ImportAddress(ctx context.Context, req *pb.ImportAddressRequest) (*pb.ImportAddressResponse, error) {
 	addr, err := walletlib.DecodeAddress(req.Address, s.chainParams)
 	if err != nil {
@@ -172,6 +188,7 @@ func (s *GrpcServer) ImportAddress(ctx context.Context, req *pb.ImportAddressReq
 	return &pb.ImportAddressResponse{}, err
 }
 
+// CreateMultisigSpendKeypair generates a spend keypair for use in a multisig address
 func (s *GrpcServer) CreateMultisigSpendKeypair(ctx context.Context, req *pb.CreateMultisigSpendKeypairRequest) (*pb.CreateMultisigSpendKeypairResponse, error) {
 	priv, pub, err := crypto.GenerateEd25519Key(rand.Reader)
 	if err != nil {
@@ -191,6 +208,7 @@ func (s *GrpcServer) CreateMultisigSpendKeypair(ctx context.Context, req *pb.Cre
 	}, nil
 }
 
+// CreateMultisigViewKeypair generates a view keypair for use in a multisig address
 func (s *GrpcServer) CreateMultisigViewKeypair(ctx context.Context, req *pb.CreateMultisigViewKeypairRequest) (*pb.CreateMultisigViewKeypairResponse, error) {
 	priv, pub, err := icrypto.GenerateCurve25519Key(rand.Reader)
 	if err != nil {
@@ -210,6 +228,10 @@ func (s *GrpcServer) CreateMultisigViewKeypair(ctx context.Context, req *pb.Crea
 	}, nil
 }
 
+// CreateMultisigAddress generates a new multisig address using the provided public keys
+//
+// Note this address is *not* imported. You will need to call `ImportAddress` if you want to watch
+// it.
 func (s *GrpcServer) CreateMultisigAddress(ctx context.Context, req *pb.CreateMultisigAddressRequest) (*pb.CreateMultisigAddressResponse, error) {
 	mockMultisigUnlockScriptCommitment := bytes.Repeat([]byte{0xee}, 32)
 	threshold := make([]byte, 4)
@@ -235,6 +257,7 @@ func (s *GrpcServer) CreateMultisigAddress(ctx context.Context, req *pb.CreateMu
 	}, nil
 }
 
+// CreateMultiSignature generates and returns a signature for use when proving a multisig transaction
 func (s *GrpcServer) CreateMultiSignature(ctx context.Context, req *pb.CreateMultiSignatureRequest) (*pb.CreateMultiSignatureResponse, error) {
 	privKey, err := crypto.UnmarshalPrivateKey(req.PrivateKey)
 	if err != nil {
@@ -265,6 +288,7 @@ func (s *GrpcServer) CreateMultiSignature(ctx context.Context, req *pb.CreateMul
 	}, nil
 }
 
+// ProveMultisig creates a proof for a transaction with a multisig input
 func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigRequest) (*pb.ProveMultisigResponse, error) {
 	if req.Tx == nil {
 		return nil, status.Error(codes.InvalidArgument, "raw tx is nil")
@@ -373,26 +397,34 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 	}, nil
 }
 
+// WalletLock encrypts the wallet's private keys
 func (s *GrpcServer) WalletLock(ctx context.Context, req *pb.WalletLockRequest) (*pb.WalletLockResponse, error) {
 	err := s.wallet.Lock()
 	return &pb.WalletLockResponse{}, err
 }
 
+// WalletUnlock decrypts the wallet seed and holds it in memory for the specified period of time
 func (s *GrpcServer) WalletUnlock(ctx context.Context, req *pb.WalletUnlockRequest) (*pb.WalletUnlockResponse, error) {
 	err := s.wallet.Unlock(req.Passphrase, time.Second*time.Duration(req.Duration))
 	return &pb.WalletUnlockResponse{}, err
 }
 
+// SetWalletPassphrase encrypts the wallet for the first time
 func (s *GrpcServer) SetWalletPassphrase(ctx context.Context, req *pb.SetWalletPassphraseRequest) (*pb.SetWalletPassphraseResponse, error) {
 	err := s.wallet.SetWalletPassphrase(req.Passphrase)
 	return &pb.SetWalletPassphraseResponse{}, err
 }
 
+// ChangeWalletPassphrase changes the passphrase used to encrypt the wallet private keys
 func (s *GrpcServer) ChangeWalletPassphrase(ctx context.Context, req *pb.ChangeWalletPassphraseRequest) (*pb.ChangeWalletPassphraseResponse, error) {
 	err := s.wallet.ChangeWalletPassphrase(req.CurrentPassphrase, req.NewPassphrase)
 	return &pb.ChangeWalletPassphraseResponse{}, err
 }
 
+// DeletePrivateKeys deletes the wallet's private keys and seed from disk essentially turning the wallet
+// into a watch-only wallet. It will still record incoming transactions but cannot spend them.
+//
+// **Requires wallet to be unlocked**
 func (s *GrpcServer) DeletePrivateKeys(ctx context.Context, req *pb.DeletePrivateKeysRequest) (*pb.DeletePrivateKeysResponse, error) {
 	err := s.wallet.PrunePrivateKeys()
 	if errors.Is(err, walletlib.ErrEncryptedKeychain) {
@@ -401,6 +433,7 @@ func (s *GrpcServer) DeletePrivateKeys(ctx context.Context, req *pb.DeletePrivat
 	return nil, err
 }
 
+// CreateRawTransaction creates a new, unsigned (unproven) transaction using the given parameters
 func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRawTransactionRequest) (*pb.CreateRawTransactionResponse, error) {
 	inputs := make([]*walletlib.RawInput, 0, len(req.Inputs))
 	for _, in := range req.Inputs {
@@ -492,6 +525,8 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 	return resp, nil
 }
 
+// ProveRawTransaction creates the zk-proof for the transaction. Assuming there are no errors, this
+// transaction should be ready for broadcast.
 func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTransactionRequest) (*pb.ProveRawTransactionResponse, error) {
 	if req.Tx == nil {
 		return nil, status.Error(codes.InvalidArgument, "raw tx is nil")
@@ -574,6 +609,9 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 	}, nil
 }
 
+// Stake stakes the selected wallet UTXOs and turns the node into a validator
+//
+// **Requires wallet to be unlocked**
 func (s *GrpcServer) Stake(ctx context.Context, req *pb.StakeRequest) (*pb.StakeResponse, error) {
 	commitments := make([]types.ID, 0, len(req.Commitments))
 	for _, c := range req.Commitments {
@@ -583,11 +621,17 @@ func (s *GrpcServer) Stake(ctx context.Context, req *pb.StakeRequest) (*pb.Stake
 	return &pb.StakeResponse{}, err
 }
 
+// SetAutoStakeRewards make it such that any validator rewards that are earned are automatically staked
+//
+// **Requires wallet to be unlocked**
 func (s *GrpcServer) SetAutoStakeRewards(ctx context.Context, req *pb.SetAutoStakeRewardsRequest) (*pb.SetAutoStakeRewardsResponse, error) {
 	err := s.autoStakeFunc(req.Autostake)
 	return &pb.SetAutoStakeRewardsResponse{}, err
 }
 
+// Spend sends coins from the wallet according to the provided parameters
+//
+// **Requires wallet to be unlocked**
 func (s *GrpcServer) Spend(ctx context.Context, req *pb.SpendRequest) (*pb.SpendResponse, error) {
 	addr, err := walletlib.DecodeAddress(req.ToAddress, s.chainParams)
 	if err != nil {
