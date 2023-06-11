@@ -134,6 +134,7 @@ func (s *GrpcServer) GetUtxos(ctx context.Context, req *pb.GetUtxosRequest) (*pb
 			Amount:     note.Amount,
 			Address:    note.Address,
 			WatchOnly:  note.WatchOnly,
+			Staked:     note.Staked,
 		})
 	}
 	return resp, nil

@@ -57,6 +57,35 @@ func main() {
 		log.Fatal(err)
 	}
 
+	/*
+		kc, _ := walletlib.NewKeychain(mock.NewMapDatastore(), &params2.RegestParams, params2.RegtestMnemonicSeed)
+
+		networkKey, _ := kc.NetworkKey()
+		sk, _ := crypto.MarshalPrivateKey(networkKey)
+		params.ValidatorKey = hex.EncodeToString(sk)
+
+		keys, _ := kc.PrivateKeys()
+		for k := range keys {
+			spendKey := k.SpendKey()
+			vieKey := k.ViewKey().GetPublic()
+			sk2, _ := crypto.MarshalPublicKey(vieKey)
+
+			params.CoinbaseUnlockingScript.ScriptCommitment = hex.EncodeToString(walletlib.MockBasicUnlockScriptCommitment)
+			params.ViewKey = hex.EncodeToString(sk2)
+			params.ValidatorKey = hex.EncodeToString(sk)
+
+			raw, _ := spendKey.GetPublic().Raw()
+			params.CoinbaseUnlockingScript.ScriptParams = []string{hex.EncodeToString(raw)}
+
+			ul := types.UnlockingScript{
+				ScriptCommitment: walletlib.MockBasicUnlockScriptCommitment,
+				ScriptParams:     [][]byte{raw},
+			}
+			sh := ul.Hash()
+			params.CoinbaseNote.ScriptHash = hex.EncodeToString(sh[:])
+		}
+	*/
+
 	blk := &blocks.Block{
 		Header: &blocks.BlockHeader{
 			Version:     1,

@@ -157,6 +157,7 @@ func (x *GetUtxos) Execute(args []string) error {
 		Commitment types.HexEncodable `json:"commitment"`
 		Amount     uint64             `json:"amount"`
 		WatchOnly  bool               `json:"watchOnly"`
+		Staked     bool               `json:"staked"`
 	}
 	utxos := make([]utxo, 0, len(resp.Utxos))
 	for _, ut := range resp.Utxos {
@@ -165,6 +166,7 @@ func (x *GetUtxos) Execute(args []string) error {
 			Commitment: ut.Commitment,
 			Amount:     ut.Amount,
 			WatchOnly:  ut.WatchOnly,
+			Staked:     ut.Staked,
 		})
 	}
 	out, err := json.MarshalIndent(utxos, "", "    ")

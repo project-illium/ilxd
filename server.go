@@ -112,8 +112,11 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	var netParams *params.NetworkParams
 	if config.Testnet {
 		netParams = &params.Testnet1Params
-	} else if config.Regest {
+	} else if config.Regtest {
 		netParams = &params.RegestParams
+		if config.RegtestVal {
+			config.WalletSeed = params.RegtestMnemonicSeed
+		}
 	} else {
 		netParams = &params.MainnetParams
 	}

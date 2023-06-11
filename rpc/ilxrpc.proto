@@ -980,6 +980,8 @@ message Utxo {
     // We canot spend watch only utxos without the
     // private key.
     bool watchOnly = 4;
+    // Is this utxo staked by the wallet.
+    bool staked = 5;
 }
 
 message RawTransaction {
