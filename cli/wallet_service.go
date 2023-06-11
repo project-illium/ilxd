@@ -12,7 +12,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/rpc/pb"
 	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/walletlib"
+	"google.golang.org/protobuf/proto"
 )
 
 type GetBalance struct {
@@ -342,7 +344,10 @@ func (x *CreateMultisigAddress) Execute(args []string) error {
 }
 
 type CreateMultiSignature struct {
-	opts *options
+	Tx         string `short:"t" long:"tx" description:"A transaction to sign. Serialized as hex string. Use this or sighash."`
+	SigHash    string `short:"h" long:"sighash" description:"A sighash to sign. Serialized as hex string. Use this or tx."`
+	PrivateKey string `short:"k" long:"privkey" description:"A spend private key. Serialized as hex string."`
+	opts       *options
 }
 
 func (x *CreateMultiSignature) Execute(args []string) error {
@@ -351,12 +356,48 @@ func (x *CreateMultiSignature) Execute(args []string) error {
 		return err
 	}
 
-	// Implement logic here
+	req := &pb.CreateMultiSignatureRequest{
+		TxOrSighash: nil,
+		PrivateKey:  nil,
+	}
+
+	if x.Tx != "" {
+		txBytes, err := hex.DecodeString(x.Tx)
+		if err != nil {
+			return err
+		}
+		var tx transactions.Transaction
+		if err := proto.Unmarshal(txBytes, &tx); err != nil {
+			return err
+		}
+		req.TxOrSighash = &pb.CreateMultiSignatureRequest_Tx{
+			Tx: &tx,
+		}
+	} else if x.SigHash != "" {
+		sigHash, err := hex.DecodeString(x.SigHash)
+		if err != nil {
+			return err
+		}
+		req.TxOrSighash = &pb.CreateMultiSignatureRequest_Sighash{
+			Sighash: sigHash,
+		}
+	} else {
+		return errors.New("tx or sighash required")
+	}
+
+	resp, err := client.CreateMultiSignature(makeContext(x.opts.AuthToken), req)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(hex.EncodeToString(resp.Signature))
 	return nil
 }
 
 type ProveMultisig struct {
-	opts *options
+	Tx         string   `short:"t" long:"tx" description:"The transaction to prove. Serialized as hex string."`
+	Signatures []string `short:"s" long:"sig" description:"A signature covering the tranaction's sighash. Use this option more than once to add more signatures.'"`
+	opts       *options
 }
 
 func (x *ProveMultisig) Execute(args []string) error {
@@ -365,7 +406,36 @@ func (x *ProveMultisig) Execute(args []string) error {
 		return err
 	}
 
-	// Implement logic here
+	txBytes, err := hex.DecodeString(x.Tx)
+	if err != nil {
+		return err
+	}
+	var tx pb.RawTransaction
+	if err := proto.Unmarshal(txBytes, &tx); err != nil {
+		return err
+	}
+
+	sigs := make([][]byte, 0, len(x.Signatures))
+	for _, s := range x.Signatures {
+		sig, err := hex.DecodeString(s)
+		if err != nil {
+			return err
+		}
+		sigs = append(sigs, sig)
+	}
+
+	resp, err := client.ProveMultisig(makeContext(x.opts.AuthToken), &pb.ProveMultisigRequest{
+		Tx:   &tx,
+		Sigs: sigs,
+	})
+	if err != nil {
+		return err
+	}
+	txBytes, err = proto.Marshal(resp.ProvedTx)
+	if err != nil {
+		return err
+	}
+	fmt.Println(hex.EncodeToString(txBytes))
 	return nil
 }
 
@@ -478,7 +548,13 @@ func (x *DeletePrivateKeys) Execute(args []string) error {
 }
 
 type CreateRawTransaction struct {
-	opts *options
+	InputCommitments   []string `short:"t" long:"commitment" description:"A commitment to spend as an input. Serialized as a hex string. If using this the wallet will look up the private input data. Use this or input."`
+	PrivateInputs      []string `short:"i" long:"input" description:"Private input data as a JSON string. To include more than one input use this option more than once. Use this or commitment."`
+	PrivateOutputs     []string `short:"o" long:"output" description:"Private output data as a JSON string. To include more than one output use this option more than once."`
+	AppendChangeOutput bool     `short:"c" long:"appendchange" description:"Append a change output to the transaction. If false you'll have to manually include the change out. If true the wallet will use its most recent address for change.'"`
+	FeePerKB           uint64   `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
+	Serialize          bool     `short:"s" long:"serialize" description:"Serialize the output as a hex string. If false it will be JSON."`
+	opts               *options
 }
 
 func (x *CreateRawTransaction) Execute(args []string) error {
@@ -486,13 +562,81 @@ func (x *CreateRawTransaction) Execute(args []string) error {
 	if err != nil {
 		return err
 	}
+	req := &pb.CreateRawTransactionRequest{
+		Inputs:             nil,
+		Outputs:            nil,
+		AppendChangeOutput: x.AppendChangeOutput,
+		FeePerKilobyte:     x.FeePerKB,
+	}
 
-	// Implement logic here
+	if len(x.PrivateInputs) > 0 {
+		for _, in := range x.PrivateInputs {
+			var input pb.PrivateInput
+			if err := json.Unmarshal([]byte(in), &input); err != nil {
+				return err
+			}
+			req.Inputs = append(req.Inputs, &pb.CreateRawTransactionRequest_Input{
+				CommitmentOrPrivateInput: &pb.CreateRawTransactionRequest_Input_Input{
+					Input: &input,
+				},
+			})
+		}
+	} else if len(x.InputCommitments) > 0 {
+		for _, commitment := range x.InputCommitments {
+			commitmentBytes, err := hex.DecodeString(commitment)
+			if err != nil {
+				return err
+			}
+			req.Inputs = append(req.Inputs, &pb.CreateRawTransactionRequest_Input{
+				CommitmentOrPrivateInput: &pb.CreateRawTransactionRequest_Input_Commitment{
+					Commitment: commitmentBytes,
+				},
+			})
+		}
+	} else {
+		return errors.New("use either input or commitment")
+	}
+
+	for _, out := range x.PrivateOutputs {
+		output := struct {
+			Address string `json:"address"`
+			Amount  uint64 `json:"amount"`
+		}{}
+		if err := json.Unmarshal([]byte(out), &output); err != nil {
+			return err
+		}
+		req.Outputs = append(req.Outputs, &pb.CreateRawTransactionRequest_Output{
+			Address: output.Address,
+			Amount:  output.Amount,
+		})
+	}
+
+	resp, err := client.CreateRawTransaction(makeContext(x.opts.AuthToken), req)
+	if err != nil {
+		return err
+	}
+	if x.Serialize {
+		ser, err := proto.Marshal(resp.Tx)
+		if err != nil {
+			return err
+		}
+		fmt.Println(hex.EncodeToString(ser))
+	} else {
+		out, err := json.MarshalIndent(resp.Tx, "", "    ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+	}
+
 	return nil
 }
 
 type ProveRawTransaction struct {
-	opts *options
+	Tx        string   `short:"t" long:"tx" description:"The transaction to prove. Serialized as hex string or JSON."`
+	Privkeys  []string `short:"k" long:"privkey" description:"The private key to use to sign each input. These must be in order if the transaction inputs. If you need to include more than one use this option more than once."`
+	Serialize bool     `short:"s" long:"serialize" description:"Serialize the output as a hex string. If false it will be JSON."`
+	opts      *options
 }
 
 func (x *ProveRawTransaction) Execute(args []string) error {
@@ -501,13 +645,53 @@ func (x *ProveRawTransaction) Execute(args []string) error {
 		return err
 	}
 
-	// Implement logic here
+	keys := make([][]byte, 0, len(x.Privkeys))
+	for _, k := range x.Privkeys {
+		keyBytes, err := hex.DecodeString(k)
+		if err != nil {
+			return err
+		}
+		keys = append(keys, keyBytes)
+	}
+	var tx pb.RawTransaction
+	txBytes, err := hex.DecodeString(x.Tx)
+	if err == nil {
+		if err := json.Unmarshal(txBytes, &tx); err != nil {
+			return err
+		}
+	} else {
+		if err := json.Unmarshal([]byte(x.Tx), &tx); err != nil {
+			return err
+		}
+	}
+
+	resp, err := client.ProveRawTransaction(makeContext(x.opts.AuthToken), &pb.ProveRawTransactionRequest{
+		Tx:          &tx,
+		PrivateKeys: keys,
+	})
+	if err != nil {
+		return err
+	}
+
+	if x.Serialize {
+		ser, err := proto.Marshal(resp.ProvedTx)
+		if err != nil {
+			return err
+		}
+		fmt.Println(hex.EncodeToString(ser))
+	} else {
+		out, err := json.MarshalIndent(resp.ProvedTx, "", "    ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+	}
 	return nil
 }
 
 type Stake struct {
-	Commitment []string `short:"c" long:"commitment" description:"A utxo commitment to stake. Encoded as a hex string. You can stake more than one. To do so just use this option more than once."`
-	opts       *options
+	Commitments []string `short:"c" long:"commitment" description:"A utxo commitment to stake. Encoded as a hex string. You can stake more than one. To do so just use this option more than once."`
+	opts        *options
 }
 
 func (x *Stake) Execute(args []string) error {
@@ -515,9 +699,9 @@ func (x *Stake) Execute(args []string) error {
 	if err != nil {
 		return err
 	}
-	
-	commitments := make([][]byte, 0, len(x.Commitment))
-	for _, c := range commitments {
+
+	commitments := make([][]byte, 0, len(x.Commitments))
+	for _, c := range x.Commitments {
 		cBytes, err := hex.DecodeString(c)
 		if err != nil {
 			return err
@@ -559,7 +743,10 @@ func (x *SetAutoStakeRewards) Execute(args []string) error {
 }
 
 type Spend struct {
-	opts *options
+	Address  string `short:"a" long:"addr" description:"An address to send coins to"`
+	Amount   uint64 `short:"t" long:"amount" description:"The amount to send"`
+	FeePerKB uint64 `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
+	opts     *options
 }
 
 func (x *Spend) Execute(args []string) error {
@@ -568,6 +755,15 @@ func (x *Spend) Execute(args []string) error {
 		return err
 	}
 
-	// Implement logic here
+	resp, err := client.Spend(makeContext(x.opts.AuthToken), &pb.SpendRequest{
+		ToAddress:      x.Address,
+		Amount:         x.Amount,
+		FeePerKilobyte: x.FeePerKB,
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(hex.EncodeToString(resp.Transaction_ID))
 	return nil
 }

@@ -733,6 +733,7 @@ func (s *Server) Close() error {
 	s.syncManager.Close()
 	s.engine.Close()
 	s.mempool.Close()
+	s.wallet.Close()
 	return nil
 }
 
