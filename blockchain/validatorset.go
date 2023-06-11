@@ -360,7 +360,6 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 		}
 	}
 
-	totalStaked := vs.totalStaked()
 	for _, t := range blk.GetTransactions() {
 		switch tx := t.GetTx().(type) {
 		case *transactions.Transaction_CoinbaseTransaction:
@@ -411,7 +410,6 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 			}
 			if _, ok := valNew.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)]; !ok {
 				valNew.TotalStake += types.Amount(tx.StakeTransaction.Amount)
-				totalStaked += types.Amount(tx.StakeTransaction.Amount)
 			}
 			valNew.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)] = Stake{
 				Amount:     types.Amount(tx.StakeTransaction.Amount),
@@ -436,7 +434,6 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 					return errors.New("nullifier not found with validator")
 				}
 				valNew.TotalStake -= stake.Amount
-				totalStaked -= stake.Amount
 				delete(valNew.Nullifiers, types.NewNullifier(nullifier))
 				nullifiersToDelete[types.NewNullifier(nullifier)] = struct{}{}
 				updates[valNew.PeerID] = valNew
@@ -458,7 +455,6 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 					return errors.New("nullifier not found with validator")
 				}
 				valNew.TotalStake -= stake.Amount
-				totalStaked -= stake.Amount
 				delete(valNew.Nullifiers, types.NewNullifier(nullifier))
 				nullifiersToDelete[types.NewNullifier(nullifier)] = struct{}{}
 				updates[valNew.PeerID] = valNew
@@ -466,6 +462,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 		}
 	}
 
+	totalStaked := vs.totalStaked()
 	if validatorReward > 0 {
 		vs.dirty = true
 		for _, valOld := range vs.validators {
@@ -548,8 +545,10 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 		}
 	}
 
-	for _, val := range vs.validators {
-		val.stakeAccumulator += float64(val.TotalStake) / float64(totalStaked)
+	if totalStaked > 0 {
+		for _, val := range vs.validators {
+			val.stakeAccumulator += float64(val.TotalStake) / float64(totalStaked)
+		}
 	}
 
 	if len(updates) > 0 || len(nullifiersToAdd) > 0 || len(nullifiersToDelete) > 0 {
@@ -589,6 +588,9 @@ func (vs *ValidatorSet) BlockProductionLimit(validatorID peer.ID) (uint32, uint3
 	val, ok := vs.validators[validatorID]
 	if !ok {
 		return 0, 0, errors.New("not found")
+	}
+	if vs.EpochBlocks == 0 {
+		return val.EpochBlocks, 1, nil
 	}
 	expectedBlocks := val.stakeAccumulator / float64(vs.EpochBlocks)
 	if expectedBlocks < 1 {

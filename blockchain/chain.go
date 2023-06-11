@@ -188,7 +188,7 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	if err := dsPutBlockIDFromHeight(dbtx, blk.ID(), blk.Header.Height); err != nil {
 		return err
 	}
-	if err := dsPutBlockIndexState(dbtx, &blockNode{blockID: blk.ID(), height: blk.Header.Height}); err != nil {
+	if err := dsPutBlockIndexState(dbtx, &blockNode{blockID: blk.ID(), height: blk.Header.Height, timestamp: blk.Header.Timestamp}); err != nil {
 		return err
 	}
 
@@ -234,7 +234,7 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		}
 		prevEpoch := (prevHeader.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
 		blkEpoch := (blk.Header.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
-		if blkEpoch > prevEpoch {
+		if blkEpoch > prevEpoch && prevHeader.Height != 0 {
 			coinbase := calculateNextCoinbaseDistribution(b.params, blkEpoch)
 			if err := dsIncrementCurrentSupply(dbtx, coinbase); err != nil {
 				return err
