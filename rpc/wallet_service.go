@@ -153,6 +153,7 @@ func (s *GrpcServer) GetPrivateKey(ctx context.Context, req *pb.GetPrivateKeyReq
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
 	for key, addr := range keys {
 		if addr.String() == req.Address {
 			ser, err := crypto.MarshalPrivateKey(&key)
@@ -164,7 +165,7 @@ func (s *GrpcServer) GetPrivateKey(ctx context.Context, req *pb.GetPrivateKeyReq
 			}, nil
 		}
 	}
-	return nil, status.Error(codes.NotFound, err.Error())
+	return nil, status.Error(codes.NotFound, "address not found")
 }
 
 // ImportAddress imports a watch address into the wallet.

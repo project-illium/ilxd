@@ -583,6 +583,16 @@ github.com/polydawn/refmt v0.89.0/go.mod h1:/zvteZs/GwLtCgZ4BL6CBsk9IKIlexP43ObX
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
 github.com/project-illium/walletlib v0.0.0-20230611012304-dc82d5ee7050 h1:d1p8q37AQ5Xu+Hzjqp+iWqqT+9VdzPL5mbGPMpVyY4g=
 github.com/project-illium/walletlib v0.0.0-20230611012304-dc82d5ee7050/go.mod h1:FOSlbrQssdxY/riQG3lU0UpD701IeM3Mi2fpHhPLAM4=
+github.com/project-illium/walletlib v0.0.0-20230611043428-ea0581bae446 h1:HWxYC49zVUvL7hNC66Xiw0RJ4hJplGNKPUlO0fu7tEc=
+github.com/project-illium/walletlib v0.0.0-20230611043428-ea0581bae446/go.mod h1:FOSlbrQssdxY/riQG3lU0UpD701IeM3Mi2fpHhPLAM4=
+github.com/project-illium/walletlib v0.0.0-20230611043637-a8bb1c66cfa3 h1:XFTNqRkwP8YcML/wewZqqK849kPFw2Ei3C6yC1Ty7e4=
+github.com/project-illium/walletlib v0.0.0-20230611043637-a8bb1c66cfa3/go.mod h1:FOSlbrQssdxY/riQG3lU0UpD701IeM3Mi2fpHhPLAM4=
+github.com/project-illium/walletlib v0.0.0-20230611114635-4a3924861f5f h1:Uk+8ELnjOOnZLLumC8028d+GoBiCqKQoXCKFJi1hDYY=
+github.com/project-illium/walletlib v0.0.0-20230611114635-4a3924861f5f/go.mod h1:FOSlbrQssdxY/riQG3lU0UpD701IeM3Mi2fpHhPLAM4=
+github.com/project-illium/walletlib v0.0.0-20230611121021-1c7e8387bc56 h1:W72XvXfGe/Rf3tuP81AUnHLdUwQ+N0iM5hCgWhh11Y4=
+github.com/project-illium/walletlib v0.0.0-20230611121021-1c7e8387bc56/go.mod h1:FOSlbrQssdxY/riQG3lU0UpD701IeM3Mi2fpHhPLAM4=
+github.com/project-illium/walletlib v0.0.0-20230611132612-8478a178f4fd h1:nkU0vxuHV6FK5wVjnp/ezKW0pHqVa49WQoIsJuTI6qg=
+github.com/project-illium/walletlib v0.0.0-20230611132612-8478a178f4fd/go.mod h1:FOSlbrQssdxY/riQG3lU0UpD701IeM3Mi2fpHhPLAM4=
 github.com/prometheus/client_golang v0.8.0/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.1/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829/go.mod h1:p2iRAGwDERtqlqzRXnrOVns+ignqQo//hLXqYxZYVNs=

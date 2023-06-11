@@ -41,7 +41,7 @@ type GenerationParams struct {
 // --validatorkey=080112401e08383f629522149a7505c7668f070bea3007af8ed2b3970e7a2f2456584039de64446ff3730ddbf2219fe1b996316650b747ea90d742c8e22f97bd3c0b616f
 // --viewkey=08041220fd1264c92cc8d0b4fc8bdb811bbbc487734990c85cb42e333d6c86d95ce8b16b
 // --initialcoins=230584300921369395
-// --unlockingscript.verificationkey=0000000000000000000000000000000000000000000000000000000000000000
+// --unlockingscript.scriptcommitment=0000000000000000000000000000000000000000000000000000000000000000
 // --unlockingscript.params=0000000000000000000000000000000000000000000000000000000000000000
 // --coinbasenote.scripthash=ae09db7cd54f42b490ef09b6bc541af688e4959bb8c53f359a6f56e38ab454a3
 // --coinbasenote.amount=230584300921369395
@@ -129,7 +129,7 @@ func main() {
 	copy(note.State[:], coinbaseNoteState)
 	copy(note.Salt[:], coinbaseNoteSalt)
 
-	unlockingParams := make([][]byte, 0, len(params.CoinbaseUnlockingScript.ScriptCommitment))
+	unlockingParams := make([][]byte, 0, len(params.CoinbaseUnlockingScript.ScriptParams))
 	for _, p := range params.CoinbaseUnlockingScript.ScriptParams {
 		params, err := hex.DecodeString(p)
 		if err != nil {
@@ -172,7 +172,7 @@ func main() {
 	blk.Transactions[0].GetCoinbaseTransaction().Outputs[0] = output0
 
 	for _, out := range params.AdditionalCoinbaseOutputs {
-		blk.Transactions[0].GetMintTransaction().Outputs = append(blk.Transactions[0].GetMintTransaction().Outputs, &out)
+		blk.Transactions[0].GetCoinbaseTransaction().Outputs = append(blk.Transactions[0].GetCoinbaseTransaction().Outputs, &out)
 	}
 
 	sigHash, err := blk.Transactions[0].GetCoinbaseTransaction().SigHash()

@@ -109,7 +109,7 @@ func main() {
 	parser.AddCommand("getnewaddress", "Generates a new address and returns it", "Generates a new address and returns it. Both a new spend key and view key will be derived from the mnemonic seed.", &GetNewAddress{opts: &opts})
 	parser.AddCommand("gettransactions", "Returns the list of transactions for the wallet", "Returns the list of transactions for the wallet", &GetTransactions{opts: &opts})
 	parser.AddCommand("getutxos", "Returns a list of the wallet's current unspent transaction outputs (UTXOs)", "Returns a list of the wallet's current unspent transaction outputs (UTXOs)", &GetUtxos{opts: &opts})
-	parser.AddCommand("getprivatekeys", "Returns the serialized spend and view keys for the given address", "Returns the serialized spend and view keys for the given address", &GetPrivateKey{opts: &opts})
+	parser.AddCommand("getprivatekey", "Returns the serialized spend and view keys for the given address", "Returns the serialized spend and view keys for the given address", &GetPrivateKey{opts: &opts})
 	parser.AddCommand("importaddress", "Imports a watch address into the wallet", "Imports a watch address into the wallet", &ImportAddress{opts: &opts})
 	parser.AddCommand("createmultisigspendkeypair", "Generates a spend keypair for use in a multisig address", "Generates a spend keypair for use in a multisig address", &CreateMultisigSpendKeypair{opts: &opts})
 	parser.AddCommand("createmultisigviewkeypair", "Generates a view keypair for use in a multisig address", "Generates a view keypair for use in a multisig address", &CreateMultisigViewKeypair{opts: &opts})

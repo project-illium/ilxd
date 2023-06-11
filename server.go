@@ -162,14 +162,18 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	}
 
 	// Create wallet
-	wallet, err := walletlib.NewWallet([]walletlib.Option{
+	walletOpts := []walletlib.Option{
 		walletlib.DataDir(config.WalletDir),
 		walletlib.Params(netParams),
 		walletlib.FeePerKB(policy.GetMinFeePerKilobyte()),
 		walletlib.GetBlockFunction(chain.GetBlockByHeight),
 		walletlib.GetAccumulatorCheckpointFunction(chain.GetAccumulatorCheckpointByHeight),
 		walletlib.BroadcastFunction(s.submitTransaction),
-	}...)
+	}
+	if config.WalletSeed != "" {
+		walletOpts = append(walletOpts, walletlib.MnemonicSeed(config.WalletSeed))
+	}
+	wallet, err := walletlib.NewWallet(walletOpts...)
 	if err != nil {
 		return nil, err
 	}

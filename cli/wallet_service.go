@@ -185,7 +185,9 @@ func (x *GetPrivateKey) Execute(args []string) error {
 	if err != nil {
 		return err
 	}
-	resp, err := client.GetPrivateKey(makeContext(x.opts.AuthToken), &pb.GetPrivateKeyRequest{})
+	resp, err := client.GetPrivateKey(makeContext(x.opts.AuthToken), &pb.GetPrivateKeyRequest{
+		Address: x.Address,
+	})
 	if err != nil {
 		return err
 	}

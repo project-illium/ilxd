@@ -61,67 +61,59 @@ var MainnetGenesisBlock = &blocks.Block{
 	},
 }
 
-var RegtestGenesisKey = []byte{
-	0x08, 0x01, 0x12, 0x40, 0xbf, 0xd3, 0xc5, 0xae,
-	0xbb, 0x0c, 0x88, 0xd3, 0x7a, 0x2f, 0xa7, 0xd7,
-	0x09, 0x91, 0x85, 0xa9, 0x65, 0x5d, 0xcd, 0xdc,
-	0x7a, 0xc2, 0x94, 0xef, 0x28, 0x15, 0xe9, 0xc1,
-	0x41, 0xe9, 0x8a, 0x2e, 0x25, 0xfc, 0xc0, 0x58,
-	0x01, 0x44, 0xb7, 0x49, 0xec, 0xfe, 0xf6, 0x90,
-	0x91, 0xf9, 0x78, 0xe9, 0xa5, 0x91, 0xde, 0x9c,
-	0xed, 0x30, 0xdc, 0x64, 0x89, 0x72, 0x2a, 0x3f,
-	0x3d, 0xb3, 0xff, 0x16,
-}
+var RegtestMnemonicSeed = "machine owner oval voyage hero pride index rack doll planet route unaware survey canyon search million embrace power thumb goat design rich grab rhythm"
 
-var RegtestViewKey = []byte{
-	0x08, 0x04, 0x12, 0x40, 0xdc, 0xaa, 0xbf, 0x79,
-	0x23, 0x43, 0x85, 0xa1, 0x3b, 0xda, 0x51, 0xa4,
-	0xac, 0xca, 0x3b, 0x2a, 0xc6, 0x46, 0x7d, 0xed,
-	0xc4, 0x4f, 0xff, 0x67, 0xc0, 0xef, 0x96, 0x20,
-	0xb1, 0x2e, 0x3c, 0x69, 0xfd, 0x12, 0x64, 0xc9,
-	0x2c, 0xc8, 0xd0, 0xb4, 0xfc, 0x8b, 0xdb, 0x81,
-	0x1b, 0xbb, 0xc4, 0x87, 0x73, 0x49, 0x90, 0xc8,
-	0x5c, 0xb4, 0x2e, 0x33, 0x3d, 0x6c, 0x86, 0xd9,
-	0x5c, 0xe8, 0xb1, 0x6b,
+var RegtestGenesisKey = []byte{
+	0x08, 0x01, 0x12, 0x40, 0xdc, 0xd8, 0xb1, 0x9d,
+	0x2c, 0xc6, 0x6f, 0x0e, 0xc6, 0x13, 0xd4, 0xb0,
+	0x8b, 0x7d, 0x73, 0x68, 0x2e, 0x2e, 0x11, 0x12,
+	0x2c, 0x09, 0x95, 0x9a, 0x2c, 0xc0, 0x00, 0xb9,
+	0x9a, 0x52, 0x5a, 0xcb, 0xb5, 0x62, 0xe4, 0x8c,
+	0xa1, 0x18, 0xdb, 0x0f, 0x24, 0xa5, 0x3c, 0xfb,
+	0xae, 0x9f, 0x6a, 0x3a, 0x67, 0xf8, 0x63, 0xe6,
+	0x03, 0x15, 0x95, 0xd6, 0x43, 0xb7, 0xd8, 0x91,
+	0x62, 0x1a, 0xc2, 0x80,
 }
 
 var RegtestSpendKey = []byte{} // TODO
 
 var RegtestGenesisBlock = &blocks.Block{
 	Header: &blocks.BlockHeader{
-		Version:   1,
-		Height:    0,
-		Parent:    hexToBytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		Timestamp: 0,
-		TxRoot:    hexToBytes("e9a730339b6f38d83d7d53ef254f88ffd05fb531e56dc78f449bd4898d6269ca"),
+		Version:     1,
+		Height:      0,
+		Parent:      hexToBytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		Timestamp:   0,
+		TxRoot:      hexToBytes("04d7c694a5cd17834722a6e207ffaa8fe3e3c16aec6e0154b531890884c03957"),
+		Producer_ID: nil,
+		Signature:   nil,
 	},
 	Transactions: []*transactions.Transaction{
 		{
 			Tx: &transactions.Transaction_CoinbaseTransaction{
 				CoinbaseTransaction: &transactions.CoinbaseTransaction{
-					Validator_ID: hexToBytes("00240801122025fcc0580144b749ecfef69091f978e9a591de9ced30dc6489722a3f3db3ff16"),
+					Validator_ID: hexToBytes("002408011220b562e48ca118db0f24a53cfbae9f6a3a67f863e6031595d643b7d891621ac280"),
 					NewCoins:     230584300921369395,
 					Outputs: []*transactions.Output{
 						{
-							Commitment: hexToBytes("924c38053f5f94baba523a83c10dcb94e75f642392e3094107c02d6d8c6c79ed"),
-							Ciphertext: hexToBytes("83a4071ad9f1aa97189bc952d2e9a6a97f9c3077e94e7c4c9e612f865bb6e37ca963bb030509ca5d94212cea7231a433d044e2906dac5376f0ef3908904ed7bc77f54cefb93ac1293b3d074d5dd404dbf3e38288c4e6c82e9a07515ea180ed1481f4994bcde26cb1271042375299d08facaadd3e5ab567b064cb0e27e98b08641b9e30dec14cdf1284ebc483d1ec6b2fba2d001c7327f2b342c8dce3daa128c7080e27b407bc2ff5f7e6ae502c22729744080e2cf86a36bf84a87e56e77c88704c2f112184b80541e2caa309bb1d886ebc82b9adf641c5eb5a95d4f626002a6536df8c376bebae9d93093238135a2ba229ae295dd9e65ab462b7ef8b74e06de9f5975bf78304f809a133c4ece8e301b9fd5fa38318371a054c5e067c6a4c4d6a1e02b5f6e330ac4535596c099c50bd28"),
+							Commitment: hexToBytes("afaeb38b759134f3c8d4c69ee81e5cc7874f9f969993f67874fd2714fd0020c5"),
+							Ciphertext: hexToBytes("d7aa20b82fe77f8331da0afd9bccaf2b581b17a1ada0b3bf6f93dcc1d4472a9e279dc6ea01ab6eb1c4672d6a0ee4aa90f5d6d5e80175ce18998803fb948b92013eb2444c2722e551d4b189fd33b545050bb529d0d4335fd146f812f1583b876a6da65e99c84b300083df609699dd2f2d48c6fd727b0584e612eae769f098c3dafc0a795e66078bb74cfaee50030158a0b6e3c212ea44dedfbae3e3ed82f3cbb5eea7408234da015602cecfee48edc0b0c1f24f85cf1eb1d2541af0fc247d4a57431aabd1befb830cc9e96fdde9e963afffa5d691de3cbf904608ecdaae8bce474cc180b45b79c669b83af7d9e5dcc6b7f3e7497313594118f0ee79601fdab40b9343d7fc212bd161efbf82170e08b8be7541a7ba6fb5ce5636d8cace624bc62f8c3d0bd40deda92f5b76dae06a18baba"),
 						},
 					},
-					Signature: hexToBytes("47d553bf0c2cd0b1cedcd1d83b3a007c1324d6184ea788bbe9afd532b020d8e06a9a6e391ae681a24e2da565877551f0278d1282c2cfb4ef8f955c77a21bde09"),
-					Proof:     nil, // TODO
+					Signature: hexToBytes("de9039bdecac1462ad45b15f9fc704afd7828815eb392b8e3a98161acdbca310fd23c4907277944a5c9dea2e0cb5034fedd090652e957a20e64f37f09a4ee902"),
+					Proof:     nil,
 				},
 			},
 		},
 		{
 			Tx: &transactions.Transaction_StakeTransaction{
 				StakeTransaction: &transactions.StakeTransaction{
-					Validator_ID: hexToBytes("00240801122025fcc0580144b749ecfef69091f978e9a591de9ced30dc6489722a3f3db3ff16"),
+					Validator_ID: hexToBytes("002408011220b562e48ca118db0f24a53cfbae9f6a3a67f863e6031595d643b7d891621ac280"),
 					Amount:       230584300921369395,
-					Nullifier:    hexToBytes("b178667bdbe651d9540bcc21e90a71360a474a5883b9eecc552004b75a681ec8"),
-					TxoRoot:      hexToBytes("22a8ef3ef7e189bbc86b3e10569277db829442e5c8a30f407897842657c7b594"),
+					Nullifier:    hexToBytes("5affd8aa727c0147b9e2629ad2d5b6caac76af6129637a0e0b68485a3562574f"),
+					TxoRoot:      hexToBytes("978a00564656c7c5a354c54825177d82711507a7c2cdce860a3bd3608f96e5b1"),
 					Locktime:     0,
-					Signature:    hexToBytes("3a78a3a0740fdc27f4462c27ecdebb4dee4debe7d56ce3bced914a4d85c5059f3f65d6ff23c9d752e6d3c438914ab48cb42232bab664c928a82ef60e22755401"),
-					Proof:        nil, // TODO
+					Signature:    hexToBytes("dddeeadf486416c824e346ff73e28f200b795140bbaf6b92bd9c9573bc5868c7bb112e602fcf747fe87db7bce9916b2d6f63f1d6d4e465d245055444473b6106"),
+					Proof:        []byte{},
 				},
 			},
 		},
