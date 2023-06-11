@@ -257,11 +257,11 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	// For blocks we will wait for the full block to be recovered from the compact block
 	// so that we can validate it before returning here.
 	err = ps.RegisterTopicValidator(BlockTopic, pubsub.ValidatorEx(func(ctx context.Context, p peer.ID, m *pubsub.Message) pubsub.ValidationResult {
-		var blk blocks.XThinnerBlock
+		blk := &blocks.XThinnerBlock{}
 		if err := blk.Deserialize(m.Data); err != nil {
 			return pubsub.ValidationReject
 		}
-		err := cfg.validateBlock(&blk, p)
+		err := cfg.validateBlock(blk, p)
 		switch err.(type) {
 		case blockchain.OrphanBlockError:
 			// Orphans we won't relay (yet) but won't penalize them either.

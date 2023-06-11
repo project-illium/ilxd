@@ -5,6 +5,7 @@
 package consensus
 
 import (
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/params"
@@ -77,11 +78,22 @@ func HasBlock(hasBlockFunc HasBlockFunc) Option {
 	}
 }
 
+// PeerID is the node's own peerID.
+//
+// This option is required.
+func PeerID(self peer.ID) Option {
+	return func(cfg *config) error {
+		cfg.self = self
+		return nil
+	}
+}
+
 // Config specifies the blockchain configuration.
 type config struct {
 	params       *params.NetworkParams
 	network      *net.Network
 	chooser      blockchain.WeightedChooser
+	self         peer.ID
 	requestBlock RequestBlockFunc
 	hasBlock     HasBlockFunc
 }
@@ -104,6 +116,9 @@ func (cfg *config) validate() error {
 	}
 	if cfg.hasBlock == nil {
 		return AssertError("NewConsensusEngine: hasBlockFunc cannot be nil")
+	}
+	if cfg.self == "" {
+		return AssertError("NewConsensusEngine: own peerID cannot be empty")
 	}
 	return nil
 }

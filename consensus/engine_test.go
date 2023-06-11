@@ -68,6 +68,7 @@ func newMockNode(mn mocknet.Mocknet) (*mockNode, error) {
 		Chooser(&MockChooser{network: network}),
 		HasBlock(func(id types.ID) bool { return false }),
 		RequestBlock(func(id types.ID, id2 peer.ID) {}),
+		PeerID(network.Host().ID()),
 	)
 	if err != nil {
 		return nil, err

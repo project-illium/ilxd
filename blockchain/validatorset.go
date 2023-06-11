@@ -360,6 +360,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 		}
 	}
 
+	totalStaked := vs.totalStaked()
 	for _, t := range blk.GetTransactions() {
 		switch tx := t.GetTx().(type) {
 		case *transactions.Transaction_CoinbaseTransaction:
@@ -410,6 +411,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 			}
 			if _, ok := valNew.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)]; !ok {
 				valNew.TotalStake += types.Amount(tx.StakeTransaction.Amount)
+				totalStaked += types.Amount(tx.StakeTransaction.Amount)
 			}
 			valNew.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)] = Stake{
 				Amount:     types.Amount(tx.StakeTransaction.Amount),
@@ -434,6 +436,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 					return errors.New("nullifier not found with validator")
 				}
 				valNew.TotalStake -= stake.Amount
+				totalStaked -= stake.Amount
 				delete(valNew.Nullifiers, types.NewNullifier(nullifier))
 				nullifiersToDelete[types.NewNullifier(nullifier)] = struct{}{}
 				updates[valNew.PeerID] = valNew
@@ -455,6 +458,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 					return errors.New("nullifier not found with validator")
 				}
 				valNew.TotalStake -= stake.Amount
+				totalStaked -= stake.Amount
 				delete(valNew.Nullifiers, types.NewNullifier(nullifier))
 				nullifiersToDelete[types.NewNullifier(nullifier)] = struct{}{}
 				updates[valNew.PeerID] = valNew
@@ -462,7 +466,6 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 		}
 	}
 
-	totalStaked := vs.totalStaked()
 	if validatorReward > 0 {
 		vs.dirty = true
 		for _, valOld := range vs.validators {

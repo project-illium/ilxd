@@ -208,6 +208,7 @@ func (g *BlockGenerator) generateBlock() error {
 	if err != nil {
 		return err
 	}
+	xthinnerBlock.Header = blk.Header
 
 	return g.broadcast(xthinnerBlock)
 }

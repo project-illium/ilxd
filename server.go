@@ -272,6 +272,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		consensus.Chooser(chain),
 		consensus.RequestBlock(s.requestBlock),
 		consensus.HasBlock(chain.HasBlock),
+		consensus.PeerID(network.Host().ID()),
 	}...)
 	if err != nil {
 		return nil, err
@@ -415,17 +416,19 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 			}
 		}
 	case blockchain.NTNewEpoch:
-		validator, err := s.blockchain.GetValidator(s.network.Host().ID())
-		if err == nil && validator.UnclaimedCoins > 0 {
-			s.autoStakeLock.RLock()
-			defer s.autoStakeLock.RUnlock()
+		if s.autoStake {
+			validator, err := s.blockchain.GetValidator(s.network.Host().ID())
+			if err == nil && validator.UnclaimedCoins > 0 {
+				s.autoStakeLock.RLock()
+				defer s.autoStakeLock.RUnlock()
 
-			tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.networkKey)
-			if err != nil {
-				log.Errorf("Error building auto coinbase transaction: %s", err)
-			}
-			if err := s.submitTransaction(tx); err != nil {
-				log.Errorf("Error submitting auto coinbase transaction: %s", err)
+				tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.networkKey)
+				if err != nil {
+					log.Errorf("Error building auto coinbase transaction: %s", err)
+				}
+				if err := s.submitTransaction(tx); err != nil {
+					log.Errorf("Error submitting auto coinbase transaction: %s", err)
+				}
 			}
 		}
 	}
@@ -526,7 +529,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 			switch status {
 			case consensus.StatusFinalized:
 				blockID := blk.ID()
-				log.Debugf("Block %s finalized in %s milliseconds", blockID, time.Since(t).Milliseconds())
+				log.Debugf("Block %s finalized in %d milliseconds", blockID, time.Since(t).Milliseconds())
 				if err := s.blockchain.ConnectBlock(b, blockchain.BFNone); err != nil {
 					log.Warnf("Connect block error: block %s: %s", blockID, err)
 				} else {

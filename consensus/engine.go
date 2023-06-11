@@ -102,6 +102,7 @@ type ConsensusEngine struct {
 	params       *params.NetworkParams
 	chooser      blockchain.WeightedChooser
 	ms           net.MessageSender
+	self         peer.ID
 	wg           sync.WaitGroup
 	requestBlock RequestBlockFunc
 	hasBlock     HasBlockFunc
@@ -131,6 +132,7 @@ func NewConsensusEngine(ctx context.Context, opts ...Option) (*ConsensusEngine, 
 		network:        cfg.network,
 		chooser:        cfg.chooser,
 		params:         cfg.params,
+		self:           cfg.self,
 		ms:             net.NewMessageSender(cfg.network.Host(), cfg.params.ProtocolPrefix+ConsensusProtocol),
 		wg:             sync.WaitGroup{},
 		requestBlock:   cfg.requestBlock,
@@ -340,12 +342,23 @@ func (eng *ConsensusEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer pee
 		resp = new(wire.MsgAvaResponse)
 	)
 
-	err := eng.ms.SendRequest(eng.ctx, peer, req, resp)
-	if err != nil {
-		log.Errorf("Error reading avalanche response from peer %s", peer.String())
-		eng.msgChan <- &requestExpirationMsg{key}
-		eng.network.IncreaseBanscore(peer, 0, 10)
-		return
+	if peer != eng.self {
+		err := eng.ms.SendRequest(eng.ctx, peer, req, resp)
+		if err != nil {
+			log.Errorf("Error reading avalanche response from peer %s", peer.String())
+			eng.msgChan <- &requestExpirationMsg{key}
+			eng.network.IncreaseBanscore(peer, 0, 10)
+			return
+		}
+	} else {
+		respCh := make(chan *wire.MsgAvaResponse)
+
+		eng.msgChan <- &queryMsg{
+			request:    req,
+			remotePeer: peer,
+			respChan:   respCh,
+		}
+		resp = <-respCh
 	}
 
 	eng.msgChan <- &registerVotesMsg{

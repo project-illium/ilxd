@@ -161,7 +161,8 @@ func (b *Block) Deserialize(data []byte) error {
 	if err := proto.Unmarshal(data, newBlock); err != nil {
 		return err
 	}
-	b = newBlock
+	b.Header = newBlock.Header
+	b.Transactions = newBlock.Transactions
 	return nil
 }
 
@@ -210,7 +211,12 @@ func (b *XThinnerBlock) Deserialize(data []byte) error {
 	if err := proto.Unmarshal(data, newBlock); err != nil {
 		return err
 	}
-	b = newBlock
+	b.Header = newBlock.Header
+	b.TxCount = newBlock.TxCount
+	b.PrefilledTxs = newBlock.PrefilledTxs
+	b.Pushes = newBlock.Pushes
+	b.Pops = newBlock.Pops
+	b.PushBytes = newBlock.PushBytes
 	return nil
 }
 

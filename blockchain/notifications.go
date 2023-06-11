@@ -72,7 +72,7 @@ func (b *Blockchain) sendNotification(typ NotificationType, data interface{}) {
 	n := Notification{Type: typ, Data: data}
 	b.notificationsLock.RLock()
 	for _, callback := range b.notifications {
-		callback(&n)
+		go callback(&n)
 	}
 	b.notificationsLock.RUnlock()
 }
