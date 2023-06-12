@@ -308,19 +308,25 @@ func (x *GetMerkleProof) Execute(args []string) error {
 		return err
 	}
 
-	hashes := make([]types.HexEncodable, 0, len(resp.Hashes))
-	for _, h := range resp.Hashes {
-		hashes = append(hashes, h)
+	uhashes := make([]types.HexEncodable, 0, len(resp.Uhashes))
+	for _, h := range resp.Uhashes {
+		uhashes = append(uhashes, h)
+	}
+	whashes := make([]types.HexEncodable, 0, len(resp.Whashes))
+	for _, h := range resp.Whashes {
+		whashes = append(whashes, h)
 	}
 	b := struct {
-		BlockID types.HexEncodable
-		Root    types.HexEncodable
-		Hashes  []types.HexEncodable
-		Flags   string
+		BlockID types.HexEncodable   `json:"BlockID"`
+		Root    types.HexEncodable   `json:"Root"`
+		UHashes []types.HexEncodable `json:"UHashes"`
+		WHashes []types.HexEncodable `json:"WHashes"`
+		Flags   string               `json:"Flags"`
 	}{
 		BlockID: resp.Block.Block_ID,
 		Root:    resp.Block.TxRoot,
-		Hashes:  hashes,
+		UHashes: uhashes,
+		WHashes: whashes,
 		Flags:   strconv.FormatInt(int64(resp.Flags), 2),
 	}
 

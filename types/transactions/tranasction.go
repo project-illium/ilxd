@@ -51,6 +51,41 @@ func (tx *Transaction) ID() types.ID {
 	return types.NewIDFromData(ser)
 }
 
+func (tx *Transaction) UID() types.ID {
+	clone := proto.Clone(tx)
+	switch tx := clone.(*Transaction).GetTx().(type) {
+	case *Transaction_StandardTransaction:
+		tx.StandardTransaction.Proof = nil
+	case *Transaction_CoinbaseTransaction:
+		tx.CoinbaseTransaction.Proof = nil
+	case *Transaction_MintTransaction:
+		tx.MintTransaction.Proof = nil
+	case *Transaction_TreasuryTransaction:
+		tx.TreasuryTransaction.Proof = nil
+	case *Transaction_StakeTransaction:
+		tx.StakeTransaction.Proof = nil
+	}
+	ser, _ := clone.(*Transaction).Serialize()
+	return types.NewIDFromData(ser)
+}
+
+func (tx *Transaction) WID() types.ID {
+	var proof []byte
+	switch t := tx.GetTx().(type) {
+	case *Transaction_StandardTransaction:
+		proof = t.StandardTransaction.Proof
+	case *Transaction_CoinbaseTransaction:
+		proof = t.CoinbaseTransaction.Proof
+	case *Transaction_MintTransaction:
+		proof = t.MintTransaction.Proof
+	case *Transaction_TreasuryTransaction:
+		proof = t.TreasuryTransaction.Proof
+	case *Transaction_StakeTransaction:
+		proof = t.StakeTransaction.Proof
+	}
+	return types.NewIDFromData(proof)
+}
+
 func (tx *Transaction) Outputs() []*Output {
 	outputs := make([]*Output, 0, 1)
 	switch tx := tx.GetTx().(type) {

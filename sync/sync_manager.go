@@ -566,8 +566,8 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 				Header:       headers[i],
 				Transactions: txs[x].Transactions,
 			}
-			merkles := blockchain.BuildMerkleTreeStore(blk.Transactions)
-			if !bytes.Equal(merkles[len(merkles)-1], headers[i].TxRoot) {
+			merkleRoot := blockchain.TransactionsMerkleRoot(blk.Transactions)
+			if !bytes.Equal(merkleRoot[:], headers[i].TxRoot) {
 				sm.network.IncreaseBanscore(p, 101, 0)
 				return fmt.Errorf("peer %s invalid block download merkle root", p.String())
 			}

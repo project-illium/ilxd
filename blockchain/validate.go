@@ -153,10 +153,9 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 		return ruleError(ErrEmptyBlock, "block contains zero transactions")
 	}
 
-	merkles := BuildMerkleTreeStore(blk.Transactions)
-	calculatedTxRoot := merkles[len(merkles)-1]
+	calculatedTxRoot := TransactionsMerkleRoot(blk.Transactions)
 
-	if !bytes.Equal(calculatedTxRoot, blk.Header.TxRoot) {
+	if !bytes.Equal(calculatedTxRoot[:], blk.Header.TxRoot) {
 		return ruleError(ErrInvalidTxRoot, "transaction merkle root is invalid")
 	}
 

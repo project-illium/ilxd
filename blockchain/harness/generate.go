@@ -199,7 +199,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 			txs = append(txs, transactions.WrapTransaction(standardTx))
 		}
 
-		merkles := blockchain.BuildMerkleTreeStore(txs)
+		merkleRoot := blockchain.TransactionsMerkleRoot(txs)
 
 		h.timeSource++
 
@@ -222,7 +222,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				Height:      bestHeight + 1,
 				Parent:      bestID.Bytes(),
 				Timestamp:   h.timeSource,
-				TxRoot:      merkles[len(merkles)-1],
+				TxRoot:      merkleRoot[:],
 				Producer_ID: valBytes,
 				Signature:   nil,
 			},
@@ -256,7 +256,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 
 func (h *TestHarness) generateBlockWithTransactions(txs []*transactions.Transaction) (*blocks.Block, error) {
 	bestID, bestHeight, _ := h.chain.BestBlock()
-	merkles := blockchain.BuildMerkleTreeStore(txs)
+	merkleRoot := blockchain.TransactionsMerkleRoot(txs)
 
 	h.timeSource++
 
@@ -279,7 +279,7 @@ func (h *TestHarness) generateBlockWithTransactions(txs []*transactions.Transact
 			Height:      bestHeight + 1,
 			Parent:      bestID.Bytes(),
 			Timestamp:   h.timeSource,
-			TxRoot:      merkles[len(merkles)-1],
+			TxRoot:      merkleRoot[:],
 			Producer_ID: valBytes,
 			Signature:   nil,
 		},
@@ -524,8 +524,8 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	}
 
 	// And create the genesis merkle root
-	merkles := blockchain.BuildMerkleTreeStore(genesis.Transactions)
-	genesis.Header.TxRoot = merkles[len(merkles)-1]
+	merkleRoot := blockchain.TransactionsMerkleRoot(genesis.Transactions)
+	genesis.Header.TxRoot = merkleRoot[:]
 	genesis.Header.Timestamp = time.Now().Add(-time.Hour * 24 * 365 * 10).Unix()
 
 	spendableNote := &SpendableNote{

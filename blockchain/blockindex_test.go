@@ -73,8 +73,8 @@ func randomBlock(header *blocks.BlockHeader, nTxs int) *blocks.Block {
 			Fee: 10,
 		})
 	}
-	merkles := BuildMerkleTreeStore(txs)
-	header.TxRoot = merkles[len(merkles)-1]
+	merkleRoot := TransactionsMerkleRoot(txs)
+	header.TxRoot = merkleRoot[:]
 	return &blocks.Block{
 		Header:       header,
 		Transactions: txs,

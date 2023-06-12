@@ -173,8 +173,8 @@ func TestCalculateNextValidatorReward(t *testing.T) {
 }
 
 func finalizeAndSignBlock(blk *blocks.Block, privKey crypto.PrivKey) error {
-	merkles := BuildMerkleTreeStore(blk.Transactions)
-	blk.Header.TxRoot = merkles[len(merkles)-1]
+	merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+	blk.Header.TxRoot = merkleRoot[:]
 
 	id, err := peer.IDFromPrivateKey(privKey)
 	if err != nil {

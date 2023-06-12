@@ -250,6 +250,10 @@ func (s *GrpcServer) GetMerkleProof(ctx context.Context, req *pb.GetMerkleProofR
 	if s.txIndex == nil {
 		return nil, status.Error(codes.Unavailable, "tx index is not available")
 	}
+	tx, err := s.txIndex.GetTransaction(s.ds, types.NewID(req.Transaction_ID))
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
 	blockID, err := s.txIndex.GetContainingBlockID(s.ds, types.NewID(req.Transaction_ID))
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
@@ -264,8 +268,17 @@ func (s *GrpcServer) GetMerkleProof(ctx context.Context, req *pb.GetMerkleProofR
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	merkles := blockchain.BuildMerkleTreeStore(blk.Transactions)
-	hashes, flags := blockchain.MerkleInclusionProof(merkles, types.NewID(req.Transaction_ID))
+	uids := make([]types.ID, len(blk.Transactions))
+	wids := make([]types.ID, len(blk.Transactions))
+	for i, tx := range blk.Transactions {
+		uids[i] = tx.UID()
+		wids[i] = tx.WID()
+	}
+
+	uMerkles := blockchain.BuildMerkleTreeStore(uids)
+	wMerkles := blockchain.BuildMerkleTreeStore(wids)
+	uhashes, flags := blockchain.MerkleInclusionProof(uMerkles, tx.UID())
+	whashes, flags := blockchain.MerkleInclusionProof(wMerkles, tx.WID())
 	resp := &pb.GetMerkleProofResponse{
 		Block: &pb.BlockInfo{
 			Block_ID:    id[:],
@@ -279,8 +292,9 @@ func (s *GrpcServer) GetMerkleProof(ctx context.Context, req *pb.GetMerkleProofR
 			Size:        uint32(size),
 			NumTxs:      uint32(len(blk.Transactions)),
 		},
-		Hashes: hashes,
-		Flags:  flags,
+		Uhashes: uhashes,
+		Whashes: whashes,
+		Flags:   flags,
 	}
 	child, err := s.chain.GetHeaderByHeight(blk.Header.Height + 1)
 	if err == nil {

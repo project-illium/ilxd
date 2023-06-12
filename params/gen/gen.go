@@ -57,54 +57,55 @@ func main() {
 		log.Fatal(err)
 	}
 
-	/*
-		kc, _ := walletlib.NewKeychain(mock.NewMapDatastore(), &params2.RegestParams, params2.RegtestMnemonicSeed)
+	/*kc, _ := walletlib.NewKeychain(mock.NewMapDatastore(), &params2.RegestParams, params2.RegtestMnemonicSeed)
 
-		networkKey, _ := kc.NetworkKey()
-		sk, _ := crypto.MarshalPrivateKey(networkKey)
+	networkKey, _ := kc.NetworkKey()
+	sk, _ := crypto.MarshalPrivateKey(networkKey)
+	params.ValidatorKey = hex.EncodeToString(sk)
+
+	keys, _ := kc.PrivateKeys()
+	var ul types.UnlockingScript
+	var sh types.ID
+	var vieKey crypto.PubKey
+	for k := range keys {
+		spendKey := k.SpendKey()
+		vieKey = k.ViewKey().GetPublic()
+		sk2, _ := crypto.MarshalPublicKey(vieKey)
+
+		params.CoinbaseUnlockingScript.ScriptCommitment = hex.EncodeToString(walletlib.MockBasicUnlockScriptCommitment)
+		params.ViewKey = hex.EncodeToString(sk2)
 		params.ValidatorKey = hex.EncodeToString(sk)
 
-		keys, _ := kc.PrivateKeys()
-		var ul types.UnlockingScript
-		var sh types.ID
-		var vieKey crypto.PubKey
-		for k := range keys {
-			spendKey := k.SpendKey()
-			vieKey = k.ViewKey().GetPublic()
-			sk2, _ := crypto.MarshalPublicKey(vieKey)
+		raw, _ := spendKey.GetPublic().Raw()
+		params.CoinbaseUnlockingScript.ScriptParams = []string{hex.EncodeToString(raw)}
 
-			params.CoinbaseUnlockingScript.ScriptCommitment = hex.EncodeToString(walletlib.MockBasicUnlockScriptCommitment)
-			params.ViewKey = hex.EncodeToString(sk2)
-			params.ValidatorKey = hex.EncodeToString(sk)
-
-			raw, _ := spendKey.GetPublic().Raw()
-			params.CoinbaseUnlockingScript.ScriptParams = []string{hex.EncodeToString(raw)}
-
-			ul = types.UnlockingScript{
-				ScriptCommitment: walletlib.MockBasicUnlockScriptCommitment,
-				ScriptParams:     [][]byte{raw},
-			}
-			sh = ul.Hash()
-			params.CoinbaseNote.ScriptHash = hex.EncodeToString(sh[:])
+		ul = types.UnlockingScript{
+			ScriptCommitment: walletlib.MockBasicUnlockScriptCommitment,
+			ScriptParams:     [][]byte{raw},
 		}
+		sh = ul.Hash()
+		params.CoinbaseNote.ScriptHash = hex.EncodeToString(sh[:])
+	}
 
-		note2 := types.SpendNote{
-			ScriptHash: sh[:],
-			Amount:     115292150460684697,
-			AssetID:    types.IlliumCoinID,
-			State:      [128]byte{},
-		}
-		salt2, _ := hex.DecodeString("d9348297fbcc1a2aa1591701b6a749d253789b5ef97ef576b8b931a3093e07f9")
-		copy(note2.Salt[:], salt2)
+	note2 := types.SpendNote{
+		ScriptHash: sh[:],
+		Amount:     115292150460684697,
+		AssetID:    types.IlliumCoinID,
+		State:      [128]byte{},
+	}
+	salt2, _ := hex.DecodeString("d9348297fbcc1a2aa1591701b6a749d253789b5ef97ef576b8b931a3093e07f9")
+	copy(note2.Salt[:], salt2)
 
-		ct, _ := vieKey.(*ilxcrypto.Curve25519PublicKey).Encrypt(note2.Serialize())
+	commitment2, _ := note2.Commitment()
 
-		params.AdditionalCoinbaseOutputs = []transactions.Output{
-			{
-				Commitment: com[:],
-				Ciphertext: ct,
-			},
-		}
+	ct, _ := vieKey.(*ilxcrypto.Curve25519PublicKey).Encrypt(note2.Serialize())
+
+	params.AdditionalCoinbaseOutputs = []transactions.Output{
+		{
+			Commitment: commitment2[:],
+			Ciphertext: ct,
+		},
+	}
 	*/
 
 	blk := &blocks.Block{
@@ -266,8 +267,8 @@ func main() {
 	}
 	blk.Transactions[1].GetStakeTransaction().Signature = sig
 
-	merkles := blockchain.BuildMerkleTreeStore(blk.Transactions)
-	blk.Header.TxRoot = merkles[len(merkles)-1]
+	merkleRoot := blockchain.TransactionsMerkleRoot(blk.Transactions)
+	blk.Header.TxRoot = merkleRoot[:]
 
 	out, err := json.MarshalIndent(blk, "", "    ")
 	if err != nil {

@@ -383,8 +383,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -411,8 +411,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -439,8 +439,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -477,8 +477,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -515,8 +515,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -543,8 +543,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -571,8 +571,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -595,8 +595,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -620,8 +620,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header.Timestamp = time.Now().Add(ValidatorExpiration - RestakePeriod + time.Second).Unix()
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
@@ -646,8 +646,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header.Timestamp = time.Now().Add(ValidatorExpiration - RestakePeriod - time.Second*2).Unix()
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
@@ -671,8 +671,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -705,8 +705,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -738,8 +738,8 @@ func TestValidateBlock(t *testing.T) {
 				keyHash := hash.HashFunc(blk.Transactions[0].GetMintTransaction().MintKey)
 				blk.Transactions[0].GetMintTransaction().Asset_ID = keyHash
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -772,8 +772,8 @@ func TestValidateBlock(t *testing.T) {
 				keyHash := hash.HashFunc(blk.Transactions[0].GetMintTransaction().MintKey)
 				blk.Transactions[0].GetMintTransaction().Asset_ID = keyHash
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -822,8 +822,8 @@ func TestValidateBlock(t *testing.T) {
 				keyHash2 := hash.HashFunc(blk.Transactions[1].GetMintTransaction().MintKey)
 				blk.Transactions[1].GetMintTransaction().Asset_ID = keyHash2
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -856,8 +856,8 @@ func TestValidateBlock(t *testing.T) {
 				keyHash := hash.HashFunc(blk.Transactions[0].GetMintTransaction().MintKey)
 				blk.Transactions[0].GetMintTransaction().Asset_ID = keyHash
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -888,8 +888,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -916,8 +916,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -944,8 +944,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -972,8 +972,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -1010,8 +1010,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -1038,8 +1038,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -1066,8 +1066,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -1094,8 +1094,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -1132,8 +1132,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -1166,8 +1166,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -1201,8 +1201,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -1235,8 +1235,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -1263,8 +1263,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err
@@ -1297,8 +1297,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 				}
 
-				merkles := BuildMerkleTreeStore(blk.Transactions)
-				header.TxRoot = merkles[len(merkles)-1]
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
 				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
 				if err != nil {
 					return nil, err

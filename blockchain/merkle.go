@@ -12,6 +12,34 @@ import (
 	"math"
 )
 
+// TransactionsMerkleRoot returns the merkle root for the transactions in a block.
+// It is the root of two separate merkle trees - The UID tree and WID tree.
+//
+//	              root = h(uid_root + wid_root)
+//		        /                           \
+//		  uid_root                        wid_root
+//
+// A UID is the hash of each transaction with the transaction's proof set to nil.
+// A WID is the hash of the transactions' proof.
+//
+// By committing the transaction in two separate pieces it makes it possible to
+// build nodes that only download the transaction without the proof and validate
+// an aggregate proof later, while still ensuring the full transaction data is
+// committed.
+func TransactionsMerkleRoot(txs []*transactions.Transaction) types.ID {
+	uids := make([]types.ID, len(txs))
+	wids := make([]types.ID, len(txs))
+	for i, tx := range txs {
+		uids[i] = tx.UID().Clone()
+		wids[i] = tx.WID().Clone()
+	}
+	left := BuildMerkleTreeStore(uids)
+	right := BuildMerkleTreeStore(wids)
+
+	root := hash.HashMerkleBranches(left[len(left)-1], right[len(right)-1])
+	return types.NewID(root)
+}
+
 // nextPowerOfTwo returns the next highest power of two from a given number if
 // it is not already a power of two.  This is a helper function used during the
 // calculation of a merkle tree.
@@ -26,15 +54,15 @@ func nextPowerOfTwo(n int) int {
 	return 1 << exponent // 2^exponent
 }
 
-// BuildMerkleTreeStore creates a merkle tree from a slice of transactions,
-// stores it using a linear array, and returns a slice of the backing array.  A
-// linear array was chosen as opposed to an actual tree structure since it uses
-// about half as much memory.  The following describes a merkle tree and how it
-// is stored in a linear array.
+// BuildMerkleTreeStore creates a merkle tree from a slice of data, stores it
+// using a linear array, and returns a slice of the backing array.  A linear array
+// was chosen as opposed to an actual tree structure since it uses about half as
+// much memory.  The following describes a merkle tree and how it is stored in a
+// linear array.
 //
 // A merkle tree is a tree in which every non-leaf node is the hash of its
-// children nodes.  A diagram depicting how this works for bitcoin transactions
-// where h(x) is a double sha256 follows:
+// children nodes.  A diagram depicting how this works for illium transactions
+// where h(x) is a hash function follows:
 //
 //	         root = h1234 = h(h12 + h34)
 //	        /                           \
@@ -54,17 +82,17 @@ func nextPowerOfTwo(n int) int {
 // are calculated by concatenating the left node with itself before hashing.
 // Since this function uses nodes that are pointers to the hashes, empty nodes
 // will be nil.
-func BuildMerkleTreeStore(txs []*transactions.Transaction) [][]byte {
+func BuildMerkleTreeStore(data []types.ID) [][]byte {
 	// Calculate how many entries are required to hold the binary merkle
 	// tree as a linear array and create an array of that size.
-	nextPoT := nextPowerOfTwo(len(txs))
+	nextPoT := nextPowerOfTwo(len(data))
 	arraySize := nextPoT*2 - 1
 	merkles := make([][]byte, arraySize)
 
 	// Create the base transactions hashes and populate the array with them.
-	for i, d := range txs {
-		txid := d.ID()
-		merkles[i] = txid[:]
+	for i, txid := range data {
+		merkles[i] = make([]byte, len(txid))
+		copy(merkles[i], txid[:])
 	}
 
 	// Start the array offset after the last transactions and adjusted to the
@@ -94,6 +122,8 @@ func BuildMerkleTreeStore(txs []*transactions.Transaction) [][]byte {
 	return merkles
 }
 
+// MerkleInclusionProof returns an inclusion proof which proves that the txid
+// in the given merkle tree store.
 func MerkleInclusionProof(merkleTreeStore [][]byte, txid types.ID) ([][]byte, uint32) {
 	nElements := (len(merkleTreeStore) + 1) / 2
 

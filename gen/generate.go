@@ -187,8 +187,8 @@ func (g *BlockGenerator) generateBlock() error {
 
 	sort.Sort(mempool.TxSorter(blk.Transactions))
 
-	merkles := blockchain.BuildMerkleTreeStore(blk.Transactions)
-	blk.Header.TxRoot = merkles[len(merkles)-1]
+	merkleRoot := blockchain.TransactionsMerkleRoot(blk.Transactions)
+	blk.Header.TxRoot = merkleRoot[:]
 
 	sigHash, err := blk.Header.SigHash()
 	if err != nil {
