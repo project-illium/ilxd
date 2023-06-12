@@ -30,11 +30,13 @@ func serializeValidator(v *Validator) ([]byte, error) {
 	}
 
 	for v, stake := range v.Nullifiers {
-		vProto.Nullifiers = append(vProto.Nullifiers, &pb.DBValidator_Nullifier{
-			Hash:       v[:],
+		n := &pb.DBValidator_Nullifier{
 			Amount:     uint64(stake.Amount),
 			Blockstamp: timestamppb.New(stake.Blockstamp),
-		})
+			Hash:       make([]byte, len(v)),
+		}
+		copy(n.Hash, v[:])
+		vProto.Nullifiers = append(vProto.Nullifiers, n)
 	}
 
 	return proto.Marshal(vProto)
@@ -94,31 +96,49 @@ func deserializeBlockNode(ser []byte) (*blockNode, error) {
 func serializeAccumulator(accumulator *Accumulator) ([]byte, error) {
 	proofs := make([]*pb.DBAccumulator_InclusionProof, 0, len(accumulator.proofs))
 	for id, p := range accumulator.proofs {
-		proofs = append(proofs, &pb.DBAccumulator_InclusionProof{
-			Key:    id.Bytes(),
-			Id:     p.ID.Bytes(),
+		proof := &pb.DBAccumulator_InclusionProof{
+			Key:    make([]byte, len(id.Bytes())),
+			Id:     make([]byte, len(p.ID.Bytes())),
 			Index:  p.Index,
-			Hashes: p.Hashes,
+			Hashes: make([][]byte, len(p.Hashes)),
 			Flags:  p.Flags,
 			Last:   p.last,
-		})
+		}
+		copy(proof.Key, id.Bytes())
+		copy(proof.Id, p.ID.Bytes())
+		for i := range p.Hashes {
+			proof.Hashes[i] = make([]byte, len(p.Hashes[i]))
+			copy(proof.Hashes[i], p.Hashes[i])
+		}
+		proofs = append(proofs, proof)
 	}
 	lookUpMap := make([]*pb.DBAccumulator_InclusionProof, 0, len(accumulator.lookupMap))
 	for id, p := range accumulator.lookupMap {
-		lookUpMap = append(lookUpMap, &pb.DBAccumulator_InclusionProof{
-			Key:    id.Bytes(),
-			Id:     p.ID.Bytes(),
+		proof := &pb.DBAccumulator_InclusionProof{
+			Key:    make([]byte, len(id.Bytes())),
+			Id:     make([]byte, len(p.ID.Bytes())),
 			Index:  p.Index,
-			Hashes: p.Hashes,
+			Hashes: make([][]byte, len(p.Hashes)),
 			Flags:  p.Flags,
 			Last:   p.last,
-		})
+		}
+		copy(proof.Key, id.Bytes())
+		copy(proof.Id, p.ID.Bytes())
+		for i := range p.Hashes {
+			proof.Hashes[i] = make([]byte, len(p.Hashes[i]))
+			copy(proof.Hashes[i], p.Hashes[i])
+		}
+		lookUpMap = append(lookUpMap, proof)
 	}
 	dbAcc := &pb.DBAccumulator{
-		Accumulator: accumulator.acc,
+		Accumulator: make([][]byte, len(accumulator.acc)),
 		NElements:   accumulator.nElements,
 		Proofs:      proofs,
 		LookupMap:   lookUpMap,
+	}
+	for i := range accumulator.acc {
+		dbAcc.Accumulator[i] = make([]byte, len(accumulator.acc[i]))
+		copy(dbAcc.Accumulator[i], accumulator.acc[i])
 	}
 
 	return proto.Marshal(dbAcc)
@@ -130,10 +150,18 @@ func deserializeAccumulator(ser []byte) (*Accumulator, error) {
 		return nil, err
 	}
 	acc := &Accumulator{
-		acc:       dbAcc.Accumulator,
+		acc:       make([][]byte, len(dbAcc.Accumulator)),
 		nElements: dbAcc.NElements,
 		proofs:    make(map[types.ID]*InclusionProof),
 		lookupMap: make(map[types.ID]*InclusionProof),
+	}
+	for i := range dbAcc.Accumulator {
+		if len(dbAcc.Accumulator[i]) == 0 {
+			acc.acc[i] = nil
+		} else {
+			acc.acc[i] = make([]byte, len(dbAcc.Accumulator[i]))
+			copy(acc.acc[i], dbAcc.Accumulator[i])
+		}
 	}
 	for _, entry := range dbAcc.Proofs {
 		acc.proofs[types.NewID(entry.Key)] = &InclusionProof{

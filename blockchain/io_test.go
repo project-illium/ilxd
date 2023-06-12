@@ -252,6 +252,8 @@ func TestPutFetchDeleteAccumulator(t *testing.T) {
 	acc := NewAccumulator()
 	id := randomID()
 	acc.Insert(id[:], true)
+	id = randomID()
+	acc.Insert(id[:], true)
 	assert.NoError(t, dsPutAccumulator(dbtx, acc))
 	assert.NoError(t, dbtx.Commit(context.Background()))
 
@@ -259,6 +261,16 @@ func TestPutFetchDeleteAccumulator(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Empty(t, deep.Equal(acc, acc2))
+	assert.Equal(t, acc.Root(), acc2.Root())
+
+	for k, v := range acc2.proofs {
+		assert.Equal(t, v, acc.proofs[k])
+	}
+	for k, v := range acc2.lookupMap {
+		assert.Equal(t, v, acc.lookupMap[k])
+	}
+	assert.Len(t, acc2.proofs, len(acc.proofs))
+	assert.Len(t, acc2.lookupMap, len(acc.lookupMap))
 
 	assert.NoError(t, dsPutAccumulatorCheckpoint(dbtx, 50000, acc))
 	assert.NoError(t, dbtx.Commit(context.Background()))
@@ -267,6 +279,16 @@ func TestPutFetchDeleteAccumulator(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Empty(t, deep.Equal(acc, acc2))
+	assert.Equal(t, acc.Root(), acc2.Root())
+
+	for k, v := range acc2.proofs {
+		assert.Equal(t, v, acc.proofs[k])
+	}
+	for k, v := range acc2.lookupMap {
+		assert.Equal(t, v, acc.lookupMap[k])
+	}
+	assert.Len(t, acc2.proofs, len(acc.proofs))
+	assert.Len(t, acc2.lookupMap, len(acc.lookupMap))
 
 	dbtx, err = ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)

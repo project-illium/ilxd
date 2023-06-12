@@ -734,10 +734,10 @@ func (s *Server) Close() error {
 	s.engine.Close()
 	s.mempool.Close()
 	s.wallet.Close()
-	if err := s.network.Close(); err != nil {
+	if err := s.blockchain.Close(); err != nil {
 		return err
 	}
-	if err := s.blockchain.Close(); err != nil {
+	if err := s.network.Close(); err != nil {
 		return err
 	}
 	if err := s.ds.Close(); err != nil {

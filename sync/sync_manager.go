@@ -133,7 +133,7 @@ syncLoop:
 			// All peers agree on the blockID at the requested height. This is good.
 			// We'll just sync up to this height.
 			for blockID, p := range blockMap {
-				err := sm.syncBlocks(p, height+1, height+lookaheadSize, bestID, blockID)
+				err := sm.syncBlocks(p, height+1, height+lookaheadSize, bestID, blockID, blockchain.BFNone)
 				if err != nil {
 					log.Debugf("Error syncing blocks. Peer: %s, Err: %s", p, err)
 				}
@@ -154,7 +154,7 @@ syncLoop:
 			// Step two is sync up to fork point.
 			if forkHeight > height {
 				for _, p := range blockMap {
-					err := sm.syncBlocks(p, height+1, forkHeight, bestID, forkBlock)
+					err := sm.syncBlocks(p, height+1, forkHeight, bestID, forkBlock, blockchain.BFNone)
 					if err != nil {
 						log.Debugf("Error syncing blocks. Peer: %s, Err: %s", p, err)
 						continue syncLoop
@@ -251,7 +251,7 @@ syncLoop:
 
 			// Finally sync to the best fork.
 			currentID, height, _ := sm.chain.BestBlock()
-			err = sm.syncBlocks(blockMap[bestID], height+1, syncTo[bestID].Header.Height, currentID, syncTo[bestID].ID())
+			err = sm.syncBlocks(blockMap[bestID], height+1, syncTo[bestID].Header.Height, currentID, syncTo[bestID].ID(), blockchain.BFNone)
 			if err != nil {
 				log.Debugf("Error syncing blocks. Peer: %s, Err: %s", blockMap[bestID], err)
 				continue syncLoop
@@ -487,7 +487,7 @@ func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) {
 				}
 			}
 			p := peers[rand.Intn(len(peers))]
-			err := sm.syncBlocks(p, startHeight, checkpoint.Height, parent, checkpoint.BlockID)
+			err := sm.syncBlocks(p, startHeight, checkpoint.Height, parent, checkpoint.BlockID, blockchain.BFFastAdd)
 			if err != nil {
 				log.Debugf("Error syncing checkpoints. Peer: %s, Err: %s", p, err)
 				continue
@@ -519,7 +519,7 @@ func (sm *SyncManager) downloadEvalWindow(p peer.ID, fromHeight uint32) ([]*bloc
 	return blks, nil
 }
 
-func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent, expectedID types.ID) error {
+func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent, expectedID types.ID, flags blockchain.BehaviorFlags) error {
 	headers, err := sm.downloadHeaders(p, fromHeight, toHeight)
 	if err != nil {
 		sm.network.IncreaseBanscore(p, 0, 20)
@@ -576,7 +576,7 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 		}
 		headerIdx += len(txs)
 		for _, blk := range blks {
-			if err := sm.chain.ConnectBlock(blk, blockchain.BFFastAdd); err != nil {
+			if err := sm.chain.ConnectBlock(blk, flags); err != nil {
 				return fmt.Errorf("error committing block from peer %s. Height: %d, Err: %s", p, blk.Header.Height, err)
 			}
 		}

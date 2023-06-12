@@ -77,7 +77,7 @@ func (s *SpendNote) Deserialize(ser []byte) error {
 	if len(ser) != ScriptHashLen+AmountLen+AssetIDLen+StateLen+SaltLen {
 		return errors.New("invalid serialization length")
 	}
-
+	s.ScriptHash = make([]byte, ScriptHashLen)
 	copy(s.ScriptHash, ser[:ScriptHashLen])
 	s.Amount = Amount(binary.BigEndian.Uint64(ser[ScriptHashLen : ScriptHashLen+AmountLen]))
 	copy(s.AssetID[:], ser[ScriptHashLen+AmountLen:ScriptHashLen+AmountLen+AssetIDLen])

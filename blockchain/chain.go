@@ -197,10 +197,12 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	}
 
 	accumulator := b.accumulatorDB.Accumulator()
+	startingRoot := accumulator.Root()
 	blockCointainsOutputs := false
 	treasuryWidthdrawl := types.Amount(0)
 	for _, tx := range blk.Transactions {
 		for _, out := range tx.Outputs() {
+			log.Infof("Put out: %s", types.NewID(out.Commitment))
 			accumulator.Insert(out.Commitment, false)
 			blockCointainsOutputs = true
 		}
@@ -231,6 +233,9 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		prevHeader, err := b.index.Tip().Header()
 		if err != nil {
 			return err
+		}
+		if b.params.Name == params.RegestParams.Name && prevHeader.Height == 0 {
+			prevHeader.Timestamp = time.Now().Unix()
 		}
 		prevEpoch := (prevHeader.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
 		blkEpoch := (blk.Header.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
@@ -264,7 +269,9 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	}
 	// Now that we know the disk updated correctly we can update the cache. Ideally this would
 	// be done in a commit hook, but that's a bigger change to the db interface.
-	b.txoRootSet.UpdateCache(accumulator.Root())
+	if blockCointainsOutputs {
+		b.txoRootSet.UpdateCache(accumulator.Root())
+	}
 
 	b.index.ExtendIndex(blk.Header)
 
@@ -280,6 +287,7 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		log.Errorf("Commit Block: Error flushing validator set: %s", err.Error())
 	}
 
+	log.Infof("Block %d: BlockID: %s, Outputs: %d, StartingAcc: %s, Acc: %s", blk.Header.Height, blk.ID(), len(blk.Outputs()), startingRoot, accumulator.Root())
 	if err := b.accumulatorDB.Commit(accumulator, blk.Header.Height, flushMode); err != nil {
 		log.Errorf("Commit Block: Error flushing accumulator: %s", err.Error())
 	}

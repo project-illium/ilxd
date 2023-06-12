@@ -240,16 +240,19 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 			return pubsub.ValidationReject
 		}
 		err := cfg.acceptToMempool(tx)
-		switch err.(type) {
+		switch e := err.(type) {
 		case mempool.PolicyError:
 			// Policy errors do no penalize peer
+			log.Debugf("Mempool reject tx %s. Policy error: %s:%s", tx.ID(), e.ErrorCode, e.Description)
 			return pubsub.ValidationIgnore
 		case blockchain.RuleError:
 			// Rule errors do
+			log.Debugf("Mempool reject tx %s. Rule error: %s:%s", tx.ID(), e.ErrorCode, e.Description)
 			return pubsub.ValidationReject
 		case nil:
 			return pubsub.ValidationAccept
 		default:
+			log.Debugf("Mempool reject tx %s. Unknown error: %s", tx.ID(), err)
 			return pubsub.ValidationIgnore
 		}
 	}))
@@ -265,16 +268,19 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 			return pubsub.ValidationReject
 		}
 		err := cfg.validateBlock(blk, p)
-		switch err.(type) {
+		switch e := err.(type) {
 		case blockchain.OrphanBlockError:
 			// Orphans we won't relay (yet) but won't penalize them either.
+			log.Debugf("Recieved orphan block: %s", blk.ID())
 			return pubsub.ValidationIgnore
 		case blockchain.RuleError:
 			// Rule errors do
+			log.Debugf("Block %s rule error: %s:%s", blk.ID(), e.ErrorCode, e.Description)
 			return pubsub.ValidationReject
 		case nil:
 			return pubsub.ValidationAccept
 		default:
+			log.Debugf("Block reject %s. Unknown error: %s", blk.ID(), err)
 			return pubsub.ValidationIgnore
 		}
 	}))
@@ -295,6 +301,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		for {
 			_, err := txSub.Next(context.Background())
 			if errors.Is(err, pubsub.ErrSubscriptionCancelled) {
+				log.Error("Pubsub canecel, tx")
 				return
 			}
 			if err != nil {
@@ -317,6 +324,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		for {
 			_, err := blockSub.Next(context.Background())
 			if errors.Is(err, pubsub.ErrSubscriptionCancelled) {
+				log.Error("Pubsub canecel, blk")
 				return
 			}
 			if err != nil {
