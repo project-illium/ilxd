@@ -110,6 +110,7 @@ syncLoop:
 		}
 		sm.currentMtx.RLock()
 		if sm.current {
+			sm.currentMtx.RUnlock()
 			return
 		}
 		sm.currentMtx.RUnlock()
@@ -280,11 +281,14 @@ func (sm *SyncManager) SetCurrent() {
 	sm.currentMtx.Lock()
 	defer sm.currentMtx.Unlock()
 
-	log.Info("Blockchain synced to tip")
+	if !sm.current {
+		log.Info("Blockchain synced to tip")
+	}
 	sm.current = true
 	if sm.callback != nil {
 		go sm.callback()
 	}
+
 }
 
 func (sm *SyncManager) bucketPeerDisconnected(_ inet.Network, conn inet.Conn) {

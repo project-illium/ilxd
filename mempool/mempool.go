@@ -364,6 +364,7 @@ func (m *Mempool) validationTransaction(tx *transactions.Transaction) error {
 		tx:         tx,
 		expiration: time.Now().Add(m.cfg.transactionTTL),
 	}
+	log.Debugf("Mempool: New transaction %s", tx.ID())
 	return nil
 }
 

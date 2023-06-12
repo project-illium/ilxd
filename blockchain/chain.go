@@ -234,7 +234,7 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		}
 		prevEpoch := (prevHeader.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
 		blkEpoch := (blk.Header.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
-		if blkEpoch > prevEpoch && prevHeader.Height != 0 {
+		if blkEpoch > prevEpoch {
 			coinbase := calculateNextCoinbaseDistribution(b.params, blkEpoch)
 			if err := dsIncrementCurrentSupply(dbtx, coinbase); err != nil {
 				return err

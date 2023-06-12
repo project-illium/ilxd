@@ -348,6 +348,9 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 	nullifiersToAdd := make(map[types.Nullifier]peer.ID)
 	nullifiersToDelete := make(map[types.Nullifier]struct{})
 	blockTime := time.Unix(blk.Header.Timestamp, 0)
+	if vs.params.Name == params.RegestParams.Name && blk.Header.Height == 0 {
+		blockTime = time.Now()
+	}
 
 	var (
 		producerID peer.ID

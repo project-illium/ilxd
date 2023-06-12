@@ -351,9 +351,9 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	_, height, _ := chain.BestBlock()
 	if height == 0 {
 		if chain.Validators()[0].PeerID == network.Host().ID() {
+			s.syncManager.SetCurrent()
 			generator.Start()
 		}
-		s.syncManager.SetCurrent()
 	}
 
 	return &s, nil

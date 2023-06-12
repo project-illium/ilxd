@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/event"
@@ -51,6 +52,8 @@ type Network struct {
 	pubsub      *pubsub.PubSub
 	txTopic     *pubsub.Topic
 	blockTopic  *pubsub.Topic
+	txSub       *pubsub.Subscription
+	blkSub      *pubsub.Subscription
 }
 
 func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
@@ -284,10 +287,44 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		return nil, err
 	}
 
+	txSub, err := txTopic.Subscribe()
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		for {
+			_, err := txSub.Next(context.Background())
+			if errors.Is(err, pubsub.ErrSubscriptionCancelled) {
+				return
+			}
+			if err != nil {
+				log.Errorf("Pubsub: tx subscription error: %s", err)
+				continue
+			}
+		}
+	}()
+
 	blockTopic, err := ps.Join(BlockTopic)
 	if err != nil {
 		return nil, err
 	}
+
+	blockSub, err := blockTopic.Subscribe()
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		for {
+			_, err := blockSub.Next(context.Background())
+			if errors.Is(err, pubsub.ErrSubscriptionCancelled) {
+				return
+			}
+			if err != nil {
+				log.Errorf("Pubsub: block subscription error: %s", err)
+				continue
+			}
+		}
+	}()
 
 	net := &Network{
 		host:        host,
@@ -297,10 +334,12 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		pubsub:      ps,
 		txTopic:     txTopic,
 		blockTopic:  blockTopic,
+		txSub:       txSub,
+		blkSub:      blockSub,
 	}
 
 	connected := func(_ inet.Network, conn inet.Conn) {
-		log.Debugf("Connect to peer %s", conn.RemotePeer().String())
+		log.Debugf("Connected to peer %s", conn.RemotePeer().String())
 	}
 	disconnected := func(_ inet.Network, conn inet.Conn) {
 		log.Debugf("Disconnect from peer %s", conn.RemotePeer().String())
@@ -345,6 +384,8 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 }
 
 func (n *Network) Close() error {
+	n.txSub.Cancel()
+	n.blkSub.Cancel()
 	if err := n.host.Close(); err != nil {
 		return err
 	}
