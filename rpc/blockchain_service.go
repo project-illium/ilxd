@@ -86,6 +86,11 @@ func (s *GrpcServer) GetBlockchainInfo(ctx context.Context, req *pb.GetBlockchai
 	}
 	totalStaked := s.chain.TotalStaked()
 
+	treasuryBal, err := s.chain.TreasuryBalance()
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	return &pb.GetBlockchainInfoResponse{
 		Network:          nt,
 		BestHeight:       height,
@@ -94,6 +99,7 @@ func (s *GrpcServer) GetBlockchainInfo(ctx context.Context, req *pb.GetBlockchai
 		TxIndex:          s.txIndex != nil,
 		CiculatingSupply: uint64(currentSupply),
 		TotalStaked:      uint64(totalStaked),
+		TreasuryBalance:  uint64(treasuryBal),
 	}, nil
 }
 
