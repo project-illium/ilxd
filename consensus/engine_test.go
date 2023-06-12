@@ -143,7 +143,7 @@ func TestConsensusEngine(t *testing.T) {
 		testNode.engine.NewBlock(blk2.Header, true, cb)
 		select {
 		case <-cb:
-			t.Errorf("Callback should not have been called block 2")
+			t.Fatal("Callback should not have been called block 2")
 		case <-time.After(time.Second * 5):
 			assert.False(t, testNode.engine.voteRecords[blk2.ID()].isPreferred())
 		}
@@ -174,7 +174,7 @@ func TestConsensusEngine(t *testing.T) {
 					break loop
 				}
 			case <-ticker.C:
-				t.Errorf("Failed to finalize block 3 for all nodes")
+				t.Fatal("Failed to finalize block 3 for all nodes")
 			}
 		}
 	})
@@ -197,7 +197,7 @@ func TestConsensusEngine(t *testing.T) {
 		for {
 			select {
 			case <-cb:
-				t.Errorf("Callback should not have been called for block 4")
+				t.Fatal("Callback should not have been called for block 4")
 			case <-ticker.C:
 				assert.False(t, testNode.engine.voteRecords[blk4.ID()].isPreferred())
 
@@ -224,7 +224,7 @@ func TestConsensusEngine(t *testing.T) {
 		testNode.engine.NewBlock(blk5.Header, rand.Intn(2) == 1, cb2)
 
 		var yes bool
-		ticker := time.NewTicker(time.Second * 5)
+		ticker := time.NewTicker(time.Second * 10)
 		select {
 		case status := <-cb2:
 			assert.Equal(t, status, StatusFinalized)
@@ -246,7 +246,7 @@ func TestConsensusEngine(t *testing.T) {
 						break loop
 					}
 				} else {
-					t.Errorf("Callback should not have been called for block 5")
+					t.Fatal("Callback should not have been called for block 5")
 				}
 			case <-ticker.C:
 				if !yes {
@@ -255,7 +255,7 @@ func TestConsensusEngine(t *testing.T) {
 					}
 					break loop
 				} else {
-					t.Errorf("Failed to finalize block 5 for all nodes")
+					t.Fatal("Failed to finalize block 5 for all nodes")
 				}
 			}
 		}

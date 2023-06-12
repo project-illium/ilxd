@@ -113,6 +113,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	dhtOpts := []dht.Option{
 		dht.DisableValues(),
 		dht.ProtocolPrefix(cfg.params.ProtocolPrefix),
+		dht.BootstrapPeers(seedAddrs...),
 	}
 
 	peerSource := func(ctx context.Context, numPeers int) <-chan peer.AddrInfo {
@@ -234,6 +235,16 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		return nil, err
 	}
 
+	txTopic, err := ps.Join(TransactionsTopic)
+	if err != nil {
+		return nil, err
+	}
+
+	blockTopic, err := ps.Join(BlockTopic)
+	if err != nil {
+		return nil, err
+	}
+
 	err = ps.RegisterTopicValidator(TransactionsTopic, pubsub.ValidatorEx(func(ctx context.Context, p peer.ID, m *pubsub.Message) pubsub.ValidationResult {
 		tx := &transactions.Transaction{}
 		if err := tx.Deserialize(m.Data); err != nil {
@@ -288,11 +299,6 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		return nil, err
 	}
 
-	txTopic, err := ps.Join(TransactionsTopic)
-	if err != nil {
-		return nil, err
-	}
-
 	txSub, err := txTopic.Subscribe()
 	if err != nil {
 		return nil, err
@@ -310,11 +316,6 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 			}
 		}
 	}()
-
-	blockTopic, err := ps.Join(BlockTopic)
-	if err != nil {
-		return nil, err
-	}
 
 	blockSub, err := blockTopic.Subscribe()
 	if err != nil {

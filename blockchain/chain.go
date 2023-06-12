@@ -197,12 +197,10 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	}
 
 	accumulator := b.accumulatorDB.Accumulator()
-	startingRoot := accumulator.Root()
 	blockCointainsOutputs := false
 	treasuryWidthdrawl := types.Amount(0)
 	for _, tx := range blk.Transactions {
 		for _, out := range tx.Outputs() {
-			log.Infof("Put out: %s", types.NewID(out.Commitment))
 			accumulator.Insert(out.Commitment, false)
 			blockCointainsOutputs = true
 		}
@@ -287,7 +285,6 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		log.Errorf("Commit Block: Error flushing validator set: %s", err.Error())
 	}
 
-	log.Infof("Block %d: BlockID: %s, Outputs: %d, StartingAcc: %s, Acc: %s", blk.Header.Height, blk.ID(), len(blk.Outputs()), startingRoot, accumulator.Root())
 	if err := b.accumulatorDB.Commit(accumulator, blk.Header.Height, flushMode); err != nil {
 		log.Errorf("Commit Block: Error flushing accumulator: %s", err.Error())
 	}

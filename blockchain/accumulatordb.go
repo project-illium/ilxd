@@ -167,7 +167,6 @@ func (adb *AccumulatorDB) flush(mode flushMode, acc *Accumulator, chainHeight ui
 }
 
 func (adb *AccumulatorDB) flushToDisk(acc *Accumulator, chainHeight uint32) error {
-	log.Debugf("Flushing accumulator to disk: %s", acc.Root())
 	if err := dsPutAccumulatorConsistencyStatus(adb.ds, scsFlushOngoing); err != nil {
 		return err
 	}
