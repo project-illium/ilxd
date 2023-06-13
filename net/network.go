@@ -59,7 +59,9 @@ type Network struct {
 func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	var cfg config
 	for _, opt := range opts {
-		opt(&cfg)
+		if err := opt(&cfg); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -466,6 +468,6 @@ func (n *Network) IncreaseBanscore(p peer.ID, persistent, transient uint32) {
 		log.Errorf("Error setting banscore for peer %: %s", p, err)
 	}
 	if banned {
-		n.host.Network().ClosePeer(p)
+		n.host.Network().ClosePeer(p) //nolint:errcheck
 	}
 }

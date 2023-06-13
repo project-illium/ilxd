@@ -213,6 +213,6 @@ func (s *GrpcServer) ReconsiderBlock(ctx context.Context, req *pb.ReconsiderBloc
 // RecomputeChainState deletes the accumulator, validator set, and nullifier set and rebuilds them by
 // loading and re-processing all blocks from genesis.
 func (s *GrpcServer) RecomputeChainState(ctx context.Context, req *pb.RecomputeChainStateRequest) (*pb.RecomputeChainStateResponse, error) {
-	go s.reindexChainFunc()
+	go s.reindexChainFunc() //nolint:errcheck
 	return &pb.RecomputeChainStateResponse{}, nil
 }

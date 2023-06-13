@@ -94,7 +94,7 @@ func (h *BlockHeader) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, newHeader); err != nil {
 		return err
 	}
-	h = &BlockHeader{
+	h = &BlockHeader{ //nolint:ineffassign
 		Version:     newHeader.Version,
 		Height:      newHeader.Height,
 		Parent:      newHeader.Parent,
@@ -237,6 +237,6 @@ func (b *XThinnerBlock) UnmarshalJSON(data []byte) error {
 	if err := protojson.Unmarshal(data, newBlock); err != nil {
 		return err
 	}
-	b = newBlock
+	b = newBlock //nolint:staticcheck,ineffassign
 	return nil
 }

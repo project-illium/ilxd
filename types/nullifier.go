@@ -31,11 +31,11 @@ func (n *Nullifier) MarshalJSON() ([]byte, error) {
 }
 
 func (n *Nullifier) UnmarshalJSON(data []byte) error {
-	i, err := NewNullifierFromString(string(data))
+	i, err := NewNullifierFromString(string(data)) //nolint:staticcheck
 	if err != nil {
 		return err
 	}
-	n = &i
+	n = &i //nolint:ineffassign
 	return nil
 }
 

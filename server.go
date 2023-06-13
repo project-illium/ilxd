@@ -83,7 +83,7 @@ type Server struct {
 // BuildServer is the constructor for the server. We pass in the config file here
 // and use it to configure all the various parts of the Server.
 func BuildServer(config *repo.Config) (*Server, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background()) //nolint:govet
 
 	s := Server{ready: make(chan struct{})}
 	defer close(s.ready)

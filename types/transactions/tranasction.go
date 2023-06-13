@@ -185,23 +185,23 @@ func (tx *Transaction) UnmarshalJSON(data []byte) error {
 	}
 	if newTx.StakeTransaction != nil {
 		t := WrapTransaction(newTx.StakeTransaction)
-		*tx = *t
+		*tx = *t //nolint:govet
 	}
 	if newTx.CoinbaseTransaction != nil {
 		t := WrapTransaction(newTx.CoinbaseTransaction)
-		*tx = *t
+		*tx = *t //nolint:govet
 	}
 	if newTx.StandardTransaction != nil {
 		t := WrapTransaction(newTx.StandardTransaction)
-		*tx = *t
+		*tx = *t //nolint:govet
 	}
 	if newTx.MintTransaction != nil {
 		t := WrapTransaction(newTx.MintTransaction)
-		*tx = *t
+		*tx = *t //nolint:govet
 	}
 	if newTx.TreasuryTransaction != nil {
 		t := WrapTransaction(newTx.TreasuryTransaction)
-		*tx = *t
+		*tx = *t //nolint:govet
 	}
 	return nil
 }

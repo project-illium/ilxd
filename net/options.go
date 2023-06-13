@@ -131,7 +131,7 @@ type config struct {
 
 func (cfg *config) validate() error {
 	if cfg == nil {
-		fmt.Errorf("%w: config is nil", ErrNetworkConfig)
+		return fmt.Errorf("%w: config is nil", ErrNetworkConfig)
 	}
 	if cfg.params == nil {
 		return fmt.Errorf("%w: params is nil", ErrNetworkConfig)

@@ -95,11 +95,7 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 		nullifierPreimage = append(nullifierPreimage, param...)
 	}
 	calculatedNullifier := hash.HashFunc(nullifierPreimage)
-	if !bytes.Equal(calculatedNullifier, pub.Nullifier) {
-		return false
-	}
-
-	return true
+	return bytes.Equal(calculatedNullifier, pub.Nullifier)
 }
 
 // ValidateUnlockingScript is a placeholder. Normally this would be part of the overall circuit to validate

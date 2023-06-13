@@ -120,7 +120,9 @@ type ConsensusEngine struct {
 func NewConsensusEngine(ctx context.Context, opts ...Option) (*ConsensusEngine, error) {
 	var cfg config
 	for _, opt := range opts {
-		opt(&cfg)
+		if err := opt(&cfg); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := cfg.validate(); err != nil {

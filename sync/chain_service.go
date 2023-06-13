@@ -400,10 +400,11 @@ func (cs *ChainService) GetBlockTxsStream(p peer.ID, startHeight uint32) (<-chan
 		reader := msgio.NewVarintReaderSize(s, 1<<23)
 		for {
 			txs := new(blocks.BlockTxs)
-			ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			if err := net.ReadMsg(ctx, reader, txs); err != nil {
 				close(ch)
 				s.Close()
+				cancel()
 				return
 			}
 			ch <- txs

@@ -30,12 +30,7 @@ jobs:
           # working-directory: somedir
 
           # Optional: golangci-lint command line arguments.
-          args: --exclude='Error return value of `rand.Read` is not checked'
-                --exclude='Error return value of `crand.Read` is not checked'
-                --exclude='const `scsNbCodes` is unused'
-                --exclude='Error return value of `s.Reset` is not checked'
-                --exclude='func `(*Curve25519PrivateKey).privKeyBytes` is unused'
-
+          #args: --issues-exit-code=0
 
           # Optional: show only new issues if it's a pull request. The default value is `false`.
           # only-new-issues: true

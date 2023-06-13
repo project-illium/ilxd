@@ -123,6 +123,7 @@ func TestBlockchain(t *testing.T) {
 	assert.NoError(t, b.ConnectBlock(blk2, BFNone))
 
 	dbtx, err = b.ds.NewTransaction(context.Background(), true)
+	assert.NoError(t, err)
 	supply, err := dsFetchCurrentSupply(dbtx)
 	assert.NoError(t, err)
 	assert.Greater(t, supply, params.RegestParams.GenesisBlock.Transactions[0].GetCoinbaseTransaction().NewCoins)

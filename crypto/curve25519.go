@@ -110,6 +110,7 @@ func (k *Curve25519PrivateKey) pubKeyBytes() []byte {
 	return k.k[Curve25519PrivateKeySize:]
 }
 
+// nolint:unused
 func (k *Curve25519PrivateKey) privKeyBytes() []byte {
 	return k.k[:Curve25519PrivateKeySize]
 }

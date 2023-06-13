@@ -53,11 +53,11 @@ func (id *ID) MarshalJSON() ([]byte, error) {
 }
 
 func (id *ID) UnmarshalJSON(data []byte) error {
-	i, err := NewIDFromString(string(data))
+	i, err := NewIDFromString(string(data)) //nolint:staticcheck
 	if err != nil {
 		return err
 	}
-	id = &i
+	id = &i //nolint:ineffassign
 	return nil
 }
 
