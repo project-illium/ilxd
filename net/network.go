@@ -66,9 +66,17 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		return nil, err
 	}
 
-	self, err := peer.IDFromPrivateKey(cfg.privateKey)
-	if err != nil {
-		return nil, err
+	var (
+		self peer.ID
+		err  error
+	)
+	if cfg.host == nil {
+		self, err = peer.IDFromPrivateKey(cfg.privateKey)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		self = cfg.host.ID()
 	}
 
 	seedAddrs := make([]peer.AddrInfo, 0, len(cfg.seedAddrs))
