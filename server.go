@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/ipfs/go-datastore"
 	badger "github.com/ipfs/go-ds-badger"
+	golog "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
@@ -91,6 +92,10 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	zapLevel, err := setupLogging(config.LogDir, config.LogLevel, config.Testnet)
 	if err != nil {
 		return nil, err
+	}
+
+	if config.EnableDebugLogging {
+		golog.SetDebugLogging()
 	}
 
 	// Policy

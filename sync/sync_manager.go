@@ -187,7 +187,7 @@ syncLoop:
 				// Step four is to compute the chain score for each side of the fork.
 				score, err := sm.chain.CalcChainScore(blks)
 				if err != nil {
-					log.Debugf("Sync peer failed to served invalid evaluation window. Banning. Peer: %s", p)
+					log.Debugf("Sync peer failed to serve valid evaluation window. Banning. Peer: %s", p)
 					sm.network.IncreaseBanscore(p, 101, 0)
 					continue syncLoop
 				}

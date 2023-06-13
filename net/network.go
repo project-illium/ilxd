@@ -66,6 +66,11 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		return nil, err
 	}
 
+	self, err := peer.IDFromPrivateKey(cfg.privateKey)
+	if err != nil {
+		return nil, err
+	}
+
 	seedAddrs := make([]peer.AddrInfo, 0, len(cfg.seedAddrs))
 	for _, addr := range cfg.seedAddrs {
 		ma, err := multiaddr.NewMultiaddr(addr)
@@ -77,6 +82,9 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		if err != nil {
 			return nil, err
 		}
+		if pi.ID == self {
+			continue
+		}
 		seedAddrs = append(seedAddrs, *pi)
 	}
 
@@ -84,9 +92,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		idht   *dht.IpfsDHT
 		pstore peerstore.Peerstore
 		cmgr   coreconmgr.ConnManager
-		err    error
 	)
-
 	cmgr, err = connmgr.NewConnManager(
 		100, // Lowwater
 		400, // HighWater,
@@ -103,6 +109,20 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		}
 	} else {
 		pstore = cfg.host.Peerstore()
+	}
+
+loop:
+	for i, pid := range pstore.Peers() {
+		pi := pstore.PeerInfo(pid)
+		for _, s := range seedAddrs {
+			if pi.ID == s.ID {
+				continue loop
+			}
+		}
+		seedAddrs = append(seedAddrs, pi)
+		if i > 50 {
+			break
+		}
 	}
 
 	conngater, err := NewConnectionGater(cfg.datastore, pstore, cfg.banDuration, cfg.maxBanscore)
@@ -195,25 +215,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		}
 	}
 
-	for i, pid := range pstore.Peers() {
-		pi := pstore.PeerInfo(pid)
-		host.Connect(ctx, pi)
-		if i > 50 {
-			break
-		}
-	}
-
-	// The last step to get fully up and running would be to connect to
-	// seed peers (or any other peers). We leave this commented as
-	// this is an example and the peer will die as soon as it finishes, so
-	// it is unnecessary to put strain on the network.
-	for _, addr := range seedAddrs {
-		if err := host.Connect(ctx, addr); err != nil {
-			log.Errorf("Error connecting to seed: %s", err)
-		}
-	}
-
-	// create a new PubSub service using the GossipSub router
+	// Create a new PubSub service using the GossipSub router
 	ps, err := pubsub.NewGossipSub(
 		ctx,
 		host,
@@ -231,16 +233,6 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 			return false
 		}),
 	)
-	if err != nil {
-		return nil, err
-	}
-
-	txTopic, err := ps.Join(TransactionsTopic)
-	if err != nil {
-		return nil, err
-	}
-
-	blockTopic, err := ps.Join(BlockTopic)
 	if err != nil {
 		return nil, err
 	}
@@ -295,6 +287,16 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 			return pubsub.ValidationIgnore
 		}
 	}))
+	if err != nil {
+		return nil, err
+	}
+
+	txTopic, err := ps.Join(TransactionsTopic)
+	if err != nil {
+		return nil, err
+	}
+
+	blockTopic, err := ps.Join(BlockTopic)
 	if err != nil {
 		return nil, err
 	}
