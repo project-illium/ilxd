@@ -614,11 +614,16 @@ func (s *GrpcServer) SetAutoStakeRewards(ctx context.Context, req *pb.SetAutoSta
 //
 // **Requires wallet to be unlocked**
 func (s *GrpcServer) Spend(ctx context.Context, req *pb.SpendRequest) (*pb.SpendResponse, error) {
+	commitments := make([]types.ID, 0, len(req.InputCommitments))
+	for _, c := range req.InputCommitments {
+		commitments = append(commitments, types.NewID(c))
+	}
+
 	addr, err := walletlib.DecodeAddress(req.ToAddress, s.chainParams)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	txid, err := s.wallet.Spend(addr, types.Amount(req.Amount), types.Amount(req.FeePerKilobyte))
+	txid, err := s.wallet.Spend(addr, types.Amount(req.Amount), types.Amount(req.FeePerKilobyte), commitments...)
 	if err != nil {
 		return nil, err
 	}

@@ -747,10 +747,11 @@ func (x *SetAutoStakeRewards) Execute(args []string) error {
 }
 
 type Spend struct {
-	Address  string `short:"a" long:"addr" description:"An address to send coins to"`
-	Amount   uint64 `short:"t" long:"amount" description:"The amount to send"`
-	FeePerKB uint64 `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
-	opts     *options
+	Address     string   `short:"a" long:"addr" description:"An address to send coins to"`
+	Amount      uint64   `short:"t" long:"amount" description:"The amount to send"`
+	FeePerKB    uint64   `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
+	Commitments []string `short:"c" long:"commitment" description:"Optionally specify which input commitment(s) to spend. If this field is omitted the wallet will automatically select (only non-staked) inputs commitments. Serialized as hex strings. Use this option more than once to add more than one input commitment."`
+	opts        *options
 }
 
 func (x *Spend) Execute(args []string) error {
@@ -759,10 +760,20 @@ func (x *Spend) Execute(args []string) error {
 		return err
 	}
 
+	commitments := make([][]byte, 0, len(x.Commitments))
+	for _, c := range x.Commitments {
+		cBytes, err := hex.DecodeString(c)
+		if err != nil {
+			return err
+		}
+		commitments = append(commitments, cBytes)
+	}
+
 	resp, err := client.Spend(makeContext(x.opts.AuthToken), &pb.SpendRequest{
-		ToAddress:      x.Address,
-		Amount:         x.Amount,
-		FeePerKilobyte: x.FeePerKB,
+		ToAddress:        x.Address,
+		Amount:           x.Amount,
+		FeePerKilobyte:   x.FeePerKB,
+		InputCommitments: commitments,
 	})
 	if err != nil {
 		return err

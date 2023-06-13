@@ -20,7 +20,7 @@ require (
 	github.com/mroth/weightedrand/v2 v2.0.1
 	github.com/multiformats/go-multiaddr v0.9.0
 	github.com/multiformats/go-multihash v0.2.2
-	github.com/project-illium/walletlib v0.0.0-20230611212043-bebcfbff7c5b
+	github.com/project-illium/walletlib v0.0.0-20230613211506-4e4f51c3fe50
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/sjson v1.2.5
 	go.opencensus.io v0.24.0

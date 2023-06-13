@@ -746,12 +746,19 @@ message SetAutoStakeRewardsResponse {}
 
 message SpendRequest {
     // Address to send funds to
-    string to_address       = 1;
+    string to_address                = 1;
     // Amount to send
-    uint64 amount           = 2;
+    uint64 amount                    = 2;
     // The fee to use for the transaction.
     // If zero the wallet will use its internal fee policy.
-    uint64 fee_per_kilobyte = 3;
+    uint64 fee_per_kilobyte          = 3;
+    // An optional list of input commitments to spend. If this
+    // is empty the wallet will select its own inputs.
+    //
+    // Note that staked commitments will not be selected by
+    // the wallet. You will need to list staked commitments
+    // here if you wish to spend them.
+    repeated bytes input_commitments = 4;
 }
 message SpendResponse {
     // The transaction ID of the transaction.
