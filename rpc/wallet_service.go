@@ -310,27 +310,6 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 		Outputs: []standard.PrivateOutput{},
 	}
 
-	commitments := make([]types.ID, 0, len(req.Tx.Inputs))
-	for _, in := range req.Tx.Inputs {
-		unlockingScript := types.UnlockingScript{
-			ScriptCommitment: in.ScriptCommitment,
-			ScriptParams:     in.ScriptParams,
-		}
-		scriptHash := unlockingScript.Hash()
-		note := types.SpendNote{
-			ScriptHash: scriptHash[:],
-			Amount:     types.Amount(in.Amount),
-			AssetID:    types.NewID(in.Asset_ID),
-		}
-		copy(note.State[:], in.State)
-		copy(note.Salt[:], in.Salt)
-		commitment, err := note.Commitment()
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		commitments = append(commitments, commitment)
-	}
-
 	nullifiers := make([][]byte, 0, len(req.Tx.Inputs))
 	for _, in := range req.Tx.Inputs {
 		privIn := standard.PrivateInput{

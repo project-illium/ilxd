@@ -80,7 +80,7 @@ func TestPutGetDeleteBlockIndexState(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, dsDeleteBlockIndexState(dbtx))
 	assert.NoError(t, dbtx.Commit(context.Background()))
-	state, err = dsFetchBlockIndexState(ds)
+	_, err = dsFetchBlockIndexState(ds)
 	assert.Error(t, err)
 }
 
@@ -293,14 +293,14 @@ func TestPutFetchDeleteAccumulator(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, dsDeleteAccumulator(dbtx))
 	assert.NoError(t, dbtx.Commit(context.Background()))
-	acc2, err = dsFetchAccumulator(ds)
+	_, err = dsFetchAccumulator(ds)
 	assert.Error(t, err)
 
 	dbtx, err = ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 	assert.NoError(t, dsDeleteAccumulatorCheckpoints(dbtx))
 	assert.NoError(t, dbtx.Commit(context.Background()))
-	acc2, err = dsFetchAccumulatorCheckpoint(ds, 50000)
+	_, err = dsFetchAccumulatorCheckpoint(ds, 50000)
 	assert.Error(t, err)
 }
 

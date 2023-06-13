@@ -211,7 +211,6 @@ loop:
 	if cfg.host != nil {
 		host = cfg.host
 		cmgr = host.ConnManager()
-		pstore = host.Peerstore()
 		idht, err = dht.New(ctx, cfg.host, dhtOpts...)
 		if err != nil {
 			return nil, err

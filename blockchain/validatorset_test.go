@@ -171,7 +171,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	blk5.Header.Timestamp = blk4.Header.Timestamp + int64(ValidatorExpiration.Seconds()) + 1
 	assert.NoError(t, vs.CommitBlock(blk5, 100000, FlushRequired))
 
-	ret1, err = vs.GetValidator(valID2)
+	_, err = vs.GetValidator(valID2)
 	assert.Error(t, err)
 }
 

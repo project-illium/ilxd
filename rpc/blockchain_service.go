@@ -190,8 +190,8 @@ func (s *GrpcServer) GetCompressedBlock(ctx context.Context, req *pb.GetCompress
 // GetHeaders returns a batch of headers according to the request parameters.
 func (s *GrpcServer) GetHeaders(ctx context.Context, req *pb.GetHeadersRequest) (*pb.GetHeadersResponse, error) {
 	endHeight := req.EndHeight
-	if endHeight-req.StartHeight+1 > 2000 {
-		endHeight = req.StartHeight + 1999
+	if endHeight-req.StartHeight+1 > maxBatchSize {
+		endHeight = req.StartHeight + maxBatchSize - 1
 	}
 	_, bestHeight, _ := s.chain.BestBlock()
 	if endHeight > bestHeight {
@@ -213,8 +213,8 @@ func (s *GrpcServer) GetHeaders(ctx context.Context, req *pb.GetHeadersRequest) 
 // GetCompressedBlocks returns a batch of CompressedBlocks according to the request parameters.
 func (s *GrpcServer) GetCompressedBlocks(ctx context.Context, req *pb.GetCompressedBlocksRequest) (*pb.GetCompressedBlocksResponse, error) {
 	endHeight := req.EndHeight
-	if endHeight-req.StartHeight+1 > 2000 {
-		endHeight = req.StartHeight + 1999
+	if endHeight-req.StartHeight+1 > maxBatchSize {
+		endHeight = req.StartHeight + maxBatchSize - 1
 	}
 	_, bestHeight, _ := s.chain.BestBlock()
 	if endHeight > bestHeight {
@@ -284,7 +284,7 @@ func (s *GrpcServer) GetMerkleProof(ctx context.Context, req *pb.GetMerkleProofR
 	uMerkles := blockchain.BuildMerkleTreeStore(uids)
 	wMerkles := blockchain.BuildMerkleTreeStore(wids)
 	uhashes, flags := blockchain.MerkleInclusionProof(uMerkles, tx.UID())
-	whashes, flags := blockchain.MerkleInclusionProof(wMerkles, tx.WID())
+	whashes, _ := blockchain.MerkleInclusionProof(wMerkles, tx.WID())
 	resp := &pb.GetMerkleProofResponse{
 		Block: &pb.BlockInfo{
 			Block_ID:    id[:],

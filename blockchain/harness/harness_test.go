@@ -24,6 +24,7 @@ func TestNewTestHarness(t *testing.T) {
 
 	notes := h.SpendableNotes()
 	inCommitment, err := notes[0].Note.Commitment()
+	assert.NoError(t, err)
 
 	acc := h.Accumulator()
 	proof, err := acc.GetProof(inCommitment[:])

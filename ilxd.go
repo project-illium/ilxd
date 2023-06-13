@@ -10,6 +10,7 @@ import (
 	"github.com/project-illium/ilxd/repo"
 	"os"
 	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -43,9 +44,9 @@ func main() {
 
 	// Listen for an exit signal and close.
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	for sig := range c {
-		if sig == os.Kill || sig == os.Interrupt {
+		if sig == syscall.SIGINT || sig == syscall.SIGTERM {
 			log.Info("ilxd gracefully shutting down")
 			if err := server.Close(); err != nil {
 				log.Errorf("Shutdown error: %s", err)

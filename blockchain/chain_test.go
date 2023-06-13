@@ -76,6 +76,7 @@ func TestBlockchain(t *testing.T) {
 			},
 			Coinbase: 10000,
 		})
+	assert.NoError(t, err)
 	blk := &blocks.Block{
 		Header: &blocks.BlockHeader{
 			Version:   1,

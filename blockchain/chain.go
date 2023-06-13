@@ -439,10 +439,7 @@ func (b *Blockchain) HasBlock(blockID types.ID) bool {
 	defer b.stateLock.RUnlock()
 
 	_, err := b.index.GetNodeByID(blockID)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 // TreasuryBalance returns the current balance of the treasury.

@@ -27,8 +27,6 @@ const (
 	// TODO: decide on a value for this
 	maxTimeBetweenFlushes = time.Minute * 15
 
-	maxEpochBlockMultiple = 8
-
 	ValidatorExpiration = time.Hour * 24 * 7 * 26
 )
 

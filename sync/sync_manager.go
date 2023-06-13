@@ -267,7 +267,7 @@ func (sm *SyncManager) Close() {
 	sm.current = false
 	close(sm.quit)
 	sm.syncMtx.Lock()
-	sm.syncMtx.Unlock()
+	defer sm.syncMtx.Unlock()
 }
 
 func (sm *SyncManager) IsCurrent() bool {
@@ -425,7 +425,6 @@ func (sm *SyncManager) populatePeerBuckets() error {
 		p       peer.ID
 		blockID types.ID
 		height  uint32
-		current bool
 	}
 
 	ch := make(chan resp)
@@ -481,10 +480,7 @@ func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) {
 		for {
 			peers := sm.network.Host().Network().Peers()
 			if len(peers) == 0 {
-				select {
-				case <-time.After(time.Second * 5):
-					continue
-				}
+				time.Sleep(time.Second * 5)
 			}
 			p := peers[rand.Intn(len(peers))]
 			err := sm.syncBlocks(p, startHeight, checkpoint.Height, parent, checkpoint.BlockID, blockchain.BFFastAdd)
@@ -646,7 +642,7 @@ func (sm *SyncManager) findForkPoint(currentHeight, toHeight uint32, blockMap ma
 		} else {
 			currentHeight = midPoint
 			midPoint = midPoint + ((toHeight - midPoint) / 2)
-			for k, _ := range retMap {
+			for k := range retMap {
 				midID = k
 				break
 			}

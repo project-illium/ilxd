@@ -340,10 +340,11 @@ func (cs *ChainService) GetHeadersStream(p peer.ID, startHeight uint32) (<-chan 
 		reader := msgio.NewVarintReaderSize(s, 1<<23)
 		for {
 			header := new(blocks.BlockHeader)
-			ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			if err := net.ReadMsg(ctx, reader, header); err != nil {
 				close(ch)
 				s.Close()
+				cancel()
 				return
 			}
 			ch <- header

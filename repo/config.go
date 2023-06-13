@@ -38,13 +38,6 @@ const (
 var (
 	DefaultHomeDir    = AppDataDir("ilxd", false)
 	defaultConfigFile = filepath.Join(DefaultHomeDir, defaultConfigFilename)
-
-	defaultListenAddrs = []string{
-		"/ip4/0.0.0.0/tcp/9001",
-		"/ip6/::/tcp/9001",
-		"/ip4/0.0.0.0/udp/9001/quic",
-		"/ip6/::/udp/9001/quic",
-	}
 )
 
 // Config defines the configuration options for the node.

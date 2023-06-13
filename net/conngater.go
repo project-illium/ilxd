@@ -93,7 +93,7 @@ func (cg *ConnectionGater) loadRules(ctx context.Context) error {
 			return err
 		}
 		cg.blockedPeers[p] = t
-		time.AfterFunc(t.Sub(time.Now()), func() {
+		time.AfterFunc(time.Until(t), func() {
 			if err := cg.UnblockPeer(p); err != nil {
 				log.Errorf("error unblocking peer after expiration: %s", err)
 			}
@@ -120,7 +120,7 @@ func (cg *ConnectionGater) loadRules(ctx context.Context) error {
 			return err
 		}
 		cg.blockedAddrs[ip.String()] = t
-		time.AfterFunc(t.Sub(time.Now()), func() {
+		time.AfterFunc(time.Until(t), func() {
 			if err := cg.UnblockAddr(ip); err != nil {
 				log.Errorf("error unblocking addr after expiration: %s", err)
 			}
@@ -323,11 +323,7 @@ func (cg *ConnectionGater) InterceptAddrDial(p peer.ID, a ma.Multiaddr) (allow b
 	}
 
 	_, block := cg.blockedAddrs[ip.String()]
-	if block {
-		return false
-	}
-
-	return true
+	return !block
 }
 
 func (cg *ConnectionGater) InterceptAccept(cma network.ConnMultiaddrs) (allow bool) {
@@ -343,11 +339,7 @@ func (cg *ConnectionGater) InterceptAccept(cma network.ConnMultiaddrs) (allow bo
 	}
 
 	_, block := cg.blockedAddrs[ip.String()]
-	if block {
-		return false
-	}
-
-	return true
+	return !block
 }
 
 func (cg *ConnectionGater) InterceptSecured(dir network.Direction, p peer.ID, cma network.ConnMultiaddrs) (allow bool) {
