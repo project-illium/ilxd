@@ -69,7 +69,6 @@ type Validator struct {
 	UnclaimedCoins   types.Amount
 	EpochBlocks      uint32
 	stakeAccumulator float64
-	dirty            bool
 }
 
 // Clone returns a copy of the validator
@@ -105,7 +104,6 @@ type ValidatorSet struct {
 	nullifierMap  map[types.Nullifier]*Validator
 	toDelete      map[peer.ID]struct{}
 	chooser       *weightedrand.Chooser[peer.ID, types.Amount]
-	dirty         bool
 	EpochBlocks   uint32
 	lastFlush     time.Time
 	notifications []NotificationCallback
@@ -152,6 +150,7 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 			for nullifier := range val.Nullifiers {
 				vs.nullifierMap[nullifier] = val
 			}
+			vs.EpochBlocks += val.EpochBlocks
 		}
 		if lastFlushHeight == tip.Height() {
 			// We're good
@@ -404,7 +403,6 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 						Nullifiers:     make(map[types.Nullifier]Stake),
 						UnclaimedCoins: 0,
 						EpochBlocks:    0,
-						dirty:          true,
 					}
 				} else {
 					valNew = &Validator{}
@@ -467,7 +465,6 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 
 	totalStaked := vs.totalStaked()
 	if validatorReward > 0 {
-		vs.dirty = true
 		for _, valOld := range vs.validators {
 			valNew, ok := updates[valOld.PeerID]
 			if !ok {
@@ -520,11 +517,12 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 		if ok {
 			blockProducer.EpochBlocks++
 		}
+		for _, val := range vs.validators {
+			val.stakeAccumulator += float64(val.TotalStake) / float64(totalStaked)
+		}
 	}
 
 	for _, val := range updates {
-		val.dirty = true
-		vs.dirty = true
 		if _, ok := vs.validators[val.PeerID]; !ok {
 			vs.sendNotification(val.PeerID, NTAddValidator)
 		}
@@ -545,12 +543,6 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 			vs.toDelete[val.PeerID] = struct{}{}
 			delete(vs.validators, val.PeerID)
 			vs.sendNotification(val.PeerID, NTRemoveValidator)
-		}
-	}
-
-	if totalStaked > 0 {
-		for _, val := range vs.validators {
-			val.stakeAccumulator += float64(val.TotalStake) / float64(totalStaked)
 		}
 	}
 
@@ -632,9 +624,6 @@ func (vs *ValidatorSet) flush(mode flushMode, chainHeight uint32) error {
 }
 
 func (vs *ValidatorSet) flushToDisk(chainHeight uint32) error {
-	if !vs.dirty {
-		return nil
-	}
 	if err := dsPutValidatorSetConsistencyStatus(vs.ds, scsFlushOngoing); err != nil {
 		return err
 	}
@@ -644,10 +633,8 @@ func (vs *ValidatorSet) flushToDisk(chainHeight uint32) error {
 	}
 	defer dbtx.Discard(context.Background())
 	for _, val := range vs.validators {
-		if val.dirty {
-			if err := dsPutValidator(dbtx, val); err != nil {
-				return err
-			}
+		if err := dsPutValidator(dbtx, val); err != nil {
+			return err
 		}
 	}
 	for id := range vs.toDelete {
@@ -670,10 +657,6 @@ func (vs *ValidatorSet) flushToDisk(chainHeight uint32) error {
 
 	vs.toDelete = make(map[peer.ID]struct{})
 
-	for _, val := range vs.validators {
-		val.dirty = false
-	}
-	vs.dirty = false
 	vs.lastFlush = time.Now()
 
 	return nil

@@ -59,7 +59,6 @@ func deserializeValidator(ser []byte) (*Validator, error) {
 		UnclaimedCoins:   types.Amount(vProto.UnclaimedCoins),
 		EpochBlocks:      vProto.EpochBLocks,
 		stakeAccumulator: float64(vProto.StakeAccumulator),
-		dirty:            false,
 	}
 
 	for _, n := range vProto.Nullifiers {

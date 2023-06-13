@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/libp2p/go-libp2p-kad-dht/metrics"
+	"github.com/libp2p/go-msgio/pbio"
 	"go.opencensus.io/stats"
 	"google.golang.org/protobuf/proto"
 
@@ -22,7 +23,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 
 	"github.com/libp2p/go-msgio"
-	"github.com/libp2p/go-msgio/pbio"
 )
 
 var readMessageTimeout = 10 * time.Second
@@ -33,9 +33,9 @@ var ErrReadTimeout = fmt.Errorf("timed out reading response")
 // MessageSender handles sending wire protocol messages to a given peer
 type MessageSender interface {
 	// SendRequest sends a peer a message and waits for its response
-	SendRequest(ctx context.Context, p peer.ID, pmes proto.Message, resp proto.Message) error
+	SendRequest(ctx context.Context, p peer.ID, req proto.Message, resp proto.Message) error
 	// SendMessage sends a peer a message without waiting on a response
-	SendMessage(ctx context.Context, p peer.ID, req proto.Message) error
+	SendMessage(ctx context.Context, p peer.ID, pmes proto.Message) error
 }
 
 // messageSenderImpl is responsible for sending requests and messages to peers efficiently, including reuse of streams.
@@ -63,7 +63,6 @@ func NewMessageSender(h host.Host, protos ...protocol.ID) MessageSender {
 	}
 
 	h.Network().Notify(notifier)
-
 	return ms
 }
 
@@ -111,6 +110,10 @@ func (m *messageSenderImpl) SendRequest(ctx context.Context, p peer.ID, req prot
 		return err
 	}
 
+	stats.Record(ctx,
+		metrics.SentRequests.M(1),
+		metrics.OutboundRequestLatency.M(float64(time.Since(start))/float64(time.Millisecond)),
+	)
 	m.host.Peerstore().RecordLatency(p, time.Since(start))
 	return nil
 }
@@ -135,6 +138,10 @@ func (m *messageSenderImpl) SendMessage(ctx context.Context, p peer.ID, pmes pro
 		log.Debugw("message failed", "error", err, "to", p)
 		return err
 	}
+
+	stats.Record(ctx,
+		metrics.SentMessages.M(1),
+	)
 	return nil
 }
 
@@ -358,6 +365,10 @@ func WriteMsg(w io.Writer, mes proto.Message) error {
 	return err
 }
 
+func (w *bufferedDelimitedWriter) Flush() error {
+	return w.Writer.Flush()
+}
+
 func ReadMsg(ctx context.Context, r msgio.ReadCloser, mes proto.Message) error {
 	errc := make(chan error, 1)
 	go func(r msgio.ReadCloser) {
@@ -382,8 +393,4 @@ func ReadMsg(ctx context.Context, r msgio.ReadCloser, mes proto.Message) error {
 	case <-t.C:
 		return ErrReadTimeout
 	}
-}
-
-func (w *bufferedDelimitedWriter) Flush() error {
-	return w.Writer.Flush()
 }
