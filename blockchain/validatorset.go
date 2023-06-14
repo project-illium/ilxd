@@ -352,7 +352,6 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 	//
 	// So we're going to override the regtest genesis timestamp here and to
 	// make sure it's the same for all node we'll set it far in the future.
-	// This should break anything. It just wont ever expire.
 	if vs.params.Name == params.RegestParams.Name && blk.Header.Height == 0 {
 		blockTime = time.Unix(2002352852, 0)
 	}
@@ -493,10 +492,10 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 				}
 
 				epochLength := float64(vs.params.EpochLength)
-				if timeSinceStake.Seconds() >= epochLength {
+				if math.Abs(timeSinceStake.Seconds()) >= epochLength {
 					valTotal += stake.Amount
 				} else {
-					valTotal += types.Amount(float64(stake.Amount) * timeSinceStake.Seconds() / epochLength)
+					valTotal += types.Amount(float64(stake.Amount) * math.Abs(timeSinceStake.Seconds()) / epochLength)
 				}
 			}
 			if valTotal > 0 {
