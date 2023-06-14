@@ -93,13 +93,14 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 			return nil, err
 		}
 		if pi.ID == self {
+			cfg.forceServerMode = true
 			continue
 		}
 		seedAddrs = append(seedAddrs, *pi)
 	}
 
 	var (
-		idht   *dht.IpfsDHT
+		kdht   *dht.IpfsDHT
 		pstore peerstore.Peerstore
 		cmgr   coreconmgr.ConnManager
 	)
@@ -125,7 +126,7 @@ loop:
 	for i, pid := range pstore.Peers() {
 		pi := pstore.PeerInfo(pid)
 		for _, s := range seedAddrs {
-			if pi.ID == s.ID {
+			if pi.ID == s.ID || pid == self {
 				continue loop
 			}
 		}
@@ -140,10 +141,16 @@ loop:
 		return nil, err
 	}
 
+	mode := dht.ModeAuto
+	if cfg.forceServerMode {
+		mode = dht.ModeServer
+	}
+
 	dhtOpts := []dht.Option{
 		dht.DisableValues(),
 		dht.ProtocolPrefix(cfg.params.ProtocolPrefix),
 		dht.BootstrapPeers(seedAddrs...),
+		dht.Mode(mode),
 	}
 
 	peerSource := func(ctx context.Context, numPeers int) <-chan peer.AddrInfo {
@@ -153,7 +160,7 @@ loop:
 		}
 
 		id := cid.NewCidV1(cid.Raw, h)
-		return idht.FindProvidersAsync(ctx, id, numPeers)
+		return kdht.FindProvidersAsync(ctx, id, numPeers)
 	}
 
 	hostOpts := libp2p.ChainOptions(
@@ -176,8 +183,8 @@ loop:
 
 		// Let this host use the DHT to find other hosts
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-			idht, err = dht.New(ctx, h, dhtOpts...)
-			return idht, err
+			kdht, err = dht.New(ctx, h, dhtOpts...)
+			return kdht, err
 		}),
 
 		// Let this host use relays and advertise itself on relays if
@@ -208,12 +215,15 @@ loop:
 	if !cfg.disableNatPortMap {
 		hostOpts = libp2p.ChainOptions(libp2p.NATPortMap(), hostOpts)
 	}
+	if cfg.forceServerMode {
+		libp2p.ForceReachabilityPublic()
+	}
 
 	var host host.Host
 	if cfg.host != nil {
 		host = cfg.host
 		cmgr = host.ConnManager()
-		idht, err = dht.New(ctx, cfg.host, dhtOpts...)
+		kdht, err = dht.New(ctx, cfg.host, dhtOpts...)
 		if err != nil {
 			return nil, err
 		}
@@ -224,12 +234,16 @@ loop:
 		}
 	}
 
+	if err = kdht.Bootstrap(ctx); err != nil {
+		return nil, err
+	}
+
 	// Create a new PubSub service using the GossipSub router
 	ps, err := pubsub.NewGossipSub(
 		ctx,
 		host,
 		pubsub.WithNoAuthor(),
-		pubsub.WithDiscovery(discovery.NewRoutingDiscovery(idht)),
+		pubsub.WithDiscovery(discovery.NewRoutingDiscovery(kdht)),
 		pubsub.WithMaxMessageSize(cfg.maxMessageSize),
 		pubsub.WithMessageIdFn(func(pmsg *pb.Message) string {
 			h := hash.HashFunc(pmsg.Data)
@@ -350,7 +364,7 @@ loop:
 		host:        host,
 		connManager: cmgr,
 		connGater:   conngater,
-		dht:         idht,
+		dht:         kdht,
 		pubsub:      ps,
 		txTopic:     txTopic,
 		blockTopic:  blockTopic,
@@ -398,8 +412,7 @@ loop:
 				}
 			}
 		}
-	}(subReachability, idht)
-
+	}(subReachability, kdht)
 	return net, nil
 }
 
@@ -426,7 +439,7 @@ func (n *Network) ConnManager() coreconmgr.ConnManager {
 	return n.connManager
 }
 
-func (n *Network) Routing() routing.Routing {
+func (n *Network) Dht() *dht.IpfsDHT {
 	return n.dht
 }
 

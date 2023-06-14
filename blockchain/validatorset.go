@@ -665,7 +665,7 @@ func blockProductionLimit(EpochBlocks float64, stakePercentage float64) uint32 {
 	x := float64(EpochBlocks * stakePercentage)
 	y := float64(math.Sqrt(EpochBlocks*stakePercentage*(1-stakePercentage)) * 6)
 	if stakePercentage == 1 {
-		y = 0
+		y = 1
 	}
 	return uint32(x + y)
 }

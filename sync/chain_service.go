@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	ChainServiceProtocol = "chainservice"
+	ChainServiceProtocol = "/chainservice"
 
 	maxBatchSize = 2000
 )

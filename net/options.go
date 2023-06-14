@@ -113,6 +113,16 @@ func MaxMessageSize(maxMessageSize int) Option {
 	}
 }
 
+// ForceDHTServerMode forces the DHT to start in server mode.
+// This is necessary if the node is a validator as they need
+// to be publicly reachable.
+func ForceDHTServerMode() Option {
+	return func(cfg *config) error {
+		cfg.forceServerMode = true
+		return nil
+	}
+}
+
 type config struct {
 	params            *params.NetworkParams
 	userAgent         string
@@ -126,6 +136,7 @@ type config struct {
 	acceptToMempool   func(tx *transactions.Transaction) error
 	validateBlock     func(blk *blocks.XThinnerBlock, p peer.ID) error
 	maxBanscore       uint32
+	forceServerMode   bool
 	banDuration       time.Duration
 }
 

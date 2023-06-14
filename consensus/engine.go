@@ -52,7 +52,7 @@ const (
 	DeleteInventoryAfter = time.Hour * 6
 
 	// ConsensusProtocol is the libp2p network protocol ID
-	ConsensusProtocol = "consensus"
+	ConsensusProtocol = "/consensus"
 
 	// MaxRejectedCache is the maximum size of the rejected cache
 	MaxRejectedCache = 200
@@ -347,9 +347,8 @@ func (eng *ConsensusEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer pee
 	if peer != eng.self {
 		err := eng.ms.SendRequest(eng.ctx, peer, req, resp)
 		if err != nil {
-			log.Errorf("Error reading avalanche response from peer %s", peer.String())
+			log.Debugf("Error send avalanche request to peer %s: %s", peer.String(), err.Error())
 			eng.msgChan <- &requestExpirationMsg{key}
-			eng.network.IncreaseBanscore(peer, 0, 10)
 			return
 		}
 	} else {

@@ -265,6 +265,14 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	if config.DisableNATPortMap {
 		networkOpts = append(networkOpts, net.DisableNatPortMap())
 	}
+	hostID, err := peer.IDFromPrivateKey(privKey)
+	if err != nil {
+		return nil, err
+	}
+	_, err = chain.GetValidator(hostID)
+	if err == nil {
+		networkOpts = append(networkOpts, net.ForceDHTServerMode())
+	}
 
 	network, err := net.NewNetwork(ctx, networkOpts...)
 	if err != nil {
