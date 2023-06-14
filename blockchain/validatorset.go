@@ -345,8 +345,16 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 	nullifiersToAdd := make(map[types.Nullifier]peer.ID)
 	nullifiersToDelete := make(map[types.Nullifier]struct{})
 	blockTime := time.Unix(blk.Header.Timestamp, 0)
+
+	// For regtest we have an issue where the genesis stake may eventually
+	// expire if enough time passes from the genesis block timestamp. This
+	// would prevent regtest from working at all.
+	//
+	// So we're going to override the regtest genesis timestamp here and to
+	// make sure it's the same for all node we'll set it far in the future.
+	// This should break anything. It just wont ever expire.
 	if vs.params.Name == params.RegestParams.Name && blk.Header.Height == 0 {
-		blockTime = time.Now()
+		blockTime = time.Unix(2002352852, 0)
 	}
 
 	var (

@@ -712,6 +712,9 @@ func (x *Stake) Execute(args []string) error {
 		}
 		commitments = append(commitments, cBytes)
 	}
+	if len(commitments) == 0 {
+		return errors.New("commitment to stake must be specified")
+	}
 
 	_, err = client.Stake(makeContext(x.opts.AuthToken), &pb.StakeRequest{
 		Commitments: commitments,

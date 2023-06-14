@@ -435,13 +435,15 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 				s.autoStakeLock.RLock()
 				defer s.autoStakeLock.RUnlock()
 
-				tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.networkKey)
-				if err != nil {
-					log.Errorf("Error building auto coinbase transaction: %s", err)
-				}
-				if err := s.submitTransaction(tx); err != nil {
-					log.Errorf("Error submitting auto coinbase transaction: %s", err)
-				}
+				time.AfterFunc(time.Minute, func() {
+					tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.networkKey)
+					if err != nil {
+						log.Errorf("Error building auto coinbase transaction: %s", err)
+					}
+					if err := s.submitTransaction(tx); err != nil {
+						log.Errorf("Error submitting auto coinbase transaction: %s", err)
+					}
+				})
 			}
 		}
 	}
@@ -452,10 +454,11 @@ func (s *Server) setAutostake(autostake bool) error {
 	defer s.autoStakeLock.Unlock()
 
 	b := []byte{0x00}
+	s.autoStake = false
 	if autostake {
 		b = []byte{0x01}
+		s.autoStake = true
 	}
-	s.autoStake = autostake
 	return s.ds.Put(context.Background(), datastore.NewKey(repo.AutostakeDatastoreKey), b)
 }
 
