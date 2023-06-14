@@ -75,6 +75,7 @@ type Server struct {
 	policy           *policy2.Policy
 	autoStake        bool
 	autoStakeLock    stdsync.RWMutex
+	coinbasesToStake map[types.ID]struct{}
 	networkKey       crypto.PrivKey
 
 	ready chan struct{}
@@ -337,7 +338,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.mempool = mpool
 	s.engine = engine
 	s.chainService = sync.NewChainService(ctx, s.fetchBlock, chain, network, netParams)
-	s.syncManager = sync.NewSyncManager(ctx, chain, network, netParams, s.chainService, s.consensusChoose, s.maybeStartGenerating)
+	s.syncManager = sync.NewSyncManager(ctx, chain, network, netParams, s.chainService, s.consensusChoose, s.handleCurrentStatusChange)
 	s.orphanBlocks = make(map[types.ID]*orphanBlock)
 	s.activeInventory = make(map[types.ID]*blocks.Block)
 	s.inflightRequests = make(map[types.ID]bool)
@@ -350,6 +351,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.grpcServer = grpcServer
 	s.wallet = wallet
 	s.autoStake = bytes.Equal(autostake, []byte{0x01})
+	s.coinbasesToStake = make(map[types.ID]struct{})
 	s.networkKey = privKey
 
 	chain.Subscribe(s.handleBlockchainNotification)
@@ -415,6 +417,22 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 		if blk, ok := ntf.Data.(*blocks.Block); ok {
 			s.mempool.RemoveBlockTransactions(blk.Transactions)
 			s.wallet.ConnectBlock(blk)
+
+			s.autoStakeLock.RLock()
+			defer s.autoStakeLock.RUnlock()
+			if len(s.coinbasesToStake) > 0 {
+				for txid := range s.coinbasesToStake {
+					for _, tx := range blk.Transactions {
+						if tx.ID() == txid {
+							if err := s.wallet.Stake([]types.ID{types.NewID(tx.GetCoinbaseTransaction().Outputs[0].Commitment)}); err != nil {
+								log.Errorf("Error autostaking coinbase: %s", err)
+								continue
+							}
+							delete(s.coinbasesToStake, txid)
+						}
+					}
+				}
+			}
 		}
 	case blockchain.NTAddValidator:
 		if pid, ok := ntf.Data.(peer.ID); ok && pid == s.network.Host().ID() {
@@ -429,21 +447,22 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 			}
 		}
 	case blockchain.NTNewEpoch:
-		if s.autoStake {
-			validator, err := s.blockchain.GetValidator(s.network.Host().ID())
-			if err == nil && validator.UnclaimedCoins > 0 {
-				s.autoStakeLock.RLock()
-				defer s.autoStakeLock.RUnlock()
+		validator, err := s.blockchain.GetValidator(s.network.Host().ID())
+		if err == nil {
+			tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.networkKey)
+			if err != nil {
+				log.Errorf("Error building auto coinbase transaction: %s", err)
+				return
+			}
+			if err := s.submitTransaction(tx); err != nil {
+				log.Errorf("Error submitting auto coinbase transaction: %s", err)
+				return
+			}
 
-				time.AfterFunc(time.Minute, func() {
-					tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.networkKey)
-					if err != nil {
-						log.Errorf("Error building auto coinbase transaction: %s", err)
-					}
-					if err := s.submitTransaction(tx); err != nil {
-						log.Errorf("Error submitting auto coinbase transaction: %s", err)
-					}
-				})
+			s.autoStakeLock.RLock()
+			defer s.autoStakeLock.RUnlock()
+			if s.autoStake {
+				s.coinbasesToStake[tx.ID()] = struct{}{}
 			}
 		}
 	}
@@ -454,11 +473,10 @@ func (s *Server) setAutostake(autostake bool) error {
 	defer s.autoStakeLock.Unlock()
 
 	b := []byte{0x00}
-	s.autoStake = false
 	if autostake {
 		b = []byte{0x01}
-		s.autoStake = true
 	}
+	s.autoStake = autostake
 	return s.ds.Put(context.Background(), datastore.NewKey(repo.AutostakeDatastoreKey), b)
 }
 
@@ -705,7 +723,7 @@ func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
 
 	blk, err := s.chainService.GetBlock(remotePeer, blockID)
 	if err != nil {
-		s.network.IncreaseBanscore(remotePeer, 34, 0)
+		s.network.IncreaseBanscore(remotePeer, 0, 30)
 		s.inflightLock.Lock()
 		delete(s.inflightRequests, blockID)
 		s.inflightLock.Unlock()
@@ -732,7 +750,7 @@ func (s *Server) reIndexChain() error {
 	return nil
 }
 
-func (s *Server) maybeStartGenerating() {
+func (s *Server) handleCurrentStatusChange() {
 	<-s.ready
 	_, err := s.blockchain.GetValidator(s.network.Host().ID())
 	if err == nil {
