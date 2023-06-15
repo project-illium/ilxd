@@ -957,6 +957,34 @@ func TestValidateBlock(t *testing.T) {
 			expectedErr: ruleError(ErrInvalidTx, ""),
 		},
 		{
+			name: "coinbase transaction zero new coins",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+						Validator_ID: validatorIDBytes,
+						NewCoins:     0,
+						Outputs: []*transactions.Output{
+							{
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
+							},
+						},
+					}),
+				}
+
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: ruleError(ErrInvalidTx, ""),
+		},
+		{
 			name: "coinbase transaction validator doesn't exist",
 			block: func(blk *blocks.Block) (*blocks.Block, error) {
 				blk.Transactions = []*transactions.Transaction{

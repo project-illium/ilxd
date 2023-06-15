@@ -378,6 +378,34 @@ func TestMempool(t *testing.T) {
 			expectedErr: ruleError(blockchain.ErrInvalidTx, ""),
 		},
 		{
+			name: "coinbase tx zero coins",
+			tx: transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+				Validator_ID: valBytes,
+				NewCoins:     0,
+				Outputs: []*transactions.Output{
+					{
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
+					},
+				},
+				Signature: nil,
+				Proof:     make([]byte, 1000),
+			}),
+			signFunc: func(tx *transactions.Transaction) error {
+				h, err := tx.GetCoinbaseTransaction().SigHash()
+				if err != nil {
+					return err
+				}
+				sig, err := sk.Sign(h)
+				if err != nil {
+					return err
+				}
+				tx.GetCoinbaseTransaction().Signature = sig
+				return nil
+			},
+			expectedErr: ruleError(blockchain.ErrInvalidTx, ""),
+		},
+		{
 			name: "valid coinbase tx",
 			tx: transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 				Validator_ID: valBytes,

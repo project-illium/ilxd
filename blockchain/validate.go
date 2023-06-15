@@ -192,7 +192,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				if err != nil {
 					return ruleError(ErrInvalidTx, "validator does not exist in validator set")
 				}
-				if types.Amount(tx.CoinbaseTransaction.NewCoins) != validator.UnclaimedCoins {
+				if types.Amount(tx.CoinbaseTransaction.NewCoins) != validator.UnclaimedCoins || tx.CoinbaseTransaction.NewCoins == 0 {
 					return ruleError(ErrInvalidTx, "coinbase transaction creates invalid number of coins")
 				}
 				blockCoinbases[validatorID] = true

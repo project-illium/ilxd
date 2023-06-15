@@ -242,7 +242,7 @@ func (m *Mempool) validationTransaction(tx *transactions.Transaction) error {
 		if err != nil {
 			return ruleError(blockchain.ErrInvalidTx, "validator does not exist in validator set")
 		}
-		if types.Amount(t.CoinbaseTransaction.NewCoins) != validator.UnclaimedCoins {
+		if types.Amount(t.CoinbaseTransaction.NewCoins) != validator.UnclaimedCoins || t.CoinbaseTransaction.NewCoins == 0 {
 			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction creates invalid number of coins")
 		}
 
