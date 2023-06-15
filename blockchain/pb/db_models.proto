@@ -33,7 +33,7 @@ message DBAccumulator {
         repeated bytes accumulator        = 1;
         uint64 nElements                  = 2;
         repeated InclusionProof proofs    = 3;
-        repeated InclusionProof lookupMap = 4;
+        repeated LookupMap lookupMap      = 4;
 
         message InclusionProof {
                 bytes key             = 1;
@@ -42,5 +42,10 @@ message DBAccumulator {
                 repeated bytes hashes = 4;
                 uint64 flags          = 5;
                 bytes last            = 6;
+        }
+
+        message LookupMap {
+              bytes key    = 1;
+              uint64 index = 2;
         }
 }

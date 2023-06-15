@@ -62,7 +62,7 @@ type Accumulator struct {
 	acc       [][]byte
 	nElements uint64
 	proofs    map[types.ID]*InclusionProof
-	lookupMap map[types.ID]*InclusionProof
+	lookupMap map[types.ID]uint64
 }
 
 // NewAccumulator returns a new Accumulator.
@@ -70,7 +70,7 @@ func NewAccumulator() *Accumulator {
 	return &Accumulator{
 		acc:       make([][]byte, 1),
 		proofs:    make(map[types.ID]*InclusionProof),
-		lookupMap: make(map[types.ID]*InclusionProof),
+		lookupMap: make(map[types.ID]uint64),
 		nElements: 0,
 	}
 }
@@ -107,7 +107,7 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 			Index: a.nElements - 1,
 		}
 		a.proofs[types.NewID(n)] = ip
-		a.lookupMap[types.NewID(datacpy)] = ip
+		a.lookupMap[types.NewID(datacpy)] = ip.Index
 		// If acc[0] is not nil then this means the new leaf is
 		// and even number and the previous leaf is part of its
 		// inclusion proof.
@@ -176,7 +176,12 @@ func (a *Accumulator) NumElements() uint64 {
 //
 // This is NOT safe for concurrent access.
 func (a *Accumulator) GetProof(data []byte) (*InclusionProof, error) {
-	proof, ok := a.lookupMap[types.NewID(data)]
+	idx, ok := a.lookupMap[types.NewID(data)]
+	if !ok {
+		return nil, errors.New("not found")
+	}
+	n := hash.HashWithIndex(data, idx)
+	proof, ok := a.proofs[types.NewID(n)]
 	if !ok {
 		return nil, errors.New("not found")
 	}
@@ -208,12 +213,12 @@ func (a *Accumulator) GetProof(data []byte) (*InclusionProof, error) {
 //
 // This is NOT safe for concurrent access.
 func (a *Accumulator) DropProof(data []byte) {
-	proof, ok := a.lookupMap[types.NewID(data)]
+	ixd, ok := a.lookupMap[types.NewID(data)]
 	if !ok {
 		return
 	}
 
-	n := hash.HashWithIndex(data, proof.Index)
+	n := hash.HashWithIndex(data, ixd)
 
 	delete(a.lookupMap, types.NewID(data))
 	delete(a.proofs, types.NewID(n))
@@ -257,26 +262,11 @@ func (a *Accumulator) Clone() *Accumulator {
 		copy(i.last, proof.last)
 		proofs[key] = &i
 	}
-	lookupMap := make(map[types.ID]*InclusionProof)
-	for key, proof := range a.lookupMap {
-		i := InclusionProof{
-			ID:          proof.ID,
-			Flags:       proof.Flags,
-			Index:       proof.Index,
-			Accumulator: make([][]byte, len(proof.Accumulator)),
-			Hashes:      make([][]byte, len(proof.Hashes)),
-			last:        make([]byte, len(proof.last)),
-		}
-		for x := range proof.Accumulator {
-			i.Accumulator[x] = make([]byte, len(proof.Accumulator[x]))
-			copy(i.Accumulator[x], proof.Accumulator[x])
-		}
-		for x := range proof.Hashes {
-			i.Hashes[x] = make([]byte, len(proof.Hashes[x]))
-			copy(i.Hashes[x], proof.Hashes[x])
-		}
-		copy(i.last, proof.last)
-		lookupMap[key] = &i
+	lookupMap := make(map[types.ID]uint64)
+	for key, idx := range a.lookupMap {
+		k := make([]byte, len(key.Bytes()))
+		copy(k, key.Bytes())
+		lookupMap[types.NewID(k)] = idx
 	}
 
 	return &Accumulator{

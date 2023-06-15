@@ -111,23 +111,14 @@ func serializeAccumulator(accumulator *Accumulator) ([]byte, error) {
 		}
 		proofs = append(proofs, proof)
 	}
-	lookUpMap := make([]*pb.DBAccumulator_InclusionProof, 0, len(accumulator.lookupMap))
-	for id, p := range accumulator.lookupMap {
-		proof := &pb.DBAccumulator_InclusionProof{
-			Key:    make([]byte, len(id.Bytes())),
-			Id:     make([]byte, len(p.ID.Bytes())),
-			Index:  p.Index,
-			Hashes: make([][]byte, len(p.Hashes)),
-			Flags:  p.Flags,
-			Last:   p.last,
+	lookUpMap := make([]*pb.DBAccumulator_LookupMap, 0, len(accumulator.lookupMap))
+	for id, idx := range accumulator.lookupMap {
+		m := &pb.DBAccumulator_LookupMap{
+			Key:   make([]byte, len(id.Bytes())),
+			Index: idx,
 		}
-		copy(proof.Key, id.Bytes())
-		copy(proof.Id, p.ID.Bytes())
-		for i := range p.Hashes {
-			proof.Hashes[i] = make([]byte, len(p.Hashes[i]))
-			copy(proof.Hashes[i], p.Hashes[i])
-		}
-		lookUpMap = append(lookUpMap, proof)
+		copy(m.Key, id.Bytes())
+		lookUpMap = append(lookUpMap, m)
 	}
 	dbAcc := &pb.DBAccumulator{
 		Accumulator: make([][]byte, len(accumulator.acc)),
@@ -152,7 +143,7 @@ func deserializeAccumulator(ser []byte) (*Accumulator, error) {
 		acc:       make([][]byte, len(dbAcc.Accumulator)),
 		nElements: dbAcc.NElements,
 		proofs:    make(map[types.ID]*InclusionProof),
-		lookupMap: make(map[types.ID]*InclusionProof),
+		lookupMap: make(map[types.ID]uint64),
 	}
 	for i := range dbAcc.Accumulator {
 		if len(dbAcc.Accumulator[i]) == 0 {
@@ -172,13 +163,7 @@ func deserializeAccumulator(ser []byte) (*Accumulator, error) {
 		}
 	}
 	for _, entry := range dbAcc.LookupMap {
-		acc.lookupMap[types.NewID(entry.Key)] = &InclusionProof{
-			ID:     types.NewID(entry.Id),
-			Hashes: entry.Hashes,
-			Flags:  entry.Flags,
-			Index:  entry.Index,
-			last:   entry.Last,
-		}
+		acc.lookupMap[types.NewID(entry.Key)] = entry.Index
 	}
 	return acc, nil
 }

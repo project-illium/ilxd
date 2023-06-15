@@ -92,7 +92,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	// Logging
 	zapLevel, err := setupLogging(config.LogDir, config.LogLevel, config.Testnet)
 	if err != nil {
-		return nil, err
+		return nil, err //nolint:govet
 	}
 
 	if config.EnableDebugLogging {

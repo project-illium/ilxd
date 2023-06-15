@@ -157,8 +157,11 @@ func accumulatorDeepEqual(a, b *Accumulator) bool {
 	if !deepEqualProofMap(a.proofs, b.proofs) {
 		return false
 	}
-	if !deepEqualProofMap(a.lookupMap, b.lookupMap) {
-		return false
+	for k, v := range a.lookupMap {
+		v2, ok := b.lookupMap[k]
+		if !ok || v2 != v {
+			return false
+		}
 	}
 	return true
 }
