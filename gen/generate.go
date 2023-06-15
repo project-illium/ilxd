@@ -136,12 +136,12 @@ func (g *BlockGenerator) generateBlock() error {
 	bestID, height, timestamp := g.chain.BestBlock()
 
 	now := time.Now()
-	blockTime := now
-	if !now.After(timestamp) {
-		blockTime = timestamp.Add(time.Second)
+	blockTime := now.Unix()
+	if blockTime <= timestamp.Unix() {
+		blockTime = timestamp.Unix() + 1
 	}
 	// Don't generate a block if the timestamp would be too far into the future.
-	if blockTime.After(now.Add(blockchain.MaxBlockFutureTime)) {
+	if blockTime > timestamp.Unix()+int64(blockchain.MaxBlockFutureTime) {
 		return nil
 	}
 
@@ -150,7 +150,7 @@ func (g *BlockGenerator) generateBlock() error {
 			Version:     BlockVersion,
 			Height:      height + 1,
 			Parent:      bestID[:],
-			Timestamp:   blockTime.Unix(),
+			Timestamp:   blockTime,
 			Producer_ID: g.ownPeerIDBytes,
 		},
 	}
