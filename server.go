@@ -448,7 +448,7 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 		}
 	case blockchain.NTNewEpoch:
 		validator, err := s.blockchain.GetValidator(s.network.Host().ID())
-		if err == nil {
+		if err == nil || validator.UnclaimedCoins > 0 {
 			tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.networkKey)
 			if err != nil {
 				log.Errorf("Error building auto coinbase transaction: %s", err)
