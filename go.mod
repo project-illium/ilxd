@@ -11,6 +11,7 @@ require (
 	github.com/ipfs/go-cid v0.4.1
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger v0.3.0
+	github.com/ipfs/go-log v1.0.5
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/libp2p/go-libp2p v0.27.5
@@ -20,7 +21,7 @@ require (
 	github.com/mroth/weightedrand/v2 v2.0.1
 	github.com/multiformats/go-multiaddr v0.9.0
 	github.com/multiformats/go-multihash v0.2.2
-	github.com/project-illium/walletlib v0.0.0-20230613211506-4e4f51c3fe50
+	github.com/project-illium/walletlib v0.0.0-20230615005414-409b55df72f3
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/sjson v1.2.5
 	go.opencensus.io v0.24.0
@@ -70,7 +71,6 @@ require (
 	github.com/huin/goupnp v1.1.0 // indirect
 	github.com/ipfs/boxo v0.8.0 // indirect
 	github.com/ipfs/go-ipfs-util v0.0.2 // indirect
-	github.com/ipfs/go-log v1.0.5 // indirect
 	github.com/ipfs/go-log/v2 v2.5.1 // indirect
 	github.com/ipld/go-ipld-prime v0.20.0 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect

@@ -84,8 +84,10 @@ func NewAccumulator() *Accumulator {
 // 'protect' true. This must be done at the time of adding as it's not possible
 // to go back and protect previous items after the accumulator has been mutated.
 func (a *Accumulator) Insert(data []byte, protect bool) {
+	datacpy := make([]byte, len(data))
+	copy(datacpy, data)
 	a.nElements++
-	n := hash.HashWithIndex(data, a.nElements-1)
+	n := hash.HashWithIndex(datacpy, a.nElements-1)
 
 	// If one of our protected hashes is at acc[0] then it was an
 	// odd number leaf and the very next leaf must be part of its
@@ -101,11 +103,11 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 
 	if protect {
 		ip := &InclusionProof{
-			ID:    types.NewID(data),
+			ID:    types.NewID(datacpy),
 			Index: a.nElements - 1,
 		}
 		a.proofs[types.NewID(n)] = ip
-		a.lookupMap[types.NewID(data)] = ip
+		a.lookupMap[types.NewID(datacpy)] = ip
 		// If acc[0] is not nil then this means the new leaf is
 		// and even number and the previous leaf is part of its
 		// inclusion proof.

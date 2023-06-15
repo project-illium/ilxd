@@ -118,9 +118,9 @@ func TestAccumulator_GetProof(t *testing.T) {
 		elements = append(elements, b)
 		a.Insert(b, true)
 
-		// Test proof validity as accumulator is growing.
-		for _, b := range elements {
-			proof, err := a.GetProof(b)
+		// Test proof validity as accumulator is growing.// Test proof validity as accumulator is growing.
+		for _, c := range elements {
+			proof, err := a.GetProof(c)
 			assert.NoError(t, err)
 			assert.True(t, standard.ValidateInclusionProof(proof.ID.Bytes(), proof.Index, proof.Hashes, proof.Flags, proof.Accumulator, a.Root().Bytes()))
 		}
