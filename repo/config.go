@@ -63,6 +63,7 @@ type Config struct {
 	MaxBanscore        uint32        `long:"maxbanscore" description:"The maximum ban score a peer is allowed to have before getting banned" default:"100"`
 	BanDuration        time.Duration `long:"banduration" description:"The duration for which banned peers are banned for" default:"24h"`
 	WalletSeed         string        `long:"walletseed" description:"A mnemonic seed to initialize the node with. This can only be used on first startup."`
+	CoinbaseAddress    string        `long:"coinbaseaddr" description:"An optional address to send all coinbase rewards to. If this option is not used the wallet will automatically select an internal address."`
 
 	Policy  Policy     `group:"Policy"`
 	RPCOpts RPCOptions `group:"RPC Options"`

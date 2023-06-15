@@ -63,6 +63,7 @@ type Server struct {
 	generator    *gen.BlockGenerator
 	grpcServer   *rpc.GrpcServer
 	wallet       *walletlib.Wallet
+	coinbaseAddr walletlib.Address
 
 	orphanBlocks map[types.ID]*orphanBlock
 	orphanLock   stdsync.RWMutex
@@ -125,6 +126,14 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		}
 	} else {
 		netParams = &params.MainnetParams
+	}
+
+	if config.CoinbaseAddress != "" {
+		addr, err := walletlib.DecodeAddress(config.CoinbaseAddress, netParams)
+		if err != nil {
+			return nil, err
+		}
+		s.coinbaseAddr = addr
 	}
 
 	// Setup up badger datastore
@@ -457,7 +466,7 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 	case blockchain.NTNewEpoch:
 		validator, err := s.blockchain.GetValidator(s.network.Host().ID())
 		if err == nil || validator.UnclaimedCoins > 0 {
-			tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.networkKey)
+			tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.coinbaseAddr, s.networkKey)
 			if err != nil {
 				log.Errorf("Error building auto coinbase transaction: %s", err)
 				return
