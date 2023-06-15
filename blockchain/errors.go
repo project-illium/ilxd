@@ -8,7 +8,16 @@ import (
 	"fmt"
 )
 
-// OrphanBlockError that the processed block is an orphan.
+// NotCurrentError means that the blockchain is not currently synced to the tip.
+type NotCurrentError string
+
+// Error returns the assertion error as a human-readable string and satisfies
+// the error interface.
+func (e NotCurrentError) Error() string {
+	return "not current"
+}
+
+// OrphanBlockError means that the processed block is an orphan.
 type OrphanBlockError string
 
 // Error returns the assertion error as a human-readable string and satisfies

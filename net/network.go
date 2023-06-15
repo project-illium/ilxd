@@ -275,6 +275,8 @@ loop:
 			// Rule errors do
 			log.Debugf("Mempool reject tx %s. Rule error: %s:%s", tx.ID(), e.ErrorCode, e.Description)
 			return pubsub.ValidationReject
+		case blockchain.NotCurrentError:
+			return pubsub.ValidationIgnore
 		case nil:
 			return pubsub.ValidationAccept
 		default:

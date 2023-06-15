@@ -258,7 +258,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		net.PrivateKey(privKey),
 		net.Params(netParams),
 		net.BlockValidator(s.handleIncomingBlock),
-		net.MempoolValidator(mpool.ProcessTransaction),
+		net.MempoolValidator(s.processMempoolTransaction),
 		net.MaxBanscore(config.MaxBanscore),
 		net.BanDuration(config.BanDuration),
 		net.MaxMessageSize(config.Policy.MaxMessageSize),
@@ -372,6 +372,14 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	}
 
 	return &s, nil
+}
+
+func (s *Server) processMempoolTransaction(tx *transactions.Transaction) error {
+	<-s.ready
+	if !s.syncManager.IsCurrent() {
+		return blockchain.NotCurrentError("chain not current")
+	}
+	return s.mempool.ProcessTransaction(tx)
 }
 
 func (s *Server) submitTransaction(tx *transactions.Transaction) error {
