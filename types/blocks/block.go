@@ -237,6 +237,76 @@ func (b *XThinnerBlock) UnmarshalJSON(data []byte) error {
 	if err := protojson.Unmarshal(data, newBlock); err != nil {
 		return err
 	}
-	b = newBlock //nolint:staticcheck,ineffassign
+	*b = XThinnerBlock{
+		Header: &BlockHeader{
+			Version:     newBlock.Header.Version,
+			Height:      newBlock.Header.Height,
+			Parent:      newBlock.Header.Parent,
+			Timestamp:   newBlock.Header.Timestamp,
+			TxRoot:      newBlock.Header.TxRoot,
+			Producer_ID: newBlock.Header.Producer_ID,
+			Signature:   newBlock.Header.Signature,
+		},
+		TxCount:      newBlock.TxCount,
+		Pops:         newBlock.Pops,
+		Pushes:       newBlock.Pushes,
+		PushBytes:    newBlock.PushBytes,
+		PrefilledTxs: newBlock.PrefilledTxs,
+	}
+	return nil
+}
+
+type compressedBlockJSON struct {
+	Height     uint32                 `json:"height"`
+	Nullifiers []types.HexEncodable   `json:"nullifiers"`
+	Outputs    []*transactions.Output `json:"outputs"`
+}
+
+func (b *CompressedBlock) SerializedSize() (int, error) {
+	ser, err := proto.Marshal(b)
+	if err != nil {
+		return 0, err
+	}
+	return len(ser), nil
+}
+
+func (b *CompressedBlock) Deserialize(data []byte) error {
+	newBlock := &CompressedBlock{}
+	if err := proto.Unmarshal(data, newBlock); err != nil {
+		return err
+	}
+	b.Height = newBlock.Height
+	b.Nullifiers = newBlock.Nullifiers
+	b.Outputs = newBlock.Outputs
+	return nil
+}
+
+func (b *CompressedBlock) MarshalJSON() ([]byte, error) {
+	nullifiers := make([]types.HexEncodable, 0, len(b.Nullifiers))
+	for _, n := range b.Nullifiers {
+		nullifiers = append(nullifiers, n)
+	}
+	s := &compressedBlockJSON{
+		Height:     b.Height,
+		Nullifiers: nullifiers,
+		Outputs:    b.Outputs,
+	}
+	return json.Marshal(s)
+}
+
+func (b *CompressedBlock) UnmarshalJSON(data []byte) error {
+	newBlock := &compressedBlockJSON{}
+	if err := json.Unmarshal(data, newBlock); err != nil {
+		return err
+	}
+	nullifiers := make([][]byte, 0, len(newBlock.Nullifiers))
+	for _, n := range newBlock.Nullifiers {
+		nullifiers = append(nullifiers, n)
+	}
+	*b = CompressedBlock{
+		Height:     newBlock.Height,
+		Nullifiers: nullifiers,
+		Outputs:    newBlock.Outputs,
+	}
 	return nil
 }
