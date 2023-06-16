@@ -378,7 +378,7 @@ loop:
 		log.Debugf("Connected to peer %s", conn.RemotePeer().String())
 	}
 	disconnected := func(_ inet.Network, conn inet.Conn) {
-		log.Debugf("Disconnect from peer %s", conn.RemotePeer().String())
+		log.Debugf("Disconnected from peer %s", conn.RemotePeer().String())
 	}
 
 	notifier := &inet.NotifyBundle{

@@ -255,10 +255,12 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 		msgBytes, err := reader.ReadMsg()
 		if err != nil {
 			reader.ReleaseMsg(msgBytes)
-			s.Reset()
 			if err == io.EOF {
-				log.Debugf("Peer %s closed avalanche stream", remotePeer)
+				s.Close()
+				return
 			}
+			log.Debugf("Error reading from avalanche stream: peer: %s, error: %s", remotePeer, err.Error())
+			s.Reset()
 			return
 		}
 		if err := proto.Unmarshal(msgBytes, req); err != nil {
@@ -347,7 +349,6 @@ func (eng *ConsensusEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer pee
 	if peer != eng.self {
 		err := eng.ms.SendRequest(eng.ctx, peer, req, resp)
 		if err != nil {
-			log.Debugf("Error send avalanche request to peer %s: %s", peer.String(), err.Error())
 			eng.msgChan <- &requestExpirationMsg{key}
 			return
 		}

@@ -94,7 +94,6 @@ func (m *messageSenderImpl) SendRequest(ctx context.Context, p peer.ID, req prot
 			metrics.SentRequests.M(1),
 			metrics.SentRequestErrors.M(1),
 		)
-		log.Debugw("request failed to open message sender", "error", err, "to", p)
 		return err
 	}
 
@@ -106,7 +105,6 @@ func (m *messageSenderImpl) SendRequest(ctx context.Context, p peer.ID, req prot
 			metrics.SentRequests.M(1),
 			metrics.SentRequestErrors.M(1),
 		)
-		log.Debugw("request failed", "error", err, "to", p)
 		return err
 	}
 

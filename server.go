@@ -71,6 +71,9 @@ type Server struct {
 	activeInventory map[types.ID]*blocks.Block
 	inventoryLock   stdsync.RWMutex
 
+	submittedTxs     map[types.ID]struct{}
+	submittedTxsLock stdsync.RWMutex
+
 	inflightRequests map[types.ID]bool
 	inflightLock     stdsync.RWMutex
 	policy           *policy2.Policy
@@ -350,11 +353,13 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.syncManager = sync.NewSyncManager(ctx, chain, network, netParams, s.chainService, s.consensusChoose, s.handleCurrentStatusChange)
 	s.orphanBlocks = make(map[types.ID]*orphanBlock)
 	s.activeInventory = make(map[types.ID]*blocks.Block)
+	s.submittedTxs = make(map[types.ID]struct{})
 	s.inflightRequests = make(map[types.ID]bool)
 	s.orphanLock = stdsync.RWMutex{}
 	s.inventoryLock = stdsync.RWMutex{}
 	s.inflightLock = stdsync.RWMutex{}
 	s.autoStakeLock = stdsync.RWMutex{}
+	s.submittedTxsLock = stdsync.RWMutex{}
 	s.policy = policy
 	s.generator = generator
 	s.grpcServer = grpcServer
@@ -385,14 +390,29 @@ func BuildServer(config *repo.Config) (*Server, error) {
 
 func (s *Server) processMempoolTransaction(tx *transactions.Transaction) error {
 	<-s.ready
-	if !s.syncManager.IsCurrent() {
+
+	// We will let our own txs through even if we're not current.
+	s.submittedTxsLock.RLock()
+	_, ok := s.submittedTxs[tx.ID()]
+	s.submittedTxsLock.RUnlock()
+
+	if !s.syncManager.IsCurrent() && !ok {
 		return blockchain.NotCurrentError("chain not current")
 	}
+
+	s.submittedTxsLock.Lock()
+	delete(s.submittedTxs, tx.ID())
+	s.submittedTxsLock.Unlock()
 	return s.mempool.ProcessTransaction(tx)
 }
 
 func (s *Server) submitTransaction(tx *transactions.Transaction) error {
 	<-s.ready
+
+	s.submittedTxsLock.Lock()
+	s.submittedTxs[tx.ID()] = struct{}{}
+	s.submittedTxsLock.Unlock()
+
 	// Pubsub has the mempool validation handler register on it, so function
 	// will submit it to the mempool, validate it, and return an error if
 	// validation fails.
