@@ -13,6 +13,8 @@ import (
 	"github.com/project-illium/ilxd/rpc/pb"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/ilxd/zk"
+	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/project-illium/walletlib"
 	"google.golang.org/protobuf/proto"
 )
@@ -644,47 +646,131 @@ type ProveRawTransaction struct {
 }
 
 func (x *ProveRawTransaction) Execute(args []string) error {
-	client, err := makeWalletClient(x.opts)
-	if err != nil {
-		return err
-	}
-
-	keys := make([][]byte, 0, len(x.Privkeys))
+	keys := make([]crypto.PrivKey, 0, len(x.Privkeys))
 	for _, k := range x.Privkeys {
 		keyBytes, err := hex.DecodeString(k)
+		if err == nil {
+			privKey, err := crypto.UnmarshalPrivateKey(keyBytes)
+			if err != nil {
+				return err
+			}
+			keys = append(keys, privKey)
+			continue
+		}
+		privKey, err := walletlib.DecodePrivateKey(k)
 		if err != nil {
 			return err
 		}
-		keys = append(keys, keyBytes)
+		keys = append(keys, privKey)
 	}
-	var tx pb.RawTransaction
+	var rawTx pb.RawTransaction
 	txBytes, err := hex.DecodeString(x.Tx)
 	if err == nil {
-		if err := json.Unmarshal(txBytes, &tx); err != nil {
+		if err := proto.Unmarshal(txBytes, &rawTx); err != nil {
 			return err
 		}
 	} else {
-		if err := json.Unmarshal([]byte(x.Tx), &tx); err != nil {
+		if err := json.Unmarshal([]byte(x.Tx), &rawTx); err != nil {
 			return err
 		}
 	}
+	////////////////////////////
+	standardTx := rawTx.Tx.GetStandardTransaction()
+	if standardTx == nil {
+		return errors.New("standard tx is nil")
+	}
 
-	resp, err := client.ProveRawTransaction(makeContext(x.opts.AuthToken), &pb.ProveRawTransactionRequest{
-		Tx:          &tx,
-		PrivateKeys: keys,
-	})
+	sigHash, err := standardTx.SigHash()
 	if err != nil {
 		return err
 	}
 
+	if len(keys) != len(standardTx.Nullifiers) {
+		return errors.New("not enough private keys")
+	}
+
+	// Create the transaction zk proof
+	privateParams := &standard.PrivateParams{
+		Inputs:  make([]standard.PrivateInput, 0, len(rawTx.Inputs)),
+		Outputs: make([]standard.PrivateOutput, 0, len(rawTx.Outputs)),
+	}
+
+	for i, in := range rawTx.Inputs {
+		privKey := keys[i]
+
+		switch k := privKey.(type) {
+		case *crypto.Ed25519PrivateKey:
+		case *walletlib.WalletPrivateKey:
+			privKey = k.SpendKey()
+		default:
+			return errors.New("unknown private key type")
+		}
+
+		sig, err := privKey.Sign(sigHash)
+		if err != nil {
+			return err
+		}
+		privIn := standard.PrivateInput{
+			Amount:          in.Amount,
+			CommitmentIndex: in.TxoProof.Index,
+			InclusionProof: standard.InclusionProof{
+				Hashes:      in.TxoProof.Hashes,
+				Flags:       in.TxoProof.Flags,
+				Accumulator: in.TxoProof.Accumulator,
+			},
+			ScriptCommitment: in.ScriptCommitment,
+			ScriptParams:     in.ScriptParams,
+			UnlockingParams:  [][]byte{sig},
+		}
+		copy(privIn.Salt[:], in.Salt)
+		copy(privIn.AssetID[:], in.Asset_ID)
+		copy(privIn.State[:], in.State)
+
+		privateParams.Inputs = append(privateParams.Inputs, privIn)
+	}
+
+	for _, out := range rawTx.Outputs {
+		privOut := standard.PrivateOutput{
+			ScriptHash: out.ScriptHash,
+			Amount:     out.Amount,
+		}
+		copy(privOut.Salt[:], out.Salt)
+		copy(privOut.AssetID[:], out.Asset_ID)
+		copy(privOut.State[:], out.State)
+		privateParams.Outputs = append(privateParams.Outputs, privOut)
+	}
+
+	publicParams := &standard.PublicParams{
+		TXORoot:    standardTx.TxoRoot,
+		SigHash:    sigHash,
+		Nullifiers: standardTx.Nullifiers,
+		Fee:        standardTx.Fee,
+	}
+
+	for _, out := range standardTx.Outputs {
+		publicParams.Outputs = append(publicParams.Outputs, standard.PublicOutput{
+			Commitment: out.Commitment,
+			CipherText: out.Ciphertext,
+		})
+	}
+
+	proof, err := zk.CreateSnark(standard.StandardCircuit, privateParams, publicParams)
+	if err != nil {
+		return err
+	}
+
+	standardTx.Proof = proof
+
+	////////////////////////////
+	tx := transactions.WrapTransaction(standardTx)
 	if x.Serialize {
-		ser, err := proto.Marshal(resp.ProvedTx)
+		ser, err := proto.Marshal(tx)
 		if err != nil {
 			return err
 		}
 		fmt.Println(hex.EncodeToString(ser))
 	} else {
-		out, err := json.MarshalIndent(resp.ProvedTx, "", "    ")
+		out, err := json.MarshalIndent(tx, "", "    ")
 		if err != nil {
 			return err
 		}

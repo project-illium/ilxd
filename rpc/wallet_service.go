@@ -541,6 +541,13 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
+		switch k := privKey.(type) {
+		case *crypto.Ed25519PrivateKey:
+		case *walletlib.WalletPrivateKey:
+			privKey = k.SpendKey()
+		default:
+			return nil, status.Error(codes.InvalidArgument, "unknown private key type")
+		}
 		sig, err := privKey.Sign(sigHash)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -562,6 +569,17 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		copy(privIn.State[:], in.State)
 
 		privateParams.Inputs = append(privateParams.Inputs, privIn)
+	}
+
+	for _, out := range req.Tx.Outputs {
+		privOut := standard.PrivateOutput{
+			ScriptHash: out.ScriptHash,
+			Amount:     out.Amount,
+		}
+		copy(privOut.Salt[:], out.Salt)
+		copy(privOut.AssetID[:], out.Asset_ID)
+		copy(privOut.State[:], out.State)
+		privateParams.Outputs = append(privateParams.Outputs, privOut)
 	}
 
 	publicParams := &standard.PublicParams{

@@ -12,8 +12,8 @@ import (
 
 type rawTxJSON struct {
 	Tx      *transactions.Transaction `json:"tx"`
-	Inputs  []*PrivateInput           `json:"inputs"`
-	Outputs []*PrivateOutput          `json:"outputs"`
+	Inputs  []*PrivateInput           `json:"privateInputs"`
+	Outputs []*PrivateOutput          `json:"privateOutputs"`
 }
 
 func (r *RawTransaction) MarshalJSON() ([]byte, error) {
@@ -55,6 +55,7 @@ func (i *PrivateInput) MarshalJSON() ([]byte, error) {
 		params = append(params, p)
 	}
 	s := &privateInputJSON{
+		Amount:           i.Amount,
 		Salt:             i.Salt,
 		AssetID:          i.Asset_ID,
 		State:            i.State,
