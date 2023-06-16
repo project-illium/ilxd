@@ -38,6 +38,7 @@ type GenerationParams struct {
 	Timestamp                 int64 `long:"timestamp" description:"The genesis block timestamp"`
 }
 
+// --timestamp=1686874710
 // --validatorkey=080112401e08383f629522149a7505c7668f070bea3007af8ed2b3970e7a2f2456584039de64446ff3730ddbf2219fe1b996316650b747ea90d742c8e22f97bd3c0b616f
 // --viewkey=08041220fd1264c92cc8d0b4fc8bdb811bbbc487734990c85cb42e333d6c86d95ce8b16b
 // --initialcoins=230584300921369395

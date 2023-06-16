@@ -140,7 +140,7 @@ var RegestParams = NetworkParams{
 	},
 	AddressPrefix:              "reg",
 	GenesisBlock:               RegtestGenesisBlock,
-	EpochLength:                60 * 3, // One week
+	EpochLength:                60 * 3, // Three minutes
 	TargetDistribution:         1 << 60,
 	InitialDistributionPeriods: 520,
 	AValue:                     2.59,

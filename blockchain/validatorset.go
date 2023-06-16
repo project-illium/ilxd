@@ -346,16 +346,6 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 	nullifiersToDelete := make(map[types.Nullifier]struct{})
 	blockTime := time.Unix(blk.Header.Timestamp, 0)
 
-	// For regtest we have an issue where the genesis stake may eventually
-	// expire if enough time passes from the genesis block timestamp. This
-	// would prevent regtest from working at all.
-	//
-	// So we're going to override the regtest genesis timestamp here and to
-	// make sure it's the same for all node we'll set it far in the future.
-	if vs.params.Name == params.RegestParams.Name && blk.Header.Height == 0 {
-		blockTime = time.Unix(2002352852, 0)
-	}
-
 	var (
 		producerID peer.ID
 		err        error
@@ -492,10 +482,10 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 				}
 
 				epochLength := float64(vs.params.EpochLength)
-				if math.Abs(timeSinceStake.Seconds()) >= epochLength {
+				if timeSinceStake.Seconds() >= epochLength {
 					valTotal += stake.Amount
 				} else {
-					valTotal += types.Amount(float64(stake.Amount) * math.Abs(timeSinceStake.Seconds()) / epochLength)
+					valTotal += types.Amount(float64(stake.Amount) * (float64(timeSinceStake.Seconds()) / epochLength))
 				}
 			}
 			if valTotal > 0 {

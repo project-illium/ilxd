@@ -118,7 +118,7 @@ func TestBlockchain(t *testing.T) {
 	blk2.Header.Height = blk.Header.Height + 1
 	prev := blk.Header.ID()
 	blk2.Header.Parent = prev[:]
-	blk2.Header.Timestamp = params.RegestParams.EpochLength + 1
+	blk2.Header.Timestamp = params.RegestParams.GenesisBlock.Header.Timestamp + params.RegestParams.EpochLength + 1
 	assert.NoError(t, finalizeAndSignBlock(blk2, validatorKey))
 	assert.NoError(t, b.ConnectBlock(blk2, BFNone))
 
