@@ -305,10 +305,8 @@ func (ms *peerMessageSender) SendRequest(ctx context.Context, req proto.Message,
 			ms.s = nil
 
 			if retry {
-				log.Debugw("error reading message", "error", err)
 				return err
 			}
-			log.Debugw("error reading message", "error", err, "retrying", true)
 			retry = true
 			continue
 		}

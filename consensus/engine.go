@@ -11,7 +11,6 @@ import (
 	inet "github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-msgio"
-	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
@@ -62,6 +61,7 @@ const (
 // should be removed from the map.
 type requestExpirationMsg struct {
 	key string
+	p   peer.ID
 }
 
 // queryMsg signifies a query from another peer.
@@ -100,7 +100,7 @@ type ConsensusEngine struct {
 	ctx          context.Context
 	network      *net.Network
 	params       *params.NetworkParams
-	chooser      blockchain.WeightedChooser
+	chooser      *BackoffChooser
 	ms           net.MessageSender
 	self         peer.ID
 	wg           sync.WaitGroup
@@ -132,7 +132,7 @@ func NewConsensusEngine(ctx context.Context, opts ...Option) (*ConsensusEngine, 
 	eng := &ConsensusEngine{
 		ctx:            ctx,
 		network:        cfg.network,
-		chooser:        cfg.chooser,
+		chooser:        NewBackoffChooser(cfg.chooser),
 		params:         cfg.params,
 		self:           cfg.self,
 		ms:             net.NewMessageSender(cfg.network.Host(), cfg.params.ProtocolPrefix+ConsensusProtocol),
@@ -167,7 +167,7 @@ out:
 		case m := <-eng.msgChan:
 			switch msg := m.(type) {
 			case *requestExpirationMsg:
-				eng.handleRequestExpiration(msg.key)
+				eng.handleRequestExpiration(msg.key, msg.p)
 			case *queryMsg:
 				eng.handleQuery(msg.request, msg.remotePeer, msg.respChan)
 			case *newBlockMessage:
@@ -324,7 +324,8 @@ func (eng *ConsensusEngine) handleQuery(req *wire.MsgAvaRequest, remotePeer peer
 	respChan <- resp
 }
 
-func (eng *ConsensusEngine) handleRequestExpiration(key string) {
+func (eng *ConsensusEngine) handleRequestExpiration(key string, p peer.ID) {
+	eng.chooser.RegisterDialFailure(p)
 	r, ok := eng.queries[key]
 	if !ok {
 		return
@@ -349,7 +350,7 @@ func (eng *ConsensusEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer pee
 	if peer != eng.self {
 		err := eng.ms.SendRequest(eng.ctx, peer, req, resp)
 		if err != nil {
-			eng.msgChan <- &requestExpirationMsg{key}
+			eng.msgChan <- &requestExpirationMsg{key, peer}
 			return
 		}
 	} else {
@@ -370,6 +371,7 @@ func (eng *ConsensusEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer pee
 }
 
 func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResponse) {
+	eng.chooser.RegisterDialSuccess(p)
 	key := queryKey(resp.Request_ID, p.String())
 
 	r, ok := eng.queries[key]
