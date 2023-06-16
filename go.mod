@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	filippo.io/edwards25519 v1.0.0
+	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/gcash/bchutil v0.0.0-20210113190856-6ea28dff4000
 	github.com/go-test/deep v1.1.0
 	github.com/golang/protobuf v1.5.3
@@ -21,7 +22,7 @@ require (
 	github.com/mroth/weightedrand/v2 v2.0.1
 	github.com/multiformats/go-multiaddr v0.9.0
 	github.com/multiformats/go-multihash v0.2.2
-	github.com/project-illium/walletlib v0.0.0-20230615174333-b90de559dfab
+	github.com/project-illium/walletlib v0.0.0-20230616130403-8c2abcb51219
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/sjson v1.2.5
 	go.opencensus.io v0.24.0
@@ -37,8 +38,6 @@ require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.0 // indirect
-	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
-	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
