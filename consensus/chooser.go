@@ -64,6 +64,7 @@ func (b *BackoffChooser) RegisterDialFailure(p peer.ID) {
 		Stop:                backoff.Stop,
 		Clock:               backoff.SystemClock,
 	}
+	eb.Reset()
 	b.peerMap[p] = &backoffTime{
 		backoffUntil: time.Now().Add(eb.NextBackOff()),
 		eb:           eb,
