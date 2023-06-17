@@ -192,6 +192,9 @@ service NodeService {
     // GetHostInfo returns info about the libp2p host
     rpc GetHostInfo(GetHostInfoRequest) returns (GetHostInfoResponse) {}
 
+    // GetNetworkKey returns the node's network private key
+    rpc GetNetworkKey(GetNetworkKeyRequest) returns (GetNetworkKeyResponse) {}
+
     // GetPeers returns a list of peers that this node is connected to
     rpc GetPeers(GetPeersRequest) returns (GetPeersResponse) {}
 
@@ -805,6 +808,12 @@ message GetHostInfoResponse {
     bool tx_index         = 4;
     // Is the wallet server enabled
     bool wallet_server    = 5;
+}
+
+message GetNetworkKeyRequest{}
+message GetNetworkKeyResponse{
+    // The nodes' serialized network key
+    bytes networkPrivateKey = 1;
 }
 
 message GetPeersRequest {}

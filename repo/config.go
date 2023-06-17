@@ -64,6 +64,7 @@ type Config struct {
 	BanDuration        time.Duration `long:"banduration" description:"The duration for which banned peers are banned for" default:"24h"`
 	WalletSeed         string        `long:"walletseed" description:"A mnemonic seed to initialize the node with. This can only be used on first startup."`
 	CoinbaseAddress    string        `long:"coinbaseaddr" description:"An optional address to send all coinbase rewards to. If this option is not used the wallet will automatically select an internal address."`
+	NetworkKey         string        `long:"networkkey" description:"A network key to use for this node. This will override the node's peer ID."`
 
 	Policy  Policy     `group:"Policy"`
 	RPCOpts RPCOptions `group:"RPC Options"`

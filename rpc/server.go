@@ -6,6 +6,7 @@ package rpc
 
 import (
 	"crypto/rand"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/blockchain/indexers"
@@ -43,6 +44,7 @@ type GrpcServerConfig struct {
 	ReindexChainFunc     func() error
 	RequestBlockFunc     func(blockID types.ID, remotePeer peer.ID)
 	AutoStakeFunc        func(bool) error
+	NetworkKeyFunc       func() (crypto.PrivKey, error)
 	ChainParams          *params.NetworkParams
 	Ds                   repo.Datastore
 	TxMemPool            *mempool.Mempool
@@ -67,6 +69,7 @@ type GrpcServer struct {
 	reindexChainFunc func() error
 	requestBlockFunc func(blockID types.ID, remotePeer peer.ID)
 	autoStakeFunc    func(bool) error
+	networkKeyFunc   func() (crypto.PrivKey, error)
 
 	txIndex *indexers.TxIndex
 
@@ -96,6 +99,7 @@ func NewGrpcServer(cfg *GrpcServerConfig) *GrpcServer {
 		reindexChainFunc: cfg.ReindexChainFunc,
 		requestBlockFunc: cfg.RequestBlockFunc,
 		autoStakeFunc:    cfg.AutoStakeFunc,
+		networkKeyFunc:   cfg.NetworkKeyFunc,
 		txIndex:          cfg.TxIndex,
 		policy:           cfg.Policy,
 		httpServer:       cfg.HTTPServer,

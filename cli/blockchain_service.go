@@ -528,23 +528,19 @@ func (x *GetAccumulatorCheckpoint) Execute(args []string) error {
 }
 
 type SubmitTransaction struct {
-	opts   *options
-	Json   string `short:"j" long:"json" description:"A json encoded transaction. Use this or hex."`
-	RawHex string `short:"r" long:"rawhex" description:"A serialized and hexadecimal encoded transaction. Use this or json."`
+	opts *options
+	Tx   string `short:"t" long:"tx" description:"The transaction to submit. Serialized as hex string or JSON."`
 }
 
 func (x *SubmitTransaction) Execute(args []string) error {
 	var tx transactions.Transaction
-	if x.RawHex != "" {
-		ser, err := hex.DecodeString(x.RawHex)
-		if err != nil {
-			return err
-		}
-		if err := proto.Unmarshal(ser, &tx); err != nil {
+	txBytes, err := hex.DecodeString(x.Tx)
+	if err == nil {
+		if err := proto.Unmarshal(txBytes, &tx); err != nil {
 			return err
 		}
 	} else {
-		if err := tx.UnmarshalJSON([]byte(x.Json)); err != nil {
+		if err := json.Unmarshal([]byte(x.Tx), &tx); err != nil {
 			return err
 		}
 	}

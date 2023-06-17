@@ -2022,6 +2022,8 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 type NodeServiceClient interface {
 	// GetHostInfo returns info about the libp2p host
 	GetHostInfo(ctx context.Context, in *GetHostInfoRequest, opts ...grpc.CallOption) (*GetHostInfoResponse, error)
+	// GetNetworkKey returns the node's network private key
+	GetNetworkKey(ctx context.Context, in *GetNetworkKeyRequest, opts ...grpc.CallOption) (*GetNetworkKeyResponse, error)
 	// GetPeers returns a list of peers that this node is connected to
 	GetPeers(ctx context.Context, in *GetPeersRequest, opts ...grpc.CallOption) (*GetPeersResponse, error)
 	// AddPeer attempts to connect to the provided peer
@@ -2073,6 +2075,15 @@ func NewNodeServiceClient(cc grpc.ClientConnInterface) NodeServiceClient {
 func (c *nodeServiceClient) GetHostInfo(ctx context.Context, in *GetHostInfoRequest, opts ...grpc.CallOption) (*GetHostInfoResponse, error) {
 	out := new(GetHostInfoResponse)
 	err := c.cc.Invoke(ctx, "/pb.NodeService/GetHostInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeServiceClient) GetNetworkKey(ctx context.Context, in *GetNetworkKeyRequest, opts ...grpc.CallOption) (*GetNetworkKeyResponse, error) {
+	out := new(GetNetworkKeyResponse)
+	err := c.cc.Invoke(ctx, "/pb.NodeService/GetNetworkKey", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2220,6 +2231,8 @@ func (c *nodeServiceClient) RecomputeChainState(ctx context.Context, in *Recompu
 type NodeServiceServer interface {
 	// GetHostInfo returns info about the libp2p host
 	GetHostInfo(context.Context, *GetHostInfoRequest) (*GetHostInfoResponse, error)
+	// GetNetworkKey returns the node's network private key
+	GetNetworkKey(context.Context, *GetNetworkKeyRequest) (*GetNetworkKeyResponse, error)
 	// GetPeers returns a list of peers that this node is connected to
 	GetPeers(context.Context, *GetPeersRequest) (*GetPeersResponse, error)
 	// AddPeer attempts to connect to the provided peer
@@ -2267,6 +2280,9 @@ type UnimplementedNodeServiceServer struct {
 
 func (UnimplementedNodeServiceServer) GetHostInfo(context.Context, *GetHostInfoRequest) (*GetHostInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetHostInfo not implemented")
+}
+func (UnimplementedNodeServiceServer) GetNetworkKey(context.Context, *GetNetworkKeyRequest) (*GetNetworkKeyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNetworkKey not implemented")
 }
 func (UnimplementedNodeServiceServer) GetPeers(context.Context, *GetPeersRequest) (*GetPeersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPeers not implemented")
@@ -2340,6 +2356,24 @@ func _NodeService_GetHostInfo_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(NodeServiceServer).GetHostInfo(ctx, req.(*GetHostInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NodeService_GetNetworkKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetNetworkKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServiceServer).GetNetworkKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.NodeService/GetNetworkKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServiceServer).GetNetworkKey(ctx, req.(*GetNetworkKeyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2624,6 +2658,10 @@ var NodeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetHostInfo",
 			Handler:    _NodeService_GetHostInfo_Handler,
+		},
+		{
+			MethodName: "GetNetworkKey",
+			Handler:    _NodeService_GetNetworkKey_Handler,
 		},
 		{
 			MethodName: "GetPeers",

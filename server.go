@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/ipfs/go-datastore"
@@ -230,6 +231,17 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		}
 	}
 
+	if config.NetworkKey != "" {
+		keyBytes, err := hex.DecodeString(config.NetworkKey)
+		if err != nil {
+			return nil, err
+		}
+		privKey, err = crypto.UnmarshalPrivateKey(keyBytes)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Select seed addresses
 	var seedAddrs []string
 	if config.SeedAddrs != nil {
@@ -314,6 +326,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		ReindexChainFunc:     s.reIndexChain,
 		RequestBlockFunc:     s.requestBlock,
 		AutoStakeFunc:        s.setAutostake,
+		NetworkKeyFunc:       s.getNetworkKey,
 		ChainParams:          netParams,
 		Ds:                   ds,
 		TxMemPool:            mpool,
@@ -417,6 +430,10 @@ func (s *Server) submitTransaction(tx *transactions.Transaction) error {
 	// will submit it to the mempool, validate it, and return an error if
 	// validation fails.
 	return s.network.BroadcastTransaction(tx)
+}
+
+func (s *Server) getNetworkKey() (crypto.PrivKey, error) {
+	return repo.LoadNetworkKey(s.ds)
 }
 
 func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.ID) error {

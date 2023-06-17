@@ -41,6 +41,24 @@ func (x *GetHostInfo) Execute(args []string) error {
 	return nil
 }
 
+type GetNetworkKey struct {
+	opts *options
+}
+
+func (x *GetNetworkKey) Execute(args []string) error {
+	client, err := makeNodeClient(x.opts)
+	if err != nil {
+		return err
+	}
+	resp, err := client.GetNetworkKey(makeContext(x.opts.AuthToken), &pb.GetNetworkKeyRequest{})
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(hex.EncodeToString(resp.NetworkPrivateKey))
+	return nil
+}
+
 type GetPeers struct {
 	opts *options
 }

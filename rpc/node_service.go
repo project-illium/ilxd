@@ -6,6 +6,7 @@ package rpc
 
 import (
 	"context"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/project-illium/ilxd/rpc/pb"
@@ -29,6 +30,21 @@ func (s *GrpcServer) GetHostInfo(ctx context.Context, req *pb.GetHostInfoRequest
 		Peers:        uint32(len(s.network.Host().Network().Peers())),
 		TxIndex:      s.txIndex != nil,
 		WalletServer: false, // TODO
+	}, nil
+}
+
+// GetNetworkKey returns the node's network private key
+func (s *GrpcServer) GetNetworkKey(ctx context.Context, req *pb.GetNetworkKeyRequest) (*pb.GetNetworkKeyResponse, error) {
+	key, err := s.networkKeyFunc()
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	b, err := crypto.MarshalPrivateKey(key)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &pb.GetNetworkKeyResponse{
+		NetworkPrivateKey: b,
 	}, nil
 }
 
