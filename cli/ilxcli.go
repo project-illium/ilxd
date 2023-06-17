@@ -106,6 +106,7 @@ func main() {
 	parser.AddCommand("getwalletseed", "Returns the mnemonic seed for the wallet", "Returns the mnemonic seed for the wallet. If the wallet seed has been deleted, an error will be returned.", &GetWalletSeed{opts: &opts})
 	parser.AddCommand("getaddress", "Returns the most recent address of the wallet", "Returns the most recent address of the wallet", &GetAddress{opts: &opts})
 	parser.AddCommand("getaddresses", "Returns all the addresses created by this wallet", "Returns all the addresses created by this wallet", &GetAddresses{opts: &opts})
+	parser.AddCommand("getaddrinfo", "Returns info about the given address", "Returns info about the given address", &GetAddrInfo{opts: &opts})
 	parser.AddCommand("getnewaddress", "Generates a new address and returns it", "Generates a new address and returns it. Both a new spend key and view key will be derived from the mnemonic seed.", &GetNewAddress{opts: &opts})
 	parser.AddCommand("gettransactions", "Returns the list of transactions for the wallet", "Returns the list of transactions for the wallet", &GetTransactions{opts: &opts})
 	parser.AddCommand("getutxos", "Returns a list of the wallet's current unspent transaction outputs (UTXOs)", "Returns a list of the wallet's current unspent transaction outputs (UTXOs)", &GetUtxos{opts: &opts})

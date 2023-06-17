@@ -10,6 +10,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params/hash"
@@ -79,6 +80,33 @@ func (s *GrpcServer) GetAddresses(ctx context.Context, req *pb.GetAddressesReque
 	}
 	for _, addr := range addrs {
 		resp.Addresses = append(resp.Addresses, addr.String())
+	}
+	return resp, nil
+}
+
+// GetAddressInfo returns additional metadata about an address.
+func (s *GrpcServer) GetAddressInfo(ctx context.Context, req *pb.GetAddressInfoRequest) (*pb.GetAddressInfoResponse, error) {
+	addr, err := walletlib.DecodeAddress(req.Address, s.chainParams)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	addrInfo, err := s.wallet.AddressInfo(addr)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	unlockingScript := types.UnlockingScript{
+		ScriptCommitment: addrInfo.UnlockingScript.ScriptCommitment,
+		ScriptParams:     addrInfo.UnlockingScript.ScriptParams,
+	}
+	unlockingScript.Serialize()
+
+	resp := &pb.GetAddressInfoResponse{
+		Address:         addr.String(),
+		UnlockingScript: unlockingScript.Serialize(),
+		ViewPrivateKey:  addrInfo.ViewPrivKey,
+		WatchOnly:       addrInfo.WatchOnly,
 	}
 	return resp, nil
 }
@@ -494,13 +522,18 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 		})
 	}
 	for _, out := range rawTx.PrivateOutputs {
-		resp.Tx.Outputs = append(resp.Tx.Outputs, &pb.PrivateOutput{
+		po := &pb.PrivateOutput{
 			Amount:     out.Amount,
-			Salt:       out.Salt[:],
-			Asset_ID:   out.AssetID[:],
-			State:      out.State[:],
-			ScriptHash: out.ScriptHash,
-		})
+			Salt:       make([]byte, len(out.Salt)),
+			Asset_ID:   make([]byte, len(out.AssetID)),
+			State:      make([]byte, len(out.State)),
+			ScriptHash: make([]byte, len(out.ScriptHash)),
+		}
+		copy(po.Salt, out.Salt[:])
+		copy(po.ScriptHash, out.ScriptHash)
+		copy(po.Asset_ID, out.AssetID[:])
+		copy(po.State, out.State[:])
+		resp.Tx.Outputs = append(resp.Tx.Outputs, po)
 	}
 
 	return resp, nil
@@ -526,28 +559,35 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	if len(req.PrivateKeys) != len(standardTx.Nullifiers) {
-		return nil, status.Error(codes.InvalidArgument, "not enough private keys")
-	}
-
 	// Create the transaction zk proof
 	privateParams := &standard.PrivateParams{
 		Inputs:  []standard.PrivateInput{},
 		Outputs: []standard.PrivateOutput{},
 	}
 
+	privkeyMap, err := s.wallet.PrivateKeys()
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	for i, in := range req.Tx.Inputs {
-		privKey, err := crypto.UnmarshalPrivateKey(req.PrivateKeys[i])
-		if err != nil {
-			return nil, status.Error(codes.InvalidArgument, err.Error())
+		unlockingScript := types.UnlockingScript{
+			ScriptCommitment: in.ScriptCommitment,
+			ScriptParams:     in.ScriptParams,
 		}
-		switch k := privKey.(type) {
-		case *crypto.Ed25519PrivateKey:
-		case *walletlib.WalletPrivateKey:
-			privKey = k.SpendKey()
-		default:
-			return nil, status.Error(codes.InvalidArgument, "unknown private key type")
+		scriptHash := unlockingScript.Hash()
+
+		var privKey crypto.PrivKey
+		for k, addr := range privkeyMap {
+			if addr.ScriptHash() == scriptHash {
+				privKey = k.SpendKey()
+				break
+			}
 		}
+		if privKey == nil {
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("private key for input %d not found", i))
+		}
+
 		sig, err := privKey.Sign(sigHash)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -573,9 +613,10 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 
 	for _, out := range req.Tx.Outputs {
 		privOut := standard.PrivateOutput{
-			ScriptHash: out.ScriptHash,
+			ScriptHash: make([]byte, len(out.ScriptHash)),
 			Amount:     out.Amount,
 		}
+		copy(privOut.ScriptHash, out.ScriptHash)
 		copy(privOut.Salt[:], out.Salt)
 		copy(privOut.AssetID[:], out.Asset_ID)
 		copy(privOut.State[:], out.State)

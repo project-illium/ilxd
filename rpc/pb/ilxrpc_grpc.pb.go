@@ -992,6 +992,8 @@ type WalletServiceClient interface {
 	GetAddress(ctx context.Context, in *GetAddressRequest, opts ...grpc.CallOption) (*GetAddressResponse, error)
 	// GetAddresses returns all the addresses create by the wallet.
 	GetAddresses(ctx context.Context, in *GetAddressesRequest, opts ...grpc.CallOption) (*GetAddressesResponse, error)
+	// GetAddressInfo returns additional metadata about an address.
+	GetAddressInfo(ctx context.Context, in *GetAddressInfoRequest, opts ...grpc.CallOption) (*GetAddressInfoResponse, error)
 	// GetNewAddress generates a new address and returns it. Both a new spend key
 	// and view key will be derived from the mnemonic seed.
 	GetNewAddress(ctx context.Context, in *GetNewAddressRequest, opts ...grpc.CallOption) (*GetNewAddressResponse, error)
@@ -1088,6 +1090,15 @@ func (c *walletServiceClient) GetAddress(ctx context.Context, in *GetAddressRequ
 func (c *walletServiceClient) GetAddresses(ctx context.Context, in *GetAddressesRequest, opts ...grpc.CallOption) (*GetAddressesResponse, error) {
 	out := new(GetAddressesResponse)
 	err := c.cc.Invoke(ctx, "/pb.WalletService/GetAddresses", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *walletServiceClient) GetAddressInfo(ctx context.Context, in *GetAddressInfoRequest, opts ...grpc.CallOption) (*GetAddressInfoResponse, error) {
+	out := new(GetAddressInfoResponse)
+	err := c.cc.Invoke(ctx, "/pb.WalletService/GetAddressInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1290,6 +1301,8 @@ type WalletServiceServer interface {
 	GetAddress(context.Context, *GetAddressRequest) (*GetAddressResponse, error)
 	// GetAddresses returns all the addresses create by the wallet.
 	GetAddresses(context.Context, *GetAddressesRequest) (*GetAddressesResponse, error)
+	// GetAddressInfo returns additional metadata about an address.
+	GetAddressInfo(context.Context, *GetAddressInfoRequest) (*GetAddressInfoResponse, error)
 	// GetNewAddress generates a new address and returns it. Both a new spend key
 	// and view key will be derived from the mnemonic seed.
 	GetNewAddress(context.Context, *GetNewAddressRequest) (*GetNewAddressResponse, error)
@@ -1364,6 +1377,9 @@ func (UnimplementedWalletServiceServer) GetAddress(context.Context, *GetAddressR
 }
 func (UnimplementedWalletServiceServer) GetAddresses(context.Context, *GetAddressesRequest) (*GetAddressesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAddresses not implemented")
+}
+func (UnimplementedWalletServiceServer) GetAddressInfo(context.Context, *GetAddressInfoRequest) (*GetAddressInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAddressInfo not implemented")
 }
 func (UnimplementedWalletServiceServer) GetNewAddress(context.Context, *GetNewAddressRequest) (*GetNewAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNewAddress not implemented")
@@ -1506,6 +1522,24 @@ func _WalletService_GetAddresses_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(WalletServiceServer).GetAddresses(ctx, req.(*GetAddressesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WalletService_GetAddressInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAddressInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).GetAddressInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.WalletService/GetAddressInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).GetAddressInfo(ctx, req.(*GetAddressInfoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1892,6 +1926,10 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAddresses",
 			Handler:    _WalletService_GetAddresses_Handler,
+		},
+		{
+			MethodName: "GetAddressInfo",
+			Handler:    _WalletService_GetAddressInfo_Handler,
 		},
 		{
 			MethodName: "GetNewAddress",
