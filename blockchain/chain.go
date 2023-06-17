@@ -518,6 +518,18 @@ func (b *Blockchain) GetAccumulatorCheckpointByHeight(height uint32) (*Accumulat
 	return b.getAccumulatorCheckpointByHeight(height)
 }
 
+func (b *Blockchain) getAccumulatorCheckpointByHeight(height uint32) (*Accumulator, uint32, error) {
+	priorHeight := height / accumulatorCheckpointInterval
+	if priorHeight == 0 {
+		return nil, 0, ErrNoCheckpoint
+	}
+	acc, err := dsFetchAccumulatorCheckpoint(b.ds, priorHeight)
+	if err != nil {
+		return nil, 0, err
+	}
+	return acc, priorHeight, nil
+}
+
 // GetInclusionProof returns an inclusion proof for the input if the blockchain scanner
 // had the encryption key *before* the commitment was processed in a block.
 func (b *Blockchain) GetInclusionProof(commitment types.ID) (*InclusionProof, types.ID, error) {
@@ -526,18 +538,6 @@ func (b *Blockchain) GetInclusionProof(commitment types.ID) (*InclusionProof, ty
 
 	proof, err := b.accumulatorDB.Accumulator().GetProof(commitment.Bytes())
 	return proof, b.index.Tip().ID(), err
-}
-
-func (b *Blockchain) getAccumulatorCheckpointByHeight(height uint32) (*Accumulator, uint32, error) {
-	priorHeight := height / accumulatorCheckpointInterval
-	if priorHeight == 0 {
-		return nil, 0, errors.New("no accumulator checkpoint at genesis")
-	}
-	acc, err := dsFetchAccumulatorCheckpoint(b.ds, priorHeight)
-	if err != nil {
-		return nil, 0, err
-	}
-	return acc, priorHeight, nil
 }
 
 // Params returns the current chain parameters use by the blockchain.

@@ -5,11 +5,16 @@
 package main
 
 import (
+	"bytes"
+	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	icrypto "github.com/project-illium/ilxd/crypto"
+	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/rpc/pb"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -17,6 +22,7 @@ import (
 	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/project-illium/walletlib"
 	"google.golang.org/protobuf/proto"
+	"strings"
 )
 
 type GetBalance struct {
@@ -214,7 +220,7 @@ type ImportAddress struct {
 	UnlockingScript  string `short:"u" long:"unlockingscript" description:"The unlocking script for the address. Serialized as hex string"`
 	ViewPrivateKey   string `short:"k" long:"viewkey" description:"The view private key for the address. Serialized as hex string."`
 	Rescan           bool   `short:"r" long:"rescan" description:"Whether or not to rescan the blockchain to try to detect transactions for this address."`
-	RescanFromHeight uint32 `short:"h" long:"rescanheight" description:"The height of the chain to rescan from. Selecting a height close to the address birthday saves resources."`
+	RescanFromHeight uint32 `short:"t" long:"rescanheight" description:"The height of the chain to rescan from. Selecting a height close to the address birthday saves resources."`
 	opts             *options
 }
 
@@ -253,12 +259,15 @@ type CreateMultisigSpendKeypair struct {
 }
 
 func (x *CreateMultisigSpendKeypair) Execute(args []string) error {
-	client, err := makeWalletClient(x.opts)
+	priv, pub, err := crypto.GenerateEd25519Key(rand.Reader)
 	if err != nil {
 		return err
 	}
-
-	resp, err := client.CreateMultisigSpendKeypair(makeContext(x.opts.AuthToken), &pb.CreateMultisigSpendKeypairRequest{})
+	privBytes, err := crypto.MarshalPrivateKey(priv)
+	if err != nil {
+		return err
+	}
+	pubBytes, err := crypto.MarshalPublicKey(pub)
 	if err != nil {
 		return err
 	}
@@ -267,8 +276,8 @@ func (x *CreateMultisigSpendKeypair) Execute(args []string) error {
 		PrivateKey types.HexEncodable `json:"privateKey"`
 		PublicKey  types.HexEncodable `json:"publicKey"`
 	}{
-		PrivateKey: resp.Privkey,
-		PublicKey:  resp.Pubkey,
+		PrivateKey: privBytes,
+		PublicKey:  pubBytes,
 	}
 	out, err := json.MarshalIndent(&kp, "", "    ")
 	if err != nil {
@@ -284,12 +293,15 @@ type CreateMultisigViewKeypair struct {
 }
 
 func (x *CreateMultisigViewKeypair) Execute(args []string) error {
-	client, err := makeWalletClient(x.opts)
+	priv, pub, err := icrypto.GenerateCurve25519Key(rand.Reader)
 	if err != nil {
 		return err
 	}
-
-	resp, err := client.CreateMultisigViewKeypair(makeContext(x.opts.AuthToken), &pb.CreateMultisigViewKeypairRequest{})
+	privBytes, err := crypto.MarshalPrivateKey(priv)
+	if err != nil {
+		return err
+	}
+	pubBytes, err := crypto.MarshalPublicKey(pub)
 	if err != nil {
 		return err
 	}
@@ -298,8 +310,8 @@ func (x *CreateMultisigViewKeypair) Execute(args []string) error {
 		PrivateKey types.HexEncodable `json:"privateKey"`
 		PublicKey  types.HexEncodable `json:"publicKey"`
 	}{
-		PrivateKey: resp.Privkey,
-		PublicKey:  resp.Pubkey,
+		PrivateKey: privBytes,
+		PublicKey:  pubBytes,
 	}
 	out, err := json.MarshalIndent(&kp, "", "    ")
 	if err != nil {
@@ -314,15 +326,11 @@ type CreateMultisigAddress struct {
 	ViewPubKey string   `short:"k" long:"viewpubkey" description:"The view public key for the address. Serialized as hex string."`
 	Pubkeys    []string `short:"p" long:"pubkey" description:"One or more public keys to use with the address. Serialized as a hex string. Use this option more than once for more than one key."`
 	Threshold  uint32   `short:"t" long:"threshold" description:"The number of keys needing to sign to the spend from this address."`
+	Net        string   `short:"n" long:"net" description:"Which network the address is for: [mainnet, testnet, regtest]"`
 	opts       *options
 }
 
 func (x *CreateMultisigAddress) Execute(args []string) error {
-	client, err := makeWalletClient(x.opts)
-	if err != nil {
-		return err
-	}
-
 	pubkeys := make([][]byte, 0, len(x.Pubkeys))
 	for _, p := range x.Pubkeys {
 		keyBytes, err := hex.DecodeString(p)
@@ -332,20 +340,55 @@ func (x *CreateMultisigAddress) Execute(args []string) error {
 		pubkeys = append(pubkeys, keyBytes)
 	}
 
-	viewKey, err := hex.DecodeString(x.ViewPubKey)
+	viewKeyBytes, err := hex.DecodeString(x.ViewPubKey)
+	if err != nil {
+		return err
+	}
+	viewKey, err := crypto.UnmarshalPublicKey(viewKeyBytes)
 	if err != nil {
 		return err
 	}
 
-	resp, err := client.CreateMultisigAddress(makeContext(x.opts.AuthToken), &pb.CreateMultisigAddressRequest{
-		Pubkeys:    pubkeys,
-		Threshold:  x.Threshold,
-		ViewPubkey: viewKey,
-	})
+	mockMultisigUnlockScriptCommitment := bytes.Repeat([]byte{0xee}, 32)
+	threshold := make([]byte, 4)
+	binary.BigEndian.PutUint32(threshold, x.Threshold)
+
+	unlockingScript := types.UnlockingScript{
+		ScriptCommitment: mockMultisigUnlockScriptCommitment,
+		ScriptParams:     [][]byte{threshold},
+	}
+	unlockingScript.ScriptParams = append(unlockingScript.ScriptParams, pubkeys...)
+
+	var chainParams *params.NetworkParams
+	switch strings.ToLower(x.Net) {
+	case "mainnet":
+		chainParams = &params.MainnetParams
+	case "testnet":
+		chainParams = &params.Testnet1Params
+	case "regtest":
+		chainParams = &params.RegestParams
+	default:
+		return errors.New("invalid net")
+	}
+
+	addr, err := walletlib.NewBasicAddress(unlockingScript, viewKey, chainParams)
 	if err != nil {
 		return err
 	}
-	fmt.Println(resp.Address)
+
+	kp := struct {
+		Addr            string             `json:"address"`
+		UnlockingScript types.HexEncodable `json:"unlockingScript"`
+	}{
+		Addr:            addr.String(),
+		UnlockingScript: unlockingScript.Serialize(),
+	}
+	out, err := json.MarshalIndent(&kp, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(out))
 	return nil
 }
 
