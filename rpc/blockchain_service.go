@@ -74,6 +74,8 @@ func (s *GrpcServer) GetBlockchainInfo(ctx context.Context, req *pb.GetBlockchai
 		nt = pb.GetBlockchainInfoResponse_TESTNET
 	case params.RegestParams.Name:
 		nt = pb.GetBlockchainInfoResponse_REGTEST
+	case params.AlphanetParams.Name:
+		nt = pb.GetBlockchainInfoResponse_ALPHANET
 	default:
 		return nil, status.Error(codes.Internal, "unknown network params")
 	}

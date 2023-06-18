@@ -284,6 +284,8 @@ message GetBlockchainInfoResponse {
         // A public environment where monetary value is agreed to be zero,
         // and some checks for transaction conformity are disabled.
         TESTNET  = 2;
+        // Alpha testnet
+        ALPHANET = 3;
     }
 
     // Which network the node is operating on
