@@ -41,7 +41,7 @@ import (
 const (
 	BlockTopic        = "blocks"
 	TransactionsTopic = "transactions"
-	RelayKey          = "/ilxd/relaypeers"
+	RelayKey          = "/ilx/relaypeers"
 )
 
 type Network struct {

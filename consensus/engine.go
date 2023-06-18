@@ -51,7 +51,9 @@ const (
 	DeleteInventoryAfter = time.Hour * 6
 
 	// ConsensusProtocol is the libp2p network protocol ID
-	ConsensusProtocol = "/consensus"
+	ConsensusProtocol = "/consensus/"
+
+	ConsensusProtocolVersion = "1.0.0"
 
 	// MaxRejectedCache is the maximum size of the rejected cache
 	MaxRejectedCache = 200
@@ -147,7 +149,7 @@ func NewConsensusEngine(ctx context.Context, opts ...Option) (*ConsensusEngine, 
 		queries:        make(map[string]RequestRecord),
 		callbacks:      make(map[types.ID]chan<- Status),
 	}
-	eng.network.Host().SetStreamHandler(eng.params.ProtocolPrefix+ConsensusProtocol, eng.HandleNewStream)
+	eng.network.Host().SetStreamHandler(eng.params.ProtocolPrefix+ConsensusProtocol+ConsensusProtocolVersion, eng.HandleNewStream)
 	eng.wg.Add(1)
 	go eng.handler()
 	return eng, nil

@@ -25,7 +25,8 @@ import (
 )
 
 const (
-	ChainServiceProtocol = "/chainservice"
+	ChainServiceProtocol = "/chainservice/"
+	ChainServiceProtocolVersion = "1.0.0"
 
 	maxBatchSize = 2000
 )
@@ -53,7 +54,7 @@ func NewChainService(ctx context.Context, fetchBlock FetchBlockFunc, chain *bloc
 		params:     params,
 		ms:         net.NewMessageSender(network.Host(), params.ProtocolPrefix+ChainServiceProtocol),
 	}
-	cs.network.Host().SetStreamHandler(cs.params.ProtocolPrefix+ChainServiceProtocol, cs.HandleNewStream)
+	cs.network.Host().SetStreamHandler(cs.params.ProtocolPrefix+ChainServiceProtocol+ChainServiceProtocolVersion, cs.HandleNewStream)
 	return cs
 }
 
