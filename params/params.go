@@ -135,6 +135,7 @@ var AlphanetParams = NetworkParams{
 	ProtocolPrefix: protocol.ID(path.Join(appProtocol, networkTestnet1)),
 	SeedAddrs: []string{
 		"/ip4/142.93.247.238/tcp/9002/p2p/12D3KooWKUMHDGvDuJjSkhey1Gz9kYPpt5Nw1wpzRtt9xwYWF1tx",
+		"/ip4/206.189.114.11/tcp/9002/p2p/12D3KooWAqT761RNUN4ewfZwzCWkPDsG5BxMfbX48kdsT5qmjWLX",
 	},
 	ListenAddrs: []string{
 		"/ip4/0.0.0.0/tcp/9002",

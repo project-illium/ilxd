@@ -584,7 +584,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 			// right after we finalize a block at the same height. We'll
 			// only lightly increase the penalty for this to prevent banning
 			// nodes for innocent behavior.
-			s.network.IncreaseBanscore(relayingPeer, 0, 10)
+			s.network.IncreaseBanscore(relayingPeer, 0, 1)
 		} else {
 			// Ban nodes that send us invalid blocks.
 			s.network.IncreaseBanscore(relayingPeer, 101, 0)

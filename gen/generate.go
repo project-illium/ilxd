@@ -27,6 +27,7 @@ type BlockGenerator struct {
 	privKey        crypto.PrivKey
 	ownPeerID      peer.ID
 	ownPeerIDBytes []byte
+	lastGenHeight  uint32
 	mpool          *mempool.Mempool
 	tickInterval   time.Duration
 	chain          *blockchain.Blockchain
@@ -135,6 +136,10 @@ func (g *BlockGenerator) generateBlock() error {
 
 	bestID, height, timestamp := g.chain.BestBlock()
 
+	if height == g.lastGenHeight-1 {
+		return nil
+	}
+
 	now := time.Now()
 	blockTime := now.Unix()
 	if blockTime <= timestamp.Unix() {
@@ -213,6 +218,7 @@ func (g *BlockGenerator) generateBlock() error {
 		return err
 	}
 	xthinnerBlock.Header = blk.Header
+	g.lastGenHeight = blk.Header.Height
 
 	return g.broadcast(xthinnerBlock)
 }
