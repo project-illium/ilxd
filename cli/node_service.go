@@ -5,13 +5,16 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/rpc/pb"
 	"github.com/project-illium/ilxd/types"
+	"golang.org/x/crypto/openpgp/armor"
 	"google.golang.org/protobuf/encoding/protojson"
 	"strings"
 )
@@ -420,5 +423,114 @@ func (x *RecomputeChainState) Execute(args []string) error {
 	}
 
 	fmt.Println("success")
+	return nil
+}
+
+type SignMessage struct {
+	Message string `short:"m" long:"message" description:"A message to sign"`
+	opts    *options
+}
+
+func (x *SignMessage) Execute(args []string) error {
+	client, err := makeNodeClient(x.opts)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.GetNetworkKey(makeContext(x.opts.AuthToken), &pb.GetNetworkKeyRequest{})
+	if err != nil {
+		return err
+	}
+
+	key, err := crypto.UnmarshalPrivateKey(resp.NetworkPrivateKey)
+	if err != nil {
+		return err
+	}
+
+	pid, err := peer.IDFromPrivateKey(key)
+	if err != nil {
+		return err
+	}
+
+	sig, err := key.Sign([]byte(x.Message))
+	if err != nil {
+		return err
+	}
+
+	var b []byte
+	buff := bytes.NewBuffer(b)
+
+	w, err := armor.Encode(buff, "ILLIUM SIGNATURE", map[string]string{
+		"PeerID":  pid.String(),
+		"Message": x.Message,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(sig)
+	if err != nil {
+		return err
+	}
+	if err := w.Close(); err != nil {
+		return err
+	}
+
+	fmt.Println(string(buff.Bytes()))
+
+	return nil
+}
+
+type VerifyMessage struct {
+	SigBlock string `short:"s" long:"sig" description:"A signature block to verify"`
+	opts     *options
+}
+
+func (x *VerifyMessage) Execute(args []string) error {
+	block, err := armor.Decode(bytes.NewReader([]byte(x.SigBlock)))
+	if err != nil {
+		return err
+	}
+
+	pidStr, ok := block.Header["PeerID"]
+	if !ok {
+		return errors.New("PeerID not found in signature block")
+	}
+
+	message, ok := block.Header["Message"]
+	if !ok {
+		return errors.New("Message not found in signature block")
+	}
+
+	if block.Type != "ILLIUM SIGNATURE" {
+		return errors.New("not illium signature block")
+	}
+
+	pid, err := peer.Decode(pidStr)
+	if err != nil {
+		return err
+	}
+
+	pubkey, err := pid.ExtractPublicKey()
+	if err != nil {
+		return err
+	}
+
+	reader := new(bytes.Buffer)
+	_, err = reader.ReadFrom(block.Body)
+	if err != nil {
+		return err
+	}
+	sig := reader.Bytes()
+
+	valid, err := pubkey.Verify([]byte(message), sig)
+	if err != nil {
+		return err
+	}
+	if valid {
+		fmt.Println("valid signature")
+	} else {
+		fmt.Println("invalid signature")
+	}
+
 	return nil
 }

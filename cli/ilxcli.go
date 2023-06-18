@@ -101,6 +101,8 @@ func main() {
 	parser.AddCommand("updatetreasurywhitelist", "Adds or removes a transaction from the treasury whitelist", "Adds or removes a transaction from the treasury whitelist", &UpdateTreasuryWhitelist{opts: &opts})
 	parser.AddCommand("reconsiderblock", "Tries to reprocess the given block", "Tries to reprocess the given block", &ReconsiderBlock{opts: &opts})
 	parser.AddCommand("recomputechainstate", "Rebuilds the entire chain state from genesis", "Deletes the accumulator, validator set, and nullifier set and rebuilds them by loading and re-processing all blocks from genesis.", &RecomputeChainState{opts: &opts})
+	parser.AddCommand("signmessage", "Sign a message with the network key", "Sign a message with the nework key", &SignMessage{opts: &opts})
+	parser.AddCommand("verifymessage", "Verify a signed message", "Verify a signed message", &VerifyMessage{opts: &opts})
 
 	// Wallet service
 	parser.AddCommand("getbalance", "Returns the combined balance of all addresses in the wallet", "Returns the combined balance of all addresses in the wallet", &GetBalance{opts: &opts})
