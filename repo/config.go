@@ -54,6 +54,7 @@ type Config struct {
 	SeedAddrs          []string      `long:"seedaddr" description:"Override the default seed addresses with the provided values"`
 	ListenAddrs        []string      `long:"listenaddr" description:"Override the default listen addresses with the provided values"`
 	Testnet            bool          `short:"t" long:"testnet" description:"Use the test network"`
+	Alphanet           bool          `long:"alpha" description:"Use the alpha network"`
 	Regtest            bool          `short:"r" long:"regtest" description:"Use regression testing mode"`
 	RegtestVal         bool          `long:"regtestval" description:"Set self as the regtest genesis validator. This can only be done on first startup."`
 	DisableNATPortMap  bool          `long:"noupnp" description:"Disable use of upnp"`
@@ -158,12 +159,20 @@ func LoadConfig() (*Config, error) {
 	if cfg.Testnet && cfg.Regtest {
 		return nil, errors.New("invalid combination of testnet and regtest")
 	}
+	if cfg.Testnet && cfg.Alphanet {
+		return nil, errors.New("invalid combination of testnet and alphanet")
+	}
+	if cfg.Alphanet && cfg.Regtest {
+		return nil, errors.New("invalid combination of alphanet and regtest")
+	}
 
 	netStr := "mainnet"
 	if cfg.Testnet {
 		netStr = "testnet"
 	} else if cfg.Regtest {
 		netStr = "regtest"
+	} else if cfg.Alphanet {
+		netStr = "alphanet"
 	}
 
 	if cfg.LogDir == "" {

@@ -58,7 +58,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	/*kc, _ := walletlib.NewKeychain(mock.NewMapDatastore(), &params2.RegestParams, params2.RegtestMnemonicSeed)
+	/*kc, _ := walletlib.NewKeychain(mock.NewMapDatastore(), &params2.AlphanetParams, "")
 
 	networkKey, _ := kc.NetworkKey()
 	sk, _ := crypto.MarshalPrivateKey(networkKey)
@@ -108,7 +108,6 @@ func main() {
 		},
 	}
 	*/
-
 	blk := &blocks.Block{
 		Header: &blocks.BlockHeader{
 			Version:     1,

@@ -14,7 +14,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/rpc/pb"
 	"github.com/project-illium/ilxd/types"
-	"golang.org/x/crypto/openpgp/armor"
+	"golang.org/x/crypto/openpgp/armor" // nolint:staticcheck
 	"google.golang.org/protobuf/encoding/protojson"
 	"strings"
 )
@@ -475,7 +475,7 @@ func (x *SignMessage) Execute(args []string) error {
 		return err
 	}
 
-	fmt.Println(string(buff.Bytes()))
+	fmt.Println(buff.String())
 
 	return nil
 }

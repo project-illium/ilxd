@@ -123,6 +123,8 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	var netParams *params.NetworkParams
 	if config.Testnet {
 		netParams = &params.Testnet1Params
+	} else if config.Alphanet {
+		netParams = &params.AlphanetParams
 	} else if config.Regtest {
 		netParams = &params.RegestParams
 		if config.RegtestVal {

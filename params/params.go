@@ -17,6 +17,7 @@ const (
 
 	networkMainnet  = "mainnet"
 	networkTestnet1 = "testnet1"
+	networkAlphanet = "alphanet"
 	networkRegtest  = "regtest"
 )
 
@@ -121,6 +122,28 @@ var Testnet1Params = NetworkParams{
 		"/ip6/::/udp/9002/quic",
 	},
 	AddressPrefix:              "tn1",
+	EpochLength:                60 * 60 * 24 * 7, // One week
+	TargetDistribution:         1 << 60,
+	InitialDistributionPeriods: 520,
+	AValue:                     2.59,
+	TreasuryPercentage:         5,
+	LongTermInflationRate:      math.Pow(1.02, 1.0/52) - 1, // Annualizes to 2% over 52 periods.
+}
+
+var AlphanetParams = NetworkParams{
+	Name:           "alphanet",
+	ProtocolPrefix: protocol.ID(path.Join(appProtocol, networkTestnet1)),
+	SeedAddrs: []string{
+		"/ip4/142.93.247.238/tcp/9002/p2p/12D3KooWKUMHDGvDuJjSkhey1Gz9kYPpt5Nw1wpzRtt9xwYWF1tx",
+	},
+	ListenAddrs: []string{
+		"/ip4/0.0.0.0/tcp/9002",
+		"/ip6/::/tcp/9002",
+		"/ip4/0.0.0.0/udp/9002/quic",
+		"/ip6/::/udp/9002/quic",
+	},
+	AddressPrefix:              "al",
+	GenesisBlock:               AlphanetGenesisBlock,
 	EpochLength:                60 * 60 * 24 * 7, // One week
 	TargetDistribution:         1 << 60,
 	InitialDistributionPeriods: 520,
