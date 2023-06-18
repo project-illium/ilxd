@@ -726,6 +726,67 @@ func (x *CreateRawTransaction) Execute(args []string) error {
 	return nil
 }
 
+type CreateRawStakeTransaction struct {
+	InputCommitment string `short:"t" long:"commitment" description:"A commitment to stake as an input. Serialized as a hex string. If using this the wallet will look up the private input data. Use this or input."`
+	PrivateInput    string `short:"i" long:"input" description:"Private input data as a JSON string. Use this or commitment."`
+	Serialize       bool   `short:"s" long:"serialize" description:"Serialize the output as a hex string. If false it will be JSON."`
+	opts            *options
+}
+
+func (x *CreateRawStakeTransaction) Execute(args []string) error {
+	client, err := makeWalletClient(x.opts)
+	if err != nil {
+		return err
+	}
+	req := &pb.CreateRawStakeTransactionRequest{
+		Input: nil,
+	}
+
+	if len(x.PrivateInput) > 0 {
+		var input pb.PrivateInput
+		if err := json.Unmarshal([]byte(x.PrivateInput), &input); err != nil {
+			return err
+		}
+		req.Input = &pb.CreateRawStakeTransactionRequest_Input{
+			CommitmentOrPrivateInput: &pb.CreateRawStakeTransactionRequest_Input_Input{
+				Input: &input,
+			},
+		}
+	} else if len(x.InputCommitment) > 0 {
+		commitmentBytes, err := hex.DecodeString(x.InputCommitment)
+		if err != nil {
+			return err
+		}
+		req.Input = &pb.CreateRawStakeTransactionRequest_Input{
+			CommitmentOrPrivateInput: &pb.CreateRawStakeTransactionRequest_Input_Commitment{
+				Commitment: commitmentBytes,
+			},
+		}
+	} else {
+		return errors.New("use either input or commitment")
+	}
+
+	resp, err := client.CreateRawStakeTransaction(makeContext(x.opts.AuthToken), req)
+	if err != nil {
+		return err
+	}
+	if x.Serialize {
+		ser, err := proto.Marshal(resp.Tx)
+		if err != nil {
+			return err
+		}
+		fmt.Println(hex.EncodeToString(ser))
+	} else {
+		out, err := json.MarshalIndent(resp.Tx, "", "    ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+	}
+
+	return nil
+}
+
 type ProveRawTransaction struct {
 	Tx        string `short:"t" long:"tx" description:"The transaction to prove. Serialized as hex string or JSON."`
 	Serialize bool   `short:"s" long:"serialize" description:"Serialize the output as a hex string. If false it will be JSON."`

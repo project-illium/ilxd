@@ -168,6 +168,9 @@ service WalletService {
     // CreateRawTransaction creates a new, unsigned (unproven) transaction using the given parameters
     rpc CreateRawTransaction(CreateRawTransactionRequest) returns (CreateRawTransactionResponse) {}
 
+    // CreateRawStakeTransaction creates a new, unsigned (unproven) stake transaction using the given parameters
+    rpc CreateRawStakeTransaction(CreateRawStakeTransactionRequest) returns (CreateRawStakeTransactionResponse) {}
+
     // ProveRawTransaction creates the zk-proof for the transaction. Assuming there are no errors, this
     // transaction should be ready for broadcast.
     rpc ProveRawTransaction(ProveRawTransactionRequest) returns (ProveRawTransactionResponse) {}
@@ -747,6 +750,26 @@ message CreateRawTransactionRequest {
     }
 }
 message CreateRawTransactionResponse {
+    // Raw transaction response
+    RawTransaction tx = 1;
+}
+
+message CreateRawStakeTransactionRequest {
+    // A list of either utxo commitments or private inputs
+    Input input = 1;
+
+    message Input {
+        oneof commitment_or_private_input {
+            // This is a utxo commitment known to the wallet
+            bytes commitment = 1;
+            // If trying to create a transaction spending a utxo that the
+            // wallet does not know about you must provide the full private
+            // input data.
+            PrivateInput input = 2;
+        }
+    }
+}
+message CreateRawStakeTransactionResponse {
     // Raw transaction response
     RawTransaction tx = 1;
 }

@@ -1035,6 +1035,8 @@ type WalletServiceClient interface {
 	DeletePrivateKeys(ctx context.Context, in *DeletePrivateKeysRequest, opts ...grpc.CallOption) (*DeletePrivateKeysResponse, error)
 	// CreateRawTransaction creates a new, unsigned (unproven) transaction using the given parameters
 	CreateRawTransaction(ctx context.Context, in *CreateRawTransactionRequest, opts ...grpc.CallOption) (*CreateRawTransactionResponse, error)
+	// CreateRawStakeTransaction creates a new, unsigned (unproven) stake transaction using the given parameters
+	CreateRawStakeTransaction(ctx context.Context, in *CreateRawStakeTransactionRequest, opts ...grpc.CallOption) (*CreateRawStakeTransactionResponse, error)
 	// ProveRawTransaction creates the zk-proof for the transaction. Assuming there are no errors, this
 	// transaction should be ready for broadcast.
 	ProveRawTransaction(ctx context.Context, in *ProveRawTransactionRequest, opts ...grpc.CallOption) (*ProveRawTransactionResponse, error)
@@ -1249,6 +1251,15 @@ func (c *walletServiceClient) CreateRawTransaction(ctx context.Context, in *Crea
 	return out, nil
 }
 
+func (c *walletServiceClient) CreateRawStakeTransaction(ctx context.Context, in *CreateRawStakeTransactionRequest, opts ...grpc.CallOption) (*CreateRawStakeTransactionResponse, error) {
+	out := new(CreateRawStakeTransactionResponse)
+	err := c.cc.Invoke(ctx, "/pb.WalletService/CreateRawStakeTransaction", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *walletServiceClient) ProveRawTransaction(ctx context.Context, in *ProveRawTransactionRequest, opts ...grpc.CallOption) (*ProveRawTransactionResponse, error) {
 	out := new(ProveRawTransactionResponse)
 	err := c.cc.Invoke(ctx, "/pb.WalletService/ProveRawTransaction", in, out, opts...)
@@ -1344,6 +1355,8 @@ type WalletServiceServer interface {
 	DeletePrivateKeys(context.Context, *DeletePrivateKeysRequest) (*DeletePrivateKeysResponse, error)
 	// CreateRawTransaction creates a new, unsigned (unproven) transaction using the given parameters
 	CreateRawTransaction(context.Context, *CreateRawTransactionRequest) (*CreateRawTransactionResponse, error)
+	// CreateRawStakeTransaction creates a new, unsigned (unproven) stake transaction using the given parameters
+	CreateRawStakeTransaction(context.Context, *CreateRawStakeTransactionRequest) (*CreateRawStakeTransactionResponse, error)
 	// ProveRawTransaction creates the zk-proof for the transaction. Assuming there are no errors, this
 	// transaction should be ready for broadcast.
 	ProveRawTransaction(context.Context, *ProveRawTransactionRequest) (*ProveRawTransactionResponse, error)
@@ -1428,6 +1441,9 @@ func (UnimplementedWalletServiceServer) DeletePrivateKeys(context.Context, *Dele
 }
 func (UnimplementedWalletServiceServer) CreateRawTransaction(context.Context, *CreateRawTransactionRequest) (*CreateRawTransactionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateRawTransaction not implemented")
+}
+func (UnimplementedWalletServiceServer) CreateRawStakeTransaction(context.Context, *CreateRawStakeTransactionRequest) (*CreateRawStakeTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateRawStakeTransaction not implemented")
 }
 func (UnimplementedWalletServiceServer) ProveRawTransaction(context.Context, *ProveRawTransactionRequest) (*ProveRawTransactionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ProveRawTransaction not implemented")
@@ -1832,6 +1848,24 @@ func _WalletService_CreateRawTransaction_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _WalletService_CreateRawStakeTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateRawStakeTransactionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).CreateRawStakeTransaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.WalletService/CreateRawStakeTransaction",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).CreateRawStakeTransaction(ctx, req.(*CreateRawStakeTransactionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _WalletService_ProveRawTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ProveRawTransactionRequest)
 	if err := dec(in); err != nil {
@@ -1994,6 +2028,10 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateRawTransaction",
 			Handler:    _WalletService_CreateRawTransaction_Handler,
+		},
+		{
+			MethodName: "CreateRawStakeTransaction",
+			Handler:    _WalletService_CreateRawStakeTransaction_Handler,
 		},
 		{
 			MethodName: "ProveRawTransaction",

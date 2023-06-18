@@ -17,6 +17,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
+	"github.com/project-illium/ilxd/zk/circuits/stake"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/project-illium/walletlib"
 	"google.golang.org/grpc/codes"
@@ -482,7 +483,7 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 	}
 	resp := &pb.CreateRawTransactionResponse{
 		Tx: &pb.RawTransaction{
-			Tx:      transactions.WrapTransaction(rawTx.Tx),
+			Tx:      rawTx.Tx,
 			Inputs:  make([]*pb.PrivateInput, 0, len(rawTx.PrivateInputs)),
 			Outputs: make([]*pb.PrivateOutput, 0, len(rawTx.PrivateOutputs)),
 		},
@@ -539,6 +540,71 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 	return resp, nil
 }
 
+// CreateRawStakeTransaction creates a new, unsigned (unproven) stake transaction using the given parameters
+func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.CreateRawStakeTransactionRequest) (*pb.CreateRawStakeTransactionResponse, error) {
+	rawInput := &walletlib.RawInput{}
+	if req.Input.GetCommitment() != nil {
+		rawInput.Commitment = req.Input.GetCommitment()
+	} else if req.Input.GetInput() != nil {
+		rawInput.PrivateInput = &standard.PrivateInput{
+			Amount:           req.Input.GetInput().Amount,
+			ScriptCommitment: req.Input.GetInput().ScriptCommitment,
+			ScriptParams:     req.Input.GetInput().ScriptParams,
+			UnlockingParams:  nil,
+		}
+		copy(rawInput.PrivateInput.Salt[:], req.Input.GetInput().Salt)
+		copy(rawInput.PrivateInput.AssetID[:], req.Input.GetInput().Asset_ID)
+		copy(rawInput.PrivateInput.State[:], req.Input.GetInput().State)
+	} else {
+		return nil, status.Error(codes.InvalidArgument, "input must have commitment or private input")
+	}
+
+	rawTx, err := s.wallet.CreateRawStakeTransaction(rawInput)
+	if err != nil {
+		return nil, err
+	}
+	resp := &pb.CreateRawStakeTransactionResponse{
+		Tx: &pb.RawTransaction{
+			Tx:     rawTx.Tx,
+			Inputs: make([]*pb.PrivateInput, 0, len(rawTx.PrivateInputs)),
+		},
+	}
+	unlockingScript := types.UnlockingScript{
+		ScriptCommitment: rawTx.PrivateInputs[0].ScriptCommitment,
+		ScriptParams:     rawTx.PrivateInputs[0].ScriptParams,
+	}
+	scriptHash := unlockingScript.Hash()
+	note := types.SpendNote{
+		ScriptHash: scriptHash[:],
+		Amount:     types.Amount(rawTx.PrivateInputs[0].Amount),
+		AssetID:    rawTx.PrivateInputs[0].AssetID,
+		State:      rawTx.PrivateInputs[0].State,
+		Salt:       rawTx.PrivateInputs[0].Salt,
+	}
+	commitment, err := note.Commitment()
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	resp.Tx.Inputs = append(resp.Tx.Inputs, &pb.PrivateInput{
+		Amount:           rawTx.PrivateInputs[0].Amount,
+		Salt:             rawTx.PrivateInputs[0].Salt[:],
+		Asset_ID:         rawTx.PrivateInputs[0].AssetID[:],
+		State:            rawTx.PrivateInputs[0].State[:],
+		ScriptCommitment: rawTx.PrivateInputs[0].ScriptCommitment[:],
+		ScriptParams:     rawTx.PrivateInputs[0].ScriptParams[:],
+		TxoProof: &pb.TxoProof{
+			Commitment:  commitment[:],
+			Accumulator: rawTx.PrivateInputs[0].InclusionProof.Accumulator,
+			Hashes:      rawTx.PrivateInputs[0].InclusionProof.Hashes,
+			Flags:       rawTx.PrivateInputs[0].InclusionProof.Flags,
+			Index:       rawTx.PrivateInputs[0].CommitmentIndex,
+		},
+	})
+
+	return resp, nil
+}
+
 // ProveRawTransaction creates the zk-proof for the transaction. Assuming there are no errors, this
 // transaction should be ready for broadcast.
 func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTransactionRequest) (*pb.ProveRawTransactionResponse, error) {
@@ -549,31 +615,120 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		return nil, status.Error(codes.InvalidArgument, "tx is nil")
 	}
 
-	standardTx := req.Tx.Tx.GetStandardTransaction()
-	if standardTx == nil {
-		return nil, status.Error(codes.InvalidArgument, "standard tx is nil")
-	}
+	if req.Tx.Tx.GetStandardTransaction() != nil {
+		standardTx := req.Tx.Tx.GetStandardTransaction()
+		sigHash, err := standardTx.SigHash()
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 
-	sigHash, err := standardTx.SigHash()
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+		// Create the transaction zk proof
+		privateParams := &standard.PrivateParams{
+			Inputs:  []standard.PrivateInput{},
+			Outputs: []standard.PrivateOutput{},
+		}
 
-	// Create the transaction zk proof
-	privateParams := &standard.PrivateParams{
-		Inputs:  []standard.PrivateInput{},
-		Outputs: []standard.PrivateOutput{},
-	}
+		privkeyMap, err := s.wallet.PrivateKeys()
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 
-	privkeyMap, err := s.wallet.PrivateKeys()
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+		for i, in := range req.Tx.Inputs {
+			unlockingScript := types.UnlockingScript{
+				ScriptCommitment: in.ScriptCommitment,
+				ScriptParams:     in.ScriptParams,
+			}
+			scriptHash := unlockingScript.Hash()
 
-	for i, in := range req.Tx.Inputs {
+			var privKey crypto.PrivKey
+			for k, addr := range privkeyMap {
+				if addr.ScriptHash() == scriptHash {
+					privKey = k.SpendKey()
+					break
+				}
+			}
+			if privKey == nil {
+				return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("private key for input %d not found", i))
+			}
+
+			sig, err := privKey.Sign(sigHash)
+			if err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			privIn := standard.PrivateInput{
+				Amount:          in.Amount,
+				CommitmentIndex: in.TxoProof.Index,
+				InclusionProof: standard.InclusionProof{
+					Hashes:      in.TxoProof.Hashes,
+					Flags:       in.TxoProof.Flags,
+					Accumulator: in.TxoProof.Accumulator,
+				},
+				ScriptCommitment: in.ScriptCommitment,
+				ScriptParams:     in.ScriptParams,
+				UnlockingParams:  [][]byte{sig},
+			}
+			copy(privIn.Salt[:], in.Salt)
+			copy(privIn.AssetID[:], in.Asset_ID)
+			copy(privIn.State[:], in.State)
+
+			privateParams.Inputs = append(privateParams.Inputs, privIn)
+		}
+
+		for _, out := range req.Tx.Outputs {
+			privOut := standard.PrivateOutput{
+				ScriptHash: make([]byte, len(out.ScriptHash)),
+				Amount:     out.Amount,
+			}
+			copy(privOut.ScriptHash, out.ScriptHash)
+			copy(privOut.Salt[:], out.Salt)
+			copy(privOut.AssetID[:], out.Asset_ID)
+			copy(privOut.State[:], out.State)
+			privateParams.Outputs = append(privateParams.Outputs, privOut)
+		}
+
+		publicParams := &standard.PublicParams{
+			TXORoot:    standardTx.TxoRoot,
+			SigHash:    sigHash,
+			Nullifiers: standardTx.Nullifiers,
+			Fee:        standardTx.Fee,
+		}
+
+		for _, out := range standardTx.Outputs {
+			publicParams.Outputs = append(publicParams.Outputs, standard.PublicOutput{
+				Commitment: out.Commitment,
+				CipherText: out.Ciphertext,
+			})
+		}
+
+		proof, err := zk.CreateSnark(standard.StandardCircuit, privateParams, publicParams)
+		if err != nil {
+			return nil, err
+		}
+
+		standardTx.Proof = proof
+
+		return &pb.ProveRawTransactionResponse{
+			ProvedTx: transactions.WrapTransaction(standardTx),
+		}, nil
+	} else if req.Tx.Tx.GetStakeTransaction() != nil {
+		stakeTx := req.Tx.Tx.GetStakeTransaction()
+		sigHash, err := stakeTx.SigHash()
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+
+		if len(req.Tx.Inputs) == 0 {
+			return nil, status.Error(codes.InvalidArgument, "no inputs")
+		}
+
+		privkeyMap, err := s.wallet.PrivateKeys()
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+
 		unlockingScript := types.UnlockingScript{
-			ScriptCommitment: in.ScriptCommitment,
-			ScriptParams:     in.ScriptParams,
+			ScriptCommitment: req.Tx.Inputs[0].ScriptCommitment,
+			ScriptParams:     req.Tx.Inputs[0].ScriptParams,
 		}
 		scriptHash := unlockingScript.Hash()
 
@@ -585,68 +740,49 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 			}
 		}
 		if privKey == nil {
-			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("private key for input %d not found", i))
+			return nil, status.Error(codes.InvalidArgument, "private key for input not found")
 		}
 
 		sig, err := privKey.Sign(sigHash)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		privIn := standard.PrivateInput{
-			Amount:          in.Amount,
-			CommitmentIndex: in.TxoProof.Index,
+
+		// Create the transaction zk proof
+		privateParams := stake.PrivateParams{
+			CommitmentIndex: req.Tx.Inputs[0].TxoProof.Index,
 			InclusionProof: standard.InclusionProof{
-				Hashes:      in.TxoProof.Hashes,
-				Flags:       in.TxoProof.Flags,
-				Accumulator: in.TxoProof.Accumulator,
+				Hashes:      req.Tx.Inputs[0].TxoProof.Hashes,
+				Flags:       req.Tx.Inputs[0].TxoProof.Flags,
+				Accumulator: req.Tx.Inputs[0].TxoProof.Accumulator,
 			},
-			ScriptCommitment: in.ScriptCommitment,
-			ScriptParams:     in.ScriptParams,
+			ScriptCommitment: req.Tx.Inputs[0].ScriptCommitment,
+			ScriptParams:     req.Tx.Inputs[0].ScriptParams,
 			UnlockingParams:  [][]byte{sig},
 		}
-		copy(privIn.Salt[:], in.Salt)
-		copy(privIn.AssetID[:], in.Asset_ID)
-		copy(privIn.State[:], in.State)
+		copy(privateParams.Salt[:], req.Tx.Inputs[0].Salt)
+		copy(privateParams.AssetID[:], req.Tx.Inputs[0].Asset_ID)
+		copy(privateParams.State[:], req.Tx.Inputs[0].State)
 
-		privateParams.Inputs = append(privateParams.Inputs, privIn)
-	}
-
-	for _, out := range req.Tx.Outputs {
-		privOut := standard.PrivateOutput{
-			ScriptHash: make([]byte, len(out.ScriptHash)),
-			Amount:     out.Amount,
+		publicParams := stake.PublicParams{
+			TXORoot:   stakeTx.TxoRoot,
+			SigHash:   sigHash,
+			Amount:    stakeTx.Amount,
+			Nullifier: stakeTx.Nullifier,
 		}
-		copy(privOut.ScriptHash, out.ScriptHash)
-		copy(privOut.Salt[:], out.Salt)
-		copy(privOut.AssetID[:], out.Asset_ID)
-		copy(privOut.State[:], out.State)
-		privateParams.Outputs = append(privateParams.Outputs, privOut)
+
+		proof, err := zk.CreateSnark(stake.StakeCircuit, privateParams, publicParams)
+		if err != nil {
+			return nil, err
+		}
+
+		stakeTx.Proof = proof
+
+		return &pb.ProveRawTransactionResponse{
+			ProvedTx: transactions.WrapTransaction(stakeTx),
+		}, nil
 	}
-
-	publicParams := &standard.PublicParams{
-		TXORoot:    standardTx.TxoRoot,
-		SigHash:    sigHash,
-		Nullifiers: standardTx.Nullifiers,
-		Fee:        standardTx.Fee,
-	}
-
-	for _, out := range standardTx.Outputs {
-		publicParams.Outputs = append(publicParams.Outputs, standard.PublicOutput{
-			Commitment: out.Commitment,
-			CipherText: out.Ciphertext,
-		})
-	}
-
-	proof, err := zk.CreateSnark(standard.StandardCircuit, privateParams, publicParams)
-	if err != nil {
-		return nil, err
-	}
-
-	standardTx.Proof = proof
-
-	return &pb.ProveRawTransactionResponse{
-		ProvedTx: transactions.WrapTransaction(standardTx),
-	}, nil
+	return nil, status.Error(codes.InvalidArgument, "tx must be either standard or stake type")
 }
 
 // Stake stakes the selected wallet UTXOs and turns the node into a validator
