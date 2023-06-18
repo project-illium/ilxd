@@ -749,7 +749,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		}
 
 		// Create the transaction zk proof
-		privateParams := stake.PrivateParams{
+		privateParams := &stake.PrivateParams{
 			CommitmentIndex: req.Tx.Inputs[0].TxoProof.Index,
 			InclusionProof: standard.InclusionProof{
 				Hashes:      req.Tx.Inputs[0].TxoProof.Hashes,
@@ -764,7 +764,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		copy(privateParams.AssetID[:], req.Tx.Inputs[0].Asset_ID)
 		copy(privateParams.State[:], req.Tx.Inputs[0].State)
 
-		publicParams := stake.PublicParams{
+		publicParams := &stake.PublicParams{
 			TXORoot:   stakeTx.TxoRoot,
 			SigHash:   sigHash,
 			Amount:    stakeTx.Amount,
