@@ -52,7 +52,7 @@ func NewChainService(ctx context.Context, fetchBlock FetchBlockFunc, chain *bloc
 		fetchBlock: fetchBlock,
 		chain:      chain,
 		params:     params,
-		ms:         net.NewMessageSender(network.Host(), params.ProtocolPrefix+ChainServiceProtocol),
+		ms:         net.NewMessageSender(network.Host(), params.ProtocolPrefix+ChainServiceProtocol+ChainServiceProtocolVersion),
 	}
 	cs.network.Host().SetStreamHandler(cs.params.ProtocolPrefix+ChainServiceProtocol+ChainServiceProtocolVersion, cs.HandleNewStream)
 	return cs
@@ -326,7 +326,7 @@ func (cs *ChainService) GetHeadersStream(p peer.ID, startHeight uint32) (<-chan 
 		},
 	}
 
-	s, err := cs.network.Host().NewStream(context.Background(), p, cs.params.ProtocolPrefix+ChainServiceProtocol)
+	s, err := cs.network.Host().NewStream(context.Background(), p, cs.params.ProtocolPrefix+ChainServiceProtocol+ChainServiceProtocolVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -386,7 +386,7 @@ func (cs *ChainService) GetBlockTxsStream(p peer.ID, startHeight uint32) (<-chan
 		},
 	}
 
-	s, err := cs.network.Host().NewStream(context.Background(), p, cs.params.ProtocolPrefix+ChainServiceProtocol)
+	s, err := cs.network.Host().NewStream(context.Background(), p, cs.params.ProtocolPrefix+ChainServiceProtocol+ChainServiceProtocolVersion)
 	if err != nil {
 		return nil, err
 	}
