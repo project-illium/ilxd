@@ -223,6 +223,19 @@ func (cg *ConnectionGater) UnblockPeer(p peer.ID) error {
 
 	delete(cg.blockedPeers, p)
 
+	addrs := cg.addrBook.Addrs(p)
+	for _, addr := range addrs {
+		ip, err := manet.ToIP(addr)
+		if err == nil {
+			if ip.IsLoopback() {
+				continue
+			}
+			if err := cg.UnblockAddr(ip); err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
