@@ -40,7 +40,7 @@ const (
 
 	// AvalancheMaxInflightPoll is the max outstanding requests that we can have
 	// for any inventory item.
-	AvalancheMaxInflightPoll = 10
+	AvalancheMaxInflightPoll = 100
 
 	// AvalancheMaxElementPoll is the maximum number of invs to send in a single
 	// query
@@ -498,7 +498,13 @@ func (eng *ConsensusEngine) getInvsForNextPoll() []types.ID {
 			// If this has finalized we can just skip.
 			continue
 		}
-		if r.inflightRequests >= AvalancheMaxInflightPoll {
+
+		maxInflight := uint8(AvalancheFinalizationScore - r.getConfidence())
+		if maxInflight < AvalancheMaxInflightPoll {
+			maxInflight = AvalancheMaxInflightPoll
+		}
+
+		if r.inflightRequests >= maxInflight {
 			// If we are already at the max inflight then continue
 			continue
 		}
