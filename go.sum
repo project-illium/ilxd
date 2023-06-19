@@ -583,6 +583,8 @@ github.com/polydawn/refmt v0.89.0/go.mod h1:/zvteZs/GwLtCgZ4BL6CBsk9IKIlexP43ObX
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
 github.com/project-illium/walletlib v0.0.0-20230618015714-1b08a0ddc1c3 h1:reGkPGz64bdXmvybdriF53o+BGmjDJFuhDhGgfpYgqs=
 github.com/project-illium/walletlib v0.0.0-20230618015714-1b08a0ddc1c3/go.mod h1:uWo4cVgPIGEC7nID46xRimvFCTBAhequO+hV9M7wvyA=
+github.com/project-illium/walletlib v0.0.0-20230619215640-8e340d8f501b h1:mLEUb2JoaqunQaHH1uW4rQ0S23CuAGYWia9gyDoBAlQ=
+github.com/project-illium/walletlib v0.0.0-20230619215640-8e340d8f501b/go.mod h1:uWo4cVgPIGEC7nID46xRimvFCTBAhequO+hV9M7wvyA=
 github.com/prometheus/client_golang v0.8.0/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.1/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829/go.mod h1:p2iRAGwDERtqlqzRXnrOVns+ignqQo//hLXqYxZYVNs=
