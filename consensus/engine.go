@@ -257,7 +257,7 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 		msgBytes, err := reader.ReadMsg()
 		if err != nil {
 			reader.ReleaseMsg(msgBytes)
-			if err == io.EOF {
+			if err == io.EOF || err == inet.ErrReset {
 				s.Close()
 				return
 			}
@@ -267,7 +267,9 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 		}
 		if err := proto.Unmarshal(msgBytes, req); err != nil {
 			reader.ReleaseMsg(msgBytes)
-			continue
+			log.Debugf("Error unmarshalling avalanche message: peer: %s, error: %s", remotePeer, err.Error())
+			s.Reset()
+			return
 		}
 		reader.ReleaseMsg(msgBytes)
 

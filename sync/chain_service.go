@@ -79,7 +79,7 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 		msgBytes, err := reader.ReadMsg()
 		if err != nil {
 			reader.ReleaseMsg(msgBytes)
-			if err == io.EOF {
+			if err == io.EOF || err == inet.ErrReset {
 				s.Close()
 				return
 			}

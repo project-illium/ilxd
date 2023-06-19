@@ -303,6 +303,7 @@ func (ms *peerMessageSender) SendRequest(ctx context.Context, req proto.Message,
 		}
 
 		if err := ms.ctxReadMsg(ctx, resp); err != nil {
+			log.Debugf("error reading response from peer %s", ms.p)
 			_ = ms.s.Reset()
 			ms.s = nil
 
