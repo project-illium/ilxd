@@ -91,10 +91,10 @@ func (sm *SyncManager) Start() {
 		err := sm.populatePeerBuckets()
 		if err != nil {
 			select {
-			case <-time.After(time.Second * 10):
-				continue
 			case <-sm.quit:
 				return
+			default:
+				continue
 			}
 		}
 		break
@@ -123,7 +123,7 @@ syncLoop:
 		bestID, height, _ := sm.chain.BestBlock()
 		blockMap, err := sm.queryPeersForBlockID(height + lookaheadSize)
 		if err != nil {
-			<-time.After(time.Second * 10)
+			time.Sleep(time.Second * 10)
 			continue
 		}
 		if len(blockMap) == 0 {

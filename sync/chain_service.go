@@ -124,14 +124,15 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 			}
 		}
 		if err != nil {
-			log.Errorf("Error handing block service message to peer: %s, error: %s", remotePeer, err.Error())
+			log.Errorf("Error handing chain service message to peer: %s, error: %s", remotePeer, err.Error())
 			continue
 		}
 
 		if resp != nil {
 			if err := net.WriteMsg(s, resp); err != nil {
-				log.Errorf("Error writing block service response to peer: %s, error: %s", remotePeer, err.Error())
+				log.Errorf("Error writing chain service response to peer: %s, error: %s", remotePeer, err.Error())
 				s.Reset()
+				return
 			}
 		}
 	}
