@@ -219,9 +219,8 @@ func (cg *ConnectionGater) UnblockPeer(p peer.ID) error {
 	}
 
 	cg.Lock()
-	defer cg.Unlock()
-
 	delete(cg.blockedPeers, p)
+	cg.Unlock()
 
 	addrs := cg.addrBook.Addrs(p)
 	for _, addr := range addrs {
