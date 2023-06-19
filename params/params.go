@@ -162,6 +162,7 @@ var RegestParams = NetworkParams{
 		"/ip4/0.0.0.0/udp/9003/quic",
 		"/ip6/::/udp/9003/quic",
 	},
+	SeedAddrs:                  []string{"/ip4/127.0.0.1/tcp/9003/p2p/12D3KooWN2RRWUokkcCjrf8zypvHwGv2u6rUepFAXheambSst5fV"},
 	AddressPrefix:              "reg",
 	GenesisBlock:               RegtestGenesisBlock,
 	EpochLength:                60 * 3, // Three minutes

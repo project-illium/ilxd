@@ -94,6 +94,7 @@ func (m *messageSenderImpl) SendRequest(ctx context.Context, p peer.ID, req prot
 			metrics.SentRequests.M(1),
 			metrics.SentRequestErrors.M(1),
 		)
+
 		return err
 	}
 
@@ -150,6 +151,7 @@ func (m *messageSenderImpl) messageSenderForPeer(ctx context.Context, p peer.ID)
 		m.smlk.Unlock()
 		return ms, nil
 	}
+
 	ms = &peerMessageSender{p: p, m: m, lk: NewCtxMutex()}
 	m.strmap[p] = ms
 	m.smlk.Unlock()

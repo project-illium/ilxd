@@ -166,13 +166,6 @@ func (cs *ChainService) GetBlockTxs(p peer.ID, blockID types.ID, txIndexes []uin
 }
 
 func (cs *ChainService) handleGetBlockTxs(req *wire.GetBlockTxsReq) (*wire.MsgBlockTxsResp, error) {
-	// FIXME: this will only serve txs from blocks that have passed consensus and
-	// have been connected to the chain. We should also check the inventory of the
-	// consensus engine. Blocks in the consensus engine have passed the block
-	// validation rules and thus are safe to serve in response to this.
-	//
-	// This is needed since nodes will call this RPC when decoding xthinner blocks
-	// and before they've validated them, let alone finalized them.
 	blk, err := cs.fetchBlock(types.NewID(req.Block_ID))
 	if err != nil {
 		return &wire.MsgBlockTxsResp{Error: wire.ErrorResponse_NotFound}, nil

@@ -135,8 +135,7 @@ func (g *BlockGenerator) generateBlock() error {
 	}
 
 	bestID, height, timestamp := g.chain.BestBlock()
-
-	if height == g.lastGenHeight-1 {
+	if g.lastGenHeight != 0 && g.lastGenHeight == height+1 {
 		return nil
 	}
 

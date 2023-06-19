@@ -135,7 +135,7 @@ syncLoop:
 			for blockID, p := range blockMap {
 				err := sm.syncBlocks(p, height+1, height+lookaheadSize, bestID, blockID, blockchain.BFNone)
 				if err != nil {
-					log.Debugf("Error syncing blocks. Peer: %s, Err: %s", p, err)
+					log.Debugf("Error syncing blocks. Peer: %s, Our Height: %d, Sync To: %d, Err: %s", p, height, height+lookaheadSize, err)
 				}
 				break
 			}

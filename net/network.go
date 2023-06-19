@@ -145,7 +145,7 @@ loop:
 	if cfg.forceServerMode {
 		mode = dht.ModeServer
 	}
-
+	
 	dhtOpts := []dht.Option{
 		dht.DisableValues(),
 		dht.ProtocolPrefix(cfg.params.ProtocolPrefix),

@@ -40,7 +40,7 @@ const (
 
 	// AvalancheMaxInflightPoll is the max outstanding requests that we can have
 	// for any inventory item.
-	AvalancheMaxInflightPoll = 100
+	AvalancheMaxInflightPoll = 10
 
 	// AvalancheMaxElementPoll is the maximum number of invs to send in a single
 	// query
@@ -357,7 +357,6 @@ func (eng *ConsensusEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer pee
 		}
 	} else {
 		respCh := make(chan *wire.MsgAvaResponse)
-
 		eng.msgChan <- &queryMsg{
 			request:    req,
 			remotePeer: peer,
@@ -461,6 +460,9 @@ func (eng *ConsensusEngine) pollLoop() {
 
 	p := eng.chooser.WeightedRandomValidator()
 	if p == "" {
+		for _, inv := range invs {
+			eng.voteRecords[inv].inflightRequests--
+		}
 		return
 	}
 	requestID := rand.Uint32()
@@ -499,7 +501,12 @@ func (eng *ConsensusEngine) getInvsForNextPoll() []types.ID {
 			continue
 		}
 
-		maxInflight := uint8(AvalancheFinalizationScore - r.getConfidence())
+		confidence := r.getConfidence()
+		var maxInflight uint8
+		if confidence < AvalancheFinalizationScore {
+			maxInflight = uint8(AvalancheFinalizationScore - r.getConfidence())
+		}
+
 		if maxInflight < AvalancheMaxInflightPoll {
 			maxInflight = AvalancheMaxInflightPoll
 		}
