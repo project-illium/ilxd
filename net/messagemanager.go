@@ -43,14 +43,14 @@ type MessageSender interface {
 type messageSenderImpl struct {
 	host      host.Host // the network services we need
 	smlk      sync.Mutex
-	strmap    map[peer.ID]*peerMessageSender
+	strmap    map[peer.ID]*sync.Pool
 	protocols []protocol.ID
 }
 
 func NewMessageSender(h host.Host, protos ...protocol.ID) MessageSender {
 	ms := &messageSenderImpl{
 		host:      h,
-		strmap:    make(map[peer.ID]*peerMessageSender),
+		strmap:    make(map[peer.ID]*sync.Pool),
 		protocols: protos,
 	}
 
@@ -69,26 +69,25 @@ func NewMessageSender(h host.Host, protos ...protocol.ID) MessageSender {
 func (m *messageSenderImpl) OnDisconnect(ctx context.Context, p peer.ID) {
 	m.smlk.Lock()
 	defer m.smlk.Unlock()
-	ms, ok := m.strmap[p]
+	_, ok := m.strmap[p]
 	if !ok {
 		return
 	}
 	delete(m.strmap, p)
-
-	// Do this asynchronously as ms.lk can block for a while.
-	go func() {
-		if err := ms.lk.Lock(ctx); err != nil {
-			return
-		}
-		defer ms.lk.Unlock()
-		ms.invalidate()
-	}()
 }
 
 // SendRequest sends out a request, but also makes sure to
 // measure the RTT for latency measurements.
 func (m *messageSenderImpl) SendRequest(ctx context.Context, p peer.ID, req proto.Message, resp proto.Message) error {
 	ms, err := m.messageSenderForPeer(ctx, p)
+	defer func() {
+		m.smlk.Lock()
+		pool, ok := m.strmap[p]
+		if ok {
+			pool.Put(ms)
+		}
+		m.smlk.Unlock()
+	}()
 	if err != nil {
 		stats.Record(ctx,
 			metrics.SentRequests.M(1),
@@ -120,6 +119,14 @@ func (m *messageSenderImpl) SendRequest(ctx context.Context, p peer.ID, req prot
 // SendMessage sends out a message
 func (m *messageSenderImpl) SendMessage(ctx context.Context, p peer.ID, pmes proto.Message) error {
 	ms, err := m.messageSenderForPeer(ctx, p)
+	defer func() {
+		m.smlk.Lock()
+		pool, ok := m.strmap[p]
+		if ok {
+			pool.Put(ms)
+		}
+		m.smlk.Unlock()
+	}()
 	if err != nil {
 		stats.Record(ctx,
 			metrics.SentMessages.M(1),
@@ -141,37 +148,31 @@ func (m *messageSenderImpl) SendMessage(ctx context.Context, p peer.ID, pmes pro
 	stats.Record(ctx,
 		metrics.SentMessages.M(1),
 	)
+
 	return nil
 }
 
 func (m *messageSenderImpl) messageSenderForPeer(ctx context.Context, p peer.ID) (*peerMessageSender, error) {
 	m.smlk.Lock()
-	ms, ok := m.strmap[p]
-	if ok {
-		m.smlk.Unlock()
-		return ms, nil
+	pool, ok := m.strmap[p]
+	if !ok {
+		pool = &sync.Pool{
+			New: func() any {
+				return &peerMessageSender{
+					lk: NewCtxMutex(),
+					p:  p,
+					m:  m,
+				}
+			},
+		}
+		m.strmap[p] = pool
 	}
-
-	ms = &peerMessageSender{p: p, m: m, lk: NewCtxMutex()}
-	m.strmap[p] = ms
 	m.smlk.Unlock()
 
-	if err := ms.prepOrInvalidate(ctx); err != nil {
-		m.smlk.Lock()
-		defer m.smlk.Unlock()
+	ms := pool.Get().(*peerMessageSender)
 
-		if msCur, ok := m.strmap[p]; ok {
-			// Changed. Use the new one, old one is invalid and
-			// not in the map so we can just throw it away.
-			if ms != msCur {
-				return msCur, nil
-			}
-			// Not changed, remove the now invalid stream from the
-			// map.
-			delete(m.strmap, p)
-		}
-		// Invalid but not in map. Must have been removed by a disconnect.
-		return nil, err
+	if err := ms.prepOrInvalidate(ctx); err != nil {
+		return ms, err
 	}
 	// All ready to go.
 	return ms, nil
@@ -210,14 +211,12 @@ func (ms *peerMessageSender) prepOrInvalidate(ctx context.Context) error {
 		ms.invalidate()
 		return err
 	}
+	ms.invalid = false
 	return nil
 }
 
 func (ms *peerMessageSender) prep(ctx context.Context) error {
-	if ms.invalid {
-		return fmt.Errorf("message sender has been invalidated")
-	}
-	if ms.s != nil {
+	if !ms.invalid && ms.s != nil {
 		return nil
 	}
 
