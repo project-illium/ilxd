@@ -630,9 +630,13 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 				log.Debugf("Block %s rejected by consensus", b.ID())
 			}
 
-			s.inventoryLock.Lock()
-			delete(s.activeInventory, blk.ID())
-			s.inventoryLock.Unlock()
+			// Leave it here for a little bit in case a peer requests it.
+			// This likely would only happen in a race condition.
+			time.AfterFunc(time.Minute, func() {
+				s.inventoryLock.Lock()
+				delete(s.activeInventory, blk.ID())
+				s.inventoryLock.Unlock()
+			})
 
 			s.orphanLock.Lock()
 			for _, orphan := range s.orphanBlocks {
