@@ -76,7 +76,7 @@ func newMockNode(mn mocknet.Mocknet) (*mockNode, error) {
 	return &mockNode{engine: engine}, nil
 }
 
-func setup() ([]*mockNode, *mockNode, mocknet.Mocknet, error) {
+func setup() ([]*mockNode, *mockNode, func(), error) {
 	mn := mocknet.New()
 	numNodes := 100
 	nodes := make([]*mockNode, 0, numNodes)
@@ -99,16 +99,23 @@ func setup() ([]*mockNode, *mockNode, mocknet.Mocknet, error) {
 	if err := mn.ConnectAllButSelf(); err != nil {
 		return nil, nil, nil, err
 	}
-	return nodes, testNode, mn, nil
+	teardown := func() {
+		mn.Close()
+		for _, n := range nodes {
+			n.engine.Close()
+		}
+		testNode.engine.Close()
+	}
+	return nodes, testNode, teardown, nil
 }
 
 func TestConsensusEngine(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	t.Run("Test block finalization when all nodes agree", func(t *testing.T) {
-		nodes, testNode, mn, err := setup()
+		nodes, testNode, teardown, err := setup()
 		assert.NoError(t, err)
-		defer mn.Close()
+		defer teardown()
 
 		blk1 := &blocks.Block{Header: &blocks.BlockHeader{Height: 1}}
 		for _, node := range nodes {
@@ -128,9 +135,9 @@ func TestConsensusEngine(t *testing.T) {
 	})
 
 	t.Run(" Test block finalization when all nodes reject", func(t *testing.T) {
-		nodes, testNode, mn, err := setup()
+		nodes, testNode, teardown, err := setup()
 		assert.NoError(t, err)
-		defer mn.Close()
+		defer teardown()
 
 		blk2 := &blocks.Block{Header: &blocks.BlockHeader{Height: 2}}
 		for _, node := range nodes {
@@ -150,9 +157,9 @@ func TestConsensusEngine(t *testing.T) {
 	})
 
 	t.Run("Test block finalization of all nodes with initial preference yes", func(t *testing.T) {
-		nodes, testNode, mn, err := setup()
+		nodes, testNode, teardown, err := setup()
 		assert.NoError(t, err)
-		defer mn.Close()
+		defer teardown()
 
 		cb := make(chan Status)
 		blk3 := &blocks.Block{Header: &blocks.BlockHeader{Height: 3}}
@@ -180,9 +187,9 @@ func TestConsensusEngine(t *testing.T) {
 	})
 
 	t.Run("Test block finalization of all nodes with initial preference no", func(t *testing.T) {
-		nodes, testNode, mn, err := setup()
+		nodes, testNode, teardown, err := setup()
 		assert.NoError(t, err)
-		defer mn.Close()
+		defer teardown()
 
 		cb := make(chan Status)
 		blk4 := &blocks.Block{Header: &blocks.BlockHeader{Height: 4}}
@@ -210,9 +217,9 @@ func TestConsensusEngine(t *testing.T) {
 	})
 
 	t.Run("Test block finalization of all nodes with random initial preference", func(t *testing.T) {
-		nodes, testNode, mn, err := setup()
+		nodes, testNode, teardown, err := setup()
 		assert.NoError(t, err)
-		defer mn.Close()
+		defer teardown()
 
 		cb := make(chan Status)
 		blk5 := &blocks.Block{Header: &blocks.BlockHeader{Height: 5}}
@@ -261,9 +268,9 @@ func TestConsensusEngine(t *testing.T) {
 		}
 	})
 	t.Run("Test block finalization of conflicting blocks", func(t *testing.T) {
-		nodes, testNode, mn, err := setup()
+		nodes, testNode, teardown, err := setup()
 		assert.NoError(t, err)
-		defer mn.Close()
+		defer teardown()
 
 		blk6a := &blocks.Block{Header: &blocks.BlockHeader{Version: 0, Height: 6}}
 		blk6b := &blocks.Block{Header: &blocks.BlockHeader{Version: 1, Height: 6}}
@@ -295,9 +302,9 @@ func TestConsensusEngine(t *testing.T) {
 	})
 
 	t.Run("Test block finalization of all nodes with conflicting blocks", func(t *testing.T) {
-		nodes, testNode, mn, err := setup()
+		nodes, testNode, teardown, err := setup()
 		assert.NoError(t, err)
-		defer mn.Close()
+		defer teardown()
 
 		blk6a := &blocks.Block{Header: &blocks.BlockHeader{Version: 0, Height: 6}}
 		blk6b := &blocks.Block{Header: &blocks.BlockHeader{Version: 1, Height: 6}}
