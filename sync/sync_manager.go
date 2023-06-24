@@ -87,6 +87,7 @@ func (sm *SyncManager) Start() {
 	// Before we start we want to do a large peer query to see if there
 	// are any forks out there. If there are, we will sort the peers into
 	// buckets depending on which fork they are on.
+	sm.waitForPeers()
 	for {
 		err := sm.populatePeerBuckets()
 		if err != nil {
@@ -712,4 +713,14 @@ func (sm *SyncManager) downloadBlockTxs(p peer.ID, startHeight, endHeight uint32
 		}
 	}
 	return txs, nil
+}
+
+func (sm *SyncManager) waitForPeers() {
+	for i := 0; i < 50; i++ {
+		n := len(sm.network.Host().Network().Peers())
+		if n >= bestHeightQuerySize {
+			return
+		}
+		time.Sleep(time.Millisecond * 100)
+	}
 }

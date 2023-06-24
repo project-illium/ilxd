@@ -13,7 +13,7 @@ const MockProofSize = 9000
 
 type CircuitFunc func(privateParams, publicParams interface{}) bool
 
-// CreateSnark is a placeholder for a function call to the rust halo 2 library. Right now
+// CreateSnark is a placeholder for a function call to the rust lurk library. Right now
 // we do validate that the input parameters are valid, but we just return random bytes
 // instead of a proof. This obviously needs to be changed.
 func CreateSnark(circuit CircuitFunc, privateParams, publicParams interface{}) ([]byte, error) {
@@ -27,7 +27,7 @@ func CreateSnark(circuit CircuitFunc, privateParams, publicParams interface{}) (
 	return proof, nil
 }
 
-// ValidateSnark is a placeholder for a function call to the rust halo 2 library. Right now
+// ValidateSnark is a placeholder for a function call to the rust lurk library. Right now
 // we always return true for the snark being valid. This will obviously need to be changed.
 func ValidateSnark(circuit CircuitFunc, publicParams interface{}, proof []byte) (bool, error) {
 	return true, nil

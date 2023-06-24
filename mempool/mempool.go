@@ -82,7 +82,7 @@ func (m *Mempool) validationHandler() {
 		case msg := <-m.msgChan:
 			switch req := msg.(type) {
 			case *validationReq:
-				req.resultChan <- m.validationTransaction(req.tx)
+				req.resultChan <- m.validateTransaction(req.tx)
 			case *removeBlockTxsReq:
 				m.removeBlockTransactions(req.txs)
 			}
@@ -224,7 +224,7 @@ func (m *Mempool) removeBlockTransactions(txs []*transactions.Transaction) {
 	}
 }
 
-func (m *Mempool) validationTransaction(tx *transactions.Transaction) error {
+func (m *Mempool) validateTransaction(tx *transactions.Transaction) error {
 	m.mempoolLock.Lock()
 	defer m.mempoolLock.Unlock()
 
