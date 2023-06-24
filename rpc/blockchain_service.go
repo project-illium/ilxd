@@ -414,6 +414,7 @@ func (s *GrpcServer) SubmitTransaction(ctx context.Context, req *pb.SubmitTransa
 // SubscribeBlocks returns a stream of notifications when new blocks are finalized and connected to the chain.
 func (s *GrpcServer) SubscribeBlocks(req *pb.SubscribeBlocksRequest, stream pb.BlockchainService_SubscribeBlocksServer) error {
 	sub := s.subscribeEvents()
+	defer sub.Close()
 
 	for {
 		select {
