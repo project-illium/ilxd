@@ -1,0 +1,129 @@
+name: Build and Release Go App
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Build Main Application
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o bin/linux_amd64/main
+          GOOS=linux GOARCH=386 go build -o bin/linux_386/main
+          GOOS=darwin GOARCH=amd64 go build -o bin/darwin_amd64/main
+          GOOS=windows GOARCH=amd64 go build -o bin/windows_amd64/main.exe
+          GOOS=windows GOARCH=386 go build -o bin/windows_386/main.exe
+
+      - name: Build CLI Application
+        run: |
+          cd cli
+          GOOS=linux GOARCH=amd64 go build -o ../bin/linux_amd64/cli
+          GOOS=linux GOARCH=386 go build -o ../bin/linux_386/cli
+          GOOS=darwin GOARCH=amd64 go build -o ../bin/darwin_amd64/cli
+          GOOS=windows GOARCH=amd64 go build -o ../bin/windows_amd64/cli.exe
+          GOOS=windows GOARCH=386 go build -o ../bin/windows_386/cli.exe
+          cd ..
+
+      - name: Create zip archives
+        run: |
+          sudo apt-get install zip
+          cd bin
+          zip linux_amd64.zip linux_amd64/*
+          zip linux_386.zip linux_386/*
+          zip darwin_amd64.zip darwin_amd64/*
+          zip windows_amd64.zip windows_amd64/*
+          zip windows_386.zip windows_386/*
+          cd ..
+
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: compiled-archives
+          path: |
+            bin/*.zip
+
+  release:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: compiled-archives
+          path: bin/
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bin/linux_amd64.zip
+          asset_name: linux_amd64.zip
+          asset_content_type: application/zip
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bin/linux_386.zip
+          asset_name: linux_386.zip
+          asset_content_type: application/zip
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bin/darwin_amd64.zip
+          asset_name: darwin_amd64.zip
+          asset_content_type: application/zip
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bin/windows_amd64.zip
+          asset_name: windows_amd64.zip
+          asset_content_type: application/zip
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bin/windows_386.zip
+          asset_name: windows_386.zip
+          asset_content_type: application/zip
