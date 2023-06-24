@@ -20,20 +20,20 @@ jobs:
 
       - name: Build Main Application
         run: |
-          GOOS=linux GOARCH=amd64 go build -o bin/linux_amd64/main
-          GOOS=linux GOARCH=386 go build -o bin/linux_386/main
-          GOOS=darwin GOARCH=amd64 go build -o bin/darwin_amd64/main
-          GOOS=windows GOARCH=amd64 go build -o bin/windows_amd64/main.exe
-          GOOS=windows GOARCH=386 go build -o bin/windows_386/main.exe
+          GOOS=linux GOARCH=amd64 go build -o bin/linux_amd64/ilxd
+          GOOS=linux GOARCH=386 go build -o bin/linux_386/ilxd
+          GOOS=darwin GOARCH=amd64 go build -o bin/darwin_amd64/ilxd
+          GOOS=windows GOARCH=amd64 go build -o bin/windows_amd64/ilxd.exe
+          GOOS=windows GOARCH=386 go build -o bin/windows_386/ilxd.exe
 
       - name: Build CLI Application
         run: |
           cd cli
-          GOOS=linux GOARCH=amd64 go build -o ../bin/linux_amd64/cli
-          GOOS=linux GOARCH=386 go build -o ../bin/linux_386/cli
-          GOOS=darwin GOARCH=amd64 go build -o ../bin/darwin_amd64/cli
-          GOOS=windows GOARCH=amd64 go build -o ../bin/windows_amd64/cli.exe
-          GOOS=windows GOARCH=386 go build -o ../bin/windows_386/cli.exe
+          GOOS=linux GOARCH=amd64 go build -o ../bin/linux_amd64/ilxcli
+          GOOS=linux GOARCH=386 go build -o ../bin/linux_386/ilxcli
+          GOOS=darwin GOARCH=amd64 go build -o ../bin/darwin_amd64/ilxcli
+          GOOS=windows GOARCH=amd64 go build -o ../bin/windows_amd64/ilxcli.exe
+          GOOS=windows GOARCH=386 go build -o ../bin/windows_386/ilxcli.exe
           cd ..
 
       - name: Create zip archives
