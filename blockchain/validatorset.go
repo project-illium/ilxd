@@ -80,7 +80,7 @@ func (v *Validator) Clone() *Validator {
 		EpochBlocks:      v.EpochBlocks,
 	}
 	for n, s := range v.Nullifiers {
-		ret.Nullifiers[n] = Stake{
+		ret.Nullifiers[n.Clone()] = Stake{
 			Amount:     s.Amount,
 			Blockstamp: s.Blockstamp,
 		}
@@ -684,6 +684,6 @@ func copyValidator(dest *Validator, src *Validator) {
 	dest.UnclaimedCoins = src.UnclaimedCoins
 	dest.Nullifiers = make(map[types.Nullifier]Stake)
 	for k, v := range src.Nullifiers {
-		dest.Nullifiers[k] = v
+		dest.Nullifiers[k.Clone()] = v
 	}
 }

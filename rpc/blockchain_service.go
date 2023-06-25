@@ -370,7 +370,7 @@ func (s *GrpcServer) GetValidatorSet(ctx context.Context, req *pb.GetValidatorSe
 			EpochBlocks:    v.EpochBlocks,
 		}
 		for nullifier := range v.Nullifiers {
-			val.Nullifiers = append(val.Nullifiers, nullifier[:])
+			val.Nullifiers = append(val.Nullifiers, nullifier.Bytes())
 		}
 		resp.Validators = append(resp.Validators, val)
 	}

@@ -22,6 +22,12 @@ func (n Nullifier) Bytes() []byte {
 	return n[:]
 }
 
+func (n Nullifier) Clone() Nullifier {
+	var b [len(n)]byte
+	copy(b[:], n[:])
+	return b
+}
+
 func (n *Nullifier) SetBytes(data []byte) {
 	copy(n[:], data)
 }
