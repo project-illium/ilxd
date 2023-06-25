@@ -180,13 +180,24 @@ func (g *BlockGenerator) generateBlock() error {
 					delete(txs, txid)
 				}
 			}
+			if t.StandardTransaction.Locktime > blockTime {
+				delete(txs, txid)
+			}
 		case *transactions.Transaction_MintTransaction:
 			for _, n := range t.MintTransaction.Nullifiers {
 				if checkNullifiers[types.NewNullifier(n)] {
 					delete(txs, txid)
 				}
 			}
+			if t.MintTransaction.Locktime > blockTime {
+				delete(txs, txid)
+			}
+		case *transactions.Transaction_StakeTransaction:
+			if t.StakeTransaction.Locktime > blockTime {
+				delete(txs, txid)
+			}
 		}
+
 	}
 	blk.Transactions = make([]*transactions.Transaction, 0, len(txs))
 	for _, tx := range txs {
