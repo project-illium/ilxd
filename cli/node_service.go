@@ -75,11 +75,22 @@ func (x *GetPeers) Execute(args []string) error {
 	if err != nil {
 		return err
 	}
-	if resp.Peers == nil {
-		resp.Peers = []*pb.Peer{}
+
+	type peer struct {
+		PeerID    string   `json:"peerID"`
+		UserAgent string   `json:"userAgent"`
+		Addrs     []string `json:"addrs"`
 	}
 
-	out, err := json.MarshalIndent(resp.Peers, "", "    ")
+	peers := make([]peer, len(resp.Peers))
+	for i := range resp.Peers {
+		peers[i] = peer{
+			PeerID:    resp.Peers[i].Id,
+			UserAgent: resp.Peers[i].UserAgent,
+			Addrs:     resp.Peers[i].Addrs,
+		}
+	}
+	out, err := json.MarshalIndent(peers, "", "    ")
 	if err != nil {
 		return err
 	}

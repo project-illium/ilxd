@@ -1109,8 +1109,10 @@ message TxoProof {
 message Peer {
     // Peer ID
     string id             = 1;
+    // The peer's user agent string
+    string user_agent     = 2;
     // Multiaddrs
-    repeated string addrs = 2;
+    repeated string addrs = 3;
 }
 
 message WalletTransaction {

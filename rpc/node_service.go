@@ -53,14 +53,23 @@ func (s *GrpcServer) GetPeers(ctx context.Context, req *pb.GetPeersRequest) (*pb
 	peers := s.network.Host().Network().Peers()
 	ret := make([]*pb.Peer, 0, len(peers))
 	for _, p := range peers {
+		userAgentBytes, err := s.network.Host().Peerstore().Get(p, "AgentVersion")
+		if err != nil {
+			continue
+		}
+		userAgentString, ok := (userAgentBytes).(string)
+		if !ok {
+			continue
+		}
 		maaddrs := s.network.Host().Peerstore().Addrs(p)
 		addrs := make([]string, 0, len(maaddrs))
 		for _, addr := range maaddrs {
 			addrs = append(addrs, addr.String())
 		}
 		ret = append(ret, &pb.Peer{
-			Id:    p.String(),
-			Addrs: addrs,
+			Id:        p.String(),
+			UserAgent: userAgentString,
+			Addrs:     addrs,
 		})
 	}
 	return &pb.GetPeersResponse{
