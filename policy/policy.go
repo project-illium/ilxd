@@ -107,6 +107,9 @@ loop:
 }
 
 func (p *Policy) IsPreferredBlock(blk *blocks.Block) (bool, error) {
+	p.mtx.RLock()
+	defer p.mtx.RUnlock()
+
 	blockSize, err := blk.SerializedSize()
 	if err != nil {
 		return false, err
