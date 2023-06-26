@@ -36,15 +36,19 @@ jobs:
           GOOS=windows GOARCH=386 go build -o ../bin/windows_386/ilxcli.exe
           cd ..
 
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+
       - name: Create zip archives
         run: |
           sudo apt-get install zip
           cd bin
-          zip linux_amd64.zip linux_amd64/*
-          zip linux_386.zip linux_386/*
-          zip darwin_amd64.zip darwin_amd64/*
-          zip windows_amd64.zip windows_amd64/*
-          zip windows_386.zip windows_386/*
+          zip ilxd-${{ steps.get_version.outputs.VERSION }}-linux_amd64.zip linux_amd64/*
+          zip ilxd-${{ steps.get_version.outputs.VERSION }}-linux_386.zip linux_386/*
+          zip ilxd-${{ steps.get_version.outputs.VERSION }}-darwin_amd64.zip darwin_amd64/*
+          zip ilxd-${{ steps.get_version.outputs.VERSION }}-windows_amd64.zip windows_amd64/*
+          zip ilxd-${{ steps.get_version.outputs.VERSION }}-windows_386.zip windows_386/*
           cd ..
 
       - name: Archive production artifacts
@@ -78,14 +82,18 @@ jobs:
           draft: false
           prerelease: false
 
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/linux_amd64.zip
-          asset_name: linux_amd64.zip
+          asset_path: ./bin/ilxd-${{ steps.get_version.outputs.VERSION }}-linux_amd64.zip
+          asset_name: ilxd-${{ steps.get_version.outputs.VERSION }}-linux_amd64.zip
           asset_content_type: application/zip
 
       - name: Upload Release Assets
@@ -94,8 +102,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/linux_386.zip
-          asset_name: linux_386.zip
+          asset_path: ./bin/ilxd-${{ steps.get_version.outputs.VERSION }}-linux_386.zip
+          asset_name: ilxd-${{ steps.get_version.outputs.VERSION }}-linux_386.zip
           asset_content_type: application/zip
 
       - name: Upload Release Assets
@@ -104,8 +112,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/darwin_amd64.zip
-          asset_name: darwin_amd64.zip
+          asset_path: ./bin/ilxd-${{ steps.get_version.outputs.VERSION }}-darwin_amd64.zip
+          asset_name: ilxd-${{ steps.get_version.outputs.VERSION }}-darwin_amd64.zip
           asset_content_type: application/zip
 
       - name: Upload Release Assets
@@ -114,8 +122,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/windows_amd64.zip
-          asset_name: windows_amd64.zip
+          asset_path: ./bin/ilxd-${{ steps.get_version.outputs.VERSION }}-windows_amd64.zip
+          asset_name: ilxd-${{ steps.get_version.outputs.VERSION }}-windows_amd64.zip
           asset_content_type: application/zip
 
       - name: Upload Release Assets
@@ -124,6 +132,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/windows_386.zip
-          asset_name: windows_386.zip
+          asset_path: ./bin/ilxd-${{ steps.get_version.outputs.VERSION }}-windows_386.zip
+          asset_name: ilxd-${{ steps.get_version.outputs.VERSION }}-windows_386.zip
           asset_content_type: application/zip
