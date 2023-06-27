@@ -490,8 +490,6 @@ github.com/mr-tron/base58 v1.1.2/go.mod h1:BinMc/sQntlIE1frQmRFPUoPA1Zkr8VRgBdjW
 github.com/mr-tron/base58 v1.1.3/go.mod h1:BinMc/sQntlIE1frQmRFPUoPA1Zkr8VRgBdjWI2mNwc=
 github.com/mr-tron/base58 v1.2.0 h1:T/HDJBh4ZCPbU39/+c3rRvE0uKBQlU27+QI8LJ4t64o=
 github.com/mr-tron/base58 v1.2.0/go.mod h1:BinMc/sQntlIE1frQmRFPUoPA1Zkr8VRgBdjWI2mNwc=
-github.com/mroth/weightedrand/v2 v2.0.1 h1:zrEVDIaau/E4QLOKu02kpg8T8myweFlMGikIgbIdrRA=
-github.com/mroth/weightedrand/v2 v2.0.1/go.mod h1:f2faGsfOGOwc1p94wzHKKZyTpcJUW7OJ/9U4yfiNAOU=
 github.com/multiformats/go-base32 v0.1.0 h1:pVx9xoSPqEIQG8o+UbAe7DNi51oej1NtK+aGkbLYxPE=
 github.com/multiformats/go-base32 v0.1.0/go.mod h1:Kj3tFY6zNr+ABYMqeUNeGvkIC/UYgtWibDcT0rExnbI=
 github.com/multiformats/go-base36 v0.2.0 h1:lFsAbNOGeKtuKozrtBsAkSVhv1p9D0/qedU9rQyccr0=
@@ -581,10 +579,10 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/polydawn/refmt v0.89.0 h1:ADJTApkvkeBZsN0tBTx8QjpD9JkmxbKp0cxfr9qszm4=
 github.com/polydawn/refmt v0.89.0/go.mod h1:/zvteZs/GwLtCgZ4BL6CBsk9IKIlexP43ObX9AxTqTw=
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
-github.com/project-illium/walletlib v0.0.0-20230618015714-1b08a0ddc1c3 h1:reGkPGz64bdXmvybdriF53o+BGmjDJFuhDhGgfpYgqs=
-github.com/project-illium/walletlib v0.0.0-20230618015714-1b08a0ddc1c3/go.mod h1:uWo4cVgPIGEC7nID46xRimvFCTBAhequO+hV9M7wvyA=
 github.com/project-illium/walletlib v0.0.0-20230619215640-8e340d8f501b h1:mLEUb2JoaqunQaHH1uW4rQ0S23CuAGYWia9gyDoBAlQ=
 github.com/project-illium/walletlib v0.0.0-20230619215640-8e340d8f501b/go.mod h1:uWo4cVgPIGEC7nID46xRimvFCTBAhequO+hV9M7wvyA=
+github.com/project-illium/weightedrand/v2 v2.0.3 h1:pPWFW8OprVceAbgrSSGYoUF1a0FPZSmYG43NF9r/PzE=
+github.com/project-illium/weightedrand/v2 v2.0.3/go.mod h1:/AeYfjb6TF9oSmsWXWZQ6H2+5NAQB6zdcCJbhDZxAd0=
 github.com/prometheus/client_golang v0.8.0/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.1/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829/go.mod h1:p2iRAGwDERtqlqzRXnrOVns+ignqQo//hLXqYxZYVNs=
