@@ -578,7 +578,6 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 			} else {
 				return s.processBlock(blk, relayingPeer, true)
 			}
-
 		} else if blockchain.ErrorIs(err, blockchain.ErrDoesNotConnect) {
 			// Small chance of a race condition where we receive a block
 			// right after we finalize a block at the same height. We'll
@@ -611,6 +610,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 	delete(s.orphanBlocks, blk.ID())
 	s.orphanLock.Unlock()
 
+	log.Debugf("[CONSENSUS] new block: %s", blk.ID())
 	s.engine.NewBlock(blk.Header, initialPreference, callback)
 
 	go func(b *blocks.Block, t time.Time) {

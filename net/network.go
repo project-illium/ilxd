@@ -293,8 +293,10 @@ loop:
 	err = ps.RegisterTopicValidator(BlockTopic, pubsub.ValidatorEx(func(ctx context.Context, p peer.ID, m *pubsub.Message) pubsub.ValidationResult {
 		blk := &blocks.XThinnerBlock{}
 		if err := blk.Deserialize(m.Data); err != nil {
+			log.Errorf("[PUBSUB] xthinner deserialize error: %s", err)
 			return pubsub.ValidationReject
 		}
+		log.Debugf("[PUBSUB] new incoming block: %s", blk.ID())
 		err := cfg.validateBlock(blk, p)
 		switch e := err.(type) {
 		case blockchain.OrphanBlockError:
