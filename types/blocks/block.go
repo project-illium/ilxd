@@ -94,7 +94,7 @@ func (h *BlockHeader) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, newHeader); err != nil {
 		return err
 	}
-	h = &BlockHeader{ //nolint:ineffassign
+	*h = BlockHeader{
 		Version:     newHeader.Version,
 		Height:      newHeader.Height,
 		Parent:      newHeader.Parent,
