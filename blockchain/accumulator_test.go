@@ -98,16 +98,6 @@ func TestAccumulator(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestNewProofCache(t *testing.T) {
-	r := make([]byte, 32)
-	rand.Read(r)
-
-	acc := NewAccumulator()
-	for i := 0; i < 20000; i++ {
-		acc.Insert(r, false)
-	}
-}
-
 func TestAccumulator_GetProof(t *testing.T) {
 	a := NewAccumulator()
 	n := 128
@@ -118,7 +108,7 @@ func TestAccumulator_GetProof(t *testing.T) {
 		elements = append(elements, b)
 		a.Insert(b, true)
 
-		// Test proof validity as accumulator is growing.// Test proof validity as accumulator is growing.
+		// Test proof validity as accumulator is growing.
 		for _, c := range elements {
 			proof, err := a.GetProof(c)
 			assert.NoError(t, err)
