@@ -57,7 +57,7 @@ func (id *ID) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	id = &i //nolint:ineffassign
+	*id = i
 	return nil
 }
 

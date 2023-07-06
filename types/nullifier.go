@@ -41,7 +41,7 @@ func (n *Nullifier) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	n = &i //nolint:ineffassign
+	*n = i
 	return nil
 }
 
