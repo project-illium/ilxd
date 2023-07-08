@@ -895,6 +895,7 @@ type Spend struct {
 	Amount      uint64   `short:"t" long:"amount" description:"The amount to send"`
 	FeePerKB    uint64   `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
 	Commitments []string `short:"c" long:"commitment" description:"Optionally specify which input commitment(s) to spend. If this field is omitted the wallet will automatically select (only non-staked) inputs commitments. Serialized as hex strings. Use this option more than once to add more than one input commitment."`
+	SpendAll    bool     `long:"all" description:"If true the amount option will be ignored and all the funds will be swept from the wallet to the provided address, minus the transaction fee."`
 	opts        *options
 }
 
@@ -913,16 +914,29 @@ func (x *Spend) Execute(args []string) error {
 		commitments = append(commitments, cBytes)
 	}
 
-	resp, err := client.Spend(makeContext(x.opts.AuthToken), &pb.SpendRequest{
-		ToAddress:        x.Address,
-		Amount:           x.Amount,
-		FeePerKilobyte:   x.FeePerKB,
-		InputCommitments: commitments,
-	})
-	if err != nil {
-		return err
+	if x.SpendAll {
+		resp, err := client.SweepWallet(makeContext(x.opts.AuthToken), &pb.SweepWalletRequest{
+			ToAddress:      x.Address,
+			FeePerKilobyte: x.FeePerKB,
+		})
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(hex.EncodeToString(resp.Transaction_ID))
+	} else {
+		resp, err := client.Spend(makeContext(x.opts.AuthToken), &pb.SpendRequest{
+			ToAddress:        x.Address,
+			Amount:           x.Amount,
+			FeePerKilobyte:   x.FeePerKB,
+			InputCommitments: commitments,
+		})
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(hex.EncodeToString(resp.Transaction_ID))
 	}
 
-	fmt.Println(hex.EncodeToString(resp.Transaction_ID))
 	return nil
 }

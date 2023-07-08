@@ -1052,6 +1052,13 @@ type WalletServiceClient interface {
 	//
 	// **Requires wallet to be unlocked**
 	Spend(ctx context.Context, in *SpendRequest, opts ...grpc.CallOption) (*SpendResponse, error)
+	// SweepWallet sweeps all the coins from this wallet to the provided address
+	// This RPC is provided so that you don't have to try to guess the correct fee
+	// to take the wallet's balance down to zero. Here the fee will be subtracted
+	// from the total funds.
+	//
+	// **Requires wallet to be unlocked**
+	SweepWallet(ctx context.Context, in *SweepWalletRequest, opts ...grpc.CallOption) (*SweepWalletResponse, error)
 }
 
 type walletServiceClient struct {
@@ -1296,6 +1303,15 @@ func (c *walletServiceClient) Spend(ctx context.Context, in *SpendRequest, opts 
 	return out, nil
 }
 
+func (c *walletServiceClient) SweepWallet(ctx context.Context, in *SweepWalletRequest, opts ...grpc.CallOption) (*SweepWalletResponse, error) {
+	out := new(SweepWalletResponse)
+	err := c.cc.Invoke(ctx, "/pb.WalletService/SweepWallet", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // WalletServiceServer is the server API for WalletService service.
 // All implementations must embed UnimplementedWalletServiceServer
 // for forward compatibility
@@ -1372,6 +1388,13 @@ type WalletServiceServer interface {
 	//
 	// **Requires wallet to be unlocked**
 	Spend(context.Context, *SpendRequest) (*SpendResponse, error)
+	// SweepWallet sweeps all the coins from this wallet to the provided address
+	// This RPC is provided so that you don't have to try to guess the correct fee
+	// to take the wallet's balance down to zero. Here the fee will be subtracted
+	// from the total funds.
+	//
+	// **Requires wallet to be unlocked**
+	SweepWallet(context.Context, *SweepWalletRequest) (*SweepWalletResponse, error)
 	mustEmbedUnimplementedWalletServiceServer()
 }
 
@@ -1456,6 +1479,9 @@ func (UnimplementedWalletServiceServer) SetAutoStakeRewards(context.Context, *Se
 }
 func (UnimplementedWalletServiceServer) Spend(context.Context, *SpendRequest) (*SpendResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Spend not implemented")
+}
+func (UnimplementedWalletServiceServer) SweepWallet(context.Context, *SweepWalletRequest) (*SweepWalletResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SweepWallet not implemented")
 }
 func (UnimplementedWalletServiceServer) mustEmbedUnimplementedWalletServiceServer() {}
 
@@ -1938,6 +1964,24 @@ func _WalletService_Spend_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _WalletService_SweepWallet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SweepWalletRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).SweepWallet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.WalletService/SweepWallet",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).SweepWallet(ctx, req.(*SweepWalletRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // WalletService_ServiceDesc is the grpc.ServiceDesc for WalletService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2048,6 +2092,10 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Spend",
 			Handler:    _WalletService_Spend_Handler,
+		},
+		{
+			MethodName: "SweepWallet",
+			Handler:    _WalletService_SweepWallet_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

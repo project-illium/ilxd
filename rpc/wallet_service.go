@@ -824,3 +824,21 @@ func (s *GrpcServer) Spend(ctx context.Context, req *pb.SpendRequest) (*pb.Spend
 	}
 	return &pb.SpendResponse{Transaction_ID: txid[:]}, nil
 }
+
+// SweepWallet sweeps all the coins from this wallet to the provided address
+// This RPC is provided so that you don't have to try to guess the correct fee
+// to take the wallet's balance down to zero. Here the fee will be subtracted
+// from the total funds.
+//
+// **Requires wallet to be unlocked**
+func (s *GrpcServer) SweepWallet(ctx context.Context, req *pb.SweepWalletRequest) (*pb.SweepWalletResponse, error) {
+	addr, err := walletlib.DecodeAddress(req.ToAddress, s.chainParams)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	txid, err := s.wallet.SweepWallet(addr, types.Amount(req.FeePerKilobyte))
+	if err != nil {
+		return nil, err
+	}
+	return &pb.SweepWalletResponse{Transaction_ID: txid[:]}, nil
+}
