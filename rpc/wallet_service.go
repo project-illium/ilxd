@@ -825,7 +825,7 @@ func (s *GrpcServer) Spend(ctx context.Context, req *pb.SpendRequest) (*pb.Spend
 	return &pb.SpendResponse{Transaction_ID: txid[:]}, nil
 }
 
-// SweepWallet sweeps all the coins from this wallet to the provided address
+// SweepWallet sweeps all the coins from this wallet to the provided address.
 // This RPC is provided so that you don't have to try to guess the correct fee
 // to take the wallet's balance down to zero. Here the fee will be subtracted
 // from the total funds.

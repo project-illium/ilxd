@@ -114,7 +114,9 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	}
 
 	if cfg.host == nil {
-		pstore, err = pstoreds.NewPeerstore(ctx, cfg.datastore, pstoreds.DefaultOpts())
+		opts := pstoreds.DefaultOpts()
+		opts.GCPurgeInterval = time.Minute * 30
+		pstore, err = pstoreds.NewPeerstore(ctx, cfg.datastore, opts)
 		if err != nil {
 			return nil, err
 		}
