@@ -5,12 +5,15 @@
 package timelockedmultisig
 
 import (
+	"bytes"
 	"encoding/binary"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/project-illium/ilxd/zk/scripts/multisig"
 	"time"
 )
+
+var MockTimelockedMultisigScriptCommitment = bytes.Repeat([]byte{0xab}, 32)
 
 type PrivateParams struct {
 	Signatures  [][]byte

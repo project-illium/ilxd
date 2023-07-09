@@ -115,12 +115,15 @@ func TestPutGetDeleteValidator(t *testing.T) {
 	id := randomID()
 	peer := randomPeerID()
 	validator := &Validator{
-		PeerID:     peer,
-		TotalStake: 100,
+		PeerID:        peer,
+		TotalStake:    100,
+		WeightedStake: 200,
 		Nullifiers: map[types.Nullifier]Stake{
 			types.NewNullifier(id[:]): {
-				Amount:     100,
-				Blockstamp: time.Now(),
+				Amount:         100,
+				WeightedAmount: 200,
+				Locktime:       time.Now(),
+				Blockstamp:     time.Now(),
 			},
 		},
 		UnclaimedCoins: 50,

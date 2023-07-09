@@ -1538,16 +1538,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			name: "stake invalid locktime",
-			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
-				Nullifier:    nullifier.Bytes(),
-				Validator_ID: peerIDBytes,
-				Locktime:     time.Now().Add(time.Hour).Unix(),
-			}),
-			timestamp:   time.Now(),
-			expectedErr: ruleError(ErrInvalidTx, ""),
-		},
-		{
 			name: "stake invalid validator ID",
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Nullifier:    nullifier.Bytes(),

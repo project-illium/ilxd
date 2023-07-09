@@ -10,6 +10,7 @@ import (
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
+	"github.com/project-illium/ilxd/zk/scripts/timelockedmultisig"
 	"time"
 )
 
@@ -69,6 +70,26 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	// Then validate the merkle proof
 	if !standard.ValidateInclusionProof(outputCommitment, priv.CommitmentIndex, priv.InclusionProof.Hashes, priv.InclusionProof.Flags, priv.InclusionProof.Accumulator, pub.TXORoot) {
 		return false
+	}
+
+	// If the locktime is anything other than zero we need to:
+	if pub.Locktime.After(time.Unix(0, 0)) {
+
+		// Verify that the input script is a TimelockedMultisig script.
+		if !bytes.Equal(priv.ScriptCommitment, timelockedmultisig.MockTimelockedMultisigScriptCommitment) {
+			return false
+		}
+
+		if len(priv.ScriptParams) < 2 {
+			return false
+		}
+
+		// Verify that the locktime used by the script is the same as the one found
+		// in the body of the stake transaction.
+		locktime := int64(binary.BigEndian.Uint64(priv.ScriptParams[1]))
+		if !pub.Locktime.Equal(time.Unix(locktime, 0)) {
+			return false
+		}
 	}
 
 	// Validate the unlocking snark.

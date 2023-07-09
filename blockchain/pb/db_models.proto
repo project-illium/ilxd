@@ -7,15 +7,18 @@ import "google/protobuf/timestamp.proto";
 message DBValidator {
         string peer_id                = 1;
         uint64 total_stake            = 2;
-        repeated Nullifier nullifiers = 3;
-        uint64 unclaimed_coins        = 4;
-        uint32 epochBLocks            = 5;
-        float stakeAccumulator        = 6;
+        uint64 weighted_stake         = 3;
+        repeated Nullifier nullifiers = 4;
+        uint64 unclaimed_coins        = 5;
+        uint32 epochBLocks            = 6;
+        float stakeAccumulator        = 7;
 
         message Nullifier {
                 bytes hash                           = 1;
                 uint64 amount                        = 2;
-                google.protobuf.Timestamp blockstamp = 3;
+                uint64 weighted_amount               = 3;
+                google.protobuf.Timestamp locktime   = 4;
+                google.protobuf.Timestamp blockstamp = 5;
         }
 }
 

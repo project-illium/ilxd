@@ -1052,7 +1052,7 @@ type WalletServiceClient interface {
 	//
 	// **Requires wallet to be unlocked**
 	Spend(ctx context.Context, in *SpendRequest, opts ...grpc.CallOption) (*SpendResponse, error)
-	// SweepWallet sweeps all the coins from this wallet to the provided address
+	// SweepWallet sweeps all the coins from this wallet to the provided address.
 	// This RPC is provided so that you don't have to try to guess the correct fee
 	// to take the wallet's balance down to zero. Here the fee will be subtracted
 	// from the total funds.
@@ -1388,7 +1388,7 @@ type WalletServiceServer interface {
 	//
 	// **Requires wallet to be unlocked**
 	Spend(context.Context, *SpendRequest) (*SpendResponse, error)
-	// SweepWallet sweeps all the coins from this wallet to the provided address
+	// SweepWallet sweeps all the coins from this wallet to the provided address.
 	// This RPC is provided so that you don't have to try to guess the correct fee
 	// to take the wallet's balance down to zero. Here the fee will be subtracted
 	// from the total funds.

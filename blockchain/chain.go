@@ -576,6 +576,15 @@ func (b *Blockchain) TotalStaked() types.Amount {
 	return b.validatorSet.totalStaked()
 }
 
+// TotalStakeWeight returns the total number of coins staked in the validator set
+// weighted by time locks.
+func (b *Blockchain) TotalStakeWeight() types.Amount {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	return b.validatorSet.totalWeightedStake()
+}
+
 // ValidatorSetSize returns the number of validators in the validator set.
 func (b *Blockchain) ValidatorSetSize() int {
 	b.stateLock.RLock()
