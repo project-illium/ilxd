@@ -131,6 +131,7 @@ func main() {
 	parser.AddCommand("stake", "Stakes the selected wallet UTXOs and turns the node into a validator", "Stakes the selected wallet UTXOs and turns the node into a validator", &Stake{opts: &opts})
 	parser.AddCommand("setautostakerewards", "Automatically stakes validator rewards", "Automatically stakes validator rewards", &SetAutoStakeRewards{opts: &opts})
 	parser.AddCommand("spend", "Sends coins from the wallet", "Sends coins from the wallet according to the provided parameters", &Spend{opts: &opts})
+	parser.AddCommand("timelockcoins", "Lock coins in a timelocked address", "Send coins into a timelocked address, from which the wallet may spend from after the timelock expires. This is primarily used for adding weight to stake.", &TimelockCoins{opts: &opts})
 
 	if _, err := parser.Parse(); err != nil {
 		if e, ok := err.(*flags.Error); ok && e.Type == flags.ErrHelp {

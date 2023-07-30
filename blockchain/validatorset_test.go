@@ -5,7 +5,6 @@
 package blockchain
 
 import (
-	"fmt"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
@@ -272,15 +271,4 @@ func TestValidatorSetMethods(t *testing.T) {
 	assert.Equal(t, types.Amount(100000), vs.TotalStaked())
 
 	assert.Equal(t, valID, vs.WeightedRandomValidator())
-}
-
-func TestNewValidatorSet(t *testing.T) {
-	coins := float64(1000000)
-	for i := 0; i < 121; i++ {
-		if i == 0 {
-			fmt.Printf("Months: %d, Coins: %.f\n", 0, coins)
-		} else {
-			fmt.Printf("Months: %d, Coins: %.f\n", i, coins+(coins*(approximateYieldCurve(i))))
-		}
-	}
 }

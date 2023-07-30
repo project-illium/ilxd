@@ -825,6 +825,26 @@ func (s *GrpcServer) Spend(ctx context.Context, req *pb.SpendRequest) (*pb.Spend
 	return &pb.SpendResponse{Transaction_ID: txid[:]}, nil
 }
 
+// TimelockCoins moves coins into a timelocked address using the requested timelock.
+// The internal wallet will be able to spend the coins after the timelock expires and
+// the transaction will be recoverable if the wallet is restored from seed.
+//
+// This RPC primarily exists to lock coins for staking purposes.
+//
+// **Requires wallet to be unlocked**
+func (s *GrpcServer) TimelockCoins(ctx context.Context, req *pb.TimelockCoinsRequest) (*pb.TimelockCoinsResponse, error) {
+	commitments := make([]types.ID, 0, len(req.InputCommitments))
+	for _, c := range req.InputCommitments {
+		commitments = append(commitments, types.NewID(c))
+	}
+
+	txid, err := s.wallet.TimelockCoins(types.Amount(req.Amount), time.Unix(req.LockUntil, 0), types.Amount(req.FeePerKilobyte), commitments...)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.TimelockCoinsResponse{Transaction_ID: txid[:]}, nil
+}
+
 // SweepWallet sweeps all the coins from this wallet to the provided address.
 // This RPC is provided so that you don't have to try to guess the correct fee
 // to take the wallet's balance down to zero. Here the fee will be subtracted

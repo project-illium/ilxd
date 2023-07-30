@@ -940,3 +940,41 @@ func (x *Spend) Execute(args []string) error {
 
 	return nil
 }
+
+type TimelockCoins struct {
+	LockUntil   int64    `short:"l" long:"lockuntil" description:"A unix timestamp to lock the coins until (in seconds)."`
+	Amount      uint64   `short:"t" long:"amount" description:"The amount to lockup"`
+	FeePerKB    uint64   `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
+	Commitments []string `short:"c" long:"commitment" description:"Optionally specify which input commitment(s) to lock. If this field is omitted the wallet will automatically select (only non-staked) inputs commitments. Serialized as hex strings. Use this option more than once to add more than one input commitment."`
+	opts        *options
+}
+
+func (x *TimelockCoins) TimelockCoins(args []string) error {
+	client, err := makeWalletClient(x.opts)
+	if err != nil {
+		return err
+	}
+
+	commitments := make([][]byte, 0, len(x.Commitments))
+	for _, c := range x.Commitments {
+		cBytes, err := hex.DecodeString(c)
+		if err != nil {
+			return err
+		}
+		commitments = append(commitments, cBytes)
+	}
+
+	resp, err := client.TimelockCoins(makeContext(x.opts.AuthToken), &pb.TimelockCoinsRequest{
+		LockUntil:        x.LockUntil,
+		Amount:           x.Amount,
+		FeePerKilobyte:   x.FeePerKB,
+		InputCommitments: commitments,
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(hex.EncodeToString(resp.Transaction_ID))
+
+	return nil
+}

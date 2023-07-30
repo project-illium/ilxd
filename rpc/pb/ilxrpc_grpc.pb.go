@@ -1052,6 +1052,14 @@ type WalletServiceClient interface {
 	//
 	// **Requires wallet to be unlocked**
 	Spend(ctx context.Context, in *SpendRequest, opts ...grpc.CallOption) (*SpendResponse, error)
+	// TimelockCoins moves coins into a timelocked address using the requested timelock.
+	// The internal wallet will be able to spend the coins after the timelock expires and
+	// the transaction will be recoverable if the wallet is restored from seed.
+	//
+	// This RPC primarily exists to lock coins for staking purposes.
+	//
+	// **Requires wallet to be unlocked**
+	TimelockCoins(ctx context.Context, in *TimelockCoinsRequest, opts ...grpc.CallOption) (*TimelockCoinsResponse, error)
 	// SweepWallet sweeps all the coins from this wallet to the provided address.
 	// This RPC is provided so that you don't have to try to guess the correct fee
 	// to take the wallet's balance down to zero. Here the fee will be subtracted
@@ -1303,6 +1311,15 @@ func (c *walletServiceClient) Spend(ctx context.Context, in *SpendRequest, opts 
 	return out, nil
 }
 
+func (c *walletServiceClient) TimelockCoins(ctx context.Context, in *TimelockCoinsRequest, opts ...grpc.CallOption) (*TimelockCoinsResponse, error) {
+	out := new(TimelockCoinsResponse)
+	err := c.cc.Invoke(ctx, "/pb.WalletService/TimelockCoins", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *walletServiceClient) SweepWallet(ctx context.Context, in *SweepWalletRequest, opts ...grpc.CallOption) (*SweepWalletResponse, error) {
 	out := new(SweepWalletResponse)
 	err := c.cc.Invoke(ctx, "/pb.WalletService/SweepWallet", in, out, opts...)
@@ -1388,6 +1405,14 @@ type WalletServiceServer interface {
 	//
 	// **Requires wallet to be unlocked**
 	Spend(context.Context, *SpendRequest) (*SpendResponse, error)
+	// TimelockCoins moves coins into a timelocked address using the requested timelock.
+	// The internal wallet will be able to spend the coins after the timelock expires and
+	// the transaction will be recoverable if the wallet is restored from seed.
+	//
+	// This RPC primarily exists to lock coins for staking purposes.
+	//
+	// **Requires wallet to be unlocked**
+	TimelockCoins(context.Context, *TimelockCoinsRequest) (*TimelockCoinsResponse, error)
 	// SweepWallet sweeps all the coins from this wallet to the provided address.
 	// This RPC is provided so that you don't have to try to guess the correct fee
 	// to take the wallet's balance down to zero. Here the fee will be subtracted
@@ -1479,6 +1504,9 @@ func (UnimplementedWalletServiceServer) SetAutoStakeRewards(context.Context, *Se
 }
 func (UnimplementedWalletServiceServer) Spend(context.Context, *SpendRequest) (*SpendResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Spend not implemented")
+}
+func (UnimplementedWalletServiceServer) TimelockCoins(context.Context, *TimelockCoinsRequest) (*TimelockCoinsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TimelockCoins not implemented")
 }
 func (UnimplementedWalletServiceServer) SweepWallet(context.Context, *SweepWalletRequest) (*SweepWalletResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SweepWallet not implemented")
@@ -1964,6 +1992,24 @@ func _WalletService_Spend_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _WalletService_TimelockCoins_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TimelockCoinsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).TimelockCoins(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.WalletService/TimelockCoins",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).TimelockCoins(ctx, req.(*TimelockCoinsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _WalletService_SweepWallet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SweepWalletRequest)
 	if err := dec(in); err != nil {
@@ -2092,6 +2138,10 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Spend",
 			Handler:    _WalletService_Spend_Handler,
+		},
+		{
+			MethodName: "TimelockCoins",
+			Handler:    _WalletService_TimelockCoins_Handler,
 		},
 		{
 			MethodName: "SweepWallet",
