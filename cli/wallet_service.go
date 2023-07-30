@@ -980,7 +980,7 @@ type TimelockCoins struct {
 	opts        *options
 }
 
-func (x *TimelockCoins) TimelockCoins(args []string) error {
+func (x *TimelockCoins) Execute(args []string) error {
 	client, err := makeWalletClient(x.opts)
 	if err != nil {
 		return err
