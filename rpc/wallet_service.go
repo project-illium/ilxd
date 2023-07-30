@@ -70,6 +70,22 @@ func (s *GrpcServer) GetAddress(ctx context.Context, req *pb.GetAddressRequest) 
 	}, nil
 }
 
+// GetTimelockedAddress returns a timelocked address that cannot be spent
+// from until the given timelock has passed. The private key used for this
+// address is the same as the wallet's most recent spend key used in a basic
+// address. This implies the key can be derived from seed, however the wallet
+// will not detect incoming payments to this address unless the timelock is
+// included in the utxo's state field.
+func (s *GrpcServer) GetTimelockedAddress(ctx context.Context, req *pb.GetTimelockedAddressRequest) (*pb.GetTimelockedAddressResponse, error) {
+	addr, err := s.wallet.TimelockedAddress(time.Unix(req.LockUntil, 0))
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &pb.GetTimelockedAddressResponse{
+		Address: addr.String(),
+	}, nil
+}
+
 // GetAddresses returns all the addresses create by the wallet.
 func (s *GrpcServer) GetAddresses(ctx context.Context, req *pb.GetAddressesRequest) (*pb.GetAddressesResponse, error) {
 	addrs, err := s.wallet.Addresses()
@@ -159,11 +175,12 @@ func (s *GrpcServer) GetUtxos(ctx context.Context, req *pb.GetUtxosRequest) (*pb
 	}
 	for _, note := range notes {
 		resp.Utxos = append(resp.Utxos, &pb.Utxo{
-			Commitment: note.Commitment,
-			Amount:     note.Amount,
-			Address:    note.Address,
-			WatchOnly:  note.WatchOnly,
-			Staked:     note.Staked,
+			Commitment:   note.Commitment,
+			Amount:       note.Amount,
+			Address:      note.Address,
+			WatchOnly:    note.WatchOnly,
+			Staked:       note.Staked,
+			LockedUntill: note.LockedUntil,
 		})
 	}
 	return resp, nil
@@ -472,10 +489,12 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		outputs = append(outputs, &walletlib.RawOutput{
+		rawOut := &walletlib.RawOutput{
 			Addr:   addr,
 			Amount: types.Amount(out.Amount),
-		})
+		}
+		copy(rawOut.State[:], out.State)
+		outputs = append(outputs, rawOut)
 	}
 	rawTx, err := s.wallet.CreateRawTransaction(inputs, outputs, req.AppendChangeOutput, types.Amount(req.FeePerKilobyte))
 	if err != nil {

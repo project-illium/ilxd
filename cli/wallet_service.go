@@ -74,6 +74,26 @@ func (x *GetAddress) Execute(args []string) error {
 	return nil
 }
 
+type GetTimelockedAddress struct {
+	LockUntil int64 `short:"l" long:"lockuntil" description:"A unix timestamp to lock the coins until (in seconds)."`
+	opts      *options
+}
+
+func (x *GetTimelockedAddress) Execute(args []string) error {
+	client, err := makeWalletClient(x.opts)
+	if err != nil {
+		return err
+	}
+	resp, err := client.GetTimelockedAddress(makeContext(x.opts.AuthToken), &pb.GetTimelockedAddressRequest{
+		LockUntil: x.LockUntil,
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Println(resp.Address)
+	return nil
+}
+
 type GetAddresses struct {
 	opts *options
 }
@@ -195,20 +215,22 @@ func (x *GetUtxos) Execute(args []string) error {
 		return err
 	}
 	type utxo struct {
-		Address    string             `json:"address"`
-		Commitment types.HexEncodable `json:"commitment"`
-		Amount     uint64             `json:"amount"`
-		WatchOnly  bool               `json:"watchOnly"`
-		Staked     bool               `json:"staked"`
+		Address     string             `json:"address"`
+		Commitment  types.HexEncodable `json:"commitment"`
+		Amount      uint64             `json:"amount"`
+		WatchOnly   bool               `json:"watchOnly"`
+		Staked      bool               `json:"staked"`
+		LockedUntil int64              `json:"lockedUntil"`
 	}
 	utxos := make([]utxo, 0, len(resp.Utxos))
 	for _, ut := range resp.Utxos {
 		utxos = append(utxos, utxo{
-			Address:    ut.Address,
-			Commitment: ut.Commitment,
-			Amount:     ut.Amount,
-			WatchOnly:  ut.WatchOnly,
-			Staked:     ut.Staked,
+			Address:     ut.Address,
+			Commitment:  ut.Commitment,
+			Amount:      ut.Amount,
+			WatchOnly:   ut.WatchOnly,
+			Staked:      ut.Staked,
+			LockedUntil: ut.LockedUntill,
 		})
 	}
 	out, err := json.MarshalIndent(utxos, "", "    ")
@@ -695,13 +717,22 @@ func (x *CreateRawTransaction) Execute(args []string) error {
 		output := struct {
 			Address string `json:"address"`
 			Amount  uint64 `json:"amount"`
+			State   string `json:"state"`
 		}{}
 		if err := json.Unmarshal([]byte(out), &output); err != nil {
 			return err
 		}
+		var state []byte
+		if output.State != "" {
+			state, err = hex.DecodeString(output.State)
+			if err != nil {
+				return err
+			}
+		}
 		req.Outputs = append(req.Outputs, &pb.CreateRawTransactionRequest_Output{
 			Address: output.Address,
 			Amount:  output.Amount,
+			State:   state,
 		})
 	}
 

@@ -21,7 +21,7 @@ require (
 	github.com/libp2p/go-msgio v0.3.0
 	github.com/multiformats/go-multiaddr v0.9.0
 	github.com/multiformats/go-multihash v0.2.2
-	github.com/project-illium/walletlib v0.0.0-20230730081020-4f799ee534cd
+	github.com/project-illium/walletlib v0.0.0-20230730090400-eb4c5db604e2
 	github.com/project-illium/weightedrand/v2 v2.0.3
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/sjson v1.2.5

@@ -105,6 +105,14 @@ service WalletService {
     // GetAddress returns the most recent address of the wallet.
     rpc GetAddress(GetAddressRequest) returns (GetAddressResponse) {}
 
+    // GetTimelockedAddress returns a timelocked address that cannot be spent
+    // from until the given timelock has passed. The private key used for this
+    // address is the same as the wallet's most recent spend key used in a basic
+    // address. This implies the key can be derived from seed, however the wallet
+    // will not detect incoming payments to this address unless the timelock is
+    // included in the utxo's state field.
+    rpc GetTimelockedAddress(GetTimelockedAddressRequest) returns (GetTimelockedAddressResponse) {}
+
     // GetAddresses returns all the addresses create by the wallet.
     rpc GetAddresses(GetAddressesRequest) returns (GetAddressesResponse) {}
 
@@ -576,6 +584,15 @@ message GetAddressResponse {
     string address = 1;
 }
 
+message GetTimelockedAddressRequest {
+    // The unix timestamp (in seconds) to lock the coins until
+    int64 lock_until = 1;
+}
+message GetTimelockedAddressResponse {
+    // The resulting timelocked address
+    string address = 1;
+}
+
 message GetAddressesRequest {}
 message GetAddressesResponse {
     // All wallet addresses
@@ -768,6 +785,8 @@ message CreateRawTransactionRequest {
         string address = 1;
         // The amount to send
         uint64 amount  = 2;
+        // An optional state field
+        bytes state    = 3;
     }
 }
 message CreateRawTransactionResponse {
@@ -1098,17 +1117,19 @@ message Validator {
 
 message Utxo {
     // The commitment associated with the output
-    bytes commitment = 1;
+    bytes commitment    = 1;
     // The amount of coins
-    uint64 amount    = 2;
+    uint64 amount       = 2;
     // The address that the utxo is associated with
-    string address   = 3;
+    string address      = 3;
     // Whether or not this is a watch only utxo.
     // We canot spend watch only utxos without the
     // private key.
-    bool watchOnly = 4;
+    bool watchOnly      = 4;
     // Is this utxo staked by the wallet.
-    bool staked = 5;
+    bool staked         = 5;
+    // The timestamp this utxo is timelocked until (if applicable)
+    int64 locked_untill = 6;
 }
 
 message RawTransaction {
