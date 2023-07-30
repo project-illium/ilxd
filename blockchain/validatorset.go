@@ -53,6 +53,14 @@ const (
 	secondsPerMonth = 2628000
 )
 
+// Weighting params
+const (
+	beta0 = 0.1   // Level parameter
+	beta1 = -0.1  // Slope parameter
+	beta2 = -0.10 // Curvature parameter
+	tau   = 12.0  // Decay parameter (converted to months)
+)
+
 // Stake represents a given staked utxo and the time at which it
 // was added to the validator set.
 type Stake struct {
@@ -427,7 +435,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 			timeDiff := tx.StakeTransaction.Locktime - blk.Header.Timestamp
 			if timeDiff > 0 {
 				locktimeMonths := float64(timeDiff) / secondsPerMonth
-				weight = (locktimeMonths / 12) + 1
+				weight = 1 + approximateYieldCurve(int(locktimeMonths))
 			}
 			if _, ok := valNew.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)]; !ok {
 				valNew.WeightedStake += types.Amount(float64(tx.StakeTransaction.Amount) * weight)
@@ -706,6 +714,13 @@ func blockProductionFloor(EpochBlocks float64, stakePercentage float64) uint32 {
 		return 0
 	}
 	return (expectedBlocks - dev) / 3
+}
+
+// Returns a value for weight for the given maturity (in months) that approximates what you would get with a typical bond yield curve.
+func approximateYieldCurve(timeToMaturity int) float64 {
+	timeToMaturityInYears := float64(timeToMaturity) / 12.0
+	yield := beta0 + beta1*(1-math.Exp(-timeToMaturityInYears/tau))/(timeToMaturityInYears/tau) + beta2*((1-math.Exp(-timeToMaturityInYears/tau))/(timeToMaturityInYears/tau)-math.Exp(-timeToMaturityInYears/tau))
+	return yield * 1000
 }
 
 func copyValidator(dest *Validator, src *Validator) {

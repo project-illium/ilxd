@@ -5,6 +5,7 @@
 package blockchain
 
 import (
+	"fmt"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
@@ -205,12 +206,12 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, valID2, ret1.PeerID)
 	assert.Equal(t, types.Amount(80000), ret1.TotalStake)
-	assert.Equal(t, types.Amount(132602), ret1.WeightedStake)
+	assert.Equal(t, types.Amount(83075), ret1.WeightedStake)
 	stake, ok = ret1.Nullifiers[types.NewNullifier(nullifier3[:])]
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(ret1.Nullifiers))
 	assert.Equal(t, types.Amount(80000), stake.Amount)
-	assert.Equal(t, types.Amount(132602), stake.WeightedAmount)
+	assert.Equal(t, types.Amount(83075), stake.WeightedAmount)
 	assert.Equal(t, uint32(0), ret1.EpochBlocks)
 }
 
@@ -271,4 +272,15 @@ func TestValidatorSetMethods(t *testing.T) {
 	assert.Equal(t, types.Amount(100000), vs.TotalStaked())
 
 	assert.Equal(t, valID, vs.WeightedRandomValidator())
+}
+
+func TestNewValidatorSet(t *testing.T) {
+	coins := float64(1000000)
+	for i := 0; i < 121; i++ {
+		if i == 0 {
+			fmt.Printf("Months: %d, Coins: %.f\n", 0, coins)
+		} else {
+			fmt.Printf("Months: %d, Coins: %.f\n", i, coins+(coins*(approximateYieldCurve(i))))
+		}
+	}
 }
