@@ -438,7 +438,11 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 				weight = 1 + approximateYieldCurve(int(locktimeMonths))
 			}
 			if _, ok := valNew.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)]; !ok {
-				valNew.WeightedStake += types.Amount(float64(tx.StakeTransaction.Amount) * weight)
+				if weight > 1 {
+					valNew.WeightedStake += types.Amount(float64(tx.StakeTransaction.Amount) * weight)
+				} else {
+					valNew.WeightedStake += types.Amount(tx.StakeTransaction.Amount)
+				}
 				valNew.TotalStake += types.Amount(tx.StakeTransaction.Amount)
 			}
 			valNew.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)] = Stake{

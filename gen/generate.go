@@ -189,10 +189,6 @@ func (g *BlockGenerator) generateBlock() error {
 			if t.MintTransaction.Locktime > blockTime {
 				delete(txs, txid)
 			}
-		case *transactions.Transaction_StakeTransaction:
-			if t.StakeTransaction.Locktime > blockTime {
-				delete(txs, txid)
-			}
 		}
 	}
 	if len(txs) == 0 {
