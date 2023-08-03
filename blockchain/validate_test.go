@@ -497,7 +497,7 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
-								Ciphertext: make([]byte, CiphertextLen),
+								Ciphertext: bytes.Repeat([]byte{0x11}, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -507,7 +507,7 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
-								Ciphertext: bytes.Repeat([]byte{0x11}, CiphertextLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -1028,7 +1028,7 @@ func TestValidateBlock(t *testing.T) {
 					}),
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorIDBytes,
-						NewCoins:     10001,
+						NewCoins:     10002,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -1139,7 +1139,7 @@ func TestValidateBlock(t *testing.T) {
 			block: func(blk *blocks.Block) (*blocks.Block, error) {
 				blk.Transactions = []*transactions.Transaction{
 					transactions.WrapTransaction(&transactions.TreasuryTransaction{
-						Amount: 3000,
+						Amount: 8000,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -1149,7 +1149,7 @@ func TestValidateBlock(t *testing.T) {
 						ProposalHash: make([]byte, 32),
 					}),
 					transactions.WrapTransaction(&transactions.TreasuryTransaction{
-						Amount: 8000,
+						Amount: 3000,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
