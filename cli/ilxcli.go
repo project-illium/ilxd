@@ -156,9 +156,17 @@ func makeContext(authToken string) context.Context {
 func makeBlockchainClient(opts *options) (pb.BlockchainServiceClient, error) {
 	certFile := repo.CleanAndExpandPath(opts.RPCCert)
 
-	creds, err := credentials.NewClientTLSFromFile(certFile, "localhost")
-	if err != nil {
-		return nil, err
+	var (
+		creds credentials.TransportCredentials
+		err   error
+	)
+	if opts.RPCCert != "" {
+		creds, err = credentials.NewClientTLSFromFile(certFile, "localhost")
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		creds = credentials.NewClientTLSFromCert(nil, "")
 	}
 	ma, err := multiaddr.NewMultiaddr(opts.ServerAddr)
 	if err != nil {
@@ -179,9 +187,17 @@ func makeBlockchainClient(opts *options) (pb.BlockchainServiceClient, error) {
 func makeNodeClient(opts *options) (pb.NodeServiceClient, error) {
 	certFile := repo.CleanAndExpandPath(opts.RPCCert)
 
-	creds, err := credentials.NewClientTLSFromFile(certFile, "localhost")
-	if err != nil {
-		return nil, err
+	var (
+		creds credentials.TransportCredentials
+		err   error
+	)
+	if opts.RPCCert != "" {
+		creds, err = credentials.NewClientTLSFromFile(certFile, "localhost")
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		creds = credentials.NewClientTLSFromCert(nil, "")
 	}
 	ma, err := multiaddr.NewMultiaddr(opts.ServerAddr)
 	if err != nil {
@@ -202,9 +218,17 @@ func makeNodeClient(opts *options) (pb.NodeServiceClient, error) {
 func makeWalletClient(opts *options) (pb.WalletServiceClient, error) {
 	certFile := repo.CleanAndExpandPath(opts.RPCCert)
 
-	creds, err := credentials.NewClientTLSFromFile(certFile, "localhost")
-	if err != nil {
-		return nil, err
+	var (
+		creds credentials.TransportCredentials
+		err   error
+	)
+	if opts.RPCCert != "" {
+		creds, err = credentials.NewClientTLSFromFile(certFile, "localhost")
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		creds = credentials.NewClientTLSFromCert(nil, "")
 	}
 	ma, err := multiaddr.NewMultiaddr(opts.ServerAddr)
 	if err != nil {
