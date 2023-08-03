@@ -111,7 +111,7 @@ func makeMockNode(mn mocknet.Mocknet, chain *blockchain.Blockchain) (*mockNode, 
 }
 
 func TestSync(t *testing.T) {
-	net, err := generateMockNetwork(10, 25000)
+	net, err := generateMockNetwork(20, 25000)
 	assert.NoError(t, err)
 
 	t.Run("sync when all nodes agree", func(t *testing.T) {

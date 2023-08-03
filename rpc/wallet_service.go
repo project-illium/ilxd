@@ -70,6 +70,22 @@ func (s *GrpcServer) GetAddress(ctx context.Context, req *pb.GetAddressRequest) 
 	}, nil
 }
 
+// GetTimelockedAddress returns a timelocked address that cannot be spent
+// from until the given timelock has passed. The private key used for this
+// address is the same as the wallet's most recent spend key used in a basic
+// address. This implies the key can be derived from seed, however the wallet
+// will not detect incoming payments to this address unless the timelock is
+// included in the utxo's state field.
+func (s *GrpcServer) GetTimelockedAddress(ctx context.Context, req *pb.GetTimelockedAddressRequest) (*pb.GetTimelockedAddressResponse, error) {
+	addr, err := s.wallet.TimelockedAddress(time.Unix(req.LockUntil, 0))
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &pb.GetTimelockedAddressResponse{
+		Address: addr.String(),
+	}, nil
+}
+
 // GetAddresses returns all the addresses create by the wallet.
 func (s *GrpcServer) GetAddresses(ctx context.Context, req *pb.GetAddressesRequest) (*pb.GetAddressesResponse, error) {
 	addrs, err := s.wallet.Addresses()
@@ -159,11 +175,12 @@ func (s *GrpcServer) GetUtxos(ctx context.Context, req *pb.GetUtxosRequest) (*pb
 	}
 	for _, note := range notes {
 		resp.Utxos = append(resp.Utxos, &pb.Utxo{
-			Commitment: note.Commitment,
-			Amount:     note.Amount,
-			Address:    note.Address,
-			WatchOnly:  note.WatchOnly,
-			Staked:     note.Staked,
+			Commitment:   note.Commitment,
+			Amount:       note.Amount,
+			Address:      note.Address,
+			WatchOnly:    note.WatchOnly,
+			Staked:       note.Staked,
+			LockedUntill: note.LockedUntil,
 		})
 	}
 	return resp, nil
@@ -472,10 +489,12 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		outputs = append(outputs, &walletlib.RawOutput{
+		rawOut := &walletlib.RawOutput{
 			Addr:   addr,
 			Amount: types.Amount(out.Amount),
-		})
+		}
+		copy(rawOut.State[:], out.State)
+		outputs = append(outputs, rawOut)
 	}
 	rawTx, err := s.wallet.CreateRawTransaction(inputs, outputs, req.AppendChangeOutput, types.Amount(req.FeePerKilobyte))
 	if err != nil {
@@ -823,6 +842,26 @@ func (s *GrpcServer) Spend(ctx context.Context, req *pb.SpendRequest) (*pb.Spend
 		return nil, err
 	}
 	return &pb.SpendResponse{Transaction_ID: txid[:]}, nil
+}
+
+// TimelockCoins moves coins into a timelocked address using the requested timelock.
+// The internal wallet will be able to spend the coins after the timelock expires and
+// the transaction will be recoverable if the wallet is restored from seed.
+//
+// This RPC primarily exists to lock coins for staking purposes.
+//
+// **Requires wallet to be unlocked**
+func (s *GrpcServer) TimelockCoins(ctx context.Context, req *pb.TimelockCoinsRequest) (*pb.TimelockCoinsResponse, error) {
+	commitments := make([]types.ID, 0, len(req.InputCommitments))
+	for _, c := range req.InputCommitments {
+		commitments = append(commitments, types.NewID(c))
+	}
+
+	txid, err := s.wallet.TimelockCoins(types.Amount(req.Amount), time.Unix(req.LockUntil, 0), types.Amount(req.FeePerKilobyte), commitments...)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.TimelockCoinsResponse{Transaction_ID: txid[:]}, nil
 }
 
 // SweepWallet sweeps all the coins from this wallet to the provided address.

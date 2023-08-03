@@ -163,9 +163,6 @@ func (g *BlockGenerator) generateBlock() error {
 	// nullifier from being in the same block. We'll loop through
 	// and remove any spends of stake if they were in the mempool.
 	txs := g.mpool.GetTransactions()
-	if len(txs) == 0 {
-		return nil
-	}
 	checkNullifiers := make(map[types.Nullifier]bool)
 	for _, tx := range txs {
 		if stake := tx.GetStakeTransaction(); stake != nil {
@@ -192,12 +189,10 @@ func (g *BlockGenerator) generateBlock() error {
 			if t.MintTransaction.Locktime > blockTime {
 				delete(txs, txid)
 			}
-		case *transactions.Transaction_StakeTransaction:
-			if t.StakeTransaction.Locktime > blockTime {
-				delete(txs, txid)
-			}
 		}
-
+	}
+	if len(txs) == 0 {
+		return nil
 	}
 	blk.Transactions = make([]*transactions.Transaction, 0, len(txs))
 	for _, tx := range txs {

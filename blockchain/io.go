@@ -23,6 +23,7 @@ func serializeValidator(v *Validator) ([]byte, error) {
 	vProto := &pb.DBValidator{
 		PeerId:           v.PeerID.String(),
 		TotalStake:       uint64(v.TotalStake),
+		WeightedStake:    uint64(v.WeightedStake),
 		Nullifiers:       make([]*pb.DBValidator_Nullifier, 0, len(v.Nullifiers)),
 		UnclaimedCoins:   uint64(v.UnclaimedCoins),
 		EpochBLocks:      v.EpochBlocks,
@@ -31,9 +32,11 @@ func serializeValidator(v *Validator) ([]byte, error) {
 
 	for v, stake := range v.Nullifiers {
 		n := &pb.DBValidator_Nullifier{
-			Amount:     uint64(stake.Amount),
-			Blockstamp: timestamppb.New(stake.Blockstamp),
-			Hash:       make([]byte, len(v)),
+			Amount:         uint64(stake.Amount),
+			WeightedAmount: uint64(stake.WeightedAmount),
+			Locktime:       timestamppb.New(stake.Locktime),
+			Blockstamp:     timestamppb.New(stake.Blockstamp),
+			Hash:           make([]byte, len(v)),
 		}
 		copy(n.Hash, v[:])
 		vProto.Nullifiers = append(vProto.Nullifiers, n)
@@ -55,6 +58,7 @@ func deserializeValidator(ser []byte) (*Validator, error) {
 	val := &Validator{
 		PeerID:           pid,
 		TotalStake:       types.Amount(vProto.TotalStake),
+		WeightedStake:    types.Amount(vProto.WeightedStake),
 		Nullifiers:       make(map[types.Nullifier]Stake),
 		UnclaimedCoins:   types.Amount(vProto.UnclaimedCoins),
 		EpochBlocks:      vProto.EpochBLocks,
@@ -65,8 +69,10 @@ func deserializeValidator(ser []byte) (*Validator, error) {
 		var nullifier [32]byte
 		copy(nullifier[:], n.Hash)
 		val.Nullifiers[nullifier] = Stake{
-			Amount:     types.Amount(n.Amount),
-			Blockstamp: n.Blockstamp.AsTime(),
+			Amount:         types.Amount(n.Amount),
+			WeightedAmount: types.Amount(n.WeightedAmount),
+			Locktime:       n.Locktime.AsTime(),
+			Blockstamp:     n.Blockstamp.AsTime(),
 		}
 	}
 	return val, nil

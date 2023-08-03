@@ -369,9 +369,6 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 		if err != nil {
 			return ruleError(ErrInvalidTx, "coinbase tx validator ID does not decode")
 		}
-		if tx.StakeTransaction.Locktime > blockTime.Unix() {
-			return ruleError(ErrInvalidTx, "transaction locktime is ahead of block timestamp")
-		}
 	case *transactions.Transaction_StandardTransaction:
 		if len(tx.StandardTransaction.Nullifiers) == 0 {
 			return ruleError(ErrInvalidTx, "transaction missing nullifier(s)")

@@ -108,6 +108,7 @@ func main() {
 	parser.AddCommand("getbalance", "Returns the combined balance of all addresses in the wallet", "Returns the combined balance of all addresses in the wallet", &GetBalance{opts: &opts})
 	parser.AddCommand("getwalletseed", "Returns the mnemonic seed for the wallet", "Returns the mnemonic seed for the wallet. If the wallet seed has been deleted, an error will be returned.", &GetWalletSeed{opts: &opts})
 	parser.AddCommand("getaddress", "Returns the most recent address of the wallet", "Returns the most recent address of the wallet", &GetAddress{opts: &opts})
+	parser.AddCommand("gettimelockedaddress", "Returns an address which locks coins until the provided timestamp", "Returns a timelocked address based on the wallet's most recent private key. Coins sent to this address will be locked until the provided timestamp.", &GetTimelockedAddress{opts: &opts})
 	parser.AddCommand("getaddresses", "Returns all the addresses created by this wallet", "Returns all the addresses created by this wallet", &GetAddresses{opts: &opts})
 	parser.AddCommand("getaddrinfo", "Returns info about the given address", "Returns info about the given address", &GetAddrInfo{opts: &opts})
 	parser.AddCommand("getnewaddress", "Generates a new address and returns it", "Generates a new address and returns it. Both a new spend key and view key will be derived from the mnemonic seed.", &GetNewAddress{opts: &opts})
@@ -131,6 +132,7 @@ func main() {
 	parser.AddCommand("stake", "Stakes the selected wallet UTXOs and turns the node into a validator", "Stakes the selected wallet UTXOs and turns the node into a validator", &Stake{opts: &opts})
 	parser.AddCommand("setautostakerewards", "Automatically stakes validator rewards", "Automatically stakes validator rewards", &SetAutoStakeRewards{opts: &opts})
 	parser.AddCommand("spend", "Sends coins from the wallet", "Sends coins from the wallet according to the provided parameters", &Spend{opts: &opts})
+	parser.AddCommand("timelockcoins", "Lock coins in a timelocked address", "Send coins into a timelocked address, from which the wallet may spend from after the timelock expires. This is primarily used for adding weight to stake.", &TimelockCoins{opts: &opts})
 
 	if _, err := parser.Parse(); err != nil {
 		if e, ok := err.(*flags.Error); ok && e.Type == flags.ErrHelp {

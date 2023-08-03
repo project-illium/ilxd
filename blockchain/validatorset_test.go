@@ -25,12 +25,15 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	producerIDBytes, err := producerID.Marshal()
 	assert.NoError(t, err)
 	validator1 := &Validator{
-		PeerID:     producerID,
-		TotalStake: 20000,
+		PeerID:        producerID,
+		TotalStake:    20000,
+		WeightedStake: 20000,
 		Nullifiers: map[types.Nullifier]Stake{
 			types.NewNullifier(producerNullifier[:]): {
-				Amount:     20000,
-				Blockstamp: time.Now().Add(-time.Hour * 24 * 8),
+				Amount:         20000,
+				WeightedAmount: 20000,
+				Locktime:       time.Unix(0, 0),
+				Blockstamp:     time.Now().Add(-time.Hour * 24 * 8),
 			},
 		},
 	}
@@ -57,20 +60,24 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, producerID, ret1.PeerID)
 	assert.Equal(t, types.Amount(20000), ret1.TotalStake)
+	assert.Equal(t, types.Amount(20000), ret1.WeightedStake)
 	stake, ok := ret1.Nullifiers[types.NewNullifier(producerNullifier[:])]
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(ret1.Nullifiers))
 	assert.Equal(t, types.Amount(20000), stake.Amount)
+	assert.Equal(t, types.Amount(20000), stake.WeightedAmount)
 	assert.Equal(t, uint32(1), ret1.EpochBlocks)
 
 	ret2, err := vs.GetValidator(valID)
 	assert.NoError(t, err)
 	assert.Equal(t, valID, ret2.PeerID)
 	assert.Equal(t, types.Amount(100000), ret2.TotalStake)
+	assert.Equal(t, types.Amount(100000), ret2.WeightedStake)
 	stake, ok = ret2.Nullifiers[types.NewNullifier(nullifier[:])]
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(ret2.Nullifiers))
 	assert.Equal(t, types.Amount(100000), stake.Amount)
+	assert.Equal(t, types.Amount(100000), stake.WeightedAmount)
 	assert.Equal(t, uint32(0), ret2.EpochBlocks)
 
 	// Check nullifiers are in the nullifier map
@@ -105,10 +112,12 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, valID2, ret1.PeerID)
 	assert.Equal(t, types.Amount(80000), ret1.TotalStake)
+	assert.Equal(t, types.Amount(80000), ret1.WeightedStake)
 	stake, ok = ret1.Nullifiers[types.NewNullifier(nullifier2[:])]
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(ret1.Nullifiers))
 	assert.Equal(t, types.Amount(80000), stake.Amount)
+	assert.Equal(t, types.Amount(80000), stake.WeightedAmount)
 	assert.Equal(t, uint32(0), ret1.EpochBlocks)
 
 	// Make sure the first validator was removed
@@ -124,7 +133,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, types.Amount(1666), ret2.UnclaimedCoins)
 
-	// Create new block that spends a coinbase and a mint
+	// Create new block that spends a coinbase in a mint
 	blk3 := randomBlock(randomBlockHeader(3, randomID()), 1)
 	blk3.Header.Producer_ID = producerIDBytes
 	blk3.Header.Timestamp = blk2.Header.Timestamp + (vs.params.EpochLength / 2)
@@ -144,6 +153,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, types.Amount(40000), ret1.UnclaimedCoins)
 	assert.Equal(t, types.Amount(80000), ret1.TotalStake)
+	assert.Equal(t, types.Amount(80000), ret1.WeightedStake)
 	assert.Equal(t, 1, len(ret1.Nullifiers))
 
 	// Test restake
@@ -163,6 +173,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	ret1, err = vs.GetValidator(valID2)
 	assert.NoError(t, err)
 	assert.Equal(t, types.Amount(80000), ret1.TotalStake)
+	assert.Equal(t, types.Amount(80000), ret1.WeightedStake)
 	assert.Equal(t, 1, len(ret1.Nullifiers))
 
 	// Test validator expiration
@@ -173,6 +184,34 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 
 	_, err = vs.GetValidator(valID2)
 	assert.Error(t, err)
+
+	// Test weighted stake
+	nullifier3 := randomID()
+	blk6 := randomBlock(randomBlockHeader(6, randomID()), 1)
+	blk6.Header.Producer_ID = producerIDBytes
+	blk6.Header.Timestamp = blk.Header.Timestamp + vs.params.EpochLength + 1
+	blk6.Transactions = []*transactions.Transaction{
+		transactions.WrapTransaction(&transactions.StakeTransaction{
+			Validator_ID: valIDBytes2,
+			Amount:       80000,
+			Nullifier:    nullifier3[:],
+			Locktime:     time.Unix(blk6.Header.Timestamp, 0).Add(time.Hour * 24 * 30 * 8).Unix(),
+		}),
+	}
+	assert.NoError(t, vs.CommitBlock(blk6, 0, FlushRequired))
+
+	// Check the second validator committed correctly
+	ret1, err = vs.GetValidator(valID2)
+	assert.NoError(t, err)
+	assert.Equal(t, valID2, ret1.PeerID)
+	assert.Equal(t, types.Amount(80000), ret1.TotalStake)
+	assert.Equal(t, types.Amount(83075), ret1.WeightedStake)
+	stake, ok = ret1.Nullifiers[types.NewNullifier(nullifier3[:])]
+	assert.True(t, ok)
+	assert.Equal(t, 1, len(ret1.Nullifiers))
+	assert.Equal(t, types.Amount(80000), stake.Amount)
+	assert.Equal(t, types.Amount(83075), stake.WeightedAmount)
+	assert.Equal(t, uint32(0), ret1.EpochBlocks)
 }
 
 func TestValidatorSet_Init(t *testing.T) {

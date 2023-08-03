@@ -990,6 +990,13 @@ type WalletServiceClient interface {
 	GetWalletSeed(ctx context.Context, in *GetWalletSeedRequest, opts ...grpc.CallOption) (*GetWalletSeedResponse, error)
 	// GetAddress returns the most recent address of the wallet.
 	GetAddress(ctx context.Context, in *GetAddressRequest, opts ...grpc.CallOption) (*GetAddressResponse, error)
+	// GetTimelockedAddress returns a timelocked address that cannot be spent
+	// from until the given timelock has passed. The private key used for this
+	// address is the same as the wallet's most recent spend key used in a basic
+	// address. This implies the key can be derived from seed, however the wallet
+	// will not detect incoming payments to this address unless the timelock is
+	// included in the utxo's state field.
+	GetTimelockedAddress(ctx context.Context, in *GetTimelockedAddressRequest, opts ...grpc.CallOption) (*GetTimelockedAddressResponse, error)
 	// GetAddresses returns all the addresses create by the wallet.
 	GetAddresses(ctx context.Context, in *GetAddressesRequest, opts ...grpc.CallOption) (*GetAddressesResponse, error)
 	// GetAddressInfo returns additional metadata about an address.
@@ -1052,7 +1059,15 @@ type WalletServiceClient interface {
 	//
 	// **Requires wallet to be unlocked**
 	Spend(ctx context.Context, in *SpendRequest, opts ...grpc.CallOption) (*SpendResponse, error)
-	// SweepWallet sweeps all the coins from this wallet to the provided address
+	// TimelockCoins moves coins into a timelocked address using the requested timelock.
+	// The internal wallet will be able to spend the coins after the timelock expires and
+	// the transaction will be recoverable if the wallet is restored from seed.
+	//
+	// This RPC primarily exists to lock coins for staking purposes.
+	//
+	// **Requires wallet to be unlocked**
+	TimelockCoins(ctx context.Context, in *TimelockCoinsRequest, opts ...grpc.CallOption) (*TimelockCoinsResponse, error)
+	// SweepWallet sweeps all the coins from this wallet to the provided address.
 	// This RPC is provided so that you don't have to try to guess the correct fee
 	// to take the wallet's balance down to zero. Here the fee will be subtracted
 	// from the total funds.
@@ -1090,6 +1105,15 @@ func (c *walletServiceClient) GetWalletSeed(ctx context.Context, in *GetWalletSe
 func (c *walletServiceClient) GetAddress(ctx context.Context, in *GetAddressRequest, opts ...grpc.CallOption) (*GetAddressResponse, error) {
 	out := new(GetAddressResponse)
 	err := c.cc.Invoke(ctx, "/pb.WalletService/GetAddress", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *walletServiceClient) GetTimelockedAddress(ctx context.Context, in *GetTimelockedAddressRequest, opts ...grpc.CallOption) (*GetTimelockedAddressResponse, error) {
+	out := new(GetTimelockedAddressResponse)
+	err := c.cc.Invoke(ctx, "/pb.WalletService/GetTimelockedAddress", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1303,6 +1327,15 @@ func (c *walletServiceClient) Spend(ctx context.Context, in *SpendRequest, opts 
 	return out, nil
 }
 
+func (c *walletServiceClient) TimelockCoins(ctx context.Context, in *TimelockCoinsRequest, opts ...grpc.CallOption) (*TimelockCoinsResponse, error) {
+	out := new(TimelockCoinsResponse)
+	err := c.cc.Invoke(ctx, "/pb.WalletService/TimelockCoins", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *walletServiceClient) SweepWallet(ctx context.Context, in *SweepWalletRequest, opts ...grpc.CallOption) (*SweepWalletResponse, error) {
 	out := new(SweepWalletResponse)
 	err := c.cc.Invoke(ctx, "/pb.WalletService/SweepWallet", in, out, opts...)
@@ -1326,6 +1359,13 @@ type WalletServiceServer interface {
 	GetWalletSeed(context.Context, *GetWalletSeedRequest) (*GetWalletSeedResponse, error)
 	// GetAddress returns the most recent address of the wallet.
 	GetAddress(context.Context, *GetAddressRequest) (*GetAddressResponse, error)
+	// GetTimelockedAddress returns a timelocked address that cannot be spent
+	// from until the given timelock has passed. The private key used for this
+	// address is the same as the wallet's most recent spend key used in a basic
+	// address. This implies the key can be derived from seed, however the wallet
+	// will not detect incoming payments to this address unless the timelock is
+	// included in the utxo's state field.
+	GetTimelockedAddress(context.Context, *GetTimelockedAddressRequest) (*GetTimelockedAddressResponse, error)
 	// GetAddresses returns all the addresses create by the wallet.
 	GetAddresses(context.Context, *GetAddressesRequest) (*GetAddressesResponse, error)
 	// GetAddressInfo returns additional metadata about an address.
@@ -1388,7 +1428,15 @@ type WalletServiceServer interface {
 	//
 	// **Requires wallet to be unlocked**
 	Spend(context.Context, *SpendRequest) (*SpendResponse, error)
-	// SweepWallet sweeps all the coins from this wallet to the provided address
+	// TimelockCoins moves coins into a timelocked address using the requested timelock.
+	// The internal wallet will be able to spend the coins after the timelock expires and
+	// the transaction will be recoverable if the wallet is restored from seed.
+	//
+	// This RPC primarily exists to lock coins for staking purposes.
+	//
+	// **Requires wallet to be unlocked**
+	TimelockCoins(context.Context, *TimelockCoinsRequest) (*TimelockCoinsResponse, error)
+	// SweepWallet sweeps all the coins from this wallet to the provided address.
 	// This RPC is provided so that you don't have to try to guess the correct fee
 	// to take the wallet's balance down to zero. Here the fee will be subtracted
 	// from the total funds.
@@ -1410,6 +1458,9 @@ func (UnimplementedWalletServiceServer) GetWalletSeed(context.Context, *GetWalle
 }
 func (UnimplementedWalletServiceServer) GetAddress(context.Context, *GetAddressRequest) (*GetAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAddress not implemented")
+}
+func (UnimplementedWalletServiceServer) GetTimelockedAddress(context.Context, *GetTimelockedAddressRequest) (*GetTimelockedAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTimelockedAddress not implemented")
 }
 func (UnimplementedWalletServiceServer) GetAddresses(context.Context, *GetAddressesRequest) (*GetAddressesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAddresses not implemented")
@@ -1480,6 +1531,9 @@ func (UnimplementedWalletServiceServer) SetAutoStakeRewards(context.Context, *Se
 func (UnimplementedWalletServiceServer) Spend(context.Context, *SpendRequest) (*SpendResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Spend not implemented")
 }
+func (UnimplementedWalletServiceServer) TimelockCoins(context.Context, *TimelockCoinsRequest) (*TimelockCoinsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TimelockCoins not implemented")
+}
 func (UnimplementedWalletServiceServer) SweepWallet(context.Context, *SweepWalletRequest) (*SweepWalletResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SweepWallet not implemented")
 }
@@ -1546,6 +1600,24 @@ func _WalletService_GetAddress_Handler(srv interface{}, ctx context.Context, dec
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(WalletServiceServer).GetAddress(ctx, req.(*GetAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WalletService_GetTimelockedAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTimelockedAddressRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).GetTimelockedAddress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.WalletService/GetTimelockedAddress",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).GetTimelockedAddress(ctx, req.(*GetTimelockedAddressRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1964,6 +2036,24 @@ func _WalletService_Spend_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _WalletService_TimelockCoins_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TimelockCoinsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).TimelockCoins(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.WalletService/TimelockCoins",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).TimelockCoins(ctx, req.(*TimelockCoinsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _WalletService_SweepWallet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SweepWalletRequest)
 	if err := dec(in); err != nil {
@@ -2000,6 +2090,10 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAddress",
 			Handler:    _WalletService_GetAddress_Handler,
+		},
+		{
+			MethodName: "GetTimelockedAddress",
+			Handler:    _WalletService_GetTimelockedAddress_Handler,
 		},
 		{
 			MethodName: "GetAddresses",
@@ -2092,6 +2186,10 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Spend",
 			Handler:    _WalletService_Spend_Handler,
+		},
+		{
+			MethodName: "TimelockCoins",
+			Handler:    _WalletService_TimelockCoins_Handler,
 		},
 		{
 			MethodName: "SweepWallet",

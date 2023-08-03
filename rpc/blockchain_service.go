@@ -334,6 +334,7 @@ func (s *GrpcServer) GetValidator(ctx context.Context, req *pb.GetValidatorReque
 		Validator: &pb.Validator{
 			Validator_ID:   req.Validator_ID,
 			TotalStake:     uint64(validator.TotalStake),
+			StakeWeight:    uint64(validator.WeightedStake),
 			UnclaimedCoins: uint64(validator.UnclaimedCoins),
 			EpochBlocks:    validator.EpochBlocks,
 		},
@@ -348,6 +349,7 @@ func (s *GrpcServer) GetValidator(ctx context.Context, req *pb.GetValidatorReque
 func (s *GrpcServer) GetValidatorSetInfo(ctx context.Context, req *pb.GetValidatorSetInfoRequest) (*pb.GetValidatorSetInfoResponse, error) {
 	return &pb.GetValidatorSetInfoResponse{
 		TotalStaked:   uint64(s.chain.TotalStaked()),
+		StakeWeight:   uint64(s.chain.TotalStakeWeight()),
 		NumValidators: uint32(s.chain.ValidatorSetSize()),
 	}, nil
 }
@@ -366,6 +368,7 @@ func (s *GrpcServer) GetValidatorSet(ctx context.Context, req *pb.GetValidatorSe
 		val := &pb.Validator{
 			Validator_ID:   valID,
 			TotalStake:     uint64(v.TotalStake),
+			StakeWeight:    uint64(v.WeightedStake),
 			UnclaimedCoins: uint64(v.UnclaimedCoins),
 			EpochBlocks:    v.EpochBlocks,
 		}

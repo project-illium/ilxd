@@ -376,14 +376,16 @@ func (x *GetValidator) Execute(args []string) error {
 	}
 
 	v := struct {
-		ValidatorID    string
-		TotalStake     uint64
-		Nullifiers     []types.HexEncodable
-		UnclaimedCoins uint64
-		EpochBlocks    uint32
+		ValidatorID    string               `json:"validatorID"`
+		TotalStake     uint64               `json:"totalStake"`
+		StakeWeight    uint64               `json:"stakeWeight"`
+		Nullifiers     []types.HexEncodable `json:"nullifiers"`
+		UnclaimedCoins uint64               `json:"unclaimedCoins"`
+		EpochBlocks    uint32               `json:"epochBlocks"`
 	}{
 		ValidatorID:    respID.String(),
 		TotalStake:     resp.Validator.TotalStake,
+		StakeWeight:    resp.Validator.StakeWeight,
 		Nullifiers:     nullifers,
 		UnclaimedCoins: resp.Validator.UnclaimedCoins,
 		EpochBlocks:    resp.Validator.EpochBlocks,
@@ -441,11 +443,12 @@ func (x *GetValidatorSet) Execute(args []string) error {
 	}
 
 	type v struct {
-		ValidatorID    string
-		TotalStake     uint64
-		Nullifiers     []types.HexEncodable
-		UnclaimedCoins uint64
-		EpochBlocks    uint32
+		ValidatorID    string               `json:"validatorID"`
+		TotalStake     uint64               `json:"totalStake"`
+		StakeWeight    uint64               `json:"stakeWeight"`
+		Nullifiers     []types.HexEncodable `json:"nullifiers"`
+		UnclaimedCoins uint64               `json:"unclaimedCoins"`
+		EpochBlocks    uint32               `json:"epochBlocks"`
 	}
 	vals := make([]v, 0, len(resp.Validators))
 	for _, val := range resp.Validators {
@@ -460,6 +463,7 @@ func (x *GetValidatorSet) Execute(args []string) error {
 		vals = append(vals, v{
 			ValidatorID:    respID.String(),
 			TotalStake:     val.TotalStake,
+			StakeWeight:    val.StakeWeight,
 			Nullifiers:     nullifers,
 			UnclaimedCoins: val.UnclaimedCoins,
 			EpochBlocks:    val.EpochBlocks,
