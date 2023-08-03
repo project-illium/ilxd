@@ -29,33 +29,18 @@ func Encrypt(pubKey crypto.PubKey, plaintext []byte) ([]byte, error) {
 		return nil, errors.New("pubkey must be of type Curve25519PublicKey")
 	}
 
-	// Generate ephemeral key pair
-	ephemPub, ephemPriv, err := box.GenerateKey(rand.Reader)
-	if err != nil {
-		return nil, err
-	}
-
 	// Encrypt with nacl
 	var (
 		ciphertext []byte
 		pt         = make([]byte, len(plaintext))
-		nonce      [24]byte
-		n          = make([]byte, 24)
+		err        error
 	)
-	_, err = rand.Read(n)
+	copy(pt, plaintext)
+
+	ciphertext, err = box.SealAnonymous(ciphertext, pt, curve25519PubKey.k, rand.Reader)
 	if err != nil {
 		return nil, err
 	}
-	copy(nonce[:], n)
-	copy(pt, plaintext)
-
-	ciphertext = box.Seal(ciphertext, pt, &nonce, curve25519PubKey.k, ephemPriv)
-
-	// Prepend the ephemeral public key
-	ciphertext = append(ephemPub[:], ciphertext...)
-
-	// Prepend nonce
-	ciphertext = append(nonce[:], ciphertext...)
 	return ciphertext, nil
 }
 
@@ -65,21 +50,16 @@ func Decrypt(privKey crypto.PrivKey, ciphertext []byte) ([]byte, error) {
 	if !ok {
 		return nil, errors.New("privkey must be of type Curve25519PrivateKey")
 	}
-	n := ciphertext[:NonceBytes]
-	ephemPubkeyBytes := ciphertext[NonceBytes : NonceBytes+EphemeralPublicKeyBytes]
-	ct := ciphertext[NonceBytes+EphemeralPublicKeyBytes:]
 
 	var (
-		plaintext   []byte
-		priv        [32]byte
-		ephemPubkey [32]byte
-		nonce       [24]byte
+		plaintext []byte
+		priv      [32]byte
+		pub       [32]byte
 	)
-	copy(ephemPubkey[:], ephemPubkeyBytes)
-	copy(nonce[:], n)
 	copy(priv[:], curve25519PrivKey.k[:Curve25519PrivateKeySize])
+	copy(pub[:], curve25519PrivKey.pubKeyBytes())
 
-	plaintext, success := box.Open(plaintext, ct, &nonce, &ephemPubkey, &priv)
+	plaintext, success := box.OpenAnonymous(plaintext, ciphertext, &pub, &priv)
 	if !success {
 		return nil, ErrBoxDecryption
 	}
