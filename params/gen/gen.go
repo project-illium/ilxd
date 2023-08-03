@@ -13,9 +13,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	ilxcrypto "github.com/project-illium/ilxd/crypto"
+	params2 "github.com/project-illium/ilxd/params"
+	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/walletlib"
 	"log"
 )
 
@@ -58,7 +61,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	/*kc, _ := walletlib.NewKeychain(mock.NewMapDatastore(), &params2.AlphanetParams, "")
+	kc, _ := walletlib.NewKeychain(mock.NewMapDatastore(), &params2.RegestParams, params2.RegtestMnemonicSeed)
 
 	networkKey, _ := kc.NetworkKey()
 	sk, _ := crypto.MarshalPrivateKey(networkKey)
@@ -107,7 +110,7 @@ func main() {
 			Ciphertext: ct,
 		},
 	}
-	*/
+
 	blk := &blocks.Block{
 		Header: &blocks.BlockHeader{
 			Version:     1,
