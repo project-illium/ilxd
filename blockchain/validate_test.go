@@ -764,7 +764,7 @@ func TestValidateBlock(t *testing.T) {
 						},
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
-						Asset_ID:   bytes.Repeat([]byte{0x11}, AssetIDLen),
+						Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
 						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 					}),
@@ -796,7 +796,7 @@ func TestValidateBlock(t *testing.T) {
 								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
-						Asset_ID:   bytes.Repeat([]byte{0x11}, AssetIDLen),
+						Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
 						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 						Nullifiers: [][]byte{nullifier[:]},
@@ -812,7 +812,7 @@ func TestValidateBlock(t *testing.T) {
 						},
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
-						Asset_ID:   bytes.Repeat([]byte{0x12}, AssetIDLen),
+						Asset_ID:   bytes.Repeat([]byte{0x12}, types.AssetIDLen),
 						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x12}, PubkeyLen),
 					}),
@@ -846,7 +846,7 @@ func TestValidateBlock(t *testing.T) {
 								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
-						Asset_ID:   bytes.Repeat([]byte{0x11}, AssetIDLen),
+						Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
 						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 						Nullifiers: [][]byte{nullifier2[:]},
@@ -880,7 +880,7 @@ func TestValidateBlock(t *testing.T) {
 								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
-						Asset_ID:   bytes.Repeat([]byte{0x11}, AssetIDLen),
+						Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
 						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 						Nullifiers: [][]byte{nullifier[:]},
@@ -1710,7 +1710,7 @@ func TestCheckTransactionSanity(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
 				Locktime:   time.Time{}.Unix(),
-				Asset_ID:   bytes.Repeat([]byte{0x11}, AssetIDLen),
+				Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{
@@ -1746,7 +1746,7 @@ func TestCheckTransactionSanity(t *testing.T) {
 				Nullifiers: [][]byte{nullifier.Bytes()},
 				Type:       transactions.MintTransaction_VARIABLE_SUPPLY,
 				Locktime:   time.Time{}.Unix(),
-				Asset_ID:   bytes.Repeat([]byte{0x22}, AssetIDLen),
+				Asset_ID:   bytes.Repeat([]byte{0x22}, types.AssetIDLen),
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{
@@ -1764,7 +1764,7 @@ func TestCheckTransactionSanity(t *testing.T) {
 				Nullifiers: [][]byte{nullifier.Bytes()},
 				Type:       3,
 				Locktime:   time.Time{}.Unix(),
-				Asset_ID:   bytes.Repeat([]byte{0x11}, AssetIDLen),
+				Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{

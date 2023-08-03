@@ -17,9 +17,9 @@ import (
 const (
 	PubkeyLen = 36
 
-	CiphertextLen = 304
-
-	AssetIDLen = 32
+	// CiphertextLen is:
+	// ScriptHashLen + AssetIDLen + SaltLen + AmountLen + StateLen + CiphertextOverhead
+	CiphertextLen = 32 + 32 + 32 + 8 + 128 + 48
 
 	MaxDocumentHashLen = 68
 
@@ -386,7 +386,7 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 		if err := validateOutputs(tx.MintTransaction.Outputs); err != nil {
 			return err
 		}
-		if len(tx.MintTransaction.Asset_ID) > AssetIDLen {
+		if len(tx.MintTransaction.Asset_ID) > types.AssetIDLen {
 			return ruleError(ErrInvalidTx, "invalid asset ID")
 		}
 		if len(tx.MintTransaction.DocumentHash) > MaxDocumentHashLen {
