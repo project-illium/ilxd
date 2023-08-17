@@ -97,8 +97,7 @@ func TestStandardCircuit(t *testing.T) {
 	sigHash := make([]byte, 32)
 	rand.Read(sigHash)
 
-	nullifier, err := types.CalculateNullifier(inclusionProof.Index, note1.Salt, us.ScriptCommitment, us.ScriptParams...)
-	assert.NoError(t, err)
+	nullifier := types.CalculateNullifier(inclusionProof.Index, note1.Salt, us.ScriptCommitment, us.ScriptParams...)
 
 	fakeSig := make([]byte, 32)
 	rand.Read(fakeSig)

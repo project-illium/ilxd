@@ -63,8 +63,7 @@ func TestProofValidator(t *testing.T) {
 	acc.Insert(inCommitment[:], true)
 	root := acc.Root()
 
-	inNullifier, err := types.CalculateNullifier(0, inNote.Salt, inUnlockingScript.ScriptCommitment, inUnlockingScript.ScriptParams...)
-	assert.NoError(t, err)
+	inNullifier := types.CalculateNullifier(0, inNote.Salt, inUnlockingScript.ScriptCommitment, inUnlockingScript.ScriptParams...)
 
 	fakeProof := make([]byte, 8000)
 	rand.Read(fakeProof)

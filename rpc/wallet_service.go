@@ -376,10 +376,7 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 
 		privateParams.Inputs = append(privateParams.Inputs, privIn)
 
-		nullifier, err := types.CalculateNullifier(in.TxoProof.Index, privIn.Salt, privIn.ScriptCommitment, privIn.ScriptParams...)
-		if err != nil {
-			return nil, err
-		}
+		nullifier := types.CalculateNullifier(in.TxoProof.Index, privIn.Salt, privIn.ScriptCommitment, privIn.ScriptParams...)
 		nullifiers = append(nullifiers, nullifier.Bytes())
 	}
 	for _, out := range req.Tx.Outputs {

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/project-illium/ilxd/blockchain"
+	"github.com/project-illium/ilxd/blockchain/indexers"
 	"github.com/project-illium/ilxd/consensus"
 	"github.com/project-illium/ilxd/gen"
 	"github.com/project-illium/ilxd/mempool"
@@ -133,5 +134,6 @@ func setupLogging(logDir, level string, testnet bool) (*zap.AtomicLevel, error) 
 	sync.UpdateLogger()
 	mempool.UpdateLogger()
 	walletlib.UpdateLogger()
+	indexers.UpdateLogger()
 	return &cfg.Level, nil
 }

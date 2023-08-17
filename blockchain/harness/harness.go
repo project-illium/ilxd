@@ -68,10 +68,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 		return nil, err
 	}
 
-	nullifier, err := types.CalculateNullifier(proof.Index, spendableNote.Note.Salt, spendableNote.UnlockingScript.ScriptCommitment, spendableNote.UnlockingScript.ScriptParams...)
-	if err != nil {
-		return nil, err
-	}
+	nullifier := types.CalculateNullifier(proof.Index, spendableNote.Note.Salt, spendableNote.UnlockingScript.ScriptCommitment, spendableNote.UnlockingScript.ScriptParams...)
 	harness.spendableNotes[nullifier] = spendableNote
 
 	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(cfg.params))
@@ -130,10 +127,7 @@ func (h *TestHarness) GenerateBlockWithTransactions(txs []*transactions.Transact
 		if err != nil {
 			return err
 		}
-		nullifier, err := types.CalculateNullifier(proof.Index, sn.Note.Salt, sn.UnlockingScript.ScriptCommitment, sn.UnlockingScript.ScriptParams...)
-		if err != nil {
-			return err
-		}
+		nullifier := types.CalculateNullifier(proof.Index, sn.Note.Salt, sn.UnlockingScript.ScriptCommitment, sn.UnlockingScript.ScriptParams...)
 		h.spendableNotes[nullifier] = sn
 	}
 	return nil

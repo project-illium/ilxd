@@ -245,10 +245,7 @@ func main() {
 	}
 	txoRoot := acc.Root().Bytes()
 
-	nullifier, err := types.CalculateNullifier(0, note.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
-	if err != nil {
-		log.Fatal(err)
-	}
+	nullifier := types.CalculateNullifier(0, note.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
 
 	blk.Transactions[1] = transactions.WrapTransaction(&transactions.StakeTransaction{
 		Validator_ID: validatorIDBytes,

@@ -155,7 +155,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		indexerList []indexers.Indexer
 		txIndex     *indexers.TxIndex
 	)
-	if !config.NoTxIndex {
+	if !config.NoTxIndex && !config.DropTxIndex {
 		txIndex = indexers.NewTxIndex()
 		indexerList = append(indexerList, txIndex)
 	}
@@ -167,7 +167,11 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		blockchain.MaxTxoRoots(blockchain.DefaultMaxTxoRoots),
 		blockchain.SignatureCache(sigCache),
 		blockchain.SnarkProofCache(proofCache),
-		blockchain.Indexers(indexerList),
+	}
+
+	if len(indexerList) != 0 {
+		indexManager := indexers.NewIndexManager(ds, indexerList)
+		blockchainOpts = append(blockchainOpts, blockchain.Indexer(indexManager))
 	}
 
 	if config.DropTxIndex {
@@ -176,10 +180,6 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		}
 	}
 
-	if !config.NoTxIndex {
-		blockchainOpts = append(blockchainOpts, blockchain.Indexers([]indexers.Indexer{indexers.NewTxIndex()}))
-
-	}
 	chain, err := blockchain.NewBlockchain(blockchainOpts...)
 	if err != nil {
 		return nil, err

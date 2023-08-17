@@ -31,8 +31,7 @@ func TestNewTestHarness(t *testing.T) {
 	assert.NoError(t, err)
 	root := acc.Root()
 
-	nullifer, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
-	assert.NoError(t, err)
+	nullifer := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
 
 	var salt [32]byte
 	rand.Read(salt[:])

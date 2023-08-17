@@ -7,7 +7,6 @@ package blockchain
 import (
 	"context"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/project-illium/ilxd/blockchain/indexers"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
@@ -44,7 +43,6 @@ func (b *Blockchain) CalcChainScore(blks []*blocks.Block) (ChainScore, error) {
 		txoRootSet:        b.txoRootSet.Clone(),   // Reads from disk db, writes to cache only.
 		sigCache:          NewSigCache(DefaultSigCacheSize),
 		proofCache:        NewProofCache(DefaultProofCacheSize),
-		indexManager:      indexers.NewIndexManager(nil, nil),
 		notificationsLock: sync.RWMutex{},
 		stateLock:         sync.RWMutex{},
 	}

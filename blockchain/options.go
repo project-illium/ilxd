@@ -5,7 +5,6 @@
 package blockchain
 
 import (
-	"github.com/project-illium/ilxd/blockchain/indexers"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/repo/mock"
@@ -79,11 +78,12 @@ func SnarkProofCache(proofCache *ProofCache) Option {
 	}
 }
 
-// Indexers is a list of indexers to initialize the chain with.
+// Indexer sets an IndexManager that is already configured with the desired
+// indexers.
 // These indexers will be notified whenever a new block is connected.
-func Indexers(indexers []indexers.Indexer) Option {
+func Indexer(indexer IndexManager) Option {
 	return func(cfg *config) error {
-		cfg.indexers = indexers
+		cfg.indexManager = indexer
 		return nil
 	}
 }
@@ -112,7 +112,7 @@ type config struct {
 	datastore     repo.Datastore
 	sigCache      *SigCache
 	proofCache    *ProofCache
-	indexers      []indexers.Indexer
+	indexManager  IndexManager
 	maxNullifiers uint
 	maxTxoRoots   uint
 }

@@ -31,7 +31,7 @@ func NewIndexManager(ds repo.Datastore, indexers []Indexer) *IndexManager {
 // Init iterates over each indexer and checks to see if the indexer height is
 // the same height as the tip of the chain. If not, it will roll the index
 // forward until it is current.
-func (im *IndexManager) Init(tipHeight uint32, getBlock GetBlockFunc) error {
+func (im *IndexManager) Init(tipHeight uint32, getBlock func(height uint32) (*blocks.Block, error)) error {
 	dbtx, err := im.ds.NewTransaction(context.Background(), false)
 	if err != nil {
 		return err
@@ -75,7 +75,14 @@ func (im *IndexManager) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) erro
 		if err := indexer.ConnectBlock(dbtx, blk); err != nil {
 			return err
 		}
-		if err := dsPutIndexerHeight(dbtx, indexer, blk.Header.Height); err != nil {
+	}
+	return nil
+}
+
+// Close shuts down all the indexers.
+func (im *IndexManager) Close() error {
+	for _, indexer := range im.indexers {
+		if err := indexer.Close(im.ds); err != nil {
 			return err
 		}
 	}
@@ -102,6 +109,14 @@ func dsPutIndexValue(dbtx datastore.Txn, indexer Indexer, key string, value []by
 
 func dsFetchIndexValue(ds repo.Datastore, indexer Indexer, key string) ([]byte, error) {
 	return ds.Get(context.Background(), datastore.NewKey(repo.IndexKeyPrefix+indexer.Key()+"/"+key))
+}
+
+func dsPrefixQueryIndexValue(dbtx datastore.Txn, indexer Indexer, prefix string) (query.Results, error) {
+	return dbtx.Query(context.Background(), query.Query{Prefix: repo.IndexKeyPrefix + indexer.Key() + "/" + prefix})
+}
+
+func dsDeleteIndexValue(dbtx datastore.Txn, indexer Indexer, key string) error {
+	return dbtx.Delete(context.Background(), datastore.NewKey(repo.IndexKeyPrefix+indexer.Key()+"/"+key))
 }
 
 func dsDropIndex(ds repo.Datastore, indexer Indexer) error {
