@@ -59,10 +59,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 		harness.acc.Insert(output.Commitment, true)
 	}
 
-	commitment, err := spendableNote.Note.Commitment()
-	if err != nil {
-		return nil, err
-	}
+	commitment := spendableNote.Note.Commitment()
 	proof, err := harness.acc.GetProof(commitment[:])
 	if err != nil {
 		return nil, err
@@ -119,10 +116,7 @@ func (h *TestHarness) GenerateBlockWithTransactions(txs []*transactions.Transact
 		h.acc.Insert(out.Commitment, true)
 	}
 	for _, sn := range createdNotes {
-		commitment, err := sn.Note.Commitment()
-		if err != nil {
-			return err
-		}
+		commitment := sn.Note.Commitment()
 		proof, err := h.acc.GetProof(commitment[:])
 		if err != nil {
 			return err

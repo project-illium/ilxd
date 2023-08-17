@@ -7,7 +7,9 @@ package indexers
 import (
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
@@ -70,10 +72,14 @@ func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 
 	for r := range query.Next() {
 		v := strings.Split(r.Key, "/")
-		keyStr := v[len(v)-1]
-
-		key, err := crypto.UnmarshalPrivateKey([]byte(keyStr))
+		keyBytes, err := hex.DecodeString(v[len(v)-1])
 		if err != nil {
+			return nil, err
+		}
+
+		key, err := crypto.UnmarshalPrivateKey(keyBytes)
+		if err != nil {
+			fmt.Println("here2")
 			return nil, err
 		}
 
@@ -93,15 +99,19 @@ func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 	for r := range query.Next() {
 		v := strings.Split(r.Key, "/")
 		nullifierStr := v[len(v)-1]
-		keyStr := v[len(v)-2]
+		keyBytes, err := hex.DecodeString(v[len(v)-2])
+		if err != nil {
+			return nil, err
+		}
 
 		nullifier, err := types.NewNullifierFromString(nullifierStr)
 		if err != nil {
 			return nil, err
 		}
 
-		key, err := crypto.UnmarshalPrivateKey([]byte(keyStr))
+		key, err := crypto.UnmarshalPrivateKey(keyBytes)
 		if err != nil {
+			fmt.Println("here")
 			return nil, err
 		}
 		nullifiers[nullifier] = commitmentWithKey{
@@ -133,6 +143,8 @@ func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 	bestBlock, err := dsFetchIndexValue(ds, &WalletServerIndex{}, walletServerBestBlockKey)
 	if err != nil && err != datastore.ErrNotFound {
 		return nil, err
+	} else if err == datastore.ErrNotFound {
+		bestBlock = make([]byte, 36)
 	}
 
 	idx := &WalletServerIndex{
@@ -176,7 +188,7 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 				if err != nil {
 					return err
 				}
-				dsKey := walletServerTxKeyPrefix + string(viewKey) + "/" + tx.ID().String()
+				dsKey := walletServerTxKeyPrefix + hex.EncodeToString(viewKey) + "/" + tx.ID().String()
 				if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
 					return err
 				}
@@ -198,7 +210,7 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 				if err != nil {
 					return err
 				}
-				dsKey := walletServerTxKeyPrefix + string(viewKey) + "/" + tx.ID().String()
+				dsKey := walletServerTxKeyPrefix + hex.EncodeToString(viewKey) + "/" + tx.ID().String()
 				if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
 					return err
 				}
@@ -206,7 +218,7 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 				if err := dsDeleteIndexValue(dbtx, idx, walletServerNotePrefix+cwk.commitment.String()); err != nil {
 					return err
 				}
-				dsKey2 := walletServerNullifierKeyPrefix + string(viewKey) + "/" + n.String()
+				dsKey2 := walletServerNullifierKeyPrefix + hex.EncodeToString(viewKey) + "/" + n.String()
 				if err := dsDeleteIndexValue(dbtx, idx, dsKey2); err != nil {
 					return err
 				}
@@ -232,7 +244,14 @@ func (idx *WalletServerIndex) GetTransactionsIDs(ds repo.Datastore, viewKey *icr
 		return nil, err
 	}
 
-	query, err := dsPrefixQueryIndexValue(dbtx, &WalletServerIndex{}, walletServerTxKeyPrefix+string(key))
+	_, err = dsFetchIndexValue(ds, idx, walletServerViewKeyPrefix+hex.EncodeToString(key))
+	if err != nil && err != datastore.ErrNotFound {
+		return nil, err
+	} else if err == datastore.ErrNotFound {
+		return nil, errors.New("view key not registered")
+	}
+
+	query, err := dsPrefixQueryIndexValue(dbtx, &WalletServerIndex{}, walletServerTxKeyPrefix+hex.EncodeToString(key))
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +273,7 @@ func (idx *WalletServerIndex) GetTransactionsIDs(ds repo.Datastore, viewKey *icr
 		return nil, err
 	}
 
-	if err := dsPutIndexValue(dbtx, idx, walletServerViewKeyPrefix+string(key), timeBytes); err != nil {
+	if err := dsPutIndexValue(dbtx, idx, walletServerViewKeyPrefix+hex.EncodeToString(key), timeBytes); err != nil {
 		return nil, err
 	}
 
@@ -284,8 +303,8 @@ func (idx *WalletServerIndex) GetTxoProofs(ds repo.Datastore, commitments []type
 
 		var salt [32]byte
 		copy(salt[:], val[:types.SaltLen])
-		scriptHash := val[types.SaltLen:types.ScriptHashLen]
-		viewKeyBytes := val[types.StateLen+types.ScriptHashLen:]
+		scriptHash := val[types.SaltLen : types.SaltLen+types.ScriptHashLen]
+		viewKeyBytes := val[types.SaltLen+types.ScriptHashLen:]
 
 		viewKey, err := crypto.UnmarshalPrivateKey(viewKeyBytes)
 		if err != nil {
@@ -307,7 +326,7 @@ func (idx *WalletServerIndex) GetTxoProofs(ds repo.Datastore, commitments []type
 			return nil, types.ID{}, err
 		}
 
-		dsKey := walletServerNullifierKeyPrefix + string(viewKeyBytes) + "/" + nullifier.String()
+		dsKey := walletServerNullifierKeyPrefix + hex.EncodeToString(viewKeyBytes) + "/" + nullifier.String()
 
 		if err := dsPutIndexValue(dbtx, idx, dsKey, commitment.Bytes()); err != nil {
 			return nil, types.ID{}, err
@@ -318,7 +337,7 @@ func (idx *WalletServerIndex) GetTxoProofs(ds repo.Datastore, commitments []type
 			return nil, types.ID{}, err
 		}
 
-		if err := dsPutIndexValue(dbtx, idx, walletServerViewKeyPrefix+string(viewKeyBytes), timeBytes); err != nil {
+		if err := dsPutIndexValue(dbtx, idx, walletServerViewKeyPrefix+hex.EncodeToString(viewKeyBytes), timeBytes); err != nil {
 			return nil, types.ID{}, err
 		}
 
@@ -326,7 +345,7 @@ func (idx *WalletServerIndex) GetTxoProofs(ds repo.Datastore, commitments []type
 			return nil, types.ID{}, err
 		}
 	}
-	return proofs, idx.bestBlockID, nil
+	return proofs, idx.acc.Root(), nil
 }
 
 // Close closes the wallet server index
@@ -350,7 +369,7 @@ func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey *icrypt
 	}
 	idx.scanner.AddKeys(viewKey)
 
-	dbtx, err := ds.NewTransaction(context.Background(), true)
+	dbtx, err := ds.NewTransaction(context.Background(), false)
 	if err != nil {
 		return err
 	}
@@ -360,7 +379,7 @@ func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey *icrypt
 		return err
 	}
 
-	if err := dsPutIndexValue(dbtx, idx, walletServerViewKeyPrefix+string(ser), timeBytes); err != nil {
+	if err := dsPutIndexValue(dbtx, idx, walletServerViewKeyPrefix+hex.EncodeToString(ser), timeBytes); err != nil {
 		return err
 	}
 
@@ -420,7 +439,7 @@ func (idx *WalletServerIndex) flush(ds repo.Datastore) error {
 	heightBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(heightBytes, idx.bestBlockHeight)
 
-	dbtx, err := ds.NewTransaction(context.Background(), true)
+	dbtx, err := ds.NewTransaction(context.Background(), false)
 	if err != nil {
 		return err
 	}

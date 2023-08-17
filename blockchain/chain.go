@@ -129,8 +129,10 @@ func (b *Blockchain) Close() error {
 	if err := b.validatorSet.Flush(FlushRequired, tip.height); err != nil {
 		return err
 	}
-	if err := b.indexManager.Close(); err != nil {
-		return err
+	if b.indexManager != nil {
+		if err := b.indexManager.Close(); err != nil {
+			return err
+		}
 	}
 	return b.accumulatorDB.Flush(FlushRequired, tip.height)
 }

@@ -49,10 +49,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 		for i := 0; i < numTxs; i++ {
 			sn := notes[i]
 
-			commitment, err := sn.Note.Commitment()
-			if err != nil {
-				return nil, nil, err
-			}
+			commitment := sn.Note.Commitment()
 			inclusionProof, err := acc.GetProof(commitment[:])
 			if err != nil {
 				return nil, nil, err
@@ -101,10 +98,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 					UnlockingScript: unlockingScript,
 				})
 
-				outputCommitment, err := outputNote.Commitment()
-				if err != nil {
-					return nil, nil, err
-				}
+				outputCommitment := outputNote.Commitment()
 
 				outNullifier := types.CalculateNullifier(nCommitments-1, outputNote.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
 
@@ -342,14 +336,8 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	}
 
 	// Next we're going to start building the coinbase transaction
-	commitment1, err := note1.Commitment()
-	if err != nil {
-		return nil, nil, err
-	}
-	commitment2, err := note2.Commitment()
-	if err != nil {
-		return nil, nil, err
-	}
+	commitment1 := note1.Commitment()
+	commitment2 := note2.Commitment()
 	validatorID, err := peer.IDFromPublicKey(networkKey.GetPublic())
 	if err != nil {
 		return nil, nil, err

@@ -53,9 +53,9 @@ type SpendNote struct {
 
 // Commitment serializes and hashes the data in the note and
 // returns the hash.
-func (s *SpendNote) Commitment() (ID, error) {
+func (s *SpendNote) Commitment() ID {
 	ser := s.Serialize()
-	return NewIDFromData(ser), nil
+	return NewIDFromData(ser)
 }
 
 func (s *SpendNote) Serialize() []byte {

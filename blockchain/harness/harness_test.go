@@ -23,8 +23,7 @@ func TestNewTestHarness(t *testing.T) {
 	assert.NoError(t, err)
 
 	notes := h.SpendableNotes()
-	inCommitment, err := notes[0].Note.Commitment()
-	assert.NoError(t, err)
+	inCommitment := notes[0].Note.Commitment()
 
 	acc := h.Accumulator()
 	proof, err := acc.GetProof(inCommitment[:])
@@ -52,8 +51,7 @@ func TestNewTestHarness(t *testing.T) {
 		PrivateKey:      notes[0].PrivateKey,
 	}
 
-	outCommitment, err := outNote.Note.Commitment()
-	assert.NoError(t, err)
+	outCommitment := outNote.Note.Commitment()
 
 	tx := transactions.StandardTransaction{
 		Outputs: []*transactions.Output{

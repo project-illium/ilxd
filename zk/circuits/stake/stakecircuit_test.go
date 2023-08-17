@@ -58,8 +58,7 @@ func TestStakeCircuit(t *testing.T) {
 		Salt:       salt,
 	}
 
-	commitment, err := note1.Commitment()
-	assert.NoError(t, err)
+	commitment := note1.Commitment()
 
 	acc := blockchain.NewAccumulator()
 	acc.Insert(commitment[:], true)
