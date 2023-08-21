@@ -26,7 +26,11 @@ import (
 
 var _ Indexer = (*WalletServerIndex)(nil)
 
-const staleUserThreshold = time.Hour * 24 * 90
+const (
+	staleUserThreshold      = time.Hour * 24 * 90
+	staleUserTickerInterval = time.Hour * 24
+	flushTickerInterval     = time.Hour * 10
+)
 
 type UserTransaction struct {
 	Tx      *transactions.Transaction
@@ -558,8 +562,8 @@ func (idx *WalletServerIndex) Subscribe() *Subscription {
 }
 
 func (idx *WalletServerIndex) run(ds repo.Datastore) {
-	staleUserTicker := time.NewTicker(time.Hour * 24)
-	flushTicker := time.NewTicker(time.Hour * 10)
+	staleUserTicker := time.NewTicker(staleUserTickerInterval)
+	flushTicker := time.NewTicker(flushTickerInterval)
 	for {
 		select {
 		case <-staleUserTicker.C:
@@ -581,17 +585,36 @@ func (idx *WalletServerIndex) run(ds repo.Datastore) {
 					continue
 				}
 				if time.Now().After(lastSeen.Add(staleUserThreshold)) {
+					s := strings.Split(r.Key, "/")
+					keyStr := s[len(s)-1]
+					keyBytes, err := hex.DecodeString(keyStr)
+					if err != nil {
+						continue
+					}
+					viewKey, err := crypto.UnmarshalPrivateKey(keyBytes)
+					if err != nil {
+						continue
+					}
+					if _, ok := viewKey.(*icrypto.Curve25519PrivateKey); !ok {
+						continue
+					}
+
+					idx.stateMtx.Lock()
+					idx.scanner.RemoveKey(viewKey.(*icrypto.Curve25519PrivateKey))
+					idx.stateMtx.Unlock()
+
 					if err := dsDeleteIndexValue(dbtx, idx, r.Key); err != nil {
 						log.Errorf("Error deleting stale users %s", err)
 						continue
 					}
-					s := strings.Split(r.Key, "/")
-					dsKey := walletServerUnlockingScriptPrefix + s[len(s)-1]
+
+					dsKey := walletServerUnlockingScriptPrefix + keyStr
 					if err := dsDeleteIndexValue(dbtx, idx, dsKey); err != nil {
 						log.Errorf("Error deleting stale users %s", err)
 						continue
 					}
 				}
+
 			}
 			if err := dbtx.Commit(context.Background()); err != nil {
 				log.Errorf("Error deleting stale users %s", err)
