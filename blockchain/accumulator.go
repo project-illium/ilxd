@@ -229,7 +229,7 @@ func (a *Accumulator) DropProof(data []byte) {
 // in this accumulator.
 func (a *Accumulator) MergeProofs(acc *Accumulator) {
 	for k, v := range acc.proofs {
-		if _, ok := acc.proofs[k]; ok {
+		if _, ok := a.proofs[k]; ok {
 			continue
 		}
 		cpy := &InclusionProof{
@@ -247,7 +247,7 @@ func (a *Accumulator) MergeProofs(acc *Accumulator) {
 		a.proofs[k] = cpy
 	}
 	for k, v := range acc.lookupMap {
-		if _, ok := acc.lookupMap[k]; ok {
+		if _, ok := a.lookupMap[k]; ok {
 			continue
 		}
 		a.lookupMap[k.Clone()] = v

@@ -138,7 +138,9 @@ func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 
 	var acc *blockchain.Accumulator
 	height, err := dsFetchIndexHeight(dbtx, &WalletServerIndex{})
-	dbtx.Commit(context.Background())
+	if err := dbtx.Commit(context.Background()); err != nil {
+		return nil, err
+	}
 
 	if err == datastore.ErrNotFound {
 		acc = blockchain.NewAccumulator()
