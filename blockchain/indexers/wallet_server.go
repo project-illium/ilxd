@@ -9,7 +9,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
@@ -41,14 +40,14 @@ type Subscription struct {
 }
 
 const (
-	walletServerAccumulatorKey     = "accumulator"
-	walletServerBestBlockKey       = "bestblockid"
-	walletServerViewKeyPrefix      = "viewkey/"
-	walletServerNullifierKeyPrefix = "nullifier/"
-	walletServerTxKeyPrefix        = "tx/"
-	walletServerNotePrefix         = "note/"
-	walletServerIndexKey           = "walletserverindex"
-	WalletServerIndexName          = "wallet server index"
+	walletServerAccumulatorKey        = "accumulator"
+	walletServerBestBlockKey          = "bestblockid"
+	walletServerViewKeyPrefix         = "viewkey/"
+	walletServerUnlockingScriptPrefix = "unlockingscript/"
+	walletServerNullifierKeyPrefix    = "nullifier/"
+	walletServerTxKeyPrefix           = "tx/"
+	walletServerIndexKey              = "walletserverindex"
+	WalletServerIndexName             = "wallet server index"
 )
 
 type commitmentWithKey struct {
@@ -94,7 +93,6 @@ func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 
 		key, err := crypto.UnmarshalPrivateKey(keyBytes)
 		if err != nil {
-			fmt.Println("here2")
 			return nil, err
 		}
 
@@ -126,7 +124,6 @@ func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 
 		key, err := crypto.UnmarshalPrivateKey(keyBytes)
 		if err != nil {
-			fmt.Println("here")
 			return nil, err
 		}
 		nullifiers[nullifier] = commitmentWithKey{
@@ -203,12 +200,14 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 		for _, out := range tx.Outputs() {
 			match, ok := matches[types.NewID(out.Commitment)]
 			if ok {
+				commitmentIndex := idx.acc.NumElements()
 				idx.acc.Insert(out.Commitment, true)
 				viewKey, err := crypto.MarshalPrivateKey(match.Key)
 				if err != nil {
 					return err
 				}
-				dsKey := walletServerTxKeyPrefix + hex.EncodeToString(viewKey) + "/" + tx.ID().String()
+				serializedViewKey := hex.EncodeToString(viewKey)
+				dsKey := walletServerTxKeyPrefix + serializedViewKey + "/" + tx.ID().String()
 				if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
 					return err
 				}
@@ -217,18 +216,36 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 				if err := note.Deserialize(match.DecryptedNote); err != nil {
 					continue
 				}
-				if err := dsPutIndexValue(dbtx, idx, walletServerNotePrefix+match.Commitment.String(), append(note.Salt[:], append(note.ScriptHash, viewKey...)...)); err != nil {
-					return err
+
+				serializedUnlockingScript, err := dsFetchIndexValueWithTx(dbtx, idx, walletServerUnlockingScriptPrefix+hex.EncodeToString(viewKey))
+				if err != nil {
+					continue
 				}
+				if types.NewIDFromData(serializedUnlockingScript).Compare(types.NewID(note.ScriptHash)) != 0 {
+					continue
+				}
+
+				nullifier := types.CalculateNullifier(commitmentIndex, note.Salt, serializedUnlockingScript)
+				dsKey = walletServerNullifierKeyPrefix + serializedViewKey + "/" + nullifier.String()
+				if err := dsPutIndexValue(dbtx, idx, dsKey, out.Commitment); err != nil {
+					continue
+				}
+				idx.nullifiers[nullifier] = commitmentWithKey{
+					commitment: types.NewID(out.Commitment),
+					viewKey:    match.Key,
+				}
+
 				if !notifiedKeys[match.Key] {
-					idx.subMtx.RLock()
-					for _, sub := range idx.subs {
-						sub.C <- &UserTransaction{
-							Tx:      tx,
-							ViewKey: match.Key,
+					go func() {
+						idx.subMtx.RLock()
+						for _, sub := range idx.subs {
+							sub.C <- &UserTransaction{
+								Tx:      tx,
+								ViewKey: match.Key,
+							}
 						}
-					}
-					idx.subMtx.RUnlock()
+						idx.subMtx.RUnlock()
+					}()
 					notifiedKeys[match.Key] = true
 				}
 			} else {
@@ -239,33 +256,33 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 			if cwk, ok := idx.nullifiers[n]; ok {
 				viewKey, err := crypto.MarshalPrivateKey(cwk.viewKey)
 				if err != nil {
-					return err
+					continue
 				}
-				dsKey := walletServerTxKeyPrefix + hex.EncodeToString(viewKey) + "/" + tx.ID().String()
+				serializedViewKey := hex.EncodeToString(viewKey)
+				dsKey := walletServerTxKeyPrefix + serializedViewKey + "/" + tx.ID().String()
 				if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
-					return err
+					continue
 				}
 
-				if err := dsDeleteIndexValue(dbtx, idx, walletServerNotePrefix+cwk.commitment.String()); err != nil {
-					return err
-				}
-				dsKey2 := walletServerNullifierKeyPrefix + hex.EncodeToString(viewKey) + "/" + n.String()
-				if err := dsDeleteIndexValue(dbtx, idx, dsKey2); err != nil {
-					return err
+				dsKey = walletServerNullifierKeyPrefix + serializedViewKey + "/" + n.String()
+				if err := dsDeleteIndexValue(dbtx, idx, dsKey); err != nil {
+					continue
 				}
 
 				idx.acc.DropProof(cwk.commitment.Bytes())
 				delete(idx.nullifiers, n)
 
 				if !notifiedKeys[cwk.viewKey] {
-					idx.subMtx.RLock()
-					for _, sub := range idx.subs {
-						sub.C <- &UserTransaction{
-							Tx:      tx,
-							ViewKey: cwk.viewKey,
+					go func() {
+						idx.subMtx.RLock()
+						for _, sub := range idx.subs {
+							sub.C <- &UserTransaction{
+								Tx:      tx,
+								ViewKey: cwk.viewKey,
+							}
 						}
-					}
-					idx.subMtx.RUnlock()
+						idx.subMtx.RUnlock()
+					}()
 					notifiedKeys[cwk.viewKey] = true
 				}
 			}
@@ -326,70 +343,17 @@ func (idx *WalletServerIndex) GetTransactionsIDs(ds repo.Datastore, viewKey cryp
 	return txids, dbtx.Commit(context.Background())
 }
 
-func (idx *WalletServerIndex) GetTxoProofs(ds repo.Datastore, commitments []types.ID, serializedUnlockingScripts [][]byte) ([]*blockchain.InclusionProof, types.ID, error) {
-	if len(serializedUnlockingScripts) != len(commitments) {
-		return nil, types.ID{}, errors.New("notes and commitments length do not match")
-	}
-
-	idx.stateMtx.Lock()
-	defer idx.stateMtx.Unlock()
+func (idx *WalletServerIndex) GetTxoProofs(commitments []types.ID) ([]*blockchain.InclusionProof, types.ID, error) {
+	idx.stateMtx.RLock()
+	defer idx.stateMtx.RUnlock()
 
 	proofs := make([]*blockchain.InclusionProof, 0, len(commitments))
-	for i, commitment := range commitments {
+	for _, commitment := range commitments {
 		proof, err := idx.acc.GetProof(commitment.Bytes())
 		if err != nil {
 			return nil, types.ID{}, err
 		}
 		proofs = append(proofs, proof)
-
-		val, err := dsFetchIndexValue(ds, idx, walletServerNotePrefix+commitment.String())
-		if err != nil {
-			return nil, types.ID{}, err
-		}
-
-		var salt [32]byte
-		copy(salt[:], val[:types.SaltLen])
-		scriptHash := val[types.SaltLen : types.SaltLen+types.ScriptHashLen]
-		viewKeyBytes := val[types.SaltLen+types.ScriptHashLen:]
-
-		viewKey, err := crypto.UnmarshalPrivateKey(viewKeyBytes)
-		if err != nil {
-			return nil, types.ID{}, err
-		}
-
-		if types.NewIDFromData(serializedUnlockingScripts[i]).Compare(types.NewID(scriptHash)) != 0 {
-			return nil, types.ID{}, errors.New("unlocking script preimage does not match scriptHash")
-		}
-
-		nullifier := types.CalculateNullifier(proof.Index, salt, serializedUnlockingScripts[i])
-		idx.nullifiers[nullifier] = commitmentWithKey{
-			commitment: commitment,
-			viewKey:    viewKey,
-		}
-
-		dbtx, err := ds.NewTransaction(context.Background(), false)
-		if err != nil {
-			return nil, types.ID{}, err
-		}
-
-		dsKey := walletServerNullifierKeyPrefix + hex.EncodeToString(viewKeyBytes) + "/" + nullifier.String()
-
-		if err := dsPutIndexValue(dbtx, idx, dsKey, commitment.Bytes()); err != nil {
-			return nil, types.ID{}, err
-		}
-
-		timeBytes, err := time.Now().MarshalBinary()
-		if err != nil {
-			return nil, types.ID{}, err
-		}
-
-		if err := dsPutIndexValue(dbtx, idx, walletServerViewKeyPrefix+hex.EncodeToString(viewKeyBytes), timeBytes); err != nil {
-			return nil, types.ID{}, err
-		}
-
-		if err := dbtx.Commit(context.Background()); err != nil {
-			return nil, types.ID{}, err
-		}
 	}
 	return proofs, idx.acc.Root(), nil
 }
@@ -402,7 +366,7 @@ func (idx *WalletServerIndex) Close(ds repo.Datastore) error {
 }
 
 // RegisterViewKey registers a new user with the index. It will track transactions for this user.
-func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey crypto.PrivKey) error {
+func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey crypto.PrivKey, serializedUnlockingScript []byte) error {
 	if _, ok := viewKey.(*icrypto.Curve25519PrivateKey); !ok {
 		return errors.New("viewKey is not curve25519 private key")
 	}
@@ -427,10 +391,14 @@ func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey crypto.
 		return err
 	}
 
+	if err := dsPutIndexValue(dbtx, idx, walletServerUnlockingScriptPrefix+hex.EncodeToString(ser), serializedUnlockingScript); err != nil {
+		return err
+	}
+
 	return dbtx.Commit(context.Background())
 }
 
-func (idx *WalletServerIndex) RescanViewkey(viewKey crypto.PrivKey, accumulatorCheckpoint *blockchain.Accumulator, checkpointHeight uint32, getBlockFunc func(uint32) (*blocks.Block, error)) error {
+func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.PrivKey, accumulatorCheckpoint *blockchain.Accumulator, checkpointHeight uint32, getBlockFunc func(uint32) (*blocks.Block, error)) error {
 	if _, ok := viewKey.(*icrypto.Curve25519PrivateKey); !ok {
 		return errors.New("viewKey is not curve25519 private key")
 	}
@@ -455,6 +423,7 @@ func (idx *WalletServerIndex) RescanViewkey(viewKey crypto.PrivKey, accumulatorC
 
 	scanner := walletlib.NewTransactionScanner(viewKey.(*icrypto.Curve25519PrivateKey))
 	height := checkpointHeight + 1
+	nullifiers := make(map[types.Nullifier]commitmentWithKey)
 	for {
 		blk, err := getBlockFunc(height)
 		if err != nil {
@@ -462,9 +431,94 @@ func (idx *WalletServerIndex) RescanViewkey(viewKey crypto.PrivKey, accumulatorC
 			return err
 		}
 		matches := scanner.ScanOutputs(blk)
-		for _, out := range blk.Outputs() {
-			_, ok := matches[types.NewID(out.Commitment)]
-			acc.Insert(out.Commitment, ok)
+		for _, tx := range blk.Transactions {
+			for _, out := range tx.Outputs() {
+				match, ok := matches[types.NewID(out.Commitment)]
+				if ok {
+					dbtx, err := ds.NewTransaction(context.Background(), false)
+					if err != nil {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+					commitmentIndex := idx.acc.NumElements()
+					viewKey, err := crypto.MarshalPrivateKey(match.Key)
+					if err != nil {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+					serializedViewKey := hex.EncodeToString(viewKey)
+					dsKey := walletServerTxKeyPrefix + serializedViewKey + "/" + tx.ID().String()
+					if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+
+					var note types.SpendNote
+					if err := note.Deserialize(match.DecryptedNote); err != nil {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+
+					serializedUnlockingScript, err := dsFetchIndexValueWithTx(dbtx, idx, walletServerUnlockingScriptPrefix+hex.EncodeToString(viewKey))
+					if err != nil {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+					if types.NewIDFromData(serializedUnlockingScript).Compare(types.NewID(note.ScriptHash)) != 0 {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+
+					nullifier := types.CalculateNullifier(commitmentIndex, note.Salt, serializedUnlockingScript)
+					dsKey = walletServerNullifierKeyPrefix + serializedViewKey + "/" + nullifier.String()
+					if err := dsPutIndexValue(dbtx, idx, dsKey, out.Commitment); err != nil {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+					nullifiers[nullifier] = commitmentWithKey{
+						commitment: types.NewID(out.Commitment),
+						viewKey:    match.Key,
+					}
+					if err := dbtx.Commit(context.Background()); err != nil {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+				}
+				acc.Insert(out.Commitment, ok)
+			}
+			for _, n := range tx.Nullifiers() {
+				if cwk, ok := nullifiers[n]; ok {
+					dbtx, err := ds.NewTransaction(context.Background(), false)
+					if err != nil {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+					viewKey, err := crypto.MarshalPrivateKey(cwk.viewKey)
+					if err != nil {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+					serializedViewKey := hex.EncodeToString(viewKey)
+					dsKey := walletServerTxKeyPrefix + serializedViewKey + "/" + tx.ID().String()
+					if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+
+					dsKey = walletServerNullifierKeyPrefix + serializedViewKey + "/" + n.String()
+					if err := dsDeleteIndexValue(dbtx, idx, dsKey); err != nil {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+
+					if err := dbtx.Commit(context.Background()); err != nil {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+					acc.DropProof(cwk.commitment.Bytes())
+					delete(nullifiers, n)
+				}
+			}
 		}
 
 		// It's likely the chain has moved forward since we last checked
@@ -473,6 +527,9 @@ func (idx *WalletServerIndex) RescanViewkey(viewKey crypto.PrivKey, accumulatorC
 			idx.stateMtx.Lock()
 			if blk.Header.Height == idx.bestBlockHeight {
 				idx.acc.MergeProofs(acc)
+				for k, v := range nullifiers {
+					idx.nullifiers[k] = v
+				}
 				idx.stateMtx.Unlock()
 				return nil
 			}
@@ -525,6 +582,12 @@ func (idx *WalletServerIndex) run(ds repo.Datastore) {
 				}
 				if time.Now().After(lastSeen.Add(staleUserThreshold)) {
 					if err := dsDeleteIndexValue(dbtx, idx, r.Key); err != nil {
+						log.Errorf("Error deleting stale users %s", err)
+						continue
+					}
+					s := strings.Split(r.Key, "/")
+					dsKey := walletServerUnlockingScriptPrefix + s[len(s)-1]
+					if err := dsDeleteIndexValue(dbtx, idx, dsKey); err != nil {
 						log.Errorf("Error deleting stale users %s", err)
 						continue
 					}

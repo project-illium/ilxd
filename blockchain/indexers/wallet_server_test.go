@@ -17,6 +17,7 @@ import (
 	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestWalletServerIndex(t *testing.T) {
@@ -32,13 +33,6 @@ func TestWalletServerIndex(t *testing.T) {
 	privKeyBytes, err := crypto.MarshalPrivateKey(viewKey)
 	assert.NoError(t, err)
 
-	err = idx.RegisterViewKey(ds, viewKey)
-	assert.NoError(t, err)
-
-	_, err = dsFetchIndexValue(ds, &WalletServerIndex{}, walletServerViewKeyPrefix+hex.EncodeToString(privKeyBytes))
-	assert.NoError(t, err)
-
-	// Create a block which pays the viewkey and insert it into the index
 	ul := types.UnlockingScript{
 		ScriptCommitment: make([]byte, 32),
 		ScriptParams:     make([][]byte, 1),
@@ -47,11 +41,20 @@ func TestWalletServerIndex(t *testing.T) {
 	rand.Read(ul.ScriptCommitment)
 	rand.Read(ul.ScriptParams[0])
 
+	err = idx.RegisterViewKey(ds, viewKey, ul.Serialize())
+	assert.NoError(t, err)
+
+	_, err = dsFetchIndexValue(ds, &WalletServerIndex{}, walletServerViewKeyPrefix+hex.EncodeToString(privKeyBytes))
+	assert.NoError(t, err)
+
+	// Create a block which pays the viewkey and insert it into the index
 	note := randSpendNote()
 	note.ScriptHash = ul.Hash().Bytes()
 	commitment := note.Commitment()
 	cipherText, err := viewKey.GetPublic().(*icrypto.Curve25519PublicKey).Encrypt(note.Serialize())
 	assert.NoError(t, err)
+
+	sub := idx.Subscribe()
 
 	blk := &blocks.Block{
 		Header: &blocks.BlockHeader{
@@ -76,13 +79,19 @@ func TestWalletServerIndex(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, dbtx.Commit(context.Background()))
 
+	select {
+	case <-sub.C:
+	case <-time.After(time.Second * 10):
+		t.Errorf("failed to detect subscription")
+	}
+
 	// Check that the tx was recorded correctly
 	txids, err := idx.GetTransactionsIDs(ds, viewKey)
 	assert.NoError(t, err)
 	assert.Len(t, txids, 1)
 
 	// Check that we can fetch the proof correctly and that it validates
-	proofs, merkleRoot, err := idx.GetTxoProofs(ds, []types.ID{commitment}, [][]byte{ul.Serialize()})
+	proofs, merkleRoot, err := idx.GetTxoProofs([]types.ID{commitment})
 	assert.NoError(t, err)
 	assert.Len(t, proofs, 1)
 
@@ -90,6 +99,7 @@ func TestWalletServerIndex(t *testing.T) {
 	assert.True(t, valid)
 
 	// Close the index, then repo and make sure it loads state correctly
+	sub.Close()
 	err = idx.Close(ds)
 	assert.NoError(t, err)
 
@@ -100,9 +110,11 @@ func TestWalletServerIndex(t *testing.T) {
 	assert.Equal(t, idx.bestBlockHeight, uint32(1))
 	assert.NotEqual(t, make([]byte, 32), idx.bestBlockID[:])
 
+	sub = idx.Subscribe()
+
 	// Create a block spending the utxo and make sure the tx is recorded
 	nullifier := types.CalculateNullifier(proofs[0].Index, note.Salt, ul.ScriptCommitment, ul.ScriptParams...)
-	blk = &blocks.Block{
+	blk2 := &blocks.Block{
 		Header: &blocks.BlockHeader{
 			Height: 2,
 		},
@@ -116,24 +128,53 @@ func TestWalletServerIndex(t *testing.T) {
 	dbtx, err = ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 
-	err = idx.ConnectBlock(dbtx, blk)
+	err = idx.ConnectBlock(dbtx, blk2)
 	assert.NoError(t, err)
 	assert.NoError(t, dbtx.Commit(context.Background()))
+
+	select {
+	case <-sub.C:
+	case <-time.After(time.Second * 10):
+		t.Errorf("failed to detect subscription")
+	}
 
 	txids, err = idx.GetTransactionsIDs(ds, viewKey.(*icrypto.Curve25519PrivateKey))
 	assert.NoError(t, err)
 	assert.Len(t, txids, 2)
 
 	// Make sure the indexer deleted the appropriate data after the spend
-	proofs, merkleRoot, err = idx.GetTxoProofs(ds, []types.ID{commitment}, [][]byte{ul.Serialize()})
+	proofs, merkleRoot, err = idx.GetTxoProofs([]types.ID{commitment})
 	assert.Error(t, err)
 	assert.Len(t, proofs, 0)
 	assert.Len(t, idx.nullifiers, 0)
 
-	_, err = dsFetchIndexValue(ds, idx, walletServerNotePrefix+commitment.String())
-	assert.Error(t, err)
 	_, err = dsFetchIndexValue(ds, idx, walletServerNullifierKeyPrefix+string(privKeyBytes)+"/"+nullifier.String())
 	assert.Error(t, err)
+	sub.Close()
+
+	// Test rescanning
+	ds = mock.NewMapDatastore()
+	idx, err = NewWalletServerIndex(ds)
+	assert.NoError(t, err)
+	idx.bestBlockHeight = 2
+
+	assert.NoError(t, idx.RegisterViewKey(ds, viewKey, ul.Serialize()))
+	err = idx.RescanViewkey(ds, viewKey, nil, 0, func(height uint32) (*blocks.Block, error) {
+		if height == 0 {
+			return &blocks.Block{
+				Header:       &blocks.BlockHeader{Height: 0},
+				Transactions: nil,
+			}, nil
+		} else if height == 1 {
+			return blk, nil
+		}
+		return blk2, nil
+	})
+	assert.NoError(t, err)
+
+	txids, err = idx.GetTransactionsIDs(ds, viewKey)
+	assert.NoError(t, err)
+	assert.Len(t, txids, 2)
 }
 
 func randSpendNote() types.SpendNote {

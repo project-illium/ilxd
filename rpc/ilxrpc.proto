@@ -509,26 +509,27 @@ message SubscribeBlocksRequest {
 // WalletServerService
 message RegisterViewKeyRequest {
     // A view key to register with the server.
-    bytes view_key = 1;
+    bytes view_key                  = 1;
+
+    // The unlocking script associated with the address belonging
+    // to the view key serialized as <scriptCommitment><scriptParams...>
+    //
+    // The server needs this in order to compute the nullifier and detect
+    // spend transactions.
+    bytes serializedUnlockingScript = 2;
 
     // The date the address was created. The server will scan historical blocks
     // for matching transactions from the birthday forward. Please don't use an
     // earlier birthday than needed as it puts more stress on the server.
-    int64 birthday = 2;
+    //
+    // A zero value will not trigger a rescan.
+    int64 birthday                  = 3;
 }
 message RegisterViewKeyResponse {}
 
 message SubscribeTransactionsRequest {
     // A list of view keys to subscribe to
     repeated bytes view_keys   = 1;
-
-    // When include_mempool is true, new unconfirmed transactions from mempool are
-    // included apart from the ones finalized in a block.
-    bool include_mempool        = 2;
-
-    // When include_in_block is true, transactions are included when they are finalized.
-    // This notification is sent in addition to any requested mempool notifications.
-    bool include_in_block       = 3;
 }
 
 message GetWalletTransactionsRequest{
@@ -563,18 +564,7 @@ message GetTxoProofRequest {
     // transaction as a batch so the returned proofs all share
     // the same txo_root. Otherwise you may get different roots
     // if you request them separately.
-    repeated bytes commitments                  = 1;
-
-    // For each commitment you must also provide the unlocking
-    // script serialized as <scriptCommitment><scriptParams...>.
-    // This data is the hash preimage of the scriptHash found in
-    // the commitment's preimage.
-    //
-    // The server needs this data to compute the nullifier that
-    // corresponds to your commitment in order to detect and
-    // track spends, and release some server resources after
-    // the spend has been made.
-    repeated bytes serialized_unlocking_scripts = 2;
+    repeated bytes commitments = 1;
 }
 message GetTxoProofResponse {
     // The proof responses

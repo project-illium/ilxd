@@ -86,8 +86,8 @@ func NewAccumulator() *Accumulator {
 func (a *Accumulator) Insert(data []byte, protect bool) {
 	datacpy := make([]byte, len(data))
 	copy(datacpy, data)
+	n := hash.HashWithIndex(datacpy, a.nElements)
 	a.nElements++
-	n := hash.HashWithIndex(datacpy, a.nElements-1)
 
 	// If one of our protected hashes is at acc[0] then it was an
 	// odd number leaf and the very next leaf must be part of its

@@ -30,16 +30,18 @@ func (s *GrpcServer) RegisterViewKey(ctx context.Context, req *pb.RegisterViewKe
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	if err := s.wsIndex.RegisterViewKey(s.ds, viewKey); err != nil {
+	if err := s.wsIndex.RegisterViewKey(s.ds, viewKey, req.SerializedUnlockingScript); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	checkpoint, height, err := s.chain.GetAccumulatorCheckpointByTimestamp(time.Unix(req.Birthday, 0))
-	if err != nil && errors.Is(err, blockchain.ErrNoCheckpoint) {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	if req.Birthday > 0 {
+		checkpoint, height, err := s.chain.GetAccumulatorCheckpointByTimestamp(time.Unix(req.Birthday, 0))
+		if err != nil && errors.Is(err, blockchain.ErrNoCheckpoint) {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 
-	go s.wsIndex.RescanViewkey(viewKey, checkpoint, height, s.chain.GetBlockByHeight)
+		go s.wsIndex.RescanViewkey(s.ds, viewKey, checkpoint, height, s.chain.GetBlockByHeight)
+	}
 
 	return &pb.RegisterViewKeyResponse{}, nil
 }
@@ -47,9 +49,6 @@ func (s *GrpcServer) RegisterViewKey(ctx context.Context, req *pb.RegisterViewKe
 // SubscribeTransactions subscribes to a stream of TransactionsNotifications that match to the
 // provided view key.
 func (s *GrpcServer) SubscribeTransactions(req *pb.SubscribeTransactionsRequest, stream pb.WalletServerService_SubscribeTransactionsServer) error {
-	if !req.IncludeInBlock && !req.IncludeMempool {
-		return status.Error(codes.InvalidArgument, "include in block or mempool not selected")
-	}
 	sub := s.wsIndex.Subscribe()
 	defer sub.Close()
 
@@ -65,7 +64,7 @@ func (s *GrpcServer) SubscribeTransactions(req *pb.SubscribeTransactionsRequest,
 		select {
 		case userTx := <-sub.C:
 			for _, key := range keys {
-				if key.Equals(userTx.ViewKey) && req.IncludeInBlock {
+				if key.Equals(userTx.ViewKey) {
 					err := stream.Send(&pb.TransactionNotification{
 						Transaction: userTx.Tx,
 					})
@@ -144,7 +143,7 @@ func (s *GrpcServer) GetTxoProof(ctx context.Context, req *pb.GetTxoProofRequest
 		commitments = append(commitments, types.NewID(commitment))
 	}
 
-	proofs, root, err := s.wsIndex.GetTxoProofs(s.ds, commitments, req.SerializedUnlockingScripts)
+	proofs, root, err := s.wsIndex.GetTxoProofs(commitments)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

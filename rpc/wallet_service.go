@@ -517,10 +517,7 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 			State:      in.State,
 			Salt:       in.Salt,
 		}
-		commitment, err := note.Commitment()
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+		commitment := note.Commitment()
 
 		resp.Tx.Inputs = append(resp.Tx.Inputs, &pb.PrivateInput{
 			Amount:           in.Amount,
@@ -597,10 +594,7 @@ func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.Crea
 		State:      rawTx.PrivateInputs[0].State,
 		Salt:       rawTx.PrivateInputs[0].Salt,
 	}
-	commitment, err := note.Commitment()
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	commitment := note.Commitment()
 
 	resp.Tx.Inputs = append(resp.Tx.Inputs, &pb.PrivateInput{
 		Amount:           rawTx.PrivateInputs[0].Amount,

@@ -177,8 +177,7 @@ func TestSync(t *testing.T) {
 		// Chain two will add a second validator that doesn't create any blocks.
 		// This should give chain two a worse score than chain one.
 		notes := harness2.SpendableNotes()
-		commitment, err := notes[0].Note.Commitment()
-		assert.NoError(t, err)
+		commitment := notes[0].Note.Commitment()
 		proof, err := harness2.Accumulator().GetProof(commitment[:])
 		assert.NoError(t, err)
 		nullifier := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)

@@ -111,6 +111,10 @@ func dsFetchIndexValue(ds repo.Datastore, indexer Indexer, key string) ([]byte, 
 	return ds.Get(context.Background(), datastore.NewKey(repo.IndexKeyPrefix+indexer.Key()+"/"+key))
 }
 
+func dsFetchIndexValueWithTx(dbtx datastore.Txn, indexer Indexer, key string) ([]byte, error) {
+	return dbtx.Get(context.Background(), datastore.NewKey(repo.IndexKeyPrefix+indexer.Key()+"/"+key))
+}
+
 func dsPrefixQueryIndexValue(dbtx datastore.Txn, indexer Indexer, prefix string) (query.Results, error) {
 	return dbtx.Query(context.Background(), query.Query{Prefix: repo.IndexKeyPrefix + indexer.Key() + "/" + prefix})
 }
