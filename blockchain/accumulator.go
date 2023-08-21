@@ -86,8 +86,8 @@ func NewAccumulator() *Accumulator {
 func (a *Accumulator) Insert(data []byte, protect bool) {
 	datacpy := make([]byte, len(data))
 	copy(datacpy, data)
+	n := hash.HashWithIndex(datacpy, a.nElements)
 	a.nElements++
-	n := hash.HashWithIndex(datacpy, a.nElements-1)
 
 	// If one of our protected hashes is at acc[0] then it was an
 	// odd number leaf and the very next leaf must be part of its
@@ -224,6 +224,37 @@ func (a *Accumulator) DropProof(data []byte) {
 	delete(a.proofs, types.NewID(n))
 }
 
+// MergeProofs copes the inclusion proofs from the provided accumulator
+// into this accumulator *only* if the proofs do not currently exist
+// in this accumulator.
+func (a *Accumulator) MergeProofs(acc *Accumulator) {
+	for k, v := range acc.proofs {
+		if _, ok := a.proofs[k]; ok {
+			continue
+		}
+		cpy := &InclusionProof{
+			ID:     v.ID.Clone(),
+			Hashes: make([][]byte, len(v.Hashes)),
+			Flags:  v.Flags,
+			Index:  v.Index,
+			last:   make([]byte, len(v.last)),
+		}
+		for i := range v.Hashes {
+			cpy.Hashes[i] = make([]byte, len(v.Hashes[i]))
+			copy(cpy.Hashes[i], v.Hashes[i])
+		}
+		copy(cpy.last, v.last)
+		a.proofs[k] = cpy
+	}
+	for k, v := range acc.lookupMap {
+		if _, ok := a.lookupMap[k]; ok {
+			continue
+		}
+		a.lookupMap[k.Clone()] = v
+	}
+}
+
+// Hashes returns the accumulator hashes
 func (a *Accumulator) Hashes() [][]byte {
 	return a.acc
 }

@@ -41,8 +41,7 @@ func TestProofValidator(t *testing.T) {
 		Salt:       salt1,
 		State:      [types.StateLen]byte{},
 	}
-	inCommitment, err := inNote.Commitment()
-	assert.NoError(t, err)
+	inCommitment := inNote.Commitment()
 
 	outUnlockingScript := types.UnlockingScript{
 		ScriptCommitment: mockScriptCommitment,
@@ -56,15 +55,13 @@ func TestProofValidator(t *testing.T) {
 		Salt:       salt1,
 		State:      [types.StateLen]byte{},
 	}
-	outCommitment, err := outNote.Commitment()
-	assert.NoError(t, err)
+	outCommitment := outNote.Commitment()
 
 	acc := NewAccumulator()
 	acc.Insert(inCommitment[:], true)
 	root := acc.Root()
 
-	inNullifier, err := types.CalculateNullifier(0, inNote.Salt, inUnlockingScript.ScriptCommitment, inUnlockingScript.ScriptParams...)
-	assert.NoError(t, err)
+	inNullifier := types.CalculateNullifier(0, inNote.Salt, inUnlockingScript.ScriptCommitment, inUnlockingScript.ScriptParams...)
 
 	fakeProof := make([]byte, 8000)
 	rand.Read(fakeProof)

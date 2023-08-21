@@ -57,7 +57,3 @@ type Datastore interface {
 	datastore.PersistentDatastore
 	datastore.TxnDatastore
 }
-
-type TxnDataStore interface {
-	datastore.TxnDatastore
-}

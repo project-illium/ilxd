@@ -154,10 +154,23 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	var (
 		indexerList []indexers.Indexer
 		txIndex     *indexers.TxIndex
+		wsIndex     *indexers.WalletServerIndex
 	)
-	if !config.NoTxIndex {
+	if !config.NoTxIndex && !config.DropTxIndex {
 		txIndex = indexers.NewTxIndex()
 		indexerList = append(indexerList, txIndex)
+	}
+
+	if config.WSIndex && !config.DropWSIndex {
+		wsIndex, err = indexers.NewWalletServerIndex(ds)
+		if err != nil {
+			return nil, err
+		}
+		indexerList = append(indexerList, wsIndex)
+	}
+
+	if config.WSIndex && config.NoTxIndex {
+		return nil, errors.New("tx index must be used with wallet server index")
 	}
 
 	blockchainOpts := []blockchain.Option{
@@ -167,7 +180,11 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		blockchain.MaxTxoRoots(blockchain.DefaultMaxTxoRoots),
 		blockchain.SignatureCache(sigCache),
 		blockchain.SnarkProofCache(proofCache),
-		blockchain.Indexers(indexerList),
+	}
+
+	if len(indexerList) != 0 {
+		indexManager := indexers.NewIndexManager(ds, indexerList)
+		blockchainOpts = append(blockchainOpts, blockchain.Indexer(indexManager))
 	}
 
 	if config.DropTxIndex {
@@ -175,11 +192,12 @@ func BuildServer(config *repo.Config) (*Server, error) {
 			return nil, err
 		}
 	}
-
-	if !config.NoTxIndex {
-		blockchainOpts = append(blockchainOpts, blockchain.Indexers([]indexers.Indexer{indexers.NewTxIndex()}))
-
+	if config.DropWSIndex {
+		if err := indexers.DropWalletServerIndex(ds); err != nil {
+			return nil, err
+		}
 	}
+
 	chain, err := blockchain.NewBlockchain(blockchainOpts...)
 	if err != nil {
 		return nil, err
@@ -333,8 +351,10 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		Ds:                   ds,
 		TxMemPool:            mpool,
 		TxIndex:              txIndex,
+		WSIndex:              wsIndex,
 		DisableNodeService:   config.RPCOpts.DisableNodeService,
 		DisableWalletService: config.RPCOpts.DisableWalletService,
+		DisableWalletServer:  config.RPCOpts.WalletServerService || wsIndex == nil,
 	})
 	if err != nil {
 		return nil, err

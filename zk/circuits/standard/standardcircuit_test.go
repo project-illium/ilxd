@@ -64,8 +64,7 @@ func TestStandardCircuit(t *testing.T) {
 		Salt:       salt,
 	}
 
-	commitment, err := note1.Commitment()
-	assert.NoError(t, err)
+	commitment := note1.Commitment()
 
 	note2 := types.SpendNote{
 		ScriptHash: us2ScriptHash[:],
@@ -77,8 +76,7 @@ func TestStandardCircuit(t *testing.T) {
 
 	outputScriptHash := us2.Hash()
 
-	commitment2, err := note2.Commitment()
-	assert.NoError(t, err)
+	commitment2 := note2.Commitment()
 
 	acc := blockchain.NewAccumulator()
 	acc.Insert(commitment[:], true)
@@ -97,8 +95,7 @@ func TestStandardCircuit(t *testing.T) {
 	sigHash := make([]byte, 32)
 	rand.Read(sigHash)
 
-	nullifier, err := types.CalculateNullifier(inclusionProof.Index, note1.Salt, us.ScriptCommitment, us.ScriptParams...)
-	assert.NoError(t, err)
+	nullifier := types.CalculateNullifier(inclusionProof.Index, note1.Salt, us.ScriptCommitment, us.ScriptParams...)
 
 	fakeSig := make([]byte, 32)
 	rand.Read(fakeSig)

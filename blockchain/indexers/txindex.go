@@ -50,9 +50,6 @@ func (idx *TxIndex) Name() string {
 // The indexer can use this opportunity to parse it and store it in
 // the database. The database transaction must be respected.
 func (idx *TxIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error {
-	blockHeightBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(blockHeightBytes, blk.Header.Height)
-
 	for i, tx := range blk.Transactions {
 		valueBytes := make([]byte, 36)
 		binary.BigEndian.PutUint32(valueBytes[:4], uint32(i))
@@ -61,6 +58,9 @@ func (idx *TxIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error {
 		if err := dsPutIndexValue(dbtx, idx, tx.ID().String(), valueBytes); err != nil {
 			return err
 		}
+	}
+	if err := dsPutIndexerHeight(dbtx, idx, blk.Header.Height); err != nil {
+		return err
 	}
 	return nil
 }
@@ -99,6 +99,10 @@ func (idx *TxIndex) GetContainingBlockID(ds repo.Datastore, txid types.ID) (type
 		return types.ID{}, err
 	}
 	return types.NewID(valueBytes[4:]), nil
+}
+
+func (idx *TxIndex) Close(ds repo.Datastore) error {
+	return nil
 }
 
 func DropTxIndex(ds repo.Datastore) error {

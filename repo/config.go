@@ -61,6 +61,8 @@ type Config struct {
 	UserAgent          string        `long:"useragent" description:"A custom user agent to advertise to the network"`
 	NoTxIndex          bool          `long:"notxindex" description:"Disable the transaction index"`
 	DropTxIndex        bool          `long:"droptxindex" description:"Delete the tx index from the database"`
+	WSIndex            bool          `long:"wsindex" description:"Enable the wallet server index to serve lite wallets"`
+	DropWSIndex        bool          `long:"dropwsindex" description:"Delete the wallet server index from the database"`
 	MaxBanscore        uint32        `long:"maxbanscore" description:"The maximum ban score a peer is allowed to have before getting banned" default:"100"`
 	BanDuration        time.Duration `long:"banduration" description:"The duration for which banned peers are banned for" default:"24h"`
 	WalletSeed         string        `long:"walletseed" description:"A mnemonic seed to initialize the node with. This can only be used on first startup."`
@@ -87,6 +89,7 @@ type RPCOptions struct {
 	GrpcAuthToken        string   `long:"grpcauthtoken" description:"Set a token here if you want to enable client authentication with gRPC."`
 	DisableNodeService   bool     `long:"disablenodeservice" description:"Disable the node RPC service. This option should be used if running a public blockchain or wallet server."`
 	DisableWalletService bool     `long:"disablewalletservice" description:"Disable the wallet RPC service. This option should be used if running a public blockchain or wallet server."`
+	WalletServerService  bool     `long:"disablewalletserverservice" description:"Disable the wallet server RPC service. This will automatically be disable if wsindex is disabled."`
 }
 
 // LoadConfig initializes and parses the config using a config file and command

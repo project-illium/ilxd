@@ -59,19 +59,13 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 		harness.acc.Insert(output.Commitment, true)
 	}
 
-	commitment, err := spendableNote.Note.Commitment()
-	if err != nil {
-		return nil, err
-	}
+	commitment := spendableNote.Note.Commitment()
 	proof, err := harness.acc.GetProof(commitment[:])
 	if err != nil {
 		return nil, err
 	}
 
-	nullifier, err := types.CalculateNullifier(proof.Index, spendableNote.Note.Salt, spendableNote.UnlockingScript.ScriptCommitment, spendableNote.UnlockingScript.ScriptParams...)
-	if err != nil {
-		return nil, err
-	}
+	nullifier := types.CalculateNullifier(proof.Index, spendableNote.Note.Salt, spendableNote.UnlockingScript.ScriptCommitment, spendableNote.UnlockingScript.ScriptParams...)
 	harness.spendableNotes[nullifier] = spendableNote
 
 	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(cfg.params))
@@ -122,18 +116,12 @@ func (h *TestHarness) GenerateBlockWithTransactions(txs []*transactions.Transact
 		h.acc.Insert(out.Commitment, true)
 	}
 	for _, sn := range createdNotes {
-		commitment, err := sn.Note.Commitment()
-		if err != nil {
-			return err
-		}
+		commitment := sn.Note.Commitment()
 		proof, err := h.acc.GetProof(commitment[:])
 		if err != nil {
 			return err
 		}
-		nullifier, err := types.CalculateNullifier(proof.Index, sn.Note.Salt, sn.UnlockingScript.ScriptCommitment, sn.UnlockingScript.ScriptParams...)
-		if err != nil {
-			return err
-		}
+		nullifier := types.CalculateNullifier(proof.Index, sn.Note.Salt, sn.UnlockingScript.ScriptCommitment, sn.UnlockingScript.ScriptParams...)
 		h.spendableNotes[nullifier] = sn
 	}
 	return nil

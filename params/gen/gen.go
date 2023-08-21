@@ -100,7 +100,7 @@ func main() {
 	salt2, _ := hex.DecodeString("d9348297fbcc1a2aa1591701b6a749d253789b5ef97ef576b8b931a3093e07f9")
 	copy(note2.Salt[:], salt2)
 
-	commitment2, _ := note2.Commitment()
+	commitment2 := note2.Commitment()
 
 	ct, _ := vieKey.(*ilxcrypto.Curve25519PublicKey).Encrypt(note2.Serialize())
 
@@ -209,10 +209,7 @@ func main() {
 		log.Fatal("coinbase unlocking script does not match spend note script hash")
 	}
 
-	commitment, err := note.Commitment()
-	if err != nil {
-		log.Fatal(err)
-	}
+	commitment := note.Commitment()
 
 	cipherText, err := ilxcrypto.Encrypt(viewKey, note.Serialize())
 	if err != nil {
@@ -245,10 +242,7 @@ func main() {
 	}
 	txoRoot := acc.Root().Bytes()
 
-	nullifier, err := types.CalculateNullifier(0, note.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
-	if err != nil {
-		log.Fatal(err)
-	}
+	nullifier := types.CalculateNullifier(0, note.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
 
 	blk.Transactions[1] = transactions.WrapTransaction(&transactions.StakeTransaction{
 		Validator_ID: validatorIDBytes,

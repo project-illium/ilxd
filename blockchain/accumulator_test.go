@@ -117,6 +117,30 @@ func TestAccumulator_GetProof(t *testing.T) {
 	}
 }
 
+func TestAccumulator_MergeProofs(t *testing.T) {
+	a := NewAccumulator()
+	b := NewAccumulator()
+	n := 128
+	elements := make([][]byte, 0, n)
+	for i := 0; i < n; i++ {
+		d := make([]byte, 32)
+		rand.Read(d)
+		elements = append(elements, d)
+
+		a.Insert(d, i <= 63)
+		b.Insert(d, i > 63)
+	}
+	a.MergeProofs(b)
+	assert.Len(t, a.proofs, 128)
+	assert.Len(t, a.lookupMap, 128)
+
+	for _, c := range elements {
+		proof, err := a.GetProof(c)
+		assert.NoError(t, err)
+		assert.True(t, standard.ValidateInclusionProof(proof.ID.Bytes(), proof.Index, proof.Hashes, proof.Flags, proof.Accumulator, a.Root().Bytes()))
+	}
+}
+
 func TestAccumulator_Clone(t *testing.T) {
 	acc := NewAccumulator()
 

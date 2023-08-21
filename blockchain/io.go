@@ -98,7 +98,7 @@ func deserializeBlockNode(ser []byte) (*blockNode, error) {
 	}, nil
 }
 
-func serializeAccumulator(accumulator *Accumulator) ([]byte, error) {
+func SerializeAccumulator(accumulator *Accumulator) ([]byte, error) {
 	proofs := make([]*pb.DBAccumulator_InclusionProof, 0, len(accumulator.proofs))
 	for id, p := range accumulator.proofs {
 		proof := &pb.DBAccumulator_InclusionProof{
@@ -140,7 +140,7 @@ func serializeAccumulator(accumulator *Accumulator) ([]byte, error) {
 	return proto.Marshal(dbAcc)
 }
 
-func deserializeAccumulator(ser []byte) (*Accumulator, error) {
+func DeserializeAccumulator(ser []byte) (*Accumulator, error) {
 	var dbAcc pb.DBAccumulator
 	if err := proto.Unmarshal(ser, &dbAcc); err != nil {
 		return nil, err
@@ -462,7 +462,7 @@ func dsFetchTreasuryBalance(ds repo.Datastore) (types.Amount, error) {
 }
 
 func dsPutAccumulator(dbtx datastore.Txn, accumulator *Accumulator) error {
-	ser, err := serializeAccumulator(accumulator)
+	ser, err := SerializeAccumulator(accumulator)
 	if err != nil {
 		return err
 	}
@@ -474,7 +474,7 @@ func dsFetchAccumulator(ds repo.Datastore) (*Accumulator, error) {
 	if err != nil {
 		return nil, err
 	}
-	return deserializeAccumulator(ser)
+	return DeserializeAccumulator(ser)
 }
 
 func dsDeleteAccumulator(dbtx datastore.Txn) error {
@@ -482,7 +482,7 @@ func dsDeleteAccumulator(dbtx datastore.Txn) error {
 }
 
 func dsPutAccumulatorCheckpoint(dbtx datastore.Txn, height uint32, accumulator *Accumulator) error {
-	ser, err := serializeAccumulator(accumulator)
+	ser, err := SerializeAccumulator(accumulator)
 	if err != nil {
 		return err
 	}
@@ -494,13 +494,7 @@ func dsFetchAccumulatorCheckpoint(ds repo.Datastore, height uint32) (*Accumulato
 	if err != nil {
 		return nil, err
 	}
-	return deserializeAccumulator(ser)
-}
-
-func dsPutAccumulatorConsistencyStatus(ds repo.Datastore, status setConsistencyStatus) error {
-	b := make([]byte, 2)
-	binary.BigEndian.PutUint16(b, uint16(status))
-	return ds.Put(context.Background(), datastore.NewKey(repo.AccumulatorConsistencyStatusKey), b)
+	return DeserializeAccumulator(ser)
 }
 
 func dsDeleteAccumulatorCheckpoints(dbtx datastore.Txn) error {
@@ -519,6 +513,12 @@ func dsDeleteAccumulatorCheckpoints(dbtx datastore.Txn) error {
 		}
 	}
 	return nil
+}
+
+func dsPutAccumulatorConsistencyStatus(ds repo.Datastore, status setConsistencyStatus) error {
+	b := make([]byte, 2)
+	binary.BigEndian.PutUint16(b, uint16(status))
+	return ds.Put(context.Background(), datastore.NewKey(repo.AccumulatorConsistencyStatusKey), b)
 }
 
 func dsFetchAccumulatorConsistencyStatus(ds repo.Datastore) (setConsistencyStatus, error) {

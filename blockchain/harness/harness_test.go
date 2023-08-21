@@ -23,16 +23,14 @@ func TestNewTestHarness(t *testing.T) {
 	assert.NoError(t, err)
 
 	notes := h.SpendableNotes()
-	inCommitment, err := notes[0].Note.Commitment()
-	assert.NoError(t, err)
+	inCommitment := notes[0].Note.Commitment()
 
 	acc := h.Accumulator()
 	proof, err := acc.GetProof(inCommitment[:])
 	assert.NoError(t, err)
 	root := acc.Root()
 
-	nullifer, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
-	assert.NoError(t, err)
+	nullifer := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
 
 	var salt [32]byte
 	rand.Read(salt[:])
@@ -53,8 +51,7 @@ func TestNewTestHarness(t *testing.T) {
 		PrivateKey:      notes[0].PrivateKey,
 	}
 
-	outCommitment, err := outNote.Note.Commitment()
-	assert.NoError(t, err)
+	outCommitment := outNote.Note.Commitment()
 
 	tx := transactions.StandardTransaction{
 		Outputs: []*transactions.Output{

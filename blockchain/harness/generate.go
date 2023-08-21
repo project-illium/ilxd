@@ -49,19 +49,13 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 		for i := 0; i < numTxs; i++ {
 			sn := notes[i]
 
-			commitment, err := sn.Note.Commitment()
-			if err != nil {
-				return nil, nil, err
-			}
+			commitment := sn.Note.Commitment()
 			inclusionProof, err := acc.GetProof(commitment[:])
 			if err != nil {
 				return nil, nil, err
 			}
 
-			nullifier, err := types.CalculateNullifier(inclusionProof.Index, sn.Note.Salt, sn.UnlockingScript.ScriptCommitment, sn.UnlockingScript.ScriptParams...)
-			if err != nil {
-				return nil, nil, err
-			}
+			nullifier := types.CalculateNullifier(inclusionProof.Index, sn.Note.Salt, sn.UnlockingScript.ScriptCommitment, sn.UnlockingScript.ScriptParams...)
 			toDelete = append(toDelete, nullifier)
 
 			var (
@@ -104,15 +98,9 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 					UnlockingScript: unlockingScript,
 				})
 
-				outputCommitment, err := outputNote.Commitment()
-				if err != nil {
-					return nil, nil, err
-				}
+				outputCommitment := outputNote.Commitment()
 
-				outNullifier, err := types.CalculateNullifier(nCommitments-1, outputNote.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
-				if err != nil {
-					return nil, nil, err
-				}
+				outNullifier := types.CalculateNullifier(nCommitments-1, outputNote.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
 
 				remainingNotes[outNullifier] = &SpendableNote{
 					Note:            outputNote,
@@ -348,14 +336,8 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	}
 
 	// Next we're going to start building the coinbase transaction
-	commitment1, err := note1.Commitment()
-	if err != nil {
-		return nil, nil, err
-	}
-	commitment2, err := note2.Commitment()
-	if err != nil {
-		return nil, nil, err
-	}
+	commitment1 := note1.Commitment()
+	commitment2 := note2.Commitment()
 	validatorID, err := peer.IDFromPublicKey(networkKey.GetPublic())
 	if err != nil {
 		return nil, nil, err
@@ -396,14 +378,8 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	// Finally we're going to create the zk-snark proof for the coinbase
 	// transaction.
 
-	nullifier1, err := types.CalculateNullifier(0, salt1, note1UnlockingScript.ScriptCommitment, note1UnlockingScript.ScriptParams...)
-	if err != nil {
-		return nil, nil, err
-	}
-	nullifier2, err := types.CalculateNullifier(1, salt2, note2UnlockingScript.ScriptCommitment, note2UnlockingScript.ScriptParams...)
-	if err != nil {
-		return nil, nil, err
-	}
+	nullifier1 := types.CalculateNullifier(0, salt1, note1UnlockingScript.ScriptCommitment, note1UnlockingScript.ScriptParams...)
+	nullifier2 := types.CalculateNullifier(1, salt2, note2UnlockingScript.ScriptCommitment, note2UnlockingScript.ScriptParams...)
 
 	publicParams := &standard.PublicParams{
 		Outputs: []standard.PublicOutput{

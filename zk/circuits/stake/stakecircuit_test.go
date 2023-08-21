@@ -58,8 +58,7 @@ func TestStakeCircuit(t *testing.T) {
 		Salt:       salt,
 	}
 
-	commitment, err := note1.Commitment()
-	assert.NoError(t, err)
+	commitment := note1.Commitment()
 
 	acc := blockchain.NewAccumulator()
 	acc.Insert(commitment[:], true)
@@ -84,8 +83,7 @@ func TestStakeCircuit(t *testing.T) {
 	fakeSig2 := make([]byte, 32)
 	rand.Read(fakeSig2)
 
-	nullifier, err := types.CalculateNullifier(inclusionProof.Index, note1.Salt, scriptCommitment, scriptParams...)
-	assert.NoError(t, err)
+	nullifier := types.CalculateNullifier(inclusionProof.Index, note1.Salt, scriptCommitment, scriptParams...)
 
 	privateParams := &stake.PrivateParams{
 		AssetID:         note1.AssetID,

@@ -376,10 +376,7 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 
 		privateParams.Inputs = append(privateParams.Inputs, privIn)
 
-		nullifier, err := types.CalculateNullifier(in.TxoProof.Index, privIn.Salt, privIn.ScriptCommitment, privIn.ScriptParams...)
-		if err != nil {
-			return nil, err
-		}
+		nullifier := types.CalculateNullifier(in.TxoProof.Index, privIn.Salt, privIn.ScriptCommitment, privIn.ScriptParams...)
 		nullifiers = append(nullifiers, nullifier.Bytes())
 	}
 	for _, out := range req.Tx.Outputs {
@@ -520,10 +517,7 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 			State:      in.State,
 			Salt:       in.Salt,
 		}
-		commitment, err := note.Commitment()
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+		commitment := note.Commitment()
 
 		resp.Tx.Inputs = append(resp.Tx.Inputs, &pb.PrivateInput{
 			Amount:           in.Amount,
@@ -600,10 +594,7 @@ func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.Crea
 		State:      rawTx.PrivateInputs[0].State,
 		Salt:       rawTx.PrivateInputs[0].Salt,
 	}
-	commitment, err := note.Commitment()
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	commitment := note.Commitment()
 
 	resp.Tx.Inputs = append(resp.Tx.Inputs, &pb.PrivateInput{
 		Amount:           rawTx.PrivateInputs[0].Amount,

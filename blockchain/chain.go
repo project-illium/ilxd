@@ -9,7 +9,6 @@ import (
 	"errors"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/project-illium/ilxd/blockchain/indexers"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
@@ -49,7 +48,7 @@ type Blockchain struct {
 	txoRootSet        *TxoRootSet
 	sigCache          *SigCache
 	proofCache        *ProofCache
-	indexManager      *indexers.IndexManager
+	indexManager      IndexManager
 	notifications     []NotificationCallback
 	notificationsLock sync.RWMutex
 
@@ -78,7 +77,7 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 		validatorSet:      NewValidatorSet(cfg.params, cfg.datastore),
 		nullifierSet:      NewNullifierSet(cfg.datastore, cfg.maxNullifiers),
 		txoRootSet:        NewTxoRootSet(cfg.datastore, cfg.maxTxoRoots),
-		indexManager:      indexers.NewIndexManager(cfg.datastore, cfg.indexers),
+		indexManager:      cfg.indexManager,
 		sigCache:          cfg.sigCache,
 		proofCache:        cfg.proofCache,
 		stateLock:         sync.RWMutex{},
@@ -109,8 +108,10 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 			return nil, err
 		}
 
-		if err := b.indexManager.Init(b.index.Tip().Height(), b.GetBlockByHeight); err != nil {
-			return nil, err
+		if b.indexManager != nil {
+			if err := b.indexManager.Init(b.index.Tip().Height(), b.GetBlockByHeight); err != nil {
+				return nil, err
+			}
 		}
 	}
 	if err := b.validatorSet.Init(b.index.Tip()); err != nil {
@@ -127,6 +128,11 @@ func (b *Blockchain) Close() error {
 	tip := b.index.Tip()
 	if err := b.validatorSet.Flush(FlushRequired, tip.height); err != nil {
 		return err
+	}
+	if b.indexManager != nil {
+		if err := b.indexManager.Close(); err != nil {
+			return err
+		}
 	}
 	return b.accumulatorDB.Flush(FlushRequired, tip.height)
 }
@@ -261,8 +267,10 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		}
 	}
 
-	if err := b.indexManager.ConnectBlock(dbtx, blk); err != nil {
-		return err
+	if b.indexManager != nil {
+		if err := b.indexManager.ConnectBlock(dbtx, blk); err != nil {
+			return err
+		}
 	}
 	if err := dbtx.Commit(context.Background()); err != nil {
 		return err
@@ -433,6 +441,18 @@ func (b *Blockchain) GetHeaderByHeight(height uint32) (*blocks.BlockHeader, erro
 		return nil, err
 	}
 	return node.Header()
+}
+
+// GetBlockHeight returns the height of the block with the given ID.
+func (b *Blockchain) GetBlockHeight(blkID types.ID) (uint32, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	node, err := b.index.GetNodeByID(blkID)
+	if err != nil {
+		return 0, err
+	}
+	return node.height, nil
 }
 
 // HasBlock returns whether the block exists in the chain.

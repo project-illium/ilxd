@@ -57,8 +57,7 @@ func TestBlockchain(t *testing.T) {
 		Amount:     10000,
 	}
 
-	commitment, err := note.Commitment()
-	assert.NoError(t, err)
+	commitment := note.Commitment()
 	proof, err := zk.CreateSnark(standard.StandardCircuit,
 		&standard.PrivateParams{
 			Outputs: []standard.PrivateOutput{

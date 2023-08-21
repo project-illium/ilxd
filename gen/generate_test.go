@@ -56,16 +56,14 @@ func TestGenerator(t *testing.T) {
 	notes := testHarness.SpendableNotes()
 	assert.NotZero(t, len(notes))
 
-	commitment, err := notes[0].Note.Commitment()
-	assert.NoError(t, err)
+	commitment := notes[0].Note.Commitment()
 
 	proof, err := testHarness.Accumulator().GetProof(commitment[:])
 	assert.NoError(t, err)
 
 	root := testHarness.Accumulator().Root()
 
-	nullifier, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
-	assert.NoError(t, err)
+	nullifier := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
 
 	stakeTx := &transactions.StakeTransaction{
 		Validator_ID: pidBytes,
