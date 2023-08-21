@@ -443,6 +443,18 @@ func (b *Blockchain) GetHeaderByHeight(height uint32) (*blocks.BlockHeader, erro
 	return node.Header()
 }
 
+// GetBlockHeight returns the height of the block with the given ID.
+func (b *Blockchain) GetBlockHeight(blkID types.ID) (uint32, error) {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	node, err := b.index.GetNodeByID(blkID)
+	if err != nil {
+		return 0, err
+	}
+	return node.height, nil
+}
+
 // HasBlock returns whether the block exists in the chain.
 func (b *Blockchain) HasBlock(blockID types.ID) bool {
 	b.stateLock.RLock()

@@ -32,7 +32,7 @@ func TestWalletServerIndex(t *testing.T) {
 	privKeyBytes, err := crypto.MarshalPrivateKey(viewKey)
 	assert.NoError(t, err)
 
-	err = idx.RegisterViewKey(ds, viewKey.(*icrypto.Curve25519PrivateKey))
+	err = idx.RegisterViewKey(ds, viewKey)
 	assert.NoError(t, err)
 
 	_, err = dsFetchIndexValue(ds, &WalletServerIndex{}, walletServerViewKeyPrefix+hex.EncodeToString(privKeyBytes))
@@ -77,7 +77,7 @@ func TestWalletServerIndex(t *testing.T) {
 	assert.NoError(t, dbtx.Commit(context.Background()))
 
 	// Check that the tx was recorded correctly
-	txids, err := idx.GetTransactionsIDs(ds, viewKey.(*icrypto.Curve25519PrivateKey))
+	txids, err := idx.GetTransactionsIDs(ds, viewKey)
 	assert.NoError(t, err)
 	assert.Len(t, txids, 1)
 

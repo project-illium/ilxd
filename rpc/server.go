@@ -50,8 +50,10 @@ type GrpcServerConfig struct {
 	TxMemPool            *mempool.Mempool
 	DisableNodeService   bool
 	DisableWalletService bool
+	DisableWalletServer  bool
 
 	TxIndex *indexers.TxIndex
+	WSIndex *indexers.WalletServerIndex
 }
 
 // GrpcServer is the gRPC server implementation. It holds all the objects
@@ -72,6 +74,7 @@ type GrpcServer struct {
 	networkKeyFunc   func() (crypto.PrivKey, error)
 
 	txIndex *indexers.TxIndex
+	wsIndex *indexers.WalletServerIndex
 
 	httpServer *http.Server
 	subs       map[types.ID]*subscription
@@ -82,6 +85,7 @@ type GrpcServer struct {
 	pb.UnimplementedBlockchainServiceServer
 	pb.UnimplementedNodeServiceServer
 	pb.UnimplementedWalletServiceServer
+	pb.UnimplementedWalletServerServiceServer
 }
 
 // NewGrpcServer returns a new GrpcServer which has not yet
@@ -115,6 +119,9 @@ func NewGrpcServer(cfg *GrpcServerConfig) *GrpcServer {
 	}
 	if !cfg.DisableWalletService {
 		pb.RegisterWalletServiceServer(cfg.Server, s)
+	}
+	if !cfg.DisableWalletServer {
+		pb.RegisterWalletServerServiceServer(cfg.Server, s)
 	}
 
 	s.chain.Subscribe(s.handleBlockchainNotifications)

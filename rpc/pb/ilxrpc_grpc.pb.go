@@ -742,7 +742,7 @@ type WalletServerServiceClient interface {
 	//
 	// To free up resources keys will automatically unregister after some time if the wallet has not
 	// connected in some time.
-	RegisterViewKey(ctx context.Context, in *RegisterViewKeyRequest, opts ...grpc.CallOption) (*RecomputeChainStateResponse, error)
+	RegisterViewKey(ctx context.Context, in *RegisterViewKeyRequest, opts ...grpc.CallOption) (*RegisterViewKeyResponse, error)
 	// SubscribeTransactions subscribes to a stream of TransactionsNotifications that match to the
 	// provided view key.
 	SubscribeTransactions(ctx context.Context, in *SubscribeTransactionsRequest, opts ...grpc.CallOption) (WalletServerService_SubscribeTransactionsClient, error)
@@ -761,8 +761,8 @@ func NewWalletServerServiceClient(cc grpc.ClientConnInterface) WalletServerServi
 	return &walletServerServiceClient{cc}
 }
 
-func (c *walletServerServiceClient) RegisterViewKey(ctx context.Context, in *RegisterViewKeyRequest, opts ...grpc.CallOption) (*RecomputeChainStateResponse, error) {
-	out := new(RecomputeChainStateResponse)
+func (c *walletServerServiceClient) RegisterViewKey(ctx context.Context, in *RegisterViewKeyRequest, opts ...grpc.CallOption) (*RegisterViewKeyResponse, error) {
+	out := new(RegisterViewKeyResponse)
 	err := c.cc.Invoke(ctx, "/pb.WalletServerService/RegisterViewKey", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -830,7 +830,7 @@ type WalletServerServiceServer interface {
 	//
 	// To free up resources keys will automatically unregister after some time if the wallet has not
 	// connected in some time.
-	RegisterViewKey(context.Context, *RegisterViewKeyRequest) (*RecomputeChainStateResponse, error)
+	RegisterViewKey(context.Context, *RegisterViewKeyRequest) (*RegisterViewKeyResponse, error)
 	// SubscribeTransactions subscribes to a stream of TransactionsNotifications that match to the
 	// provided view key.
 	SubscribeTransactions(*SubscribeTransactionsRequest, WalletServerService_SubscribeTransactionsServer) error
@@ -846,7 +846,7 @@ type WalletServerServiceServer interface {
 type UnimplementedWalletServerServiceServer struct {
 }
 
-func (UnimplementedWalletServerServiceServer) RegisterViewKey(context.Context, *RegisterViewKeyRequest) (*RecomputeChainStateResponse, error) {
+func (UnimplementedWalletServerServiceServer) RegisterViewKey(context.Context, *RegisterViewKeyRequest) (*RegisterViewKeyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterViewKey not implemented")
 }
 func (UnimplementedWalletServerServiceServer) SubscribeTransactions(*SubscribeTransactionsRequest, WalletServerService_SubscribeTransactionsServer) error {

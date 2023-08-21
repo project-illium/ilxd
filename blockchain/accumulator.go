@@ -224,6 +224,37 @@ func (a *Accumulator) DropProof(data []byte) {
 	delete(a.proofs, types.NewID(n))
 }
 
+// MergeProofs copes the inclusion proofs from the provided accumulator
+// into this accumulator *only* if the proofs do not currently exist
+// in this accumulator.
+func (a *Accumulator) MergeProofs(acc *Accumulator) {
+	for k, v := range acc.proofs {
+		if _, ok := acc.proofs[k]; ok {
+			continue
+		}
+		cpy := &InclusionProof{
+			ID:     v.ID.Clone(),
+			Hashes: make([][]byte, len(v.Hashes)),
+			Flags:  v.Flags,
+			Index:  v.Index,
+			last:   make([]byte, len(v.last)),
+		}
+		for i := range v.Hashes {
+			cpy.Hashes[i] = make([]byte, len(v.Hashes[i]))
+			copy(cpy.Hashes[i], v.Hashes[i])
+		}
+		copy(cpy.last, v.last)
+		a.proofs[k] = cpy
+	}
+	for k, v := range acc.lookupMap {
+		if _, ok := acc.lookupMap[k]; ok {
+			continue
+		}
+		a.lookupMap[k.Clone()] = v
+	}
+}
+
+// Hashes returns the accumulator hashes
 func (a *Accumulator) Hashes() [][]byte {
 	return a.acc
 }

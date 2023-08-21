@@ -17,7 +17,9 @@ import (
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
+	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/walletlib"
+	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -26,6 +28,17 @@ import (
 var _ Indexer = (*WalletServerIndex)(nil)
 
 const staleUserThreshold = time.Hour * 24 * 90
+
+type UserTransaction struct {
+	Tx      *transactions.Transaction
+	ViewKey crypto.PrivKey
+}
+
+type Subscription struct {
+	C     chan *UserTransaction
+	id    uint64
+	Close func()
+}
 
 const (
 	walletServerAccumulatorKey     = "accumulator"
@@ -51,10 +64,12 @@ type WalletServerIndex struct {
 	acc             *blockchain.Accumulator
 	scanner         *walletlib.TransactionScanner
 	nullifiers      map[types.Nullifier]commitmentWithKey
+	stateMtx        sync.RWMutex
 	bestBlockID     types.ID
 	bestBlockHeight uint32
+	subs            map[uint64]*Subscription
+	subMtx          sync.RWMutex
 	quit            chan struct{}
-	mtx             sync.RWMutex
 }
 
 // WalletServerIndex returns a new WalletServerIndex.
@@ -153,8 +168,10 @@ func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 		bestBlockID:     types.NewID(bestBlock[4:]),
 		bestBlockHeight: binary.BigEndian.Uint32(bestBlock[:4]),
 		nullifiers:      nullifiers,
+		subs:            make(map[uint64]*Subscription),
 		quit:            make(chan struct{}),
-		mtx:             sync.RWMutex{},
+		stateMtx:        sync.RWMutex{},
+		subMtx:          sync.RWMutex{},
 	}
 	go idx.run(ds)
 	return idx, nil
@@ -174,12 +191,13 @@ func (idx *WalletServerIndex) Name() string {
 // The indexer can use this opportunity to parse it and store it in
 // the database. The database transaction must be respected.
 func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error {
-	idx.mtx.Lock()
-	defer idx.mtx.Unlock()
+	idx.stateMtx.Lock()
+	defer idx.stateMtx.Unlock()
 
 	matches := idx.scanner.ScanOutputs(blk)
 
 	for _, tx := range blk.Transactions {
+		notifiedKeys := make(map[crypto.PrivKey]bool)
 		for _, out := range tx.Outputs() {
 			match, ok := matches[types.NewID(out.Commitment)]
 			if ok {
@@ -199,6 +217,17 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 				}
 				if err := dsPutIndexValue(dbtx, idx, walletServerNotePrefix+match.Commitment.String(), append(note.Salt[:], append(note.ScriptHash, viewKey...)...)); err != nil {
 					return err
+				}
+				if !notifiedKeys[match.Key] {
+					idx.subMtx.RLock()
+					for _, sub := range idx.subs {
+						sub.C <- &UserTransaction{
+							Tx:      tx,
+							ViewKey: match.Key,
+						}
+					}
+					idx.subMtx.RUnlock()
+					notifiedKeys[match.Key] = true
 				}
 			} else {
 				idx.acc.Insert(out.Commitment, false)
@@ -225,6 +254,18 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 
 				idx.acc.DropProof(cwk.commitment.Bytes())
 				delete(idx.nullifiers, n)
+
+				if !notifiedKeys[cwk.viewKey] {
+					idx.subMtx.RLock()
+					for _, sub := range idx.subs {
+						sub.C <- &UserTransaction{
+							Tx:      tx,
+							ViewKey: cwk.viewKey,
+						}
+					}
+					idx.subMtx.RUnlock()
+					notifiedKeys[cwk.viewKey] = true
+				}
 			}
 		}
 	}
@@ -233,7 +274,10 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 	return nil
 }
 
-func (idx *WalletServerIndex) GetTransactionsIDs(ds repo.Datastore, viewKey *icrypto.Curve25519PrivateKey) ([]types.ID, error) {
+func (idx *WalletServerIndex) GetTransactionsIDs(ds repo.Datastore, viewKey crypto.PrivKey) ([]types.ID, error) {
+	if _, ok := viewKey.(*icrypto.Curve25519PrivateKey); !ok {
+		return nil, errors.New("viewKey is not curve25519 private key")
+	}
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	if err != nil {
 		return nil, err
@@ -281,12 +325,12 @@ func (idx *WalletServerIndex) GetTransactionsIDs(ds repo.Datastore, viewKey *icr
 }
 
 func (idx *WalletServerIndex) GetTxoProofs(ds repo.Datastore, commitments []types.ID, serializedUnlockingScripts [][]byte) ([]*blockchain.InclusionProof, types.ID, error) {
-	idx.mtx.Lock()
-	defer idx.mtx.Unlock()
-
 	if len(serializedUnlockingScripts) != len(commitments) {
 		return nil, types.ID{}, errors.New("notes and commitments length do not match")
 	}
+
+	idx.stateMtx.Lock()
+	defer idx.stateMtx.Unlock()
 
 	proofs := make([]*blockchain.InclusionProof, 0, len(commitments))
 	for i, commitment := range commitments {
@@ -350,24 +394,22 @@ func (idx *WalletServerIndex) GetTxoProofs(ds repo.Datastore, commitments []type
 
 // Close closes the wallet server index
 func (idx *WalletServerIndex) Close(ds repo.Datastore) error {
-	idx.mtx.Lock()
-	defer idx.mtx.Unlock()
-
 	close(idx.quit)
 
 	return idx.flush(ds)
 }
 
 // RegisterViewKey registers a new user with the index. It will track transactions for this user.
-func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey *icrypto.Curve25519PrivateKey) error {
-	idx.mtx.Lock()
-	defer idx.mtx.Unlock()
+func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey crypto.PrivKey) error {
+	if _, ok := viewKey.(*icrypto.Curve25519PrivateKey); !ok {
+		return errors.New("viewKey is not curve25519 private key")
+	}
 
 	ser, err := crypto.MarshalPrivateKey(viewKey)
 	if err != nil {
 		return err
 	}
-	idx.scanner.AddKeys(viewKey)
+	idx.scanner.AddKeys(viewKey.(*icrypto.Curve25519PrivateKey))
 
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	if err != nil {
@@ -384,6 +426,76 @@ func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey *icrypt
 	}
 
 	return dbtx.Commit(context.Background())
+}
+
+func (idx *WalletServerIndex) RescanViewkey(viewKey crypto.PrivKey, accumulatorCheckpoint *blockchain.Accumulator, checkpointHeight uint32, getBlockFunc func(uint32) (*blocks.Block, error)) error {
+	if _, ok := viewKey.(*icrypto.Curve25519PrivateKey); !ok {
+		return errors.New("viewKey is not curve25519 private key")
+	}
+	acc := accumulatorCheckpoint
+	if checkpointHeight == 0 {
+		acc = blockchain.NewAccumulator()
+		genesisBlk, err := getBlockFunc(0)
+		if err != nil {
+			log.Errorf("Wallet server index error rescanning chain: %s", err)
+			return err
+		}
+		for _, out := range genesisBlk.Outputs() {
+			acc.Insert(out.Commitment, false)
+		}
+	}
+
+	// Let's grab the current height of the chain to avoid repeated
+	// locks during the following loop.
+	idx.stateMtx.RLock()
+	bestHeight := idx.bestBlockHeight
+	idx.stateMtx.RUnlock()
+
+	scanner := walletlib.NewTransactionScanner(viewKey.(*icrypto.Curve25519PrivateKey))
+	height := checkpointHeight + 1
+	for {
+		blk, err := getBlockFunc(height)
+		if err != nil {
+			log.Errorf("Wallet server index error rescanning chain: %s", err)
+			return err
+		}
+		matches := scanner.ScanOutputs(blk)
+		for _, out := range blk.Outputs() {
+			_, ok := matches[types.NewID(out.Commitment)]
+			acc.Insert(out.Commitment, ok)
+		}
+
+		// It's likely the chain has moved forward since we last checked
+		// the height so let's check again.
+		if blk.Header.Height >= bestHeight {
+			idx.stateMtx.Lock()
+			if blk.Header.Height == idx.bestBlockHeight {
+				idx.acc.MergeProofs(acc)
+				idx.stateMtx.Unlock()
+				return nil
+			}
+			bestHeight = idx.bestBlockHeight
+			idx.stateMtx.Unlock()
+		}
+		height++
+	}
+}
+
+// Subscribe returns a subscription to the stream of user transactions.
+func (idx *WalletServerIndex) Subscribe() *Subscription {
+	sub := &Subscription{
+		C:  make(chan *UserTransaction),
+		id: rand.Uint64(),
+	}
+	sub.Close = func() {
+		idx.subMtx.Lock()
+		delete(idx.subs, sub.id)
+		idx.subMtx.Unlock()
+	}
+	idx.subMtx.Lock()
+	idx.subs[sub.id] = sub
+	idx.subMtx.Unlock()
+	return sub
 }
 
 func (idx *WalletServerIndex) run(ds repo.Datastore) {
@@ -431,6 +543,9 @@ func (idx *WalletServerIndex) run(ds repo.Datastore) {
 }
 
 func (idx *WalletServerIndex) flush(ds repo.Datastore) error {
+	idx.stateMtx.Lock()
+	defer idx.stateMtx.Unlock()
+
 	ser, err := blockchain.SerializeAccumulator(idx.acc)
 	if err != nil {
 		return err
