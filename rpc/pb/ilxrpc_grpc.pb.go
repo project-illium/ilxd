@@ -740,8 +740,8 @@ type WalletServerServiceClient interface {
 	// attempting to decrypt each output. If outputs decrypt, they will be indexed so the client
 	// can fetch them later.
 	//
-	// To free up resources keys will automatically unregister after some time if the wallet has not
-	// connected in some time.
+	// To free up resources keys will automatically unregister if the wallet has not connected
+	// in some time.
 	RegisterViewKey(ctx context.Context, in *RegisterViewKeyRequest, opts ...grpc.CallOption) (*RegisterViewKeyResponse, error)
 	// SubscribeTransactions subscribes to a stream of TransactionsNotifications that match to the
 	// provided view key.
@@ -828,8 +828,8 @@ type WalletServerServiceServer interface {
 	// attempting to decrypt each output. If outputs decrypt, they will be indexed so the client
 	// can fetch them later.
 	//
-	// To free up resources keys will automatically unregister after some time if the wallet has not
-	// connected in some time.
+	// To free up resources keys will automatically unregister if the wallet has not connected
+	// in some time.
 	RegisterViewKey(context.Context, *RegisterViewKeyRequest) (*RegisterViewKeyResponse, error)
 	// SubscribeTransactions subscribes to a stream of TransactionsNotifications that match to the
 	// provided view key.

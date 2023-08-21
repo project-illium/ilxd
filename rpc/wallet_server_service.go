@@ -22,8 +22,8 @@ import (
 // attempting to decrypt each output. If outputs decrypt, they will be indexed so the client
 // can fetch them later.
 //
-// To free up resources keys will automatically unregister after some time if the wallet has not
-// connected in some time.
+// To free up resources keys will automatically unregister if the wallet has not connected
+// in some time.
 func (s *GrpcServer) RegisterViewKey(ctx context.Context, req *pb.RegisterViewKeyRequest) (*pb.RegisterViewKeyResponse, error) {
 	if s.wsIndex == nil {
 		return nil, status.Error(codes.Internal, "wsindex is not active on this server")

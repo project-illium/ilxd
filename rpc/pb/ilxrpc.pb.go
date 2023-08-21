@@ -6739,6 +6739,7 @@ func (*RecomputeChainStateResponse) Descriptor() ([]byte, []int) {
 	return file_ilxrpc_proto_rawDescGZIP(), []int{129}
 }
 
+// NOTIFICATIONS
 type TransactionNotification struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

@@ -354,7 +354,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		WSIndex:              wsIndex,
 		DisableNodeService:   config.RPCOpts.DisableNodeService,
 		DisableWalletService: config.RPCOpts.DisableWalletService,
-		DisableWalletServer:  config.RPCOpts.WalletServerService || wsIndex == nil,
+		DisableWalletServer:  config.RPCOpts.DisableWalletServerService || wsIndex == nil,
 	})
 	if err != nil {
 		return nil, err
