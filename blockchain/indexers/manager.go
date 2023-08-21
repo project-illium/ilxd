@@ -60,10 +60,6 @@ func (im *IndexManager) Init(tipHeight uint32, getBlock func(height uint32) (*bl
 					return err
 				}
 			}
-
-			if err := dsPutIndexerHeight(dbtx, indexer, tipHeight); err != nil {
-				return err
-			}
 		}
 	}
 	return dbtx.Commit(context.Background())

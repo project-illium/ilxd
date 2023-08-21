@@ -25,6 +25,9 @@ import (
 // To free up resources keys will automatically unregister after some time if the wallet has not
 // connected in some time.
 func (s *GrpcServer) RegisterViewKey(ctx context.Context, req *pb.RegisterViewKeyRequest) (*pb.RegisterViewKeyResponse, error) {
+	if s.wsIndex == nil {
+		return nil, status.Error(codes.Internal, "wsindex is not active on this server")
+	}
 	viewKey, err := icrypto.UnmarshalCurve25519PrivateKey(req.ViewKey)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -49,6 +52,10 @@ func (s *GrpcServer) RegisterViewKey(ctx context.Context, req *pb.RegisterViewKe
 // SubscribeTransactions subscribes to a stream of TransactionsNotifications that match to the
 // provided view key.
 func (s *GrpcServer) SubscribeTransactions(req *pb.SubscribeTransactionsRequest, stream pb.WalletServerService_SubscribeTransactionsServer) error {
+	if s.wsIndex == nil {
+		return status.Error(codes.Internal, "wsindex is not active on this server")
+	}
+
 	sub := s.wsIndex.Subscribe()
 	defer sub.Close()
 
@@ -83,6 +90,9 @@ func (s *GrpcServer) SubscribeTransactions(req *pb.SubscribeTransactionsRequest,
 func (s *GrpcServer) GetWalletTransactions(ctx context.Context, req *pb.GetWalletTransactionsRequest) (*pb.GetWalletTransactionsResponse, error) {
 	if s.txIndex == nil {
 		return nil, status.Error(codes.Internal, "txindex is not active on this server")
+	}
+	if s.wsIndex == nil {
+		return nil, status.Error(codes.Internal, "wsindex is not active on this server")
 	}
 	viewKey, err := icrypto.UnmarshalCurve25519PrivateKey(req.ViewKey)
 	if err != nil {
@@ -138,6 +148,9 @@ func (s *GrpcServer) GetWalletTransactions(ctx context.Context, req *pb.GetWalle
 // GetTxoProof returns the merkle inclusion proof for the given commitment. This information is needed
 // by the client to create the zero knowledge proof needed to spend the transaction.
 func (s *GrpcServer) GetTxoProof(ctx context.Context, req *pb.GetTxoProofRequest) (*pb.GetTxoProofResponse, error) {
+	if s.wsIndex == nil {
+		return nil, status.Error(codes.Internal, "wsindex is not active on this server")
+	}
 	commitments := make([]types.ID, 0, len(req.Commitments))
 	for _, commitment := range req.Commitments {
 		commitments = append(commitments, types.NewID(commitment))

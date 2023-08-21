@@ -75,7 +75,7 @@ type WalletServerIndex struct {
 	quit            chan struct{}
 }
 
-// WalletServerIndex returns a new WalletServerIndex.
+// NewWalletServerIndex returns a new WalletServerIndex.
 func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 	dbtx, err := ds.NewTransaction(context.Background(), true)
 	if err != nil {
@@ -297,6 +297,7 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 	return nil
 }
 
+// GetTransactionsIDs returns the transaction IDs stored for the given viewKey
 func (idx *WalletServerIndex) GetTransactionsIDs(ds repo.Datastore, viewKey crypto.PrivKey) ([]types.ID, error) {
 	if _, ok := viewKey.(*icrypto.Curve25519PrivateKey); !ok {
 		return nil, errors.New("viewKey is not curve25519 private key")
@@ -347,6 +348,7 @@ func (idx *WalletServerIndex) GetTransactionsIDs(ds repo.Datastore, viewKey cryp
 	return txids, dbtx.Commit(context.Background())
 }
 
+// GetTxoProofs returns the txo inclusion proof and merkle root for the provided commitments
 func (idx *WalletServerIndex) GetTxoProofs(commitments []types.ID) ([]*blockchain.InclusionProof, types.ID, error) {
 	idx.stateMtx.RLock()
 	defer idx.stateMtx.RUnlock()
@@ -402,6 +404,9 @@ func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey crypto.
 	return dbtx.Commit(context.Background())
 }
 
+// RescanViewkey loads historical blocks from disk from the provided checkpoint (or genesis if checkpoint is nil)
+// and scans them looking for transactions for the provided viewKey. If transactions are found the internal state
+// is updated.
 func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.PrivKey, accumulatorCheckpoint *blockchain.Accumulator, checkpointHeight uint32, getBlockFunc func(uint32) (*blocks.Block, error)) error {
 	if _, ok := viewKey.(*icrypto.Curve25519PrivateKey); !ok {
 		return errors.New("viewKey is not curve25519 private key")
@@ -417,6 +422,11 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 		for _, out := range genesisBlk.Outputs() {
 			acc.Insert(out.Commitment, false)
 		}
+	}
+	if acc == nil {
+		errStr := "accumulator checkpoint is nil"
+		log.Errorf("Wallet server index error rescanning chain: %s", errStr)
+		return errors.New(errStr)
 	}
 
 	// Let's grab the current height of the chain to avoid repeated
