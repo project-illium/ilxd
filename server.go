@@ -182,6 +182,10 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		blockchain.SnarkProofCache(proofCache),
 	}
 
+	if config.Prune {
+		blockchainOpts = append(blockchainOpts, blockchain.Prune())
+	}
+
 	if len(indexerList) != 0 {
 		indexManager := indexers.NewIndexManager(ds, indexerList)
 		blockchainOpts = append(blockchainOpts, blockchain.Indexer(indexManager))
@@ -294,6 +298,16 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	}
 
 	// Network
+	pruned, err := chain.IsPruned()
+	if err != nil {
+		return nil, err
+	}
+	var services net.PeerServices
+	if !pruned {
+		services = net.PeerServices(net.ServiceBlockchain)
+	}
+	config.UserAgent += services.String()
+	
 	networkOpts := []net.Option{
 		net.Datastore(ds),
 		net.SeedAddrs(seedAddrs),

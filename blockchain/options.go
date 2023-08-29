@@ -106,6 +106,16 @@ func MaxTxoRoots(maxTxoRoots uint) Option {
 	}
 }
 
+// Prune enables pruning of the blockchain. All historical blocks will be
+// deleted from disk. This affects the ability to load these blocks from
+// the API.
+func Prune() Option {
+	return func(cfg *config) error {
+		cfg.prune = true
+		return nil
+	}
+}
+
 // Config specifies the blockchain configuration.
 type config struct {
 	params        *params.NetworkParams
@@ -115,6 +125,7 @@ type config struct {
 	indexManager  IndexManager
 	maxNullifiers uint
 	maxTxoRoots   uint
+	prune         bool
 }
 
 func (cfg *config) validate() error {

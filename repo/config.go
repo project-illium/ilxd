@@ -68,6 +68,7 @@ type Config struct {
 	WalletSeed         string        `long:"walletseed" description:"A mnemonic seed to initialize the node with. This can only be used on first startup."`
 	CoinbaseAddress    string        `long:"coinbaseaddr" description:"An optional address to send all coinbase rewards to. If this option is not used the wallet will automatically select an internal address."`
 	NetworkKey         string        `long:"networkkey" description:"A network key to use for this node. This will override the node's peer ID."`
+	Prune              bool          `long:"prune" description:"Delete the blockchain from disk. The node will store just the date needed to validate new blocks."`
 
 	Policy  Policy     `group:"Policy"`
 	RPCOpts RPCOptions `group:"RPC Options"`
@@ -224,7 +225,7 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
-	cfg.UserAgent = "/ilxd/" + VersionString() + "/" + cfg.UserAgent
+	cfg.UserAgent = "/ilxd/" + VersionString() + "/" + cfg.UserAgent + "/"
 	if cfg.Policy.MinFeePerKilobyte == 0 {
 		cfg.Policy.MinFeePerKilobyte = DefaultFeePerKilobyte
 	}

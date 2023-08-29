@@ -27,7 +27,7 @@ func TestPutGetHeader(t *testing.T) {
 	assert.Empty(t, deep.Equal(header, header2))
 }
 
-func TestPutGetBlock(t *testing.T) {
+func TestPutGetDeleteBlock(t *testing.T) {
 	ds := mock.NewMapDatastore()
 	header := randomBlockHeader(5, randomID())
 	block := randomBlock(header, 5)
@@ -43,6 +43,15 @@ func TestPutGetBlock(t *testing.T) {
 	block2, err := dsFetchBlock(ds, block.ID())
 	assert.NoError(t, err)
 	assert.Empty(t, deep.Equal(block, block2))
+
+	dbtx, err = ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
+	assert.NoError(t, dsDeleteBlock(dbtx, block.ID()))
+	assert.NoError(t, dbtx.Commit(context.Background()))
+
+	block2, err = dsFetchBlock(ds, block.ID())
+	assert.Error(t, err)
+	assert.Nil(t, block2)
 }
 
 func TestPutGetBlockIDByHeight(t *testing.T) {
@@ -56,6 +65,14 @@ func TestPutGetBlockIDByHeight(t *testing.T) {
 	id, err := dsFetchBlockIDFromHeight(ds, 5)
 	assert.NoError(t, err)
 	assert.Equal(t, header.ID(), id)
+
+	dbtx, err = ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
+	assert.NoError(t, dsDeleteBlockIDFromHeight(dbtx, 5))
+	assert.NoError(t, dbtx.Commit(context.Background()))
+
+	id, err = dsFetchBlockIDFromHeight(ds, 5)
+	assert.Error(t, err)
 }
 
 func TestPutGetDeleteBlockIndexState(t *testing.T) {

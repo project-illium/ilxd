@@ -309,7 +309,7 @@ func (sm *SyncManager) bucketPeerDisconnected(_ inet.Network, conn inet.Conn) {
 }
 
 func (sm *SyncManager) queryPeersForBlockID(height uint32) (map[types.ID]peer.ID, error) {
-	peers := sm.network.Host().Network().Peers()
+	peers := sm.network.GetPeersWithService(net.ServiceBlockchain)
 	if len(peers) == 0 {
 		return nil, errors.New("no peers to query")
 	}
@@ -402,7 +402,7 @@ bucketLoop:
 // are only used to add peers to our queries and if there is no fork this won't hurt
 // anything.
 func (sm *SyncManager) populatePeerBuckets() error {
-	peers := sm.network.Host().Network().Peers()
+	peers := sm.network.GetPeersWithService(net.ServiceBlockchain)
 	if len(peers) == 0 {
 		return errors.New("no peers to query")
 	}
@@ -479,7 +479,7 @@ func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) {
 			parent = sm.params.Checkpoints[z-1].BlockID
 		}
 		for {
-			peers := sm.network.Host().Network().Peers()
+			peers := sm.network.GetPeersWithService(net.ServiceBlockchain)
 			if len(peers) == 0 {
 				time.Sleep(time.Second * 5)
 			}
@@ -717,7 +717,7 @@ func (sm *SyncManager) downloadBlockTxs(p peer.ID, startHeight, endHeight uint32
 
 func (sm *SyncManager) waitForPeers() {
 	for i := 0; i < 50; i++ {
-		n := len(sm.network.Host().Network().Peers())
+		n := len(sm.network.GetPeersWithService(net.ServiceBlockchain))
 		if n >= bestHeightQuerySize {
 			return
 		}

@@ -490,3 +490,27 @@ func (n *Network) IncreaseBanscore(p peer.ID, persistent, transient uint32) {
 		n.host.Network().ClosePeer(p) //nolint:errcheck
 	}
 }
+
+func (n *Network) GetPeersWithService(service Service) []peer.ID {
+	var ret []peer.ID
+	for _, p := range n.host.Network().Peers() {
+		userAgentBytes, err := n.Host().Peerstore().Get(p, "AgentVersion")
+		if err != nil {
+			continue
+		}
+		userAgent, ok := (userAgentBytes).(string)
+		if !ok {
+			continue
+		}
+
+		services, err := ExtractPeerServices(userAgent)
+		if err != nil {
+			continue
+		}
+
+		if services.HasService(service) {
+			ret = append(ret, p)
+		}
+	}
+	return ret
+}

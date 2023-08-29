@@ -19,7 +19,10 @@ import (
 	"time"
 )
 
-const accumulatorCheckpointInterval = 100000
+const (
+	accumulatorCheckpointInterval = 100000
+	pruneDepth                    = 10
+)
 
 type flushMode uint8
 
@@ -50,6 +53,7 @@ type Blockchain struct {
 	proofCache        *ProofCache
 	indexManager      IndexManager
 	notifications     []NotificationCallback
+	prune             bool
 	notificationsLock sync.RWMutex
 
 	// stateLock protects concurrent access to the chain state
@@ -117,6 +121,39 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 	if err := b.validatorSet.Init(b.index.Tip()); err != nil {
 		return nil, err
 	}
+
+	node := b.index.Tip()
+	if b.prune {
+		if err := dsPutPrunedFlag(b.ds); err != nil {
+			return nil, err
+		}
+
+		if node.Height() >= pruneDepth {
+			_, err = dsFetchBlockIDFromHeight(b.ds, 0)
+			if err == nil {
+				dbtx, err := b.ds.NewTransaction(context.Background(), false)
+				if err != nil {
+					return nil, err
+				}
+				defer dbtx.Discard(context.Background())
+				for {
+					if err := dsDeleteBlock(dbtx, node.blockID); err != nil {
+						return nil, err
+					}
+					if err := dsDeleteBlockIDFromHeight(dbtx, node.height); err != nil {
+						return nil, err
+					}
+					if node.height+pruneDepth >= b.index.Tip().height {
+						break
+					}
+					node, err = node.Child()
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
+	}
 	return b, nil
 }
 
@@ -135,6 +172,11 @@ func (b *Blockchain) Close() error {
 		}
 	}
 	return b.accumulatorDB.Flush(FlushRequired, tip.height)
+}
+
+// IsPruned returns whether the blockchain has every been pruned.
+func (b *Blockchain) IsPruned() (bool, error) {
+	return dsFetchPrunedFlag(b.ds)
 }
 
 // CheckConnectBlock checks that the block is valid for the current state of the blockchain
@@ -272,6 +314,16 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 			return err
 		}
 	}
+
+	if b.prune && blk.Header.Height >= pruneDepth {
+		if err := dsDeleteBlockIDFromHeight(dbtx, blk.Header.Height-pruneDepth); err != nil {
+			return err
+		}
+		if err := dsDeleteBlockIDFromHeight(dbtx, blk.Header.Height-pruneDepth); err != nil {
+			return err
+		}
+	}
+
 	if err := dbtx.Commit(context.Background()); err != nil {
 		return err
 	}

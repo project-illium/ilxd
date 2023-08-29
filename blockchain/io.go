@@ -7,6 +7,7 @@ package blockchain
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	datastore "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
@@ -216,6 +217,13 @@ func dsPutBlock(dbtx datastore.Txn, blk *blocks.Block) error {
 	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockTxsKeyPrefix+blk.ID().String()), serializedTxs)
 }
 
+func dsDeleteBlock(dbtx datastore.Txn, blockID types.ID) error {
+	if err := dbtx.Delete(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+blockID.String())); err != nil {
+		return err
+	}
+	return dbtx.Delete(context.Background(), datastore.NewKey(repo.BlockTxsKeyPrefix+blockID.String()))
+}
+
 func dsFetchBlock(ds repo.Datastore, blockID types.ID) (*blocks.Block, error) {
 	serializedHeader, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+blockID.String()))
 	if err != nil {
@@ -250,6 +258,10 @@ func dsFetchBlockIDFromHeight(ds repo.Datastore, height uint32) (types.ID, error
 		return types.ID{}, err
 	}
 	return types.NewID(blockIDBytes), nil
+}
+
+func dsDeleteBlockIDFromHeight(dbtx datastore.Txn, height uint32) error {
+	return dbtx.Delete(context.Background(), datastore.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))))
 }
 
 func dsPutBlockIndexState(dbtx datastore.Txn, node *blockNode) error {
@@ -571,4 +583,16 @@ func dsFetchCurrentSupply(dbtx datastore.Txn) (types.Amount, error) {
 		return 0, err
 	}
 	return types.Amount(binary.BigEndian.Uint64(b)), nil
+}
+
+func dsPutPrunedFlag(ds repo.Datastore) error {
+	return ds.Put(context.Background(), datastore.NewKey(repo.PrunedBlockchainDatastoreKey), []byte{})
+}
+
+func dsFetchPrunedFlag(ds repo.Datastore) (bool, error) {
+	_, err := ds.Get(context.Background(), datastore.NewKey(repo.PrunedBlockchainDatastoreKey))
+	if err != nil && !errors.Is(err, datastore.ErrNotFound) {
+		return false, err
+	}
+	return !errors.Is(err, datastore.ErrNotFound), nil
 }
