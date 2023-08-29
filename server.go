@@ -307,7 +307,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		services = net.PeerServices(net.ServiceBlockchain)
 	}
 	config.UserAgent += services.String()
-	
+
 	networkOpts := []net.Option{
 		net.Datastore(ds),
 		net.SeedAddrs(seedAddrs),

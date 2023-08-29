@@ -71,7 +71,7 @@ func TestPutGetBlockIDByHeight(t *testing.T) {
 	assert.NoError(t, dsDeleteBlockIDFromHeight(dbtx, 5))
 	assert.NoError(t, dbtx.Commit(context.Background()))
 
-	id, err = dsFetchBlockIDFromHeight(ds, 5)
+	_, err = dsFetchBlockIDFromHeight(ds, 5)
 	assert.Error(t, err)
 }
 
