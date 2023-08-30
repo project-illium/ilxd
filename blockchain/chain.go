@@ -151,6 +151,9 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 						return nil, err
 					}
 				}
+				if err := dbtx.Commit(context.Background()); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
