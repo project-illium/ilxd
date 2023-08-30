@@ -45,7 +45,7 @@ type ChainService struct {
 	ms         net.MessageSender
 }
 
-func NewChainService(ctx context.Context, fetchBlock FetchBlockFunc, chain *blockchain.Blockchain, network *net.Network, params *params.NetworkParams) *ChainService {
+func NewChainService(ctx context.Context, fetchBlock FetchBlockFunc, chain *blockchain.Blockchain, network *net.Network, params *params.NetworkParams) (*ChainService, error) {
 	cs := &ChainService{
 		ctx:        ctx,
 		network:    network,
@@ -54,8 +54,14 @@ func NewChainService(ctx context.Context, fetchBlock FetchBlockFunc, chain *bloc
 		params:     params,
 		ms:         net.NewMessageSender(network.Host(), params.ProtocolPrefix+ChainServiceProtocol+ChainServiceProtocolVersion),
 	}
-	cs.network.Host().SetStreamHandler(cs.params.ProtocolPrefix+ChainServiceProtocol+ChainServiceProtocolVersion, cs.HandleNewStream)
-	return cs
+	pruned, err := chain.IsPruned()
+	if err != nil {
+		return nil, err
+	}
+	if !pruned {
+		cs.network.Host().SetStreamHandler(cs.params.ProtocolPrefix+ChainServiceProtocol+ChainServiceProtocolVersion, cs.HandleNewStream)
+	}
+	return cs, nil
 }
 
 func (cs *ChainService) HandleNewStream(s inet.Stream) {

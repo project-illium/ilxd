@@ -51,7 +51,6 @@ func generateMockNetwork(numNodes, numBlocks int) (*mockNetwork, error) {
 
 	nodes := make([]*mockNode, 0, numNodes)
 	for i := 0; i < numNodes; i++ {
-
 		node, err := makeMockNode(mn, testHarness.Blockchain())
 		if err != nil {
 			return nil, err
@@ -100,7 +99,10 @@ func makeMockNode(mn mocknet.Mocknet, chain *blockchain.Blockchain) (*mockNode, 
 		return nil, err
 	}
 
-	service := NewChainService(context.Background(), chain.GetBlockByID, chain, network, chain.Params())
+	service, err := NewChainService(context.Background(), chain.GetBlockByID, chain, network, chain.Params())
+	if err != nil {
+		return nil, err
+	}
 
 	node := &mockNode{
 		chain:   chain,

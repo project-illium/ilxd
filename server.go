@@ -298,16 +298,6 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	}
 
 	// Network
-	pruned, err := chain.IsPruned()
-	if err != nil {
-		return nil, err
-	}
-	var services net.PeerServices
-	if !pruned {
-		services = net.PeerServices(net.ServiceBlockchain)
-	}
-	config.UserAgent += services.String()
-
 	networkOpts := []net.Option{
 		net.Datastore(ds),
 		net.SeedAddrs(seedAddrs),
@@ -389,6 +379,11 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		return nil, err
 	}
 
+	s.chainService, err = sync.NewChainService(ctx, s.fetchBlock, chain, network, netParams)
+	if err != nil {
+		return nil, err
+	}
+
 	s.ctx = ctx
 	s.cancelFunc = cancel
 	s.config = config
@@ -398,7 +393,6 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.blockchain = chain
 	s.mempool = mpool
 	s.engine = engine
-	s.chainService = sync.NewChainService(ctx, s.fetchBlock, chain, network, netParams)
 	s.syncManager = sync.NewSyncManager(ctx, chain, network, netParams, s.chainService, s.consensusChoose, s.handleCurrentStatusChange)
 	s.orphanBlocks = make(map[types.ID]*orphanBlock)
 	s.activeInventory = make(map[types.ID]*blocks.Block)
