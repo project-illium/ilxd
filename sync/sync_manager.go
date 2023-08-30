@@ -309,7 +309,7 @@ func (sm *SyncManager) bucketPeerDisconnected(_ inet.Network, conn inet.Conn) {
 }
 
 func (sm *SyncManager) queryPeersForBlockID(height uint32) (map[types.ID]peer.ID, error) {
-	peers := sm.network.Host().Network().Peers()
+	peers := sm.syncPeers()
 	if len(peers) == 0 {
 		return nil, errors.New("no peers to query")
 	}
@@ -402,7 +402,7 @@ bucketLoop:
 // are only used to add peers to our queries and if there is no fork this won't hurt
 // anything.
 func (sm *SyncManager) populatePeerBuckets() error {
-	peers := sm.network.Host().Network().Peers()
+	peers := sm.syncPeers()
 	if len(peers) == 0 {
 		return errors.New("no peers to query")
 	}
@@ -479,9 +479,10 @@ func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) {
 			parent = sm.params.Checkpoints[z-1].BlockID
 		}
 		for {
-			peers := sm.network.Host().Network().Peers()
+			peers := sm.syncPeers()
 			if len(peers) == 0 {
 				time.Sleep(time.Second * 5)
+				continue
 			}
 			p := peers[rand.Intn(len(peers))]
 			err := sm.syncBlocks(p, startHeight, checkpoint.Height, parent, checkpoint.BlockID, blockchain.BFFastAdd)
@@ -717,10 +718,27 @@ func (sm *SyncManager) downloadBlockTxs(p peer.ID, startHeight, endHeight uint32
 
 func (sm *SyncManager) waitForPeers() {
 	for i := 0; i < 50; i++ {
-		n := len(sm.network.Host().Network().Peers())
+		n := len(sm.syncPeers())
 		if n >= bestHeightQuerySize {
 			return
 		}
 		time.Sleep(time.Millisecond * 100)
 	}
+}
+
+func (sm *SyncManager) syncPeers() []peer.ID {
+	peers := make([]peer.ID, 0, len(sm.network.Host().Network().Peers()))
+	for _, p := range sm.network.Host().Network().Peers() {
+		protocols, err := sm.network.Host().Peerstore().GetProtocols(p)
+		if err != nil {
+			continue
+		}
+		for _, proto := range protocols {
+			if proto == sm.params.ProtocolPrefix+ChainServiceProtocol+ChainServiceProtocolVersion {
+				peers = append(peers, p)
+				break
+			}
+		}
+	}
+	return peers
 }

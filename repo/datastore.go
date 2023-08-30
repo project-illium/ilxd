@@ -49,6 +49,8 @@ const (
 	ConnGaterKeyPrefix = "/ilxd/conngater/"
 	// AutostakeDatastoreKey is the datastore key used to store the autostake bool.
 	AutostakeDatastoreKey = "/ilxd/autostake/"
+	// PrunedBlockchainDatastoreKey is the datastore key used to store a flag setting whether the chain has ever been pruned.
+	PrunedBlockchainDatastoreKey = "/ilxd/pruned/"
 )
 
 type Datastore interface {
