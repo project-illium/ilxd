@@ -53,7 +53,9 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 		Amount:       100000,
 		Nullifier:    nullifier[:],
 	})
-	assert.NoError(t, vs.CommitBlock(blk, 0, FlushRequired))
+	tx, err := vs.ConnectBlock(blk, 0)
+	assert.NoError(t, err)
+	assert.NoError(t, tx.Commit(FlushRequired))
 
 	// Check both validators are committed and return values are correct
 	ret1, err := vs.GetValidator(producerID)
@@ -105,7 +107,9 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 			Nullifiers: [][]byte{nullifier[:]},
 		}),
 	}
-	assert.NoError(t, vs.CommitBlock(blk2, 10000, FlushRequired))
+	tx, err = vs.ConnectBlock(blk2, 10000)
+	assert.NoError(t, err)
+	assert.NoError(t, tx.Commit(FlushRequired))
 
 	// Check the second validator committed correctly
 	ret1, err = vs.GetValidator(valID2)
@@ -142,7 +146,9 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 			Nullifiers: [][]byte{producerNullifier[:]},
 		}),
 	}
-	assert.NoError(t, vs.CommitBlock(blk3, 100000, FlushRequired))
+	tx, err = vs.ConnectBlock(blk3, 100000)
+	assert.NoError(t, err)
+	assert.NoError(t, tx.Commit(FlushRequired))
 
 	// Make sure the producer was removed
 	_, err = vs.GetValidator(producerID)
@@ -167,7 +173,9 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 			Nullifier:    nullifier2[:],
 		}),
 	}
-	assert.NoError(t, vs.CommitBlock(blk4, 0, FlushRequired))
+	tx, err = vs.ConnectBlock(blk4, 0)
+	assert.NoError(t, err)
+	assert.NoError(t, tx.Commit(FlushRequired))
 
 	// Should be no change in these variables since this is a restake
 	ret1, err = vs.GetValidator(valID2)
@@ -180,7 +188,9 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	blk5 := randomBlock(randomBlockHeader(5, randomID()), 1)
 	blk5.Header.Producer_ID = producerIDBytes
 	blk5.Header.Timestamp = blk4.Header.Timestamp + int64(ValidatorExpiration.Seconds()) + 1
-	assert.NoError(t, vs.CommitBlock(blk5, 100000, FlushRequired))
+	tx, err = vs.ConnectBlock(blk5, 100000)
+	assert.NoError(t, err)
+	assert.NoError(t, tx.Commit(FlushRequired))
 
 	_, err = vs.GetValidator(valID2)
 	assert.Error(t, err)
@@ -198,7 +208,9 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 			Locktime:     time.Unix(blk6.Header.Timestamp, 0).Add(time.Hour * 24 * 30 * 8).Unix(),
 		}),
 	}
-	assert.NoError(t, vs.CommitBlock(blk6, 0, FlushRequired))
+	tx, err = vs.ConnectBlock(blk6, 0)
+	assert.NoError(t, err)
+	assert.NoError(t, tx.Commit(FlushRequired))
 
 	// Check the second validator committed correctly
 	ret1, err = vs.GetValidator(valID2)
@@ -229,7 +241,9 @@ func TestValidatorSet_Init(t *testing.T) {
 
 	// Init with flush height at genesis
 	vs = NewValidatorSet(&params.RegestParams, mock.NewMapDatastore())
-	assert.NoError(t, vs.CommitBlock(params.RegestParams.GenesisBlock, 0, FlushRequired))
+	tx, err := vs.ConnectBlock(params.RegestParams.GenesisBlock, 0)
+	assert.NoError(t, err)
+	assert.NoError(t, tx.Commit(FlushRequired))
 	assert.NoError(t, vs.Init(index.Tip()))
 
 	// Set status to flush ongoing and re-init
@@ -252,7 +266,9 @@ func TestValidatorSetMethods(t *testing.T) {
 		Amount:       100000,
 		Nullifier:    nullifier[:],
 	})
-	assert.NoError(t, vs.CommitBlock(blk, 0, FlushRequired))
+	tx, err := vs.ConnectBlock(blk, 0)
+	assert.NoError(t, err)
+	assert.NoError(t, tx.Commit(FlushRequired))
 
 	ret, err := vs.GetValidator(valID)
 	assert.NoError(t, err)

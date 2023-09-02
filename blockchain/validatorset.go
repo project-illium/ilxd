@@ -579,7 +579,11 @@ func (vs *ValidatorSet) ConnectBlock(blk *blocks.Block, validatorReward types.Am
 			}
 
 			producerNew.EpochBlocks++
-			maxBlocks := blockProductionLimit(float64(vs.EpochBlocks+1), blockProducer.stakeAccumulator/float64(vs.EpochBlocks+1))
+			expectedBlocks := blockProducer.stakeAccumulator
+			if expectedBlocks < 1 {
+				expectedBlocks = 1
+			}
+			maxBlocks := blockProductionLimit(float64(vs.EpochBlocks+1), expectedBlocks/float64(vs.EpochBlocks+1))
 			if producerNew.EpochBlocks > maxBlocks {
 				producerNew.CoinbasePenalty = true
 				producerNew.Strikes++
@@ -747,11 +751,6 @@ func (tx *VsTransction) Commit(flushMode flushMode) error {
 	}
 
 	if tx.blockHeight > 0 {
-		blockProducer, ok := tx.vs.validators[tx.blockProducer]
-		if ok {
-			blockProducer.EpochBlocks++
-		}
-
 		totalWeightedStake := tx.vs.totalWeightedStake()
 		for _, val := range tx.vs.validators {
 			val.stakeAccumulator += float64(val.WeightedStake) / float64(totalWeightedStake)
