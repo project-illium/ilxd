@@ -2247,7 +2247,7 @@ type GetTxoProofRequest struct {
 	unknownFields protoimpl.UnknownFields
 
 	// One or more commitments to fetch the txo proof for.
-	// Since transactions only contain one txo_root if you
+	// Since transactions only contain one txo_root you
 	// should request the commitment for each input in your
 	// transaction as a batch so the returned proofs all share
 	// the same txo_root. Otherwise you may get different roots

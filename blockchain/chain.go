@@ -245,10 +245,6 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		return err
 	}
 
-	if err := b.nullifierSet.AddNullifiers(dbtx, blk.Nullifiers()); err != nil {
-		return err
-	}
-
 	accumulator := b.accumulatorDB.Accumulator()
 	blockCointainsOutputs := false
 	treasuryWidthdrawl := types.Amount(0)
@@ -327,6 +323,15 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		}
 	}
 
+	vstx, err := b.validatorSet.ConnectBlock(blk, validatorReward)
+	if err != nil {
+		return err
+	}
+
+	if err := b.nullifierSet.AddNullifiers(dbtx, append(blk.Nullifiers(), vstx.NullifiersToBan()...)); err != nil {
+		return err
+	}
+
 	if err := dbtx.Commit(context.Background()); err != nil {
 		return err
 	}
@@ -346,7 +351,7 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	if flags.HasFlag(BFNoFlush) {
 		flushMode = FlushNop
 	}
-	if err := b.validatorSet.CommitBlock(blk, validatorReward, flushMode); err != nil {
+	if err := vstx.Commit(flushMode); err != nil {
 		log.Errorf("Commit Block: Error flushing validator set: %s", err.Error())
 	}
 

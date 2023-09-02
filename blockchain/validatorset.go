@@ -55,10 +55,11 @@ const (
 
 // Weighting params
 const (
-	beta0 = 0.1   // Level parameter
-	beta1 = -0.1  // Slope parameter
-	beta2 = -0.10 // Curvature parameter
-	tau   = 12.0  // Decay parameter (converted to months)
+	beta0      = 0.1   // Level parameter
+	beta1      = -0.1  // Slope parameter
+	beta2      = -0.10 // Curvature parameter
+	tau        = 12.0  // Decay parameter (converted to months)
+	maxStrikes = 3     // Max strikes before a validator loses stake
 )
 
 // Stake represents a given staked utxo and the time at which it
@@ -79,6 +80,8 @@ type Validator struct {
 	Nullifiers       map[types.Nullifier]Stake
 	UnclaimedCoins   types.Amount
 	EpochBlocks      uint32
+	Strikes          uint32
+	CoinbasePenalty  bool
 	stakeAccumulator float64
 }
 
@@ -211,9 +214,14 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 					}
 				}
 
-				if err := vs.CommitBlock(blk, validatorReward, FlushPeriodic); err != nil {
+				tx, err := vs.ConnectBlock(blk, validatorReward)
+				if err != nil {
 					return err
 				}
+				if err := tx.Commit(FlushPeriodic); err != nil {
+					return err
+				}
+
 				if node.height == tip.height {
 					break
 				}
@@ -253,7 +261,11 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 		if err := dsPutValidatorSetConsistencyStatus(vs.ds, scsEmpty); err != nil {
 			return err
 		}
-		if err := vs.CommitBlock(vs.params.GenesisBlock, 0, FlushRequired); err != nil {
+		tx, err := vs.ConnectBlock(vs.params.GenesisBlock, 0)
+		if err != nil {
+			return err
+		}
+		if err := tx.Commit(FlushRequired); err != nil {
 			return err
 		}
 		return vs.Init(tip)
@@ -360,27 +372,34 @@ func (vs *ValidatorSet) totalWeightedStake() types.Amount {
 	return total
 }
 
-// CommitBlock commits the changes to the validator set found in the block into the set.
-// This function is fully atomic, if an error is returned, no changes are committed.
-// It is expected that the block is fully validated before calling this method.
-func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amount, flushMode flushMode) error {
+// ConnectBlock stages the changes to the validator set found in the block and
+// returns a transaction. The transaction can then be committed to the set using
+// the Commit() method.
+func (vs *ValidatorSet) ConnectBlock(blk *blocks.Block, validatorReward types.Amount) (*VsTransction, error) {
 	vs.mtx.Lock()
 	defer vs.mtx.Unlock()
 
-	updates := make(map[peer.ID]*Validator)
-	nullifiersToAdd := make(map[types.Nullifier]peer.ID)
-	nullifiersToDelete := make(map[types.Nullifier]struct{})
-	blockTime := time.Unix(blk.Header.Timestamp, 0)
+	vstx := &VsTransction{
+		vs:                 vs,
+		updates:            make(map[peer.ID]*Validator),
+		nullifiersToAdd:    make(map[types.Nullifier]peer.ID),
+		nullifiersToDelete: make(map[types.Nullifier]struct{}),
+		nullifiersToBan:    make(map[types.Nullifier]struct{}),
+		newEpoch:           validatorReward > 0,
+		blockHeight:        blk.Header.Height,
+	}
 
 	var (
 		producerID peer.ID
 		err        error
+		blockTime  = time.Unix(blk.Header.Timestamp, 0)
 	)
 	if blk.Header.Height > 0 {
 		producerID, err = peer.IDFromBytes(blk.Header.Producer_ID)
 		if err != nil {
-			return err
+			return nil, err
 		}
+		vstx.blockProducer = producerID
 	}
 
 	for _, t := range blk.GetTransactions() {
@@ -389,10 +408,10 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 			if blk.Header.Height > 0 {
 				validatorID, err := peer.IDFromBytes(tx.CoinbaseTransaction.Validator_ID)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
-				valNew, ok := updates[validatorID]
+				valNew, ok := vstx.updates[validatorID]
 				if !ok {
 					valOld, ok := vs.validators[validatorID]
 					if !ok {
@@ -406,15 +425,15 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 				} else {
 					valNew.UnclaimedCoins -= types.Amount(tx.CoinbaseTransaction.NewCoins)
 				}
-				updates[validatorID] = valNew
+				vstx.updates[validatorID] = valNew
 			}
 		case *transactions.Transaction_StakeTransaction:
 			validatorID, err := peer.IDFromBytes(tx.StakeTransaction.Validator_ID)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
-			valNew, ok := updates[validatorID]
+			valNew, ok := vstx.updates[validatorID]
 			if !ok {
 				valOld, ok := vs.validators[validatorID]
 				if !ok {
@@ -451,15 +470,15 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 				Locktime:       time.Unix(tx.StakeTransaction.Locktime, 0),
 				Blockstamp:     blockTime,
 			}
-			updates[validatorID] = valNew
-			nullifiersToAdd[types.NewNullifier(tx.StakeTransaction.Nullifier)] = validatorID
+			vstx.updates[validatorID] = valNew
+			vstx.nullifiersToAdd[types.NewNullifier(tx.StakeTransaction.Nullifier)] = validatorID
 		case *transactions.Transaction_StandardTransaction:
 			for _, nullifier := range tx.StandardTransaction.Nullifiers {
 				valOld, ok := vs.nullifierMap[types.NewNullifier(nullifier)]
 				if !ok {
 					continue
 				}
-				v, ok := updates[valOld.PeerID]
+				v, ok := vstx.updates[valOld.PeerID]
 				if ok {
 					valOld = v
 				}
@@ -467,14 +486,14 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 				copyValidator(valNew, valOld)
 				stake, ok := valNew.Nullifiers[types.NewNullifier(nullifier)]
 				if !ok {
-					return errors.New("nullifier not found with validator")
+					return nil, errors.New("nullifier not found with validator")
 				}
 
 				valNew.WeightedStake -= stake.WeightedAmount
 				valNew.TotalStake -= stake.Amount
 				delete(valNew.Nullifiers, types.NewNullifier(nullifier))
-				nullifiersToDelete[types.NewNullifier(nullifier)] = struct{}{}
-				updates[valNew.PeerID] = valNew
+				vstx.nullifiersToDelete[types.NewNullifier(nullifier)] = struct{}{}
+				vstx.updates[valNew.PeerID] = valNew
 			}
 		case *transactions.Transaction_MintTransaction:
 			for _, nullifier := range tx.MintTransaction.Nullifiers {
@@ -482,7 +501,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 				if !ok {
 					continue
 				}
-				v, ok := updates[valOld.PeerID]
+				v, ok := vstx.updates[valOld.PeerID]
 				if ok {
 					valOld = v
 				}
@@ -490,13 +509,13 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 				copyValidator(valNew, valOld)
 				stake, ok := valNew.Nullifiers[types.NewNullifier(nullifier)]
 				if !ok {
-					return errors.New("nullifier not found with validator")
+					return nil, errors.New("nullifier not found with validator")
 				}
 				valNew.WeightedStake -= stake.WeightedAmount
 				valNew.TotalStake -= stake.Amount
 				delete(valNew.Nullifiers, types.NewNullifier(nullifier))
-				nullifiersToDelete[types.NewNullifier(nullifier)] = struct{}{}
-				updates[valNew.PeerID] = valNew
+				vstx.nullifiersToDelete[types.NewNullifier(nullifier)] = struct{}{}
+				vstx.updates[valNew.PeerID] = valNew
 			}
 		}
 	}
@@ -504,7 +523,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 	totalWeightedStake := vs.totalWeightedStake()
 	if validatorReward > 0 {
 		for _, valOld := range vs.validators {
-			valNew, ok := updates[valOld.PeerID]
+			valNew, ok := vstx.updates[valOld.PeerID]
 			if !ok {
 				valNew = &Validator{}
 				copyValidator(valNew, valOld)
@@ -519,7 +538,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 				timeSinceStake := blockTime.Sub(stake.Blockstamp)
 
 				if timeSinceStake >= ValidatorExpiration {
-					nullifiersToDelete[nullifier] = struct{}{}
+					vstx.nullifiersToDelete[nullifier] = struct{}{}
 					delete(valNew.Nullifiers, nullifier)
 					continue
 				}
@@ -535,7 +554,7 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 				valNew.UnclaimedCoins = valNew.UnclaimedCoins + types.Amount(float64(validatorReward)*(float64(valTotal)/float64(totalWeightedStake)))
 			}
 
-			if valNew.EpochBlocks > blockProductionLimit(float64(vs.EpochBlocks), expectedBlocks/float64(vs.EpochBlocks)) {
+			if valNew.CoinbasePenalty {
 				valNew.UnclaimedCoins = 0
 			}
 
@@ -545,56 +564,38 @@ func (vs *ValidatorSet) CommitBlock(blk *blocks.Block, validatorReward types.Amo
 
 			valNew.EpochBlocks = 0
 			valNew.stakeAccumulator = 0
-			updates[valNew.PeerID] = valNew
+			valNew.CoinbasePenalty = false
+			vstx.updates[valNew.PeerID] = valNew
 		}
-		vs.EpochBlocks = 0
 	}
 
 	if blk.Header.Height > 0 {
 		blockProducer, ok := vs.validators[producerID]
 		if ok {
-			blockProducer.EpochBlocks++
-		}
-		for _, val := range vs.validators {
-			val.stakeAccumulator += float64(val.WeightedStake) / float64(totalWeightedStake)
-		}
-	}
+			producerNew, ok := vstx.updates[blockProducer.PeerID]
+			if !ok {
+				producerNew = &Validator{}
+				copyValidator(producerNew, blockProducer)
+			}
 
-	for _, val := range updates {
-		if _, ok := vs.validators[val.PeerID]; !ok {
-			vs.sendNotification(val.PeerID, NTAddValidator)
-		}
-		vs.validators[val.PeerID] = val
-	}
+			producerNew.EpochBlocks++
+			maxBlocks := blockProductionLimit(float64(vs.EpochBlocks+1), blockProducer.stakeAccumulator/float64(vs.EpochBlocks+1))
+			if producerNew.EpochBlocks > maxBlocks {
+				producerNew.CoinbasePenalty = true
+				producerNew.Strikes++
 
-	for nullifier, peerID := range nullifiersToAdd {
-		val := vs.validators[peerID]
-		vs.nullifierMap[nullifier] = val
-	}
-
-	for nullifier := range nullifiersToDelete {
-		delete(vs.nullifierMap, nullifier)
-	}
-
-	for _, val := range updates {
-		if len(val.Nullifiers) == 0 {
-			vs.toDelete[val.PeerID] = struct{}{}
-			delete(vs.validators, val.PeerID)
-			vs.sendNotification(val.PeerID, NTRemoveValidator)
+				if producerNew.Strikes > maxStrikes {
+					for nullifier := range producerNew.Nullifiers {
+						vstx.nullifiersToBan[nullifier] = struct{}{}
+						vstx.nullifiersToDelete[nullifier] = struct{}{}
+						delete(producerNew.Nullifiers, nullifier)
+					}
+				}
+			}
+			vstx.updates[blockProducer.PeerID] = producerNew
 		}
 	}
-
-	if len(updates) > 0 || len(nullifiersToAdd) > 0 || len(nullifiersToDelete) > 0 {
-		choices := make([]weightedrand.Choice[peer.ID, types.Amount], 0, len(vs.validators))
-		for peerID, validator := range vs.validators {
-			choices = append(choices, weightedrand.NewChoice(peerID, validator.WeightedStake))
-		}
-		vs.chooser, _ = weightedrand.NewChooser(choices...)
-	}
-
-	vs.EpochBlocks++
-
-	return vs.flush(flushMode, blk.Header.Height)
+	return vstx, nil
 }
 
 // WeightedRandomValidator returns a validator weighted by their current stake.
@@ -700,6 +701,79 @@ func (vs *ValidatorSet) flushToDisk(chainHeight uint32) error {
 	return nil
 }
 
+type VsTransction struct {
+	vs                 *ValidatorSet
+	updates            map[peer.ID]*Validator
+	nullifiersToAdd    map[types.Nullifier]peer.ID
+	nullifiersToDelete map[types.Nullifier]struct{}
+	nullifiersToBan    map[types.Nullifier]struct{}
+
+	newEpoch      bool
+	blockHeight   uint32
+	blockProducer peer.ID
+}
+
+func (tx *VsTransction) Commit(flushMode flushMode) error {
+	for _, val := range tx.updates {
+		if _, ok := tx.vs.validators[val.PeerID]; !ok {
+			tx.vs.sendNotification(val.PeerID, NTAddValidator)
+		}
+		tx.vs.validators[val.PeerID] = val
+	}
+
+	for nullifier, peerID := range tx.nullifiersToAdd {
+		val := tx.vs.validators[peerID]
+		tx.vs.nullifierMap[nullifier] = val
+	}
+
+	for nullifier := range tx.nullifiersToDelete {
+		delete(tx.vs.nullifierMap, nullifier)
+	}
+
+	for _, val := range tx.updates {
+		if len(val.Nullifiers) == 0 {
+			tx.vs.toDelete[val.PeerID] = struct{}{}
+			delete(tx.vs.validators, val.PeerID)
+			tx.vs.sendNotification(val.PeerID, NTRemoveValidator)
+		}
+	}
+
+	if len(tx.updates) > 0 || len(tx.nullifiersToAdd) > 0 || len(tx.nullifiersToDelete) > 0 {
+		choices := make([]weightedrand.Choice[peer.ID, types.Amount], 0, len(tx.vs.validators))
+		for peerID, validator := range tx.vs.validators {
+			choices = append(choices, weightedrand.NewChoice(peerID, validator.WeightedStake))
+		}
+		tx.vs.chooser, _ = weightedrand.NewChooser(choices...)
+	}
+
+	if tx.blockHeight > 0 {
+		blockProducer, ok := tx.vs.validators[tx.blockProducer]
+		if ok {
+			blockProducer.EpochBlocks++
+		}
+
+		totalWeightedStake := tx.vs.totalWeightedStake()
+		for _, val := range tx.vs.validators {
+			val.stakeAccumulator += float64(val.WeightedStake) / float64(totalWeightedStake)
+		}
+	}
+
+	if tx.newEpoch {
+		tx.vs.EpochBlocks = 0
+	}
+	tx.vs.EpochBlocks++
+
+	return tx.vs.flush(flushMode, tx.blockHeight)
+}
+
+func (tx *VsTransction) NullifiersToBan() []types.Nullifier {
+	nullifiers := make([]types.Nullifier, 0, len(tx.nullifiersToBan))
+	for n := range tx.nullifiersToBan {
+		nullifiers = append(nullifiers, n)
+	}
+	return nullifiers
+}
+
 // Six standard deviations from the expected number of blocks.
 func blockProductionLimit(EpochBlocks float64, stakePercentage float64) uint32 {
 	x := float64(EpochBlocks * stakePercentage)
@@ -733,6 +807,9 @@ func copyValidator(dest *Validator, src *Validator) {
 	dest.WeightedStake = src.WeightedStake
 	dest.EpochBlocks = src.EpochBlocks
 	dest.UnclaimedCoins = src.UnclaimedCoins
+	dest.CoinbasePenalty = src.CoinbasePenalty
+	dest.Strikes = src.Strikes
+	dest.stakeAccumulator = src.stakeAccumulator
 	dest.Nullifiers = make(map[types.Nullifier]Stake)
 	for k, v := range src.Nullifiers {
 		dest.Nullifiers[k.Clone()] = Stake{
