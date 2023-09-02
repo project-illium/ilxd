@@ -279,7 +279,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, tx.Commit(FlushRequired))
 
-	ret1, err = vs.GetValidator(valID3)
+	_, err = vs.GetValidator(valID3)
 	assert.Error(t, err)
 }
 
