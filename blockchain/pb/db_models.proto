@@ -13,7 +13,7 @@ message DBValidator {
         uint32 epochBLocks            = 6;
         uint32 stikes                 = 7;
         bool coinbase_penalty         = 8;
-        float stakeAccumulator        = 9;
+        float expected_blocks         = 9;
 
         message Nullifier {
                 bytes hash                           = 1;

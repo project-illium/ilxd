@@ -143,11 +143,11 @@ func TestPutGetDeleteValidator(t *testing.T) {
 				Blockstamp:     time.Now(),
 			},
 		},
-		UnclaimedCoins:   50,
-		EpochBlocks:      17,
-		Strikes:          3,
-		CoinbasePenalty:  true,
-		stakeAccumulator: 14,
+		UnclaimedCoins:  50,
+		EpochBlocks:     17,
+		Strikes:         3,
+		CoinbasePenalty: true,
+		ExpectedBlocks:  14,
 	}
 	assert.NoError(t, dsPutValidator(dbtx, validator))
 	assert.NoError(t, dbtx.Commit(context.Background()))

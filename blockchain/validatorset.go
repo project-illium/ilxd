@@ -74,27 +74,27 @@ type Stake struct {
 // Validator holds all the information about a validator in the ValidatorSet
 // that is needed to validate blocks.
 type Validator struct {
-	PeerID           peer.ID
-	TotalStake       types.Amount
-	WeightedStake    types.Amount
-	Nullifiers       map[types.Nullifier]Stake
-	UnclaimedCoins   types.Amount
-	EpochBlocks      uint32
-	Strikes          uint32
-	CoinbasePenalty  bool
-	stakeAccumulator float64
+	PeerID          peer.ID
+	TotalStake      types.Amount
+	WeightedStake   types.Amount
+	Nullifiers      map[types.Nullifier]Stake
+	UnclaimedCoins  types.Amount
+	EpochBlocks     uint32
+	Strikes         uint32
+	CoinbasePenalty bool
+	ExpectedBlocks  float64
 }
 
 // Clone returns a copy of the validator
 func (v *Validator) Clone() *Validator {
 	ret := &Validator{
-		PeerID:           v.PeerID,
-		TotalStake:       v.TotalStake,
-		WeightedStake:    v.WeightedStake,
-		Nullifiers:       make(map[types.Nullifier]Stake),
-		UnclaimedCoins:   v.UnclaimedCoins,
-		stakeAccumulator: v.stakeAccumulator,
-		EpochBlocks:      v.EpochBlocks,
+		PeerID:         v.PeerID,
+		TotalStake:     v.TotalStake,
+		WeightedStake:  v.WeightedStake,
+		Nullifiers:     make(map[types.Nullifier]Stake),
+		UnclaimedCoins: v.UnclaimedCoins,
+		ExpectedBlocks: v.ExpectedBlocks,
+		EpochBlocks:    v.EpochBlocks,
 	}
 	for n, s := range v.Nullifiers {
 		ret.Nullifiers[n.Clone()] = Stake{
@@ -529,7 +529,7 @@ func (vs *ValidatorSet) ConnectBlock(blk *blocks.Block, validatorReward types.Am
 				copyValidator(valNew, valOld)
 			}
 
-			expectedBlocks := valNew.stakeAccumulator
+			expectedBlocks := valNew.ExpectedBlocks
 			if expectedBlocks < 1 {
 				expectedBlocks = 1
 			}
@@ -563,7 +563,7 @@ func (vs *ValidatorSet) ConnectBlock(blk *blocks.Block, validatorReward types.Am
 			}
 
 			valNew.EpochBlocks = 0
-			valNew.stakeAccumulator = 0
+			valNew.ExpectedBlocks = 0
 			valNew.CoinbasePenalty = false
 			vstx.updates[valNew.PeerID] = valNew
 		}
@@ -579,7 +579,7 @@ func (vs *ValidatorSet) ConnectBlock(blk *blocks.Block, validatorReward types.Am
 			}
 
 			producerNew.EpochBlocks++
-			expectedBlocks := blockProducer.stakeAccumulator
+			expectedBlocks := blockProducer.ExpectedBlocks
 			if expectedBlocks < 1 {
 				expectedBlocks = 1
 			}
@@ -630,7 +630,7 @@ func (vs *ValidatorSet) BlockProductionLimit(validatorID peer.ID) (uint32, uint3
 	if vs.EpochBlocks == 0 {
 		return val.EpochBlocks, 1, nil
 	}
-	expectedBlocks := val.stakeAccumulator
+	expectedBlocks := val.ExpectedBlocks
 	if expectedBlocks < 1 {
 		expectedBlocks = 1
 	}
@@ -742,7 +742,7 @@ func (tx *VsTransction) Commit(flushMode flushMode) error {
 		}
 	}
 
-	if len(tx.updates) > 0 || len(tx.nullifiersToAdd) > 0 || len(tx.nullifiersToDelete) > 0 {
+	if len(tx.nullifiersToAdd) > 0 || len(tx.nullifiersToDelete) > 0 {
 		choices := make([]weightedrand.Choice[peer.ID, types.Amount], 0, len(tx.vs.validators))
 		for peerID, validator := range tx.vs.validators {
 			choices = append(choices, weightedrand.NewChoice(peerID, validator.WeightedStake))
@@ -753,7 +753,7 @@ func (tx *VsTransction) Commit(flushMode flushMode) error {
 	if tx.blockHeight > 0 {
 		totalWeightedStake := tx.vs.totalWeightedStake()
 		for _, val := range tx.vs.validators {
-			val.stakeAccumulator += float64(val.WeightedStake) / float64(totalWeightedStake)
+			val.ExpectedBlocks += float64(val.WeightedStake) / float64(totalWeightedStake)
 		}
 	}
 
@@ -808,7 +808,7 @@ func copyValidator(dest *Validator, src *Validator) {
 	dest.UnclaimedCoins = src.UnclaimedCoins
 	dest.CoinbasePenalty = src.CoinbasePenalty
 	dest.Strikes = src.Strikes
-	dest.stakeAccumulator = src.stakeAccumulator
+	dest.ExpectedBlocks = src.ExpectedBlocks
 	dest.Nullifiers = make(map[types.Nullifier]Stake)
 	for k, v := range src.Nullifiers {
 		dest.Nullifiers[k.Clone()] = Stake{
