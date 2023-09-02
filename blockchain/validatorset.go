@@ -588,7 +588,7 @@ func (vs *ValidatorSet) ConnectBlock(blk *blocks.Block, validatorReward types.Am
 				producerNew.CoinbasePenalty = true
 				producerNew.Strikes++
 
-				if producerNew.Strikes > maxStrikes {
+				if producerNew.Strikes >= maxStrikes {
 					for nullifier := range producerNew.Nullifiers {
 						vstx.nullifiersToBan[nullifier] = struct{}{}
 						vstx.nullifiersToDelete[nullifier] = struct{}{}

@@ -196,7 +196,12 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	assert.Error(t, err)
 
 	// Test weighted stake
+	valID3 := randomPeerID()
+	valIDBytes3, err := valID3.Marshal()
+	assert.NoError(t, err)
+
 	nullifier3 := randomID()
+	nullifier4 := randomID()
 	blk6 := randomBlock(randomBlockHeader(6, randomID()), 1)
 	blk6.Header.Producer_ID = producerIDBytes
 	blk6.Header.Timestamp = blk.Header.Timestamp + vs.params.EpochLength + 1
@@ -206,6 +211,12 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 			Amount:       80000,
 			Nullifier:    nullifier3[:],
 			Locktime:     time.Unix(blk6.Header.Timestamp, 0).Add(time.Hour * 24 * 30 * 8).Unix(),
+		}),
+		transactions.WrapTransaction(&transactions.StakeTransaction{
+			Validator_ID: valIDBytes3,
+			Amount:       10,
+			Nullifier:    nullifier4[:],
+			Locktime:     0,
 		}),
 	}
 	tx, err = vs.ConnectBlock(blk6, 0)
@@ -224,6 +235,52 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 	assert.Equal(t, types.Amount(80000), stake.Amount)
 	assert.Equal(t, types.Amount(83075), stake.WeightedAmount)
 	assert.Equal(t, uint32(0), ret1.EpochBlocks)
+
+	// Test production over limit
+
+	// First six blocks should not trigger any penalty as they are within the
+	// expected standard deviation.
+	for i := uint32(0); i < 6; i++ {
+		blk7 := randomBlock(randomBlockHeader(7+i, randomID()), 1)
+		blk7.Header.Producer_ID = valIDBytes3
+		blk7.Header.Timestamp = blk.Header.Timestamp + vs.params.EpochLength + 1
+		tx, err = vs.ConnectBlock(blk7, 0)
+		assert.NoError(t, err)
+		assert.NoError(t, tx.Commit(FlushRequired))
+
+		ret1, err = vs.GetValidator(valID3)
+		assert.NoError(t, err)
+		assert.False(t, ret1.CoinbasePenalty)
+	}
+
+	// The next two should trigger the coinbase penalty.
+	for i := uint32(0); i < 2; i++ {
+		blk7 := randomBlock(randomBlockHeader(12+i, randomID()), 1)
+		blk7.Header.Producer_ID = valIDBytes3
+		blk7.Header.Timestamp = blk.Header.Timestamp + vs.params.EpochLength + 1
+		tx, err = vs.ConnectBlock(blk7, 0)
+		assert.NoError(t, err)
+		assert.NoError(t, tx.Commit(FlushRequired))
+
+		ret1, err = vs.GetValidator(valID3)
+		assert.NoError(t, err)
+		assert.True(t, ret1.CoinbasePenalty)
+		assert.Equal(t, ret1.Strikes, i+1)
+	}
+
+	// The next block should cause the nullifier to be banned and the
+	// validator to be removed from the validataor set.
+	blk7 := randomBlock(randomBlockHeader(15, randomID()), 1)
+	blk7.Header.Producer_ID = valIDBytes3
+	blk7.Header.Timestamp = blk.Header.Timestamp + vs.params.EpochLength + 1
+	tx, err = vs.ConnectBlock(blk7, 0)
+	assert.Len(t, tx.NullifiersToBan(), 1)
+	assert.Equal(t, types.NewNullifier(nullifier4[:]), tx.NullifiersToBan()[0])
+	assert.NoError(t, err)
+	assert.NoError(t, tx.Commit(FlushRequired))
+
+	ret1, err = vs.GetValidator(valID3)
+	assert.Error(t, err)
 }
 
 func TestValidatorSet_Init(t *testing.T) {
