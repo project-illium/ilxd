@@ -24,10 +24,8 @@ import (
 )
 
 const (
-	// TODO: decide on a value for this
 	maxTimeBetweenFlushes = time.Minute * 15
-
-	ValidatorExpiration = time.Hour * 24 * 7 * 26
+	ValidatorExpiration   = time.Hour * 24 * 7 * 26
 )
 
 // setConsistencyStatus (SCS) codes are used to indicate the

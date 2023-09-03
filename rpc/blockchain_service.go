@@ -339,8 +339,14 @@ func (s *GrpcServer) GetValidator(ctx context.Context, req *pb.GetValidatorReque
 			EpochBlocks:    validator.EpochBlocks,
 		},
 	}
-	for nullifier := range validator.Nullifiers {
-		resp.Validator.Nullifiers = append(resp.Validator.Nullifiers, nullifier[:])
+	for nullifier, stake := range validator.Nullifiers {
+		resp.Validator.Stake = append(resp.Validator.Stake, &pb.Validator_Stake{
+			Nullifier:          nullifier[:],
+			Amount:             uint64(stake.Amount),
+			TimelockedUntil:    stake.Locktime.Unix(),
+			Expiration:         stake.Blockstamp.Add(blockchain.ValidatorExpiration).Unix(),
+			RestakeEligibility: stake.Blockstamp.Add(blockchain.ValidatorExpiration).Add(-blockchain.RestakePeriod).Unix(),
+		})
 	}
 	return resp, nil
 }
@@ -372,8 +378,14 @@ func (s *GrpcServer) GetValidatorSet(ctx context.Context, req *pb.GetValidatorSe
 			UnclaimedCoins: uint64(v.UnclaimedCoins),
 			EpochBlocks:    v.EpochBlocks,
 		}
-		for nullifier := range v.Nullifiers {
-			val.Nullifiers = append(val.Nullifiers, nullifier.Bytes())
+		for nullifier, stake := range v.Nullifiers {
+			val.Stake = append(val.Stake, &pb.Validator_Stake{
+				Nullifier:          nullifier[:],
+				Amount:             uint64(stake.Amount),
+				TimelockedUntil:    stake.Locktime.Unix(),
+				Expiration:         stake.Blockstamp.Add(blockchain.ValidatorExpiration).Unix(),
+				RestakeEligibility: stake.Blockstamp.Add(blockchain.ValidatorExpiration).Add(-blockchain.RestakePeriod).Unix(),
+			})
 		}
 		resp.Validators = append(resp.Validators, val)
 	}
