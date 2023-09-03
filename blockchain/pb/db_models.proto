@@ -11,7 +11,9 @@ message DBValidator {
         repeated Nullifier nullifiers = 4;
         uint64 unclaimed_coins        = 5;
         uint32 epochBLocks            = 6;
-        float stakeAccumulator        = 7;
+        uint32 stikes                 = 7;
+        bool coinbase_penalty         = 8;
+        float expected_blocks         = 9;
 
         message Nullifier {
                 bytes hash                           = 1;
