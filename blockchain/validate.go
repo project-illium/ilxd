@@ -440,9 +440,6 @@ func validateOutputs(outputs []*transactions.Output) error {
 		if len(out.Commitment) != types.CommitmentLen {
 			return ruleError(ErrInvalidTx, "invalid commitment len")
 		}
-		if len(out.Ciphertext) != CiphertextLen {
-			return ruleError(ErrInvalidTx, "ciphertext invalid len")
-		}
 	}
 	return nil
 }

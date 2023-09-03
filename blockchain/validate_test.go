@@ -1429,20 +1429,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			expectedErr: ruleError(ErrInvalidTx, ""),
 		},
 		{
-			name: "coinbase invalid ciphertext len",
-			tx: transactions.WrapTransaction(&transactions.CoinbaseTransaction{
-				Validator_ID: []byte{},
-				Outputs: []*transactions.Output{
-					{
-						Commitment: make([]byte, types.CommitmentLen),
-						Ciphertext: make([]byte, CiphertextLen+1),
-					},
-				},
-			}),
-			timestamp:   time.Now(),
-			expectedErr: ruleError(ErrInvalidTx, ""),
-		},
-		{
 			name: "standard valid",
 			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
@@ -1491,21 +1477,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 					{
 						Commitment: make([]byte, types.CommitmentLen+1),
 						Ciphertext: make([]byte, CiphertextLen),
-					},
-				},
-			}),
-			timestamp:   time.Now(),
-			expectedErr: ruleError(ErrInvalidTx, ""),
-		},
-		{
-			name: "standard invalid ciphertext len",
-			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
-				Nullifiers: [][]byte{nullifier.Bytes()},
-				Locktime:   time.Time{}.Unix(),
-				Outputs: []*transactions.Output{
-					{
-						Commitment: make([]byte, types.CommitmentLen),
-						Ciphertext: make([]byte, CiphertextLen+1),
 					},
 				},
 			}),
@@ -1631,23 +1602,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 					{
 						Commitment: make([]byte, types.CommitmentLen+1),
 						Ciphertext: make([]byte, CiphertextLen),
-					},
-				},
-			}),
-			timestamp:   time.Now(),
-			expectedErr: ruleError(ErrInvalidTx, ""),
-		},
-		{
-			name: "mint invalid ciphertext len",
-			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Nullifiers: [][]byte{nullifier.Bytes()},
-				Locktime:   time.Time{}.Unix(),
-				Asset_ID:   hash.HashFunc(nullifier.Bytes()),
-				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
-				Outputs: []*transactions.Output{
-					{
-						Commitment: make([]byte, types.CommitmentLen),
-						Ciphertext: make([]byte, CiphertextLen+1),
 					},
 				},
 			}),
@@ -1820,20 +1774,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 					{
 						Commitment: make([]byte, types.CommitmentLen+1),
 						Ciphertext: make([]byte, CiphertextLen),
-					},
-				},
-			}),
-			timestamp:   time.Now(),
-			expectedErr: ruleError(ErrInvalidTx, ""),
-		},
-		{
-			name: "treasury invalid ciphertext len",
-			tx: transactions.WrapTransaction(&transactions.TreasuryTransaction{
-				ProposalHash: make([]byte, MaxDocumentHashLen),
-				Outputs: []*transactions.Output{
-					{
-						Commitment: make([]byte, types.CommitmentLen),
-						Ciphertext: make([]byte, CiphertextLen+1),
 					},
 				},
 			}),
