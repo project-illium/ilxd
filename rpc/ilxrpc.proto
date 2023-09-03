@@ -1087,11 +1087,26 @@ message Validator {
         // The total stake weighted by time lock.
         uint64 stake_weight       = 3;
         // The nullifiers for the utxos the validator has staked.
-        repeated bytes nullifiers = 4;
+        repeated Stake stake      = 4;
         // The total of any unclaimed validator rewards.
         uint64 unclaimed_coins    = 5;
         // The number of blocks this validator has created this epoch.
         uint32 epoch_blocks       = 6;
+
+        message Stake {
+            // The nullifier that is staked
+            bytes nullifier           = 1;
+            // The amount staked
+            uint64 amount             = 2;
+            // The timestamp that this utxo is timelocked until
+            int64 timelocked_until    = 3;
+            // When this nullifier will expire and be removed from
+            // the validator set.
+            int64 expiration          = 4;
+            // The earliest date at which this nullifier can be restaked.
+            // One week before expiration.
+            int64 restake_eligibility = 5;
+        }
 }
 
 message Utxo {
