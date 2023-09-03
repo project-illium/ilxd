@@ -778,7 +778,7 @@ func blockProductionLimit(EpochBlocks float64, stakePercentage float64) uint32 {
 	if stakePercentage == 1 {
 		y = 1
 	}
-	return uint32(x + y)
+	return uint32(x + y + .5)
 }
 
 // Six standard deviations from the expected number of blocks.
