@@ -910,7 +910,7 @@ message GetHostInfoResponse {
     // A list of multiaddrs that this node is listening on
     repeated string addrs = 2;
     // The number of peers this node is connected to
-    uint32 peers    = 3;
+    uint32 peers          = 3;
     // Is tx index enabled
     bool tx_index         = 4;
     // Is the wallet server enabled
