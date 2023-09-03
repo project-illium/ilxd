@@ -374,29 +374,32 @@ func (x *GetValidator) Execute(args []string) error {
 	type stake struct {
 		Nullifier          types.HexEncodable `json:"nullifier"`
 		Amount             uint64             `json:"amount"`
-		TimelockedUntil    time.Time          `json:"timelockedUntil"`
+		TimelockedUntil    *time.Time         `json:"timelockedUntil,omitempty"`
 		Expiration         time.Time          `json:"expiration"`
 		RestakeEligibility time.Time          `json:"restakeEligibility"`
 	}
 
 	stk := make([]*stake, 0, len(resp.Validator.Stake))
 	for _, s := range resp.Validator.Stake {
-		stk = append(stk, &stake{
+		a := &stake{
 			Nullifier:          s.Nullifier,
 			Amount:             s.Amount,
-			TimelockedUntil:    time.Unix(s.TimelockedUntil, 0),
 			Expiration:         time.Unix(s.Expiration, 0),
 			RestakeEligibility: time.Unix(s.RestakeEligibility, 0),
-		})
+		}
+		if s.TimelockedUntil > 0 {
+			ts := time.Unix(s.TimelockedUntil, 0)
+			a.TimelockedUntil = &ts
+		}
 	}
 
 	v := struct {
 		ValidatorID    string   `json:"validatorID"`
 		TotalStake     uint64   `json:"totalStake"`
 		StakeWeight    uint64   `json:"stakeWeight"`
-		Stake          []*stake `json:"stake"`
 		UnclaimedCoins uint64   `json:"unclaimedCoins"`
 		EpochBlocks    uint32   `json:"epochBlocks"`
+		Stake          []*stake `json:"stake"`
 	}{
 		ValidatorID:    respID.String(),
 		TotalStake:     resp.Validator.TotalStake,
@@ -460,7 +463,7 @@ func (x *GetValidatorSet) Execute(args []string) error {
 	type stake struct {
 		Nullifier          types.HexEncodable `json:"nullifier"`
 		Amount             uint64             `json:"amount"`
-		TimelockedUntil    time.Time          `json:"timelockedUntil"`
+		TimelockedUntil    *time.Time         `json:"timelockedUntil,omitempty"`
 		Expiration         time.Time          `json:"expiration"`
 		RestakeEligibility time.Time          `json:"restakeEligibility"`
 	}
@@ -469,9 +472,9 @@ func (x *GetValidatorSet) Execute(args []string) error {
 		ValidatorID    string   `json:"validatorID"`
 		TotalStake     uint64   `json:"totalStake"`
 		StakeWeight    uint64   `json:"stakeWeight"`
-		Stake          []*stake `json:"stake"`
 		UnclaimedCoins uint64   `json:"unclaimedCoins"`
 		EpochBlocks    uint32   `json:"epochBlocks"`
+		Stake          []*stake `json:"stake"`
 	}
 	vals := make([]v, 0, len(resp.Validators))
 	for _, val := range resp.Validators {
@@ -481,13 +484,17 @@ func (x *GetValidatorSet) Execute(args []string) error {
 		}
 		stk := make([]*stake, 0, len(val.Stake))
 		for _, s := range val.Stake {
-			stk = append(stk, &stake{
+			a := &stake{
 				Nullifier:          s.Nullifier,
 				Amount:             s.Amount,
-				TimelockedUntil:    time.Unix(s.TimelockedUntil, 0),
 				Expiration:         time.Unix(s.Expiration, 0),
 				RestakeEligibility: time.Unix(s.RestakeEligibility, 0),
-			})
+			}
+			if s.TimelockedUntil > 0 {
+				ts := time.Unix(s.TimelockedUntil, 0)
+				a.TimelockedUntil = &ts
+			}
+			stk = append(stk, a)
 		}
 		vals = append(vals, v{
 			ValidatorID:    respID.String(),
