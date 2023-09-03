@@ -1094,10 +1094,17 @@ message Validator {
         uint32 epoch_blocks       = 6;
 
         message Stake {
+            // The nullifier that is staked
             bytes nullifier           = 1;
+            // The amount staked
             uint64 amount             = 2;
+            // The timestamp that this utxo is timelocked until
             int64 timelocked_until    = 3;
+            // When this nullifier will expire and be removed from
+            // the validator set.
             int64 expiration          = 4;
+            // The earliest date at which this nullifier can be restaked.
+            // One week before expiration.
             int64 restake_eligibility = 5;
         }
 }
