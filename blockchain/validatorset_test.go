@@ -238,9 +238,9 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 
 	// Test production over limit
 
-	// First six blocks should not trigger any penalty as they are within the
+	// First seven blocks should not trigger any penalty as they are within the
 	// expected standard deviation.
-	for i := uint32(0); i < 6; i++ {
+	for i := uint32(0); i < 7; i++ {
 		blk7 := randomBlock(randomBlockHeader(7+i, randomID()), 1)
 		blk7.Header.Producer_ID = valIDBytes3
 		blk7.Header.Timestamp = blk.Header.Timestamp + vs.params.EpochLength + 1
