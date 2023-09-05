@@ -75,6 +75,17 @@ func NewAccumulator() *Accumulator {
 	}
 }
 
+// NewAccumulatorFromData returns a new accumulator from the raw data.
+// The proof store will be initialized but empty.
+func NewAccumulatorFromData(hashes [][]byte, nElements uint64) *Accumulator {
+	return &Accumulator{
+		acc:       hashes,
+		nElements: nElements,
+		proofs:    make(map[types.ID]*InclusionProof),
+		lookupMap: make(map[types.ID]uint64),
+	}
+}
+
 // Insert inserts a data element into the accumulator. The element is prepended
 // with data index and hashed. This will change the accumulator root. It is not
 // possible to go backwards and undo this operation so make sure you mean to do
