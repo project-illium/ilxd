@@ -542,7 +542,7 @@ func (s *GrpcServer) SubscribeCompressedBlocks(req *pb.SubscribeCompressedBlocks
 					resp := &pb.CompressedBlockNotification{
 						Block: &blocks.CompressedBlock{
 							Height: blk.Header.Height,
-							Txs:    nil,
+							Txs:    txs,
 						},
 					}
 					if err := stream.Send(resp); err != nil {

@@ -11,7 +11,6 @@
 package transactions
 
 import (
-	"github.com/project-illium/ilxd/types"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -82,8 +81,8 @@ type Transaction struct {
 	//	*Transaction_StakeTransaction
 	//	*Transaction_TreasuryTransaction
 	//	*Transaction_MintTransaction
-	Tx         isTransaction_Tx `protobuf_oneof:"Tx"`
-	cachedTxid types.ID
+	Tx isTransaction_Tx `protobuf_oneof:"Tx"`
+	cachedTxid []byte
 }
 
 func (x *Transaction) Reset() {
