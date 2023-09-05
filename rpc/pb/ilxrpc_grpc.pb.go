@@ -68,6 +68,9 @@ type BlockchainServiceClient interface {
 	// SubscribeBlocks returns a stream of notifications when new blocks are finalized and
 	// connected to the chain.
 	SubscribeBlocks(ctx context.Context, in *SubscribeBlocksRequest, opts ...grpc.CallOption) (BlockchainService_SubscribeBlocksClient, error)
+	// SubscribeCompressedBlocks returns a stream of CompressedBlock notifications when new
+	// blocks are finalized and connected to the chain.
+	SubscribeCompressedBlocks(ctx context.Context, in *SubscribeCompressedBlocksRequest, opts ...grpc.CallOption) (BlockchainService_SubscribeCompressedBlocksClient, error)
 }
 
 type blockchainServiceClient struct {
@@ -245,6 +248,38 @@ func (x *blockchainServiceSubscribeBlocksClient) Recv() (*BlockNotification, err
 	return m, nil
 }
 
+func (c *blockchainServiceClient) SubscribeCompressedBlocks(ctx context.Context, in *SubscribeCompressedBlocksRequest, opts ...grpc.CallOption) (BlockchainService_SubscribeCompressedBlocksClient, error) {
+	stream, err := c.cc.NewStream(ctx, &BlockchainService_ServiceDesc.Streams[1], "/pb.BlockchainService/SubscribeCompressedBlocks", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &blockchainServiceSubscribeCompressedBlocksClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type BlockchainService_SubscribeCompressedBlocksClient interface {
+	Recv() (*CompressedBlockNotification, error)
+	grpc.ClientStream
+}
+
+type blockchainServiceSubscribeCompressedBlocksClient struct {
+	grpc.ClientStream
+}
+
+func (x *blockchainServiceSubscribeCompressedBlocksClient) Recv() (*CompressedBlockNotification, error) {
+	m := new(CompressedBlockNotification)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // BlockchainServiceServer is the server API for BlockchainService service.
 // All implementations must embed UnimplementedBlockchainServiceServer
 // for forward compatibility
@@ -295,6 +330,9 @@ type BlockchainServiceServer interface {
 	// SubscribeBlocks returns a stream of notifications when new blocks are finalized and
 	// connected to the chain.
 	SubscribeBlocks(*SubscribeBlocksRequest, BlockchainService_SubscribeBlocksServer) error
+	// SubscribeCompressedBlocks returns a stream of CompressedBlock notifications when new
+	// blocks are finalized and connected to the chain.
+	SubscribeCompressedBlocks(*SubscribeCompressedBlocksRequest, BlockchainService_SubscribeCompressedBlocksServer) error
 	mustEmbedUnimplementedBlockchainServiceServer()
 }
 
@@ -349,6 +387,9 @@ func (UnimplementedBlockchainServiceServer) SubmitTransaction(context.Context, *
 }
 func (UnimplementedBlockchainServiceServer) SubscribeBlocks(*SubscribeBlocksRequest, BlockchainService_SubscribeBlocksServer) error {
 	return status.Errorf(codes.Unimplemented, "method SubscribeBlocks not implemented")
+}
+func (UnimplementedBlockchainServiceServer) SubscribeCompressedBlocks(*SubscribeCompressedBlocksRequest, BlockchainService_SubscribeCompressedBlocksServer) error {
+	return status.Errorf(codes.Unimplemented, "method SubscribeCompressedBlocks not implemented")
 }
 func (UnimplementedBlockchainServiceServer) mustEmbedUnimplementedBlockchainServiceServer() {}
 
@@ -654,6 +695,27 @@ func (x *blockchainServiceSubscribeBlocksServer) Send(m *BlockNotification) erro
 	return x.ServerStream.SendMsg(m)
 }
 
+func _BlockchainService_SubscribeCompressedBlocks_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(SubscribeCompressedBlocksRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(BlockchainServiceServer).SubscribeCompressedBlocks(m, &blockchainServiceSubscribeCompressedBlocksServer{stream})
+}
+
+type BlockchainService_SubscribeCompressedBlocksServer interface {
+	Send(*CompressedBlockNotification) error
+	grpc.ServerStream
+}
+
+type blockchainServiceSubscribeCompressedBlocksServer struct {
+	grpc.ServerStream
+}
+
+func (x *blockchainServiceSubscribeCompressedBlocksServer) Send(m *CompressedBlockNotification) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // BlockchainService_ServiceDesc is the grpc.ServiceDesc for BlockchainService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -726,6 +788,11 @@ var BlockchainService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "SubscribeBlocks",
 			Handler:       _BlockchainService_SubscribeBlocks_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "SubscribeCompressedBlocks",
+			Handler:       _BlockchainService_SubscribeCompressedBlocks_Handler,
 			ServerStreams: true,
 		},
 	},

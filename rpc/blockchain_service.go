@@ -507,3 +507,49 @@ func (s *GrpcServer) SubscribeBlocks(req *pb.SubscribeBlocksRequest, stream pb.B
 		}
 	}
 }
+
+// SubscribeCompressedBlocks returns a stream of CompressedBlock notifications when new
+// blocks are finalized and connected to the chain.
+func (s *GrpcServer) SubscribeCompressedBlocks(req *pb.SubscribeCompressedBlocksRequest, stream pb.BlockchainService_SubscribeCompressedBlocksServer) error {
+	sub := s.subscribeEvents()
+	defer sub.Close()
+
+	for {
+		select {
+		case <-s.quit:
+			return nil
+		case n := <-sub.C:
+			if notif, ok := n.(*blockchain.Notification); ok {
+				if notif.Type == blockchain.NTBlockConnected {
+					blk, ok := notif.Data.(*blocks.Block)
+					if !ok {
+						continue
+					}
+
+					txs := make([]*blocks.CompressedBlock_CompressedTx, 0, len(blk.Transactions))
+					for _, tx := range blk.Transactions {
+						nullifers := make([][]byte, 0, len(tx.Nullifiers()))
+						for _, n := range tx.Nullifiers() {
+							nullifers = append(nullifers, n.Bytes())
+						}
+						txs = append(txs, &blocks.CompressedBlock_CompressedTx{
+							Txid:       tx.ID().Bytes(),
+							Nullifiers: nullifers,
+							Outputs:    tx.Outputs(),
+						})
+					}
+
+					resp := &pb.CompressedBlockNotification{
+						Block: &blocks.CompressedBlock{
+							Height: blk.Header.Height,
+							Txs:    nil,
+						},
+					}
+					if err := stream.Send(resp); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+}
