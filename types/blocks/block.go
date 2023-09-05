@@ -256,10 +256,15 @@ func (b *XThinnerBlock) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type compressedBlockJSON struct {
-	Height     uint32                 `json:"height"`
+type compressedTransactionJSON struct {
+	Txid       types.HexEncodable     `json:"txid"`
 	Nullifiers []types.HexEncodable   `json:"nullifiers"`
 	Outputs    []*transactions.Output `json:"outputs"`
+}
+
+type compressedBlockJSON struct {
+	Height       uint32 `json:"height"`
+	Transactions []compressedTransactionJSON
 }
 
 func (b *CompressedBlock) SerializedSize() (int, error) {
@@ -276,20 +281,25 @@ func (b *CompressedBlock) Deserialize(data []byte) error {
 		return err
 	}
 	b.Height = newBlock.Height
-	b.Nullifiers = newBlock.Nullifiers
-	b.Outputs = newBlock.Outputs
+	b.Txs = newBlock.Txs
 	return nil
 }
 
 func (b *CompressedBlock) MarshalJSON() ([]byte, error) {
-	nullifiers := make([]types.HexEncodable, 0, len(b.Nullifiers))
-	for _, n := range b.Nullifiers {
-		nullifiers = append(nullifiers, n)
-	}
 	s := &compressedBlockJSON{
-		Height:     b.Height,
-		Nullifiers: nullifiers,
-		Outputs:    b.Outputs,
+		Height:       b.Height,
+		Transactions: make([]compressedTransactionJSON, 0, len(b.Txs)),
+	}
+	for _, tx := range b.Txs {
+		nullifiers := make([]types.HexEncodable, 0, len(tx.Nullifiers))
+		for _, n := range tx.Nullifiers {
+			nullifiers = append(nullifiers, n)
+		}
+		s.Transactions = append(s.Transactions, compressedTransactionJSON{
+			Txid:       tx.Txid,
+			Nullifiers: nullifiers,
+			Outputs:    tx.Outputs,
+		})
 	}
 	return json.Marshal(s)
 }
@@ -299,14 +309,21 @@ func (b *CompressedBlock) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, newBlock); err != nil {
 		return err
 	}
-	nullifiers := make([][]byte, 0, len(newBlock.Nullifiers))
-	for _, n := range newBlock.Nullifiers {
-		nullifiers = append(nullifiers, n)
-	}
+
 	*b = CompressedBlock{
-		Height:     newBlock.Height,
-		Nullifiers: nullifiers,
-		Outputs:    newBlock.Outputs,
+		Height: newBlock.Height,
+		Txs:    make([]*CompressedBlock_CompressedTx, 0, len(newBlock.Transactions)),
+	}
+	for _, tx := range newBlock.Transactions {
+		nullifiers := make([][]byte, 0, len(tx.Nullifiers))
+		for _, n := range tx.Nullifiers {
+			nullifiers = append(nullifiers, n)
+		}
+		b.Txs = append(b.Txs, &CompressedBlock_CompressedTx{
+			Txid:       tx.Txid,
+			Nullifiers: nullifiers,
+			Outputs:    tx.Outputs,
+		})
 	}
 	return nil
 }

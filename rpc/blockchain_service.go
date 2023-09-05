@@ -180,11 +180,6 @@ func (s *GrpcServer) GetCompressedBlock(ctx context.Context, req *pb.GetCompress
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
-	blkNullifiers := blk.Nullifiers()
-	nullifiers := make([][]byte, 0, len(blkNullifiers))
-	for _, n := range blkNullifiers {
-		nullifiers = append(nullifiers, n[:])
-	}
 
 	cb := &blocks.CompressedBlock{
 		Height: blk.Header.Height,
