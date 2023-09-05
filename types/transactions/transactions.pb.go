@@ -74,7 +74,6 @@ type Transaction struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
-        cachedTxid    []byte
 
 	// Types that are assignable to Tx:
 	//	*Transaction_StandardTransaction
@@ -83,6 +82,7 @@ type Transaction struct {
 	//	*Transaction_TreasuryTransaction
 	//	*Transaction_MintTransaction
 	Tx isTransaction_Tx `protobuf_oneof:"Tx"`
+	cachedTxid []byte
 }
 
 func (x *Transaction) Reset() {

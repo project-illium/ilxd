@@ -68,6 +68,10 @@ service BlockchainService {
     // SubscribeBlocks returns a stream of notifications when new blocks are finalized and
     // connected to the chain.
     rpc SubscribeBlocks(SubscribeBlocksRequest) returns (stream BlockNotification) {}
+
+    // SubscribeCompressedBlocks returns a stream of CompressedBlock notifications when new
+    // blocks are finalized and connected to the chain.
+    rpc SubscribeCompressedBlocks(SubscribeCompressedBlocksRequest) returns (stream CompressedBlockNotification) {}
 }
 
 service WalletServerService {
@@ -505,6 +509,8 @@ message SubscribeBlocksRequest {
     // a marshaled block.
     bool full_transactions = 2;
 }
+
+message SubscribeCompressedBlocksRequest {}
 
 // WalletServerService
 message RegisterViewKeyRequest {
@@ -1044,6 +1050,12 @@ message BlockNotification {
     // The transactions will either be returned in for or just the txids depending
     // on the request.
     repeated TransactionData transactions = 2;
+}
+
+message CompressedBlockNotification {
+    // A compressed block containing only the height,
+    // txids, outputs, and nullifiers.
+    CompressedBlock block = 1;
 }
 
 // DATA MESSAGES
