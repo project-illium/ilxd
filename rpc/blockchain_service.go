@@ -228,7 +228,7 @@ func (s *GrpcServer) GetHeaders(ctx context.Context, req *pb.GetHeadersRequest) 
 // GetCompressedBlocks returns a batch of CompressedBlocks according to the request parameters.
 func (s *GrpcServer) GetCompressedBlocks(ctx context.Context, req *pb.GetCompressedBlocksRequest) (*pb.GetCompressedBlocksResponse, error) {
 	endHeight := req.EndHeight
-	if endHeight-req.StartHeight+1 > maxBatchSize {
+	if endHeight-req.StartHeight+1 > maxBatchSize || endHeight <= 0 {
 		endHeight = req.StartHeight + maxBatchSize - 1
 	}
 	_, bestHeight, _ := s.chain.BestBlock()
