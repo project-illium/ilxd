@@ -74,6 +74,7 @@ type Transaction struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
+        cachedTxid    []byte
 
 	// Types that are assignable to Tx:
 	//	*Transaction_StandardTransaction

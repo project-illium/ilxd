@@ -47,8 +47,17 @@ type txWrapperJSON struct {
 }
 
 func (tx *Transaction) ID() types.ID {
+	if len(tx.cachedTxid) > 0 {
+		return types.NewID(tx.cachedTxid)
+	}
 	ser, _ := tx.Serialize()
-	return types.NewIDFromData(ser)
+	id := types.NewIDFromData(ser)
+	tx.cachedTxid = id.Bytes()
+	return id
+}
+
+func (tx *Transaction) CacheTxid(txid types.ID) {
+	tx.cachedTxid = txid.Bytes()
 }
 
 func (tx *Transaction) UID() types.ID {
