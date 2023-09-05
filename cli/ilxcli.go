@@ -161,7 +161,7 @@ func makeBlockchainClient(opts *options) (pb.BlockchainServiceClient, error) {
 		err   error
 	)
 	if opts.RPCCert != "" {
-		creds, err = credentials.NewClientTLSFromFile(certFile, "localhost")
+		creds, err = credentials.NewClientTLSFromFile(certFile, "")
 		if err != nil {
 			return nil, err
 		}
@@ -192,7 +192,7 @@ func makeNodeClient(opts *options) (pb.NodeServiceClient, error) {
 		err   error
 	)
 	if opts.RPCCert != "" {
-		creds, err = credentials.NewClientTLSFromFile(certFile, "localhost")
+		creds, err = credentials.NewClientTLSFromFile(certFile, "")
 		if err != nil {
 			return nil, err
 		}
@@ -223,7 +223,7 @@ func makeWalletClient(opts *options) (pb.WalletServiceClient, error) {
 		err   error
 	)
 	if opts.RPCCert != "" {
-		creds, err = credentials.NewClientTLSFromFile(certFile, "localhost")
+		creds, err = credentials.NewClientTLSFromFile(certFile, "")
 		if err != nil {
 			return nil, err
 		}

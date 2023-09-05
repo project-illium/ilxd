@@ -186,12 +186,24 @@ func (s *GrpcServer) GetCompressedBlock(ctx context.Context, req *pb.GetCompress
 		nullifiers = append(nullifiers, n[:])
 	}
 
-	return &pb.GetCompressedBlockResponse{
-		Block: &blocks.CompressedBlock{
-			Height:     blk.Header.Height,
+	cb := &blocks.CompressedBlock{
+		Height: blk.Header.Height,
+		Txs:    make([]*blocks.CompressedBlock_CompressedTx, 0, len(blk.Transactions)),
+	}
+	for _, tx := range blk.Transactions {
+		nullifiers := make([][]byte, 0, len(tx.Nullifiers()))
+		for _, n := range tx.Nullifiers() {
+			nullifiers = append(nullifiers, n.Bytes())
+		}
+		cb.Txs = append(cb.Txs, &blocks.CompressedBlock_CompressedTx{
+			Txid:       tx.ID().Bytes(),
 			Nullifiers: nullifiers,
-			Outputs:    blk.Outputs(),
-		},
+			Outputs:    tx.Outputs(),
+		})
+	}
+
+	return &pb.GetCompressedBlockResponse{
+		Block: cb,
 	}, nil
 }
 
@@ -234,10 +246,22 @@ func (s *GrpcServer) GetCompressedBlocks(ctx context.Context, req *pb.GetCompres
 		if err != nil {
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
-		blks = append(blks, &blocks.CompressedBlock{
-			Height:  blk.Header.Height,
-			Outputs: blk.Outputs(),
-		})
+		cb := &blocks.CompressedBlock{
+			Height: blk.Header.Height,
+			Txs:    make([]*blocks.CompressedBlock_CompressedTx, 0, len(blk.Transactions)),
+		}
+		for _, tx := range blk.Transactions {
+			nullifiers := make([][]byte, 0, len(tx.Nullifiers()))
+			for _, n := range tx.Nullifiers() {
+				nullifiers = append(nullifiers, n.Bytes())
+			}
+			cb.Txs = append(cb.Txs, &blocks.CompressedBlock_CompressedTx{
+				Txid:       tx.ID().Bytes(),
+				Nullifiers: nullifiers,
+				Outputs:    tx.Outputs(),
+			})
+		}
+		blks = append(blks, cb)
 	}
 	return &pb.GetCompressedBlocksResponse{
 		Blocks: blks,

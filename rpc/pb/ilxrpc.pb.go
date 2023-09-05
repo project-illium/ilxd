@@ -7964,11 +7964,18 @@ type Validator_Stake struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Nullifier          []byte `protobuf:"bytes,1,opt,name=nullifier,proto3" json:"nullifier,omitempty"`
-	Amount             uint64 `protobuf:"varint,2,opt,name=amount,proto3" json:"amount,omitempty"`
-	TimelockedUntil    int64  `protobuf:"varint,3,opt,name=timelocked_until,json=timelockedUntil,proto3" json:"timelocked_until,omitempty"`
-	Expiration         int64  `protobuf:"varint,4,opt,name=expiration,proto3" json:"expiration,omitempty"`
-	RestakeEligibility int64  `protobuf:"varint,5,opt,name=restake_eligibility,json=restakeEligibility,proto3" json:"restake_eligibility,omitempty"`
+	// The nullifier that is staked
+	Nullifier []byte `protobuf:"bytes,1,opt,name=nullifier,proto3" json:"nullifier,omitempty"`
+	// The amount staked
+	Amount uint64 `protobuf:"varint,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	// The timestamp that this utxo is timelocked until
+	TimelockedUntil int64 `protobuf:"varint,3,opt,name=timelocked_until,json=timelockedUntil,proto3" json:"timelocked_until,omitempty"`
+	// When this nullifier will expire and be removed from
+	// the validator set.
+	Expiration int64 `protobuf:"varint,4,opt,name=expiration,proto3" json:"expiration,omitempty"`
+	// The earliest date at which this nullifier can be restaked.
+	// One week before expiration.
+	RestakeEligibility int64 `protobuf:"varint,5,opt,name=restake_eligibility,json=restakeEligibility,proto3" json:"restake_eligibility,omitempty"`
 }
 
 func (x *Validator_Stake) Reset() {
