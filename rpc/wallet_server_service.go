@@ -107,6 +107,8 @@ func (s *GrpcServer) GetWalletTransactions(ctx context.Context, req *pb.GetWalle
 		}
 	}
 
+	_, tipHeight, _ := s.chain.BestBlock()
+
 	txids, err := s.wsIndex.GetTransactionsIDs(s.ds, viewKey)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -141,6 +143,7 @@ func (s *GrpcServer) GetWalletTransactions(ctx context.Context, req *pb.GetWalle
 	}
 
 	return &pb.GetWalletTransactionsResponse{
+		ChainHeight:  tipHeight,
 		Transactions: txs,
 	}, nil
 }

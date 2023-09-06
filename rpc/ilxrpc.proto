@@ -559,8 +559,10 @@ message GetWalletTransactionsRequest{
     }
 }
 message GetWalletTransactionsResponse {
+    // The height of the chain as of this query
+    uint32 chain_height               = 1;
     // A list of transactions as the response
-    repeated Transaction transactions = 1;
+    repeated Transaction transactions = 2;
 }
 
 message GetTxoProofRequest {
