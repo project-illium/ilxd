@@ -65,7 +65,7 @@ type Accumulator struct {
 	lookupMap map[types.ID]uint64
 }
 
-// NewAccumulator returns a new Accumulator.
+// NewAccumulator returns a new Accumulator
 func NewAccumulator() *Accumulator {
 	return &Accumulator{
 		acc:       make([][]byte, 1),

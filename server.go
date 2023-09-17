@@ -30,6 +30,7 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/walletlib"
+	"github.com/project-illium/walletlib/client"
 	"go.uber.org/zap"
 	"sort"
 	stdsync "sync"
@@ -212,9 +213,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		walletlib.DataDir(config.WalletDir),
 		walletlib.Params(netParams),
 		walletlib.FeePerKB(policy.GetMinFeePerKilobyte()),
-		walletlib.GetBlockFunction(chain.GetBlockByHeight),
-		walletlib.GetAccumulatorCheckpointFunction(chain.GetAccumulatorCheckpointByHeight),
-		walletlib.BroadcastFunction(s.submitTransaction),
+		walletlib.BlockchainSource(s.makeBlockchainClient(chain)),
 	}
 	if config.WalletSeed != "" {
 		walletOpts = append(walletOpts, walletlib.MnemonicSeed(config.WalletSeed))
@@ -390,8 +389,8 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.params = netParams
 	s.ds = ds
 	s.network = network
-	s.blockchain = chain
 	s.mempool = mpool
+	s.blockchain = chain
 	s.engine = engine
 	s.syncManager = sync.NewSyncManager(ctx, chain, network, netParams, s.chainService, s.consensusChoose, s.handleCurrentStatusChange)
 	s.orphanBlocks = make(map[types.ID]*orphanBlock)
@@ -500,7 +499,6 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 	case blockchain.NTBlockConnected:
 		if blk, ok := ntf.Data.(*blocks.Block); ok {
 			s.mempool.RemoveBlockTransactions(blk.Transactions)
-			s.wallet.ConnectBlock(blk)
 
 			s.autoStakeLock.RLock()
 			defer s.autoStakeLock.RUnlock()
@@ -866,6 +864,35 @@ func (s *Server) Close() error {
 		return err
 	}
 	return nil
+}
+
+func (s *Server) makeBlockchainClient(chain *blockchain.Blockchain) *client.InternalClient {
+	c := &client.InternalClient{
+		BroadcastFunc:                s.submitTransaction,
+		GetAccumulatorCheckpointFunc: chain.GetAccumulatorCheckpointByHeight,
+		GetBlocksFunc: func(from, to uint32) ([]*blocks.Block, error) {
+			blocks := make([]*blocks.Block, 0, to-from+1)
+			for i := from; i <= to; i++ {
+				blk, err := chain.GetBlockByHeight(i)
+				if err != nil {
+					return nil, err
+				}
+				blocks = append(blocks, blk)
+			}
+			return blocks, nil
+		},
+		SubscribeBlocksFunc: func() (<-chan *blocks.Block, error) {
+			ch := make(chan *blocks.Block)
+			chain.Subscribe(func(ntf *blockchain.Notification) {
+				if blk, ok := ntf.Data.(*blocks.Block); ok && ntf.Type == blockchain.NTBlockConnected {
+					ch <- blk
+				}
+			})
+			return ch, nil
+		},
+		CloseFunc: func() {},
+	}
+	return c
 }
 
 func (s *Server) limitOrphans() {
