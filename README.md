@@ -1,7 +1,9 @@
 [![Go](https://github.com/project-illium/ilxd/actions/workflows/go.yml/badge.svg)](https://github.com/project-illium/ilxd/actions/workflows/go.yml)
 [![golangci-lint](https://github.com/project-illium/ilxd/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/project-illium/ilxd/actions/workflows/golangci-lint.yml)
 
-![](https://raw.githubusercontent.com/project-illium/faucet/master/static/logo-white.png)
+<h1 align="center">
+<img src="https://raw.githubusercontent.com/project-illium/faucet/master/static/logo-white.png" alt="Illium logo" title="Illium logo">
+</h1>
 
 # ilxd
 illium full node implementation written in Go
