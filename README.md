@@ -1,6 +1,8 @@
 [![Go](https://github.com/project-illium/ilxd/actions/workflows/go.yml/badge.svg)](https://github.com/project-illium/ilxd/actions/workflows/go.yml)
 [![golangci-lint](https://github.com/project-illium/ilxd/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/project-illium/ilxd/actions/workflows/golangci-lint.yml)
 
+![](https://raw.githubusercontent.com/project-illium/faucet/master/static/logo-white.png)
+
 # ilxd
 illium full node implementation written in Go
 
@@ -14,5 +16,39 @@ If you want to test this alpha version you can download the binaries from the gi
 the `--alpha` flag.
 
 ```go
-ilxd --alpha
+$ ilxd --alpha
 ```
+
+### Install
+Head over to the [releases](https://github.com/project-illium/ilxd/releases) page and download the lastest release for
+your operating system. 
+
+The release contains two binaries: `ilxd` and `ilxcli`. `ilxd` is the illium full node application and `ilxcli` is a 
+command line application that is used to control and interact with a running node.
+
+### Build From Source
+Please note that the master branch is considered under active development and may contain bugs. If you are running in
+a production environment please checkout a release tag. 
+
+Currently `ilxd` will only build on go 1.20. This is a limmitation of some of the internal libp2p packages. When we update
+libp2p we can update the version of go we use. 
+
+```
+$ git clone https://github.com/project-illium/ilxd.git
+$ cd ilxd
+$ make install
+```
+This command builds both `ilxd` and `ilxcli`. The binaries will be put in `$GOPATH/bin`.
+
+To put this directory in your path add these lines to your `/etc/profile` (for a system-wide installation) or `$HOME/.profile`:
+
+```
+export PATH=$PATH:/usr/local/go/bin
+export PATH=$PATH:$GOPATH/bin
+```
+
+### Usage
+Vist [docs.illium.org](https://docs.illium.org/docs/node/running_a_node) for a comprehensive guide to running a node.
+
+### Contributing
+We'd love your help! See the [contributing guidlines](https://github.com/project-illium/ilxd/blob/master/CONTRIBUTING.md) before submitting your first PR.
