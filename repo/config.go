@@ -225,7 +225,7 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
-	cfg.UserAgent = "/ilxd/" + VersionString() + "/" + cfg.UserAgent + "/"
+	cfg.UserAgent = "/ilxd/" + VersionString() + "/" + cfg.UserAgent
 	if cfg.Policy.MinFeePerKilobyte == 0 {
 		cfg.Policy.MinFeePerKilobyte = DefaultFeePerKilobyte
 	}
