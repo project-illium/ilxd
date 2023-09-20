@@ -5,6 +5,7 @@ issues:
     - "copylocks: call of json.Marshal copies lock value: github.com/project-illium/ilxd/types/blocks.Block contains google.golang.org/protobuf/internal/impl.MessageState contains sync.Mutex"
     - "lostcancel: this return statement may be reached without using the cancel var defined on line 86"
     - "Error return value of `s.processBlock` is not checked"
+    - "Error return value of `vc.host.Connect` is not checked"
     - "const `scsNbCodes` is unused"
     - "Error return value of `parser.AddCommand` is not checked"
     - "Error return value of `parser.AddGroup` is not checked"

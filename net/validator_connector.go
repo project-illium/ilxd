@@ -90,20 +90,20 @@ func (vc *ValidatorConnector) update() {
 	vc.mtx.Unlock()
 }
 
-func (vc *ValidatorConnector) handleBlockchainNotification(ntf *blockchain.Notification) {
+func (vc *ValidatorConnector) HandleBlockchainNotification(ntf *blockchain.Notification) {
 	if ntf.Type == blockchain.NTValidatorSetUpdate {
 		vc.update()
 	}
 }
 
-func (vc *ValidatorConnector) handlePeerConnected(_ inet.Network, conn inet.Conn) {
+func (vc *ValidatorConnector) HandlePeerConnected(_ inet.Network, conn inet.Conn) {
 	_, err := vc.getValidatorFunc(conn.RemotePeer())
 	if err == nil {
 		vc.update()
 	}
 }
 
-func (vc *ValidatorConnector) handlePeerDisconnected(_ inet.Network, conn inet.Conn) {
+func (vc *ValidatorConnector) HandlePeerDisconnected(_ inet.Network, conn inet.Conn) {
 	_, err := vc.getValidatorFunc(conn.RemotePeer())
 	if err == nil {
 		vc.update()
