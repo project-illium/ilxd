@@ -6,9 +6,9 @@ package net
 
 import (
 	"context"
+	"github.com/libp2p/go-libp2p/core/host"
 	inet "github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/types"
 	"sync"
@@ -24,12 +24,12 @@ type ValidatorConnector struct {
 	connectedPercentage float64
 	getValidatorFunc    func(validatorID peer.ID) (*blockchain.Validator, error)
 	getValidatorsFunc   func() []*blockchain.Validator
-	host                *routedhost.RoutedHost
+	host                host.Host
 	mtx                 sync.RWMutex
 }
 
 // NewValidatorConnector returns a new ValidatorConnector
-func NewValidatorConnector(host *routedhost.RoutedHost, ownID peer.ID,
+func NewValidatorConnector(host host.Host, ownID peer.ID,
 	getValidatorFunc func(validatorID peer.ID) (*blockchain.Validator, error),
 	getValidatorsFunc func() []*blockchain.Validator,
 	blockchainSubscribeFunc func(cb blockchain.NotificationCallback)) *ValidatorConnector {
@@ -90,7 +90,6 @@ func (vc *ValidatorConnector) update() {
 				go vc.host.Connect(context.Background(), peer.AddrInfo{ID: val.PeerID})
 			}
 		}
-
 	}
 
 	vc.mtx.Lock()
