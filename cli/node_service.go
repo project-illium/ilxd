@@ -99,7 +99,7 @@ func (x *GetPeers) Execute(args []string) error {
 }
 
 type AddPeer struct {
-	Addr string `short:"a" long:"addr" description:"The peer address to add. This must be in multiaddr format and include the p2p field. Ex) /ip4/167.172.126.176/tcp/4001/p2p/12D3KooWHnpVyu9XDeFoAVayqr9hvc9xPqSSHtCSFLEkKgcz5Wro"`
+	Peer string `short:"p" long:"peer" description:"The peer ID to connect to. The IP address will be looked up in the DHT if necessary."`
 	opts *options
 }
 
@@ -109,7 +109,7 @@ func (x *AddPeer) Execute(args []string) error {
 		return err
 	}
 	_, err = client.AddPeer(makeContext(x.opts.AuthToken), &pb.AddPeerRequest{
-		Addr: x.Addr,
+		Peer_ID: x.Peer,
 	})
 	if err != nil {
 		return err

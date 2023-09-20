@@ -8,7 +8,6 @@ import (
 	"context"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/multiformats/go-multiaddr"
 	"github.com/project-illium/ilxd/rpc/pb"
 	"github.com/project-illium/ilxd/types"
 	"go.uber.org/zap/zapcore"
@@ -79,22 +78,11 @@ func (s *GrpcServer) GetPeers(ctx context.Context, req *pb.GetPeersRequest) (*pb
 
 // AddPeer attempts to connect to the provided peer
 func (s *GrpcServer) AddPeer(ctx context.Context, req *pb.AddPeerRequest) (*pb.AddPeerResponse, error) {
-	ma, err := multiaddr.NewMultiaddr(req.Addr)
+	peerID, err := peer.Decode(req.Peer_ID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	pid, err := ma.ValueForProtocol(multiaddr.P_P2P)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	peerID, err := peer.Decode(pid)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	err = s.network.Host().Connect(ctx, peer.AddrInfo{
-		ID:    peerID,
-		Addrs: []multiaddr.Multiaddr{ma},
-	})
+	err = s.network.Host().Connect(ctx, peer.AddrInfo{ID: peerID})
 	if err != nil {
 		return nil, err
 	}

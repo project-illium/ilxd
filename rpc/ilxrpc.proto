@@ -938,10 +938,9 @@ message GetPeersResponse {
 }
 
 message AddPeerRequest {
-    // The peer addr to add. This must be in multiaddr format and include
-    // the /p2p/<peerID> field.
-    // Ex) /ip4/167.172.126.176/tcp/4001/p2p/12D3KooWHnpVyu9XDeFoAVayqr9hvc9xPqSSHtCSFLEkKgcz5Wro
-    string addr = 1;
+    // The peer addr to add. The IP addresses for the peer
+    // will be looked up in the DHT if necessary.
+    string peer_ID = 1;
 }
 message AddPeerResponse {}
 
