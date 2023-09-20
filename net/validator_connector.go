@@ -41,6 +41,11 @@ func NewValidatorConnector(host *routedhost.RoutedHost, ownID peer.ID,
 		mtx:               sync.RWMutex{},
 	}
 
+	host.Network().Notify(&inet.NotifyBundle{
+		ConnectedF:    vc.handlePeerConnected,
+		DisconnectedF: vc.handlePeerDisconnected,
+	})
+
 	go vc.run()
 	return vc
 }
@@ -96,14 +101,14 @@ func (vc *ValidatorConnector) HandleBlockchainNotification(ntf *blockchain.Notif
 	}
 }
 
-func (vc *ValidatorConnector) HandlePeerConnected(_ inet.Network, conn inet.Conn) {
+func (vc *ValidatorConnector) handlePeerConnected(_ inet.Network, conn inet.Conn) {
 	_, err := vc.getValidatorFunc(conn.RemotePeer())
 	if err == nil {
 		vc.update()
 	}
 }
 
-func (vc *ValidatorConnector) HandlePeerDisconnected(_ inet.Network, conn inet.Conn) {
+func (vc *ValidatorConnector) handlePeerDisconnected(_ inet.Network, conn inet.Conn) {
 	_, err := vc.getValidatorFunc(conn.RemotePeer())
 	if err == nil {
 		vc.update()

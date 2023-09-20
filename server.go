@@ -14,7 +14,6 @@ import (
 	badger "github.com/ipfs/go-ds-badger"
 	golog "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	inet "github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/project-illium/ilxd/blockchain"
@@ -331,10 +330,6 @@ func BuildServer(config *repo.Config) (*Server, error) {
 
 	valConn := net.NewValidatorConnector(routedhost.Wrap(network.Host(), network.Dht()), hostID, chain.GetValidator, chain.Validators)
 	chain.Subscribe(valConn.HandleBlockchainNotification)
-	network.Host().Network().Notify(&inet.NotifyBundle{
-		ConnectedF:    valConn.HandlePeerConnected,
-		DisconnectedF: valConn.HandlePeerDisconnected,
-	})
 
 	engine, err := consensus.NewConsensusEngine(ctx, []consensus.Option{
 		consensus.Params(netParams),
