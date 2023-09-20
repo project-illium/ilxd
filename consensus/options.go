@@ -56,6 +56,10 @@ func Chooser(chooser blockchain.WeightedChooser) Option {
 	}
 }
 
+// ValidatorConnector is an implementation of the ValidatorSetConnection interface
+// used to determine if we have a validator set connections to provide consensus.
+//
+// This option is required.
 func ValidatorConnector(valConn ValidatorSetConnection) Option {
 	return func(cfg *config) error {
 		cfg.valConn = valConn
