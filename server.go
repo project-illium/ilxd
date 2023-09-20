@@ -327,9 +327,12 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		return nil, err
 	}
 
+	valConn := net.NewValidatorConnector(network.Host(), hostID, chain.GetValidator, chain.Validators, chain.Subscribe)
+
 	engine, err := consensus.NewConsensusEngine(ctx, []consensus.Option{
 		consensus.Params(netParams),
 		consensus.Network(network),
+		consensus.ValidatorConnector(valConn),
 		consensus.Chooser(chain),
 		consensus.RequestBlock(s.requestBlock),
 		consensus.HasBlock(chain.HasBlock),

@@ -53,10 +53,15 @@ const (
 	// ConsensusProtocol is the libp2p network protocol ID
 	ConsensusProtocol = "/consensus/"
 
+	// ConsensusProtocolVersion is the version of the ConsensusProtocol
 	ConsensusProtocolVersion = "1.0.0"
 
 	// MaxRejectedCache is the maximum size of the rejected cache
 	MaxRejectedCache = 200
+
+	// MinConnectedStakeThreshold is the minimum percentage of the weighted stake
+	// set we must be connected to in order to finalize blocks.
+	MinConnectedStakeThreshold = .5
 )
 
 // requestExpirationMsg signifies a request has expired and
@@ -104,6 +109,7 @@ type ConsensusEngine struct {
 	params       *params.NetworkParams
 	chooser      *BackoffChooser
 	ms           net.MessageSender
+	valConn      ValidatorSetConnection
 	self         peer.ID
 	wg           sync.WaitGroup
 	requestBlock RequestBlockFunc
@@ -134,6 +140,7 @@ func NewConsensusEngine(ctx context.Context, opts ...Option) (*ConsensusEngine, 
 	eng := &ConsensusEngine{
 		ctx:            ctx,
 		network:        cfg.network,
+		valConn:        cfg.valConn,
 		chooser:        NewBackoffChooser(cfg.chooser),
 		params:         cfg.params,
 		self:           cfg.self,
@@ -358,6 +365,9 @@ func (eng *ConsensusEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer pee
 			return
 		}
 	} else {
+		// Sleep here to not artificially advantage our own node.
+		time.Sleep(time.Millisecond * 20)
+
 		respCh := make(chan *wire.MsgAvaResponse)
 		eng.msgChan <- &queryMsg{
 			request:    req,
@@ -455,6 +465,9 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 }
 
 func (eng *ConsensusEngine) pollLoop() {
+	if eng.valConn.ConnectedStakePercentage() < MinConnectedStakeThreshold {
+		return
+	}
 	invs := eng.getInvsForNextPoll()
 	if len(invs) == 0 {
 		return

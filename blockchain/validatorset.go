@@ -320,9 +320,9 @@ func (vs *ValidatorSet) SubscribeEvents(callback NotificationCallback) {
 	vs.notifMtx.Unlock()
 }
 
-func (vs *ValidatorSet) sendNotification(peerID peer.ID, typ NotificationType) {
+func (vs *ValidatorSet) sendNotification(data interface{}, typ NotificationType) {
 	vs.notifMtx.RLock()
-	n := Notification{Type: typ, Data: peerID}
+	n := Notification{Type: typ, Data: data}
 	for _, callback := range vs.notifications {
 		callback(&n)
 	}
@@ -759,6 +759,10 @@ func (tx *VsTransction) Commit(flushMode flushMode) error {
 		tx.vs.EpochBlocks = 0
 	}
 	tx.vs.EpochBlocks++
+
+	if len(tx.nullifiersToAdd) > 0 || len(tx.nullifiersToDelete) > 0 {
+		tx.vs.sendNotification(struct{}{}, NTValidatorSetUpdate)
+	}
 
 	return tx.vs.flush(flushMode, tx.blockHeight)
 }
