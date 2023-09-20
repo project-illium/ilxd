@@ -31,7 +31,8 @@ type ValidatorConnector struct {
 // NewValidatorConnector returns a new ValidatorConnector
 func NewValidatorConnector(host *routedhost.RoutedHost, ownID peer.ID,
 	getValidatorFunc func(validatorID peer.ID) (*blockchain.Validator, error),
-	getValidatorsFunc func() []*blockchain.Validator) *ValidatorConnector {
+	getValidatorsFunc func() []*blockchain.Validator,
+	blockchainSubscribeFunc func(cb blockchain.NotificationCallback)) *ValidatorConnector {
 
 	vc := &ValidatorConnector{
 		ownID:             ownID,
@@ -40,6 +41,8 @@ func NewValidatorConnector(host *routedhost.RoutedHost, ownID peer.ID,
 		host:              host,
 		mtx:               sync.RWMutex{},
 	}
+
+	blockchainSubscribeFunc(vc.handleBlockchainNotification)
 
 	host.Network().Notify(&inet.NotifyBundle{
 		ConnectedF:    vc.handlePeerConnected,
@@ -95,7 +98,7 @@ func (vc *ValidatorConnector) update() {
 	vc.mtx.Unlock()
 }
 
-func (vc *ValidatorConnector) HandleBlockchainNotification(ntf *blockchain.Notification) {
+func (vc *ValidatorConnector) handleBlockchainNotification(ntf *blockchain.Notification) {
 	if ntf.Type == blockchain.NTValidatorSetUpdate {
 		vc.update()
 	}
