@@ -56,6 +56,13 @@ func Chooser(chooser blockchain.WeightedChooser) Option {
 	}
 }
 
+func ValidatorConnector(valConn ValidatorSetConnection) Option {
+	return func(cfg *config) error {
+		cfg.valConn = valConn
+		return nil
+	}
+}
+
 // RequestBlock is a function which requests to download a block
 // from the given peer.
 //
@@ -92,6 +99,7 @@ func PeerID(self peer.ID) Option {
 type config struct {
 	params       *params.NetworkParams
 	network      *net.Network
+	valConn      ValidatorSetConnection
 	chooser      blockchain.WeightedChooser
 	self         peer.ID
 	requestBlock RequestBlockFunc
@@ -107,6 +115,9 @@ func (cfg *config) validate() error {
 	}
 	if cfg.network == nil {
 		return AssertError("NewConsensusEngine: network cannot be nil")
+	}
+	if cfg.valConn == nil {
+		return AssertError("NewConsensusEngine: validator connector cannot be nil")
 	}
 	if cfg.chooser == nil {
 		return AssertError("NewConsensusEngine: chooser cannot be nil")

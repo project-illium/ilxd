@@ -15,6 +15,7 @@ import (
 	golog "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
+	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/blockchain/indexers"
 	"github.com/project-illium/ilxd/consensus"
@@ -327,9 +328,12 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		return nil, err
 	}
 
+	valConn := net.NewValidatorConnector(routedhost.Wrap(network.Host(), network.Dht()), hostID, chain.GetValidator, chain.Validators)
+
 	engine, err := consensus.NewConsensusEngine(ctx, []consensus.Option{
 		consensus.Params(netParams),
 		consensus.Network(network),
+		consensus.ValidatorConnector(valConn),
 		consensus.Chooser(chain),
 		consensus.RequestBlock(s.requestBlock),
 		consensus.HasBlock(chain.HasBlock),

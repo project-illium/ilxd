@@ -75,6 +75,9 @@ func (b *BackoffChooser) RegisterDialFailure(p peer.ID) {
 // RegisterDialSuccess deletes the exponential backoff for the
 // given peer.
 func (b *BackoffChooser) RegisterDialSuccess(p peer.ID) {
-	log.Debugf("[CONSENSUS] removing backoff for peer %s", p.String())
-	delete(b.peerMap, p)
+	_, ok := b.peerMap[p]
+	if ok {
+		log.Debugf("[CONSENSUS] removing backoff from peer %s", p.String())
+		delete(b.peerMap, p)
+	}
 }

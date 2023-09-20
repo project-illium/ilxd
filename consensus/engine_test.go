@@ -38,6 +38,12 @@ func (m *MockChooser) WeightedRandomValidator() peer.ID {
 	return peers[i]
 }
 
+type MockValConn struct{}
+
+func (m *MockValConn) ConnectedStakePercentage() float64 {
+	return 100
+}
+
 type mockNode struct {
 	engine *ConsensusEngine
 }
@@ -65,6 +71,7 @@ func newMockNode(mn mocknet.Mocknet) (*mockNode, error) {
 	engine, err := NewConsensusEngine(context.Background(),
 		Params(&params.RegestParams),
 		Network(network),
+		ValidatorConnector(&MockValConn{}),
 		Chooser(&MockChooser{network: network}),
 		HasBlock(func(id types.ID) bool { return false }),
 		RequestBlock(func(id types.ID, id2 peer.ID) {}),

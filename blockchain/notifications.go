@@ -18,23 +18,24 @@ type NotificationType int
 // execute the callback with the state lock held to prevent races.
 type NotificationCallback func(*Notification)
 
-// Constants for the type of a notification message. We only have one now
-// maybe we'll add others later so we put the plumbing here for it.
+// Constants for the type of notification message
 const (
 	// NTBlockConnected indicates the associated block was connected to the chain.
 	NTBlockConnected = iota
 	NTAddValidator
 	NTRemoveValidator
+	NTValidatorSetUpdate
 	NTNewEpoch
 )
 
 // notificationTypeStrings is a map of notification types back to their constant
 // names for pretty printing.
 var notificationTypeStrings = map[NotificationType]string{
-	NTBlockConnected:  "NTBlockConnected",
-	NTAddValidator:    "NTAddValidator",
-	NTRemoveValidator: "NTRemoveValidator",
-	NTNewEpoch:        "NTNewEpoch",
+	NTBlockConnected:     "NTBlockConnected",
+	NTAddValidator:       "NTAddValidator",
+	NTRemoveValidator:    "NTRemoveValidator",
+	NTValidatorSetUpdate: "NTValidatorSetUpdate",
+	NTNewEpoch:           "NTNewEpoch",
 }
 
 // String returns the NotificationType in human-readable form.
