@@ -3,57 +3,41 @@
 # Check if at least two parameters are provided
 if [[ $# -lt 2 ]]; then
     echo "Usage:"
-    echo "$0 start <option>"
+    echo "$0 start nodex"
     echo "OR"
-    echo "$0 cli <params> <command> [command_flags]"
+    echo "$0 cli nodex <command> [command_flags]"
     echo ""
-    echo "start options are: node1, node2, node3"
-    echo "cli params are: node1, node2, node3"
+    echo "For nodex, x is a number like node1, node2, node3 etc."
+    exit 1
+fi
+
+NODE_PREFIX="node"
+if [[ "$2" =~ ^${NODE_PREFIX}([0-9]+)$ ]]; then
+    NODE_NUMBER=${BASH_REMATCH[1]}
+else
+    echo "Invalid node name. Expected format is nodex where x is a number."
     exit 1
 fi
 
 # Based on the first parameter
 if [[ "$1" == "start" ]]; then
-    case "$2" in
-        "node1")
-            ilxd --regtest --regtestval --loglevel=debug
-            ;;
-        "node2")
-            ilxd --regtest --loglevel=debug --listenaddr=/ip4/127.0.0.1/tcp/9004 --grpclisten=/ip4/127.0.0.1/tcp/5002 --datadir="$HOME/.ilxd2"
-            ;;
-        "node3")
-            ilxd --regtest --loglevel=debug --listenaddr=/ip4/127.0.0.1/tcp/9005 --grpclisten=/ip4/127.0.0.1/tcp/5003 --datadir="$HOME/.ilxd3"
-            ;;
-        *)
-            echo "Invalid option for start. Use 'node1', 'node2', or 'node3'."
-            exit 1
-            ;;
-    esac
+    if [[ "$NODE_NUMBER" -eq 1 ]]; then
+        ilxd --regtest --regtestval --loglevel=debug --datadir="$HOME/.regnet/${NODE_PREFIX}1"
+    else
+        LISTEN_PORT=$((9002 + NODE_NUMBER))
+        GRPC_PORT=$((5000 + NODE_NUMBER))
+        ilxd --regtest --loglevel=debug --listenaddr=/ip4/127.0.0.1/tcp/${LISTEN_PORT} --grpclisten=/ip4/127.0.0.1/tcp/${GRPC_PORT} --datadir="$HOME/.regnet/${NODE_PREFIX}${NODE_NUMBER}"
+    fi
 
 elif [[ "$1" == "cli" ]]; then
     if [[ $# -lt 3 ]]; then
-        echo "Usage for cli: $0 cli <params> <command> [command_flags]"
+        echo "Usage for cli: $0 cli nodex <command> [command_flags]"
         exit 1
     fi
 
-    case "$2" in
-        "node1")
-            shift 2
-            ilxcli --serveraddr=/ip4/127.0.0.1/tcp/5001 --rpccert="$HOME/.ilxd/rpc.cert" "$@"
-            ;;
-        "node2")
-            shift 2
-            ilxcli --serveraddr=/ip4/127.0.0.1/tcp/5002 --rpccert="$HOME/.ilxd2/rpc.cert" "$@"
-            ;;
-        "node3")
-            shift 2
-            ilxcli --serveraddr=/ip4/127.0.0.1/tcp/5003 --rpccert="$HOME/.ilxd3/rpc.cert" "$@"
-            ;;
-        *)
-            echo "Invalid params for cli. Use 'node1', 'node2', or 'node3'."
-            exit 1
-            ;;
-    esac
+    GRPC_PORT=$((5000 + NODE_NUMBER))
+    shift 2
+    ilxcli --serveraddr=/ip4/127.0.0.1/tcp/${GRPC_PORT} --rpccert="$HOME/.regnet/${NODE_PREFIX}${NODE_NUMBER}/rpc.cert" "$@"
 
 else
     echo "Invalid command. Use 'start' or 'cli'."
