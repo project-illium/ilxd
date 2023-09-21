@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Check if at least two parameters are provided
-if [[ $# -lt 2 ]]; then
+# Function to print usage message
+print_usage() {
     echo "Usage:"
     echo "$0 start nodex"
     echo "OR"
@@ -9,6 +9,16 @@ if [[ $# -lt 2 ]]; then
     echo ""
     echo "For nodex, x is a number like node1, node2, node3 etc."
     exit 1
+}
+
+# Check for -h or --help
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    print_usage
+fi
+
+# Check if at least two parameters are provided
+if [[ $# -lt 2 ]]; then
+    print_usage
 fi
 
 NODE_PREFIX="node"
