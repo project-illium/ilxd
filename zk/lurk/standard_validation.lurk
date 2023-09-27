@@ -133,7 +133,7 @@
         ;; for other token asset IDs. It will return false if an
         ;; integer overflow is detected.
         (validate-amounts (lambda (private-inputs private-outputs coinbase fee mint-id mint-amount)
-            (letrc (
+            (letrec (
                 (check-overflow (lambda (a b)
                         (if (b > 0)
                             (if (a > (- 18446744073709551615 b))
@@ -204,14 +204,14 @@
         ;; inputs and outputs are valid and that the output amounts
         ;; are valid.
         (validate-transaction (lambda (private-params public-params)
-            (letrc (
+            (letrec (
                 (inputs (map-get :inputs private-params))
                 (outputs (map-get :outputs private-params))
                 (public-outputs (map-get :outputs public-params))
                 (coinbase (map-get :coinbase public-params))
                 (fee (map-get :fee public-params))
                 (mint-id (map-get :mint-id public-params))
-                (mint-amount (map-get :mind-amount public-params))
+                (mint-amount (map-get :mint-amount public-params))
                 (validate-inputs (lambda (idx inputs)
                         (if (eq inputs nil)
                             t
@@ -239,6 +239,6 @@
 
     ;; Here we call validate-transaction using the private and public params.
     ;; The private parameters are hidden behind a commitment hash such that
-    ;; anyone validating this proof will only see the hash. 
+    ;; anyone validating this proof will only see the hash.
     (validate-tranasction (open {private_params_commitment}) {public_params})
 )
