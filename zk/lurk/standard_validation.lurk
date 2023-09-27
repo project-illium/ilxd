@@ -18,8 +18,8 @@
 		(cat-and-hash (lambda (list)
 			(hash list)))
 
-	    ;; map-get returns an item from a map given the key.
-	    ;; the map must be a list of form (:key item :key item).
+        ;; map-get returns an item from a map given the key.
+        ;; the map must be a list of form (:key item :key item).
 	    (map-get (lambda (key plist)
             (if plist
                 (if (eq key (car plist))
@@ -63,7 +63,7 @@
 				  	(= (cat_list_and_hash accumulator) root)))))
 
         ;; validate-input validates the input against the provided parameters
-		(validate-input (lambda)(input idx txo-root nullifiers private-params public-params)
+        (validate-input (lambda)(input idx txo-root nullifiers private-params public-params)
             (letrec (
                 (script-commitment (map-get :script-commitment input))
                 (script-params (map-get :script-params input))
@@ -77,11 +77,11 @@
                                     script-commitment
                                     script-params)))
                 (output-commitment (cat-and-hash (
-                                            script-hash
-                                            (u64 (map-get :amount input))
-                                            (map-get :asset-id input)
-                                            (map-get :state input)
-                                            (map-get :salt input)))))
+                                        script-hash
+                                        (u64 (map-get :amount input))
+                                        (map-get :asset-id input)
+                                        (map-get :state input)
+                                        (map-get :salt input)))))
 
                 (if (eq ((open script-commitment)
                                     script-params
@@ -91,10 +91,10 @@
                                     public-params) nil)
                     nil
                     (if (eq (validate-inclusion-proof output-commitment
-                                              commitment-idx
-                                              (map-get :inclusion-proof-hashes input)
-                                              (map-get :inclusion-proof-acc input)
-                                              txo-root) nil)
+                                            commitment-idx
+                                            (map-get :inclusion-proof-hashes input)
+                                            (map-get :inclusion-proof-acc input)
+                                            txo-root) nil)
                         nil
                         (= nullifier (list-get idx nullifiers))))))
 
