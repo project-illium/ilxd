@@ -74,8 +74,10 @@
         ;; parameters. In particular it validates that the inclusion
         ;; proof is valid, the nullifier is calculated correctly,
         ;; and the committed unlocking function executed correctly.
-        (validate-input (lambda (input idx txo-root nullifiers private-params public-params)
+        (validate-input (lambda (input idx private-params public-params)
             (let (
+                (txo-root (map-get :txo-root public-params))
+                (nullifiers (map-get :nullifiers public-params))
                 (script-commitment (map-get :script-commitment input))
                 (script-params (map-get :script-params input))
                 (spend-script-preimage (cons script-commitment (map-get :script-params input)))
@@ -196,5 +198,47 @@
                                 (if (> (+ (car out-vals) fee) (+ (car in-vals) coinbase))
                                     nil
                                     (validate-assets (cdr in-vals) (cdr out-vals))))))))))
+
+        ;; validate-transaction puts it all together and validates the
+        ;; full illium transaction. This involves validating that the
+        ;; inputs and outputs are valid and that the output amounts
+        ;; are valid.
+        (validate-transaction (lambda (private-params public-params)
+            (letrc (
+                (inputs (map-get :inputs private-params))
+                (outputs (map-get :outputs private-params))
+                (public-outputs (map-get :outputs public-params))
+                (coinbase (map-get :coinbase public-params))
+                (fee (map-get :fee public-params))
+                (mint-id (map-get :mint-id public-params))
+                (mint-amount (map-get :mind-amount public-params))
+                (validate-inputs (lambda (idx inputs)
+                        (if (eq inputs nil)
+                            t
+                            (if (validate-input (car inputs) idx private-params public-params)
+                                (validate-inputs (+ idx 1) (cdr inputs))
+                                nil))))
+                (validate-outputs (lambda (idx outputs)
+                        (if (eq outputs nil)
+                            t
+                            (if (validate-output (car outputs) idx public-outputs)
+                                (validate-outputs (+ idx 1) (cdr outputs))
+                                nil))))
+               )
+
+               (if (eq inputs nil)
+                   nil
+                   (if (validate-inputs 0 inputs)
+                       (if (eq outputs nil)
+                           nil
+                           (if (validate-outputs 0 outputs)
+                               (validate-amounts inputs outputs coinbase fee mint-id mint-amount)
+                               nil))
+                       nil)))))
     )
+
+    ;; Here we call validate-transaction using the private and public params.
+    ;; The private parameters are hidden behind a commitment hash such that
+    ;; anyone validating this proof will only see the hash. 
+    (validate-tranasction (open {private_params_commitment}) {public_params})
 )
