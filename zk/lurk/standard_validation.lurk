@@ -13,22 +13,33 @@
 		;; cat-and-hash accepts a list of integers, each up to
 		;; 255 bits. The integers are converted to their byte
 		;; representation, concatenated together, then hashed.
+		;; If a list element is type u64 then only a 8 byte
+		;; array will be concatenated for that element.
 		(cat-and-hash (lambda (list)
 			(hash list)))
 
-		;; hash-with-index accepts two integers, each up to 255
-		;; bits. The index is cast to a uint64 before converting
-		;; to a byte array and concatenating to the byte
-		;; represenation of x.
-		(hash-with-index (lambda (x index)
-			(hash (x . (u64 y)))))
+	    ;; map-get returns an item from a map given the key.
+	    ;; the map must be a list of form (:key item :key item).
+	    (map-get (lambda (key plist)
+            (if plist
+                (if (eq key (car plist))
+                    (car (cdr plist))
+                    (map-get key (cdr (cdr plist))))
+                nil)))
+
+        ;; list-get returns the item at the given index from
+        ;; the list or nil if the index doesn't exist.
+        (list-get (lambda (idx plist)
+            (if (= idx 0)
+                (car plist)
+                (list-get (- idx 1) (cdr plist)))))
 
 		;; validate-inclusion-proof validates that the provided
 		;; output commitment connects to the provided merkle root
 		;; via a merkle inclusion proof.
 		(validate-inclusion-proof (lambda (output-commitment commitment-index hashes accumulator root)
 			(letrec (
-				(h (hash-with-index output-commitment commitment-index))
+				(h (cat-and-hash output-commitment (u64 commitment-index)))
 				(is-hash-in-accumulator (lambda (h accumulator)
 					(if (= h (car accumulator))
 						t
@@ -50,6 +61,42 @@
 			      	(if (eq (is-hash-in-accumulator (hash-branches h hashes) accumulator) nil)
 					nil
 				  	(= (cat_list_and_hash accumulator) root)))))
+
+        ;; validate-input validates the input against the provided parameters
+		(validate-input (lambda)(input idx txo-root nullifiers private-params public-params)
+            (letrec (
+                (script-commitment (map-get :script-commitment input))
+                (script-params (map-get :script-params input))
+                (spend-script-preimage (cons script-commitment (map-get :script-params input)))
+                (script-hash (hash spend-script-preimage))
+                (salt (map-get :salt input))
+                (commitment-idx (map-get :commitment-idx input))
+                (nullifier (cat-and-hash (
+                                    (u64 commitment-idx)
+                                    salt
+                                    script-commitment
+                                    script-params)))
+                (output-commitment (cat-and-hash (
+                                            script-hash
+                                            (u64 (map-get :amount input))
+                                            (map-get :asset-id input)
+                                            (map-get :state input)
+                                            (map-get :salt input)))))
+
+                (if (eq ((open script-commitment)
+                                    script-params
+                                    (map-get :unlocking-params input)
+                                    idx
+                                    private-params
+                                    public-params) nil)
+                    nil
+                    (if (eq (validate-inclusion-proof output-commitment
+                                              commitment-idx
+                                              (map-get :inclusion-proof-hashes input)
+                                              (map-get :inclusion-proof-acc input)
+                                              txo-root) nil)
+                        nil
+                        (= nullifier (list-get idx nullifiers))))))
 
 	)
 )
