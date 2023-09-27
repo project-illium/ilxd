@@ -27,12 +27,12 @@
 					(map-get key (cdr (cdr plist))))
 				nil)))
 
-	        ;; list-get returns the item at the given index from
-	        ;; the list or nil if the index doesn't exist.
-	        (list-get (lambda (idx plist)
-	        	(if (= idx 0)
-	                	(car plist)
-	                	(list-get (- idx 1) (cdr plist)))))
+        ;; list-get returns the item at the given index from
+        ;; the list or nil if the index doesn't exist.
+        (list-get (lambda (idx plist)
+            (if (= idx 0)
+                    (car plist)
+                    (list-get (- idx 1) (cdr plist)))))
 	
 		;; validate-inclusion-proof validates that the provided
 		;; output commitment connects to the provided merkle root
@@ -62,40 +62,58 @@
 					nil
 					(= (cat_list_and_hash accumulator) root)))))
 
-	        ;; validate-input validates the input against the provided parameters
-	        (validate-input (lambda)(input idx txo-root nullifiers private-params public-params)
-	        	(letrec (
-	        		(script-commitment (map-get :script-commitment input))
-	                	(script-params (map-get :script-params input))
-	                	(spend-script-preimage (cons script-commitment (map-get :script-params input)))
-	                	(script-hash (hash spend-script-preimage))
-	                	(salt (map-get :salt input))
-	                	(commitment-idx (map-get :commitment-idx input))
-	                	(nullifier (cat-and-hash (
-	                        		(u64 commitment-idx)
-	                        		salt
-	                        		script-commitment
-	                        		script-params)))
-	                	(output-commitment (cat-and-hash (
-	                        		script-hash
-	                                        (u64 (map-get :amount input))
-	                                        (map-get :asset-id input)
-	                                        (map-get :state input)
-	                                        (map-get :salt input)))))
-	
-	                (if (eq ((open script-commitment)
-	                		script-params
-	                		(map-get :unlocking-params input)
-	                		idx
-	                		private-params
-	                		public-params) nil)
-	                	nil
-	                	(if (eq (validate-inclusion-proof output-commitment
-	                        		commitment-idx
-	                        		(map-get :inclusion-proof-hashes input)
-	                        		(map-get :inclusion-proof-acc input)
-	                        		txo-root) nil)
-	                		nil
-	        			(= nullifier (list-get idx nullifiers))))))
+        ;; validate-input validates the input against the provided
+        ;; parameters. In particular it validates that the inclusion
+        ;; proof is valid, the nullifier is calculated correctly,
+        ;; and the committed unlocking function executed correctly.
+        (validate-input (lambda (input idx txo-root nullifiers private-params public-params)
+            (let (
+                (script-commitment (map-get :script-commitment input))
+                (script-params (map-get :script-params input))
+                (spend-script-preimage (cons script-commitment (map-get :script-params input)))
+                (script-hash (hash spend-script-preimage))
+                (salt (map-get :salt input))
+                (commitment-idx (map-get :commitment-idx input))
+                (nullifier (cat-and-hash (
+                            (u64 commitment-idx)
+                            salt
+                            script-commitment
+                            script-params)))
+                (output-commitment (cat-and-hash (
+                            script-hash
+                            (u64 (map-get :amount input))
+                            (map-get :asset-id input)
+                            (map-get :state input)
+                            (map-get :salt input)))))
+
+                (if (eq ((open script-commitment)
+                        script-params
+                        (map-get :unlocking-params input)
+                        idx
+                        private-params
+                        public-params) nil)
+                    nil
+                    (if (eq (validate-inclusion-proof output-commitment
+                                commitment-idx
+                                (map-get :inclusion-proof-hashes input)
+                                (map-get :inclusion-proof-acc input)
+                                txo-root) nil)
+                        nil
+                        (= nullifier (list-get idx nullifiers)))))))
+
+        ;; validate-output validates that the provided private output
+        ;; data matches the public output commitment found in the
+        ;; transaction.
+        (validate-output (lambda (output idx public-outputs)
+            (let (
+                (commitment-preimage (cat-and-hash (
+                                            (map-get :script-hash output)
+                                            (u64 (map-get :amount input))
+                                            (map-get :asset-id output)
+                                            (map-get :state output)
+                                            (map-get :salt output))))
+                (output-commitment (hash commitment-preimage)))
+
+                (= output-commitment (list-get idx public-outputs)))))
 	)
 )
