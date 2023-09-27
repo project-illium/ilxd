@@ -33,6 +33,14 @@
             (if (= idx 0)
                 (car plist)
                 (list-get (- idx 1) (cdr plist)))))
+
+        ;; list-update applies a function to each item in a
+        ;; list. This provides an opportunity to update one
+        ;; or more items.
+        (list-update (lambda (f list)
+            (if list
+                (cons (f (car list))(map f (cdr list)))
+                nil)))
 	
         ;; validate-inclusion-proof validates that the provided
         ;; output commitment connects to the provided merkle root
@@ -108,12 +116,85 @@
             (let (
                 (commitment-preimage (cat-and-hash (
                                             (map-get :script-hash output)
-                                            (u64 (map-get :amount input))
+                                            (u64 (map-get :amount output))
                                             (map-get :asset-id output)
                                             (map-get :state output)
                                             (map-get :salt output))))
                 (output-commitment (hash commitment-preimage)))
 
                 (= output-commitment (list-get idx public-outputs)))))
-	)
+
+
+        ;; validate-amounts validates that the total private input
+        ;; values do not exceed the total private output values.
+        ;; It performs this check both for the illium asset ID and
+        ;; for other token asset IDs. It will return false if an
+        ;; integer overflow is detected.
+        (validate-amounts (lambda (private-inputs private-outputs coinbase fee mint-id mint-amount)
+            (letrc (
+                (check-overflow (lambda (a b)
+                        (if (b > 0)
+                            (if (a > (- 18446744073709551615 b))
+                                t
+                                nil)
+                            nil)))
+                (validate-assets (lambda (in-map out-map)
+                           (let (
+                                 (out-asset (car out-map))
+                                 (in-asset (map-get (car out-asset) in-map)))
+
+                                  (if (eq out-asset nil)
+                                      t
+                                      (if (eq in-asset nil)
+                                          (if (eq (car in-asset) mint-id)
+                                              (if (check-overflow (cdr in-asset) mint-amount)
+                                                  nil
+                                                  (> (cdr out-asset) (+ (cdr in-asset) mint-amount)))
+                                              nil)
+                                          (if (> (cdr out-asset) (cdr in-asset))
+                                              nil
+                                              (validate-assets in-map (cdr out-map)))))
+                )))
+                (sum-xputs (lambda (xputs illium-sum asset-map)
+                              (let (
+                                    (amount (map-get :amount (car xput)))
+                                    (asset-id (map-get :asset-id (car xput)))
+                                    (sum-assets (lambda (asset-map asset-id amount)
+                                                (let ((asset (map-get asset-id asset-map)))
+
+                                                      (if (check-overflow (cdr asset) amount)
+                                                            nil
+                                                            (if (eq asset nil)
+                                                                (cons asset-map (cons asset-id amount))
+                                                                (list-update (lambda (entry)
+                                                                    (if (= (car entry) asset-id)
+                                                                    (cons asset-id (+ (cdr entry) amount))
+                                                                    entry)) asset-map))))))
+
+                                    (if (eq xputs nil)
+                                        (cons illium-sum asset-map)
+                                        (if (= asset-id 0)
+                                            (if (eq check-overflow illium-sum amount)
+                                                nil
+                                                (sum-xputs (cdr xputs) (+ illium-sum amount) asset-map))
+                                            (let ((new-asset-map (sum-assets asset-map asset-id amount)))
+                                                (if (eq new-asset-map nil)
+                                                    nil
+                                                    (sum-xputs (cdr xputs) illium-sum new-asset-map)))))))))
+
+                (in-vals (sum-xputs private-inputs 0 nil))
+                (out-vals (sum-xputs private-outputs 0 nil)))
+
+                (if (eq in-vals nil)
+                    nil
+                    (if (eq out-vals nil)
+                        nil
+                        (if (check-overflow (car in-vals) coinbase)
+                            nil
+                            (if (check-overflow (car out-vals) fee)
+                                nil
+                                (if (> (+ (car out-vals) fee) (+ (car in-vals) coinbase))
+                                    nil
+                                    (validate-assets (cdr in-vals) (cdr out-vals))))))))))
+    )
 )
