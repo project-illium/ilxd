@@ -1,0 +1,61 @@
+(
+	letrec (
+		;; hash uses the blake2s function inside the circuit.
+		;; x is expected to be an integer of up to 255 bits.
+		;; It gets converted to its byte representation inside
+		;; the coprocessor before hashing.
+		;;
+		;; This is an expensive compution and hashing will
+		;; substantially increase proving time.
+		(hash (lambda (x) (
+			(eval (cons 'blake2s_hash (cons x nil))))))
+
+		;; cat-and-hash accepts two integers, each up to 255 bits.
+		;; The integers are converted to their byte representation,
+		;; concactenated together and hashed.
+		(cat-and-hash (lambda (x y)
+			(hash (x . y))))
+
+		;; cat-list-and-hash accepts a list of integers, each up
+		;; to 255 bits. The integers are converted to their byte
+		;; representation, concactenated together and hashed.
+		(cat-list-and-hash (lambda (list)
+			(hash list)))
+
+		;; hash-with-index accepts two integers, each up to 255
+		;; bits. The index is cast to a uint64 before converting
+		;; to a byte array and concatenating to the byte
+		;; represenation of x.
+		(hash-with-index (lambda (x index)
+			(hash (x . (u64 y)))))
+
+		;; validate-inclusion-proof validates that the provided
+		;; output commitment connects to the provided merkle root
+		;; via a merkle inclusion proof.
+		(validate-inclusion-proof (lambda (output-commitment commitment-index hashes accumulator root)
+			(letrec (
+				(h (hash-with-index output-commitment commitment-index))
+				(is-hash-in-accumulator (lambda (h accumulator)
+					(if (= h (car accumulator))
+						t
+					  	(if (eq (cdr accumulator) nil)
+					        	nil
+					      		(is-hash-in-accumulator h (cdr accumulator)))))))
+				(hash-branches (lambda (h hashes)
+					(let ((next-hash (car hashes))
+						(val (car next-hash))
+						(left (cdr next-hash))
+						(new-h (if (left)
+								(cat-and-hash val h)
+								(cat-and-hash h val))))
+
+						(if (eq (cdr hashes) nil)
+							new-h
+							(hash-branches new-h (cdr hashes))))))
+
+			      	(if (eq (is-hash-in-accumulator (hash-branches h hashes) accumulator) nil)
+					nil
+				  	(= (cat_list_and_hash accumulator) root)))))
+
+	)
+)
