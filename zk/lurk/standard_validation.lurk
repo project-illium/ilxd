@@ -10,16 +10,10 @@
 		(hash (lambda (x) (
 			(eval (cons 'blake2s_hash (cons x nil))))))
 
-		;; cat-and-hash accepts two integers, each up to 255 bits.
-		;; The integers are converted to their byte representation,
-		;; concactenated together and hashed.
-		(cat-and-hash (lambda (x y)
-			(hash (x . y))))
-
-		;; cat-list-and-hash accepts a list of integers, each up
-		;; to 255 bits. The integers are converted to their byte
-		;; representation, concactenated together and hashed.
-		(cat-list-and-hash (lambda (list)
+		;; cat-and-hash accepts a list of integers, each up to
+		;; 255 bits. The integers are converted to their byte
+		;; representation, concatenated together, then hashed.
+		(cat-and-hash (lambda (list)
 			(hash list)))
 
 		;; hash-with-index accepts two integers, each up to 255
@@ -46,8 +40,8 @@
 						(val (car next-hash))
 						(left (cdr next-hash))
 						(new-h (if (left)
-								(cat-and-hash val h)
-								(cat-and-hash h val))))
+								(cat-and-hash (val h))
+								(cat-and-hash (h val)))))
 
 						(if (eq (cdr hashes) nil)
 							new-h
