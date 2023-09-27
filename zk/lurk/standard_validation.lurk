@@ -1,66 +1,66 @@
 (
-	letrec (
-		;; hash uses the blake2s function inside the circuit.
-		;; x is expected to be an integer of up to 255 bits.
-		;; It gets converted to its byte representation inside
-		;; the coprocessor before hashing.
-		;;
-		;; This is an expensive compution and hashing will
-		;; substantially increase proving time.
-		(hash (lambda (x) (
-			(eval (cons 'blake2s_hash (cons x nil))))))
+    letrec (
+        ;; hash uses the blake2s function inside the circuit.
+        ;; x is expected to be an integer of up to 255 bits.
+        ;; It gets converted to its byte representation inside
+        ;; the coprocessor before hashing.
+        ;;
+        ;; This is an expensive compution and hashing will
+        ;; substantially increase proving time.
+        (hash (lambda (x) (
+            (eval (cons 'blake2s_hash (cons x nil))))))
 
-		;; cat-and-hash accepts a list of integers, each up to
-		;; 255 bits. The integers are converted to their byte
-		;; representation, concatenated together, then hashed.
-		;; If a list element is type u64 then only a 8 byte
-		;; array will be concatenated for that element.
-		(cat-and-hash (lambda (list)
-			(hash list)))
+        ;; cat-and-hash accepts a list of integers, each up to
+        ;; 255 bits. The integers are converted to their byte
+        ;; representation, concatenated together, then hashed.
+        ;; If a list element is type u64 then only a 8 byte
+        ;; array will be concatenated for that element.
+        (cat-and-hash (lambda (list)
+            (hash list)))
 
-	        ;; map-get returns an item from a map given the key.
-	        ;; the map must be a list of form (:key item :key item).
-		(map-get (lambda (key plist)
-			(if plist
-				(if (eq key (car plist))
-					(car (cdr plist))
-					(map-get key (cdr (cdr plist))))
-				nil)))
+        ;; map-get returns an item from a map given the key.
+        ;; the map must be a list of form (:key item :key item).
+        (map-get (lambda (key plist)
+            (if plist
+                (if (eq key (car plist))
+                    (car (cdr plist))
+                    (map-get key (cdr (cdr plist))))
+                nil)))
 
         ;; list-get returns the item at the given index from
         ;; the list or nil if the index doesn't exist.
         (list-get (lambda (idx plist)
             (if (= idx 0)
-                    (car plist)
-                    (list-get (- idx 1) (cdr plist)))))
+                (car plist)
+                (list-get (- idx 1) (cdr plist)))))
 	
-		;; validate-inclusion-proof validates that the provided
-		;; output commitment connects to the provided merkle root
-		;; via a merkle inclusion proof.
-		(validate-inclusion-proof (lambda (output-commitment commitment-index hashes accumulator root)
-			(letrec (
-				(h (cat-and-hash output-commitment (u64 commitment-index)))
-				(is-hash-in-accumulator (lambda (h accumulator)
-					(if (= h (car accumulator))
-						t
-						(if (eq (cdr accumulator) nil)
-							nil
-							(is-hash-in-accumulator h (cdr accumulator)))))))
-				(hash-branches (lambda (h hashes)
-					(let ((next-hash (car hashes))
-						(val (car next-hash))
-						(left (cdr next-hash))
-						(new-h (if (left)
-								(cat-and-hash (val h))
-								(cat-and-hash (h val)))))
+        ;; validate-inclusion-proof validates that the provided
+        ;; output commitment connects to the provided merkle root
+        ;; via a merkle inclusion proof.
+        (validate-inclusion-proof (lambda (output-commitment commitment-index hashes accumulator root)
+            (letrec (
+                (h (cat-and-hash output-commitment (u64 commitment-index)))
+                (is-hash-in-accumulator (lambda (h accumulator)
+                    (if (= h (car accumulator))
+                        t
+                        (if (eq (cdr accumulator) nil)
+                            nil
+                            (is-hash-in-accumulator h (cdr accumulator)))))))
+                (hash-branches (lambda (h hashes)
+                    (let ((next-hash (car hashes))
+                        (val (car next-hash))
+                        (left (cdr next-hash))
+                        (new-h (if (left)
+                                (cat-and-hash (val h))
+                                (cat-and-hash (h val)))))
 
-						(if (eq (cdr hashes) nil)
-							new-h
-							(hash-branches new-h (cdr hashes))))))
+                        (if (eq (cdr hashes) nil)
+                            new-h
+                            (hash-branches new-h (cdr hashes))))))
 
-				(if (eq (is-hash-in-accumulator (hash-branches h hashes) accumulator) nil)
-					nil
-					(= (cat_list_and_hash accumulator) root)))))
+                (if (eq (is-hash-in-accumulator (hash-branches h hashes) accumulator) nil)
+                    nil
+                    (= (cat_list_and_hash accumulator) root)))))
 
         ;; validate-input validates the input against the provided
         ;; parameters. In particular it validates that the inclusion
