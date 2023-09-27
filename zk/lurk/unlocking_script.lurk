@@ -1,0 +1,80 @@
+;; This is the function signature for the unlocking script. It can be used as a
+;; template for writing custom unlocking script and smart contracts.
+;;
+;; It should return 't' if terms and met and the coins are meant to be unlocked
+;; and 'nil' if the validation has failed.
+;;
+;; Let's walk through the parameters.
+;; Recall that in illium a user address computed as:
+;; address = serialize(blake2s(scriptCommitment, scriptParams...), viewKey)
+;;
+;; The 'script-params' below is the same parameters found in the address.
+;; For a basic unlocking script this may just be a single public key.
+;;
+;; The 'scriptCommitment' (above) is the poseidon hash commitment of this
+;; lurk function. When transactions are validated the prover provides this
+;; function and it's validated against the scriptCommitment prior to
+;; execution.
+;;
+;; 'unlocking-params' are the private, user-supplied parameters used to
+;; make this function return True. If this were a basic unlocking script
+;; this would likely be a digital signature that validates against the
+;; public key found in `script-params`.
+;;
+;; `input-index` is the position of this script in the transaction's list
+;; of inputs. This is the index currently being validated.
+;;
+;; 'private-params' takes the following form:
+;; (
+;;     :inputs (
+;;           (
+;;               :script-commitment <commitment>
+;;               :script-params <cons<num>>
+;;               :commitment-idx <u64>
+;;               :amount <u64>
+;;               :asset-id <num>
+;;               :state <num>
+;;               :salt <num>
+;;               :unlocking-params <cons<num>>
+;;               :inclusion-proof-hashes <cons<num>>
+;;               :inclusion-proof-acc <cons<num>>
+;;            )
+;;     )
+;;     :outputs (
+;;           (
+;;               :script-hash <num>
+;;               :amount <u64>
+;;               :asset-id <num>
+;;               :state <num>
+;;               :salt <num>
+;;           )
+;;     )
+;; )
+;;
+;; Note that both inputs and outputs are lists where there is one item per input
+;; and output in the transaction.
+;;
+;; 'public-params' takes the following form:
+;; (
+;;     :sig-hash <num>
+;;     :txo-root <num>
+;;     :fee <u64>
+;;     :coinbase <u64>
+;;     :mint-id <num>
+;;     :mint-amount <u64>
+;;     :nullifiers <cons<num>>
+;;     :outputs (
+;;           (
+;;               :commitment <num>
+;;               :ciphertext <cons<num>>
+;;           )
+;;     )
+;; )
+;;
+;; The private and public params are there just for you to inspect, if you wish,
+;; and make a decision to unlock or not, in part, based on what data the transaction
+;; contains.
+(lambda (script-params unlocking-params input-index private-params public-params)
+    ;; returns t or nil
+)
+
