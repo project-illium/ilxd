@@ -75,41 +75,39 @@
         ;; proof is valid, the nullifier is calculated correctly,
         ;; and the committed unlocking function executed correctly.
         (validate-input (lambda (input idx private-params public-params)
-            (let (
-                (txo-root (map-get :txo-root public-params))
-                (nullifiers (map-get :nullifiers public-params))
-                (script-commitment (map-get :script-commitment input))
-                (script-params (map-get :script-params input))
-                (spend-script-preimage (cons script-commitment (map-get :script-params input)))
-                (script-hash (hash spend-script-preimage))
-                (salt (map-get :salt input))
-                (commitment-idx (map-get :commitment-idx input))
-                (nullifier (cat-and-hash (
-                            (u64 commitment-idx)
-                            salt
-                            script-commitment
-                            script-params)))
-                (output-commitment (cat-and-hash (
-                            script-hash
-                            (u64 (map-get :amount input))
-                            (map-get :asset-id input)
-                            (map-get :state input)
-                            (map-get :salt input)))))
+                    (let (
+                        (txo-root (map-get :txo-root public-params))
+                        (nullifiers (map-get :nullifiers public-params))
+                        (script-commitment (map-get :script-commitment input))
+                        (script-params (map-get :script-params input))
+                        (spend-script-preimage (cons script-commitment script-params))
+                        (script-hash (hash 'spend-script-preimage))
+                        (amount (map-get :amount input))
+                        (asset-id (map-get :asset-id input))
+                        (state (map-get :state input))
+                        (salt (map-get :salt input))
+                        (commitment-idx (map-get :commitment-idx input))
+                        (unlocking-params (map-get :unlocking-params input))
+                        (inclusion-proof-hashes (map-get :inclusion-proof-hashes input))
+                        (inclusion-proof-acc (map-get :inclusion-proof-acc input))
+                        (nullifier (list-get idx nullifiers))
+                        (calculated-nullifier (cat-and-hash '(commitment-idx salt script-commitment script-params)))
+                        (output-commitment (cat-and-hash '(script-hash amount asset-id state salt))))
 
-                (if (eq ((open script-commitment)
-                        script-params
-                        (map-get :unlocking-params input)
-                        idx
-                        private-params
-                        public-params) nil)
-                    nil
-                    (if (eq (validate-inclusion-proof output-commitment
-                                commitment-idx
-                                (map-get :inclusion-proof-hashes input)
-                                (map-get :inclusion-proof-acc input)
-                                txo-root) nil)
-                        nil
-                        (= nullifier (list-get idx nullifiers)))))))
+                        (if (eq ((open (comm script-commitment))
+                                script-params
+                                unlocking-params
+                                idx
+                                private-params
+                                public-params) nil)
+                            nil
+                            (if (eq (validate-inclusion-proof output-commitment
+                                        commitment-idx
+                                        inclusion-proof-hashes
+                                        inclusion-proof-acc
+                                        txo-root) nil)
+                                nil
+                                (= nullifier calculated-nullifier))))))
 
         ;; validate-output validates that the provided private output
         ;; data matches the public output commitment found in the
