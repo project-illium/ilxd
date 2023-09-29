@@ -46,29 +46,29 @@
         ;; output commitment connects to the provided merkle root
         ;; via a merkle inclusion proof.
         (validate-inclusion-proof (lambda (output-commitment commitment-index hashes accumulator root)
-            (letrec (
-                (h (cat-and-hash output-commitment (u64 commitment-index)))
-                (is-hash-in-accumulator (lambda (h accumulator)
-                    (if (= h (car accumulator))
-                        t
-                        (if (eq (cdr accumulator) nil)
-                            nil
-                            (is-hash-in-accumulator h (cdr accumulator)))))))
-                (hash-branches (lambda (h hashes)
-                    (let ((next-hash (car hashes))
-                        (val (car next-hash))
-                        (left (cdr next-hash))
-                        (new-h (if (left)
-                                (cat-and-hash (val h))
-                                (cat-and-hash (h val)))))
+                    (letrec (
+                        (h (cat-and-hash '(output-commitment (u64 commitment-index))))
+                        (is-hash-in-accumulator (lambda (h accumulator)
+                            (if (= h (car accumulator))
+                                t
+                                (if (eq (cdr accumulator) nil)
+                                    nil
+                                    (is-hash-in-accumulator h (cdr accumulator))))))
+                        (hash-branches (lambda (h hashes)
+                            (let ((next-hash (car hashes))
+                                (val (car next-hash))
+                                (left (cdr next-hash))
+                                (new-h (if (eq left t)
+                                        (cat-and-hash '(val h))
+                                        (cat-and-hash '(h val)))))
 
-                        (if (eq (cdr hashes) nil)
-                            new-h
-                            (hash-branches new-h (cdr hashes))))))
+                                (if (eq (cdr hashes) nil)
+                                    new-h
+                                    (hash-branches new-h (cdr hashes)))))))
 
-                (if (eq (is-hash-in-accumulator (hash-branches h hashes) accumulator) nil)
-                    nil
-                    (= (cat_list_and_hash accumulator) root)))))
+                        (if (is-hash-in-accumulator (hash-branches 'h hashes) accumulator)
+                            (eq (cat-and-hash accumulator) root)
+                            nil))))
 
         ;; validate-input validates the input against the provided
         ;; parameters. In particular it validates that the inclusion
@@ -240,5 +240,5 @@
     ;; Here we call validate-transaction using the private and public params.
     ;; The private parameters are hidden behind a commitment hash such that
     ;; anyone validating this proof will only see the hash.
-    (validate-tranasction (open {private_params_commitment}) {public_params})
+    (validate-transaction (open {private_params_commitment}) {public_params})
 )

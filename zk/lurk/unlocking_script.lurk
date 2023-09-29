@@ -77,4 +77,3 @@
 (lambda (script-params unlocking-params input-index private-params public-params)
     ;; returns t or nil
 )
-
