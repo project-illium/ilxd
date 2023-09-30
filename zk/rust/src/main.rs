@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::sync::Arc;
+use std::time::Instant;
 use std::io;
 use lurk::{
     eval::{
@@ -32,13 +33,38 @@ fn main() {
     println!("{:?}", result.verified);
     println!("{:?}", evaluation.expr);
     println!("{:?}", evaluation.expr_out);*/
+    let unlocking_script = "(lambda (script-params unlocking-params input-index private-params public-params) (eq (car script-params) (car unlocking-params)))";
 
-    let proof = prove("(lambda (pub priv) (+ pub priv))", "3", "5").expect("proof creation failed");
+    let private_params = "'(:inputs
+ ((:script-commitment 0x{script-commitment}
+   :script-params '(234)
+   :commitment-idx 0
+   :amount 1000000000
+   :asset-id 0
+   :state 0
+   :salt 21
+   :unlocking-params '(123)
+   :inclusion-proof-hashes ((1 t) (2 nil) (3 t) (4 t) (5 nil) (6 nil) (7 t) (8 t))
+   :inclusion-proof-acc (0 1 2 3 4 5 6 7 8)))
+ :outputs
+ ((:script-hash 999
+   :amount 100000
+   :asset-id 0
+   :state 0
+   :salt 5)
+  (:script-hash 111
+   :amount 1000000
+   :asset-id 0
+   :state 0
+   :salt 19)))";
+
+    let public_params = "'(:sig-hash 5 :txo-root 6 :fee 120000 :coinbase 0 :mint-id nil :mint-amount 0 :nullifiers '(72) :outputs ((:commitment 99 :ciphertext '(9 2)) (:commitment 44 :ciphertext '(11 10))))";
+    let proof = prove(public_params, private_params, unlocking_script).expect("proof creation failed");
     println!("Proof Len: {}", proof.len());
 }
 
-fn prove(lurk_program: &str, public_vars: &str, private_vars: &str) -> Result<Vec<u8>> {
-    let program = replace_sha256_expression(lurk_program);
+fn prove(public_vars: &str, private_vars: &str, unlocking_script: &str) -> Result<Vec<u8>> {
+    //let program = replace_sha256_expression(lurk_program);
     let fcomm_path_key = "FCOMM_DATA_PATH";
     let tmp_dir = Builder::new().prefix("tmp").tempdir()?;
     let tmp_dir_path = Utf8Path::from_path(tmp_dir.path()).ok_or(io::Error::new(
@@ -48,7 +74,7 @@ fn prove(lurk_program: &str, public_vars: &str, private_vars: &str) -> Result<Ve
     let fcomm_path_val = tmp_dir_path.join("fcomm_data");
     std::env::set_var(fcomm_path_key, fcomm_path_val.clone());
 
-    let limit = 1000;
+    let limit = 100000000;
     let lang:Lang<S1, Coproc<S1>> = Lang::new();
     let lang_rc = Arc::new(lang.clone());
     let rc = ReductionCount::Ten;
@@ -61,28 +87,44 @@ fn prove(lurk_program: &str, public_vars: &str, private_vars: &str) -> Result<Ve
         .expect("public params");
     let s = &mut Store::<S1>::default();
 
+    let committed_func = CommittedExpression::<S1> {
+        expr: LurkPtr::Source(unlocking_script.into()),
+        secret: None,
+        commitment: None,
+    };
+
+    let func_ptr = committed_func.expr_ptr(s, limit, &lang)?;
+    let (func_commitment, _secret) = Commitment::from_ptr_with_hiding(s, &func_ptr)?;
+    let func_commitment_str = func_commitment.to_string();
+    let private_params = private_vars.replace("{script-commitment}", &func_commitment_str);
+
     let committed_expr = CommittedExpression::<S1> {
-        expr: LurkPtr::Source(private_vars.into()),
+        expr: LurkPtr::Source(private_params.clone().into()),
         secret: None,
         commitment: None,
     };
 
     let comm_ptr = committed_expr.expr_ptr(s, limit, &lang)?;
-
     let (commitment, _secret) = Commitment::from_ptr_with_hiding(s, &comm_ptr)?;
-
     let commitment_str = commitment.to_string();
-
     let commitment_bytes = Vec::from_hex(commitment_str.clone())?;
 
-    let expression = format!(r#"(letrec ((do {program}))(do {public_vars} (open 0x{commitment_str})))"#);
+    //let expression = format!(lurk_program);
+    let exec_str = format!(r#"(validate-transaction (open 0x{commitment_str}) {public_vars}))"#);
+    let expression = lurk_program.to_owned() + &exec_str;
 
     let prover = NovaProver::<S1, Coproc<S1>>::new(rc.count(), lang.clone());
 
     let input = s.read(&expression)?;
 
+    let proof_start = Instant::now();
     let proof = Proof::eval_and_prove(s, input, None, limit, false, &prover, &pp, lang_rc.clone())?;
+
     let compressed = proof.proof.compress(&pp)?;
+    let proof_end = proof_start.elapsed();
+    println!("Proofs took {:?}", proof_end);
+
+    println!("{:?}", proof.claim.evaluation().unwrap().expr_out);
 
     let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
     bincode::serialize_into(&mut encoder, &compressed)?;
@@ -125,3 +167,123 @@ fn replace_sha256_expression(input: &str) -> String {
     let re = Regex::new(r"\(sha256 ([^\)]+)\)").unwrap();
     re.replace_all(input, "(eval (cons 'sha256 (cons $1 nil)))").to_string()
 }
+
+static lurk_program: &str = "(
+    letrec (
+        ;; hash uses the blake2s function inside the circuit.
+        ;; x is expected to be an integer of up to 255 bits.
+        ;; It gets converted to its byte representation inside
+        ;; the coprocessor before hashing.
+        ;;
+        ;; This is an expensive compution and hashing will
+        ;; substantially increase proving time.
+        (hash (lambda (x) (num (commit x))))
+            ;;(eval (cons 'blake2s_hash (cons x nil))))))
+
+        ;; cat-and-hash accepts a list of integers, each up to
+        ;; 255 bits. The integers are converted to their byte
+        ;; representation, concatenated together, then hashed.
+        ;; If a list element is type u64 then only a 8 byte
+        ;; array will be concatenated for that element.
+        (cat-and-hash (lambda (list)
+            (hash list)))
+
+        ;; map-get returns an item from a map given the key.
+        ;; the map must be a list of form (:key item :key item).
+        (map-get (lambda (key plist)
+            (if plist
+                (if (eq key (car plist))
+                    (car (cdr plist))
+                    (map-get key (cdr (cdr plist))))
+                nil)))
+
+        ;; list-get returns the item at the given index from
+        ;; the list or nil if the index doesn't exist.
+        (list-get (lambda (idx plist)
+            (if (= idx 0)
+                (car plist)
+                (list-get (- idx 1) (cdr plist)))))
+
+        ;; list-update applies a function to each item in a
+        ;; list. This provides an opportunity to update one
+        ;; or more items.
+        (list-update (lambda (f list)
+            (if list
+                (cons (f (car list))(map f (cdr list)))
+                nil)))
+
+        ;; validate-inclusion-proof validates that the provided
+        ;; output commitment connects to the provided merkle root
+        ;; via a merkle inclusion proof.
+        (validate-inclusion-proof (lambda (output-commitment commitment-index hashes accumulator root)
+            (letrec (
+                (h (cat-and-hash '(output-commitment (u64 commitment-index))))
+                (is-hash-in-accumulator (lambda (h accumulator)
+                    (if (= h (car accumulator))
+                        t
+                        (if (eq (cdr accumulator) nil)
+                            nil
+                            (is-hash-in-accumulator h (cdr accumulator))))))
+                (hash-branches (lambda (h hashes)
+                    (let ((next-hash (car hashes))
+                        (val (car next-hash))
+                        (left (cdr next-hash))
+                        (new-h (if (eq left t)
+                                (cat-and-hash '(val h))
+                                (cat-and-hash '(h val)))))
+
+                        (if (eq (cdr hashes) nil)
+                            new-h
+                            (hash-branches new-h (cdr hashes)))))))
+
+                (if (is-hash-in-accumulator (hash-branches 'h hashes) accumulator)
+                    (eq (cat-and-hash accumulator) root)
+                    nil))))
+
+        ;; validate-input validates the input against the provided
+        ;; parameters. In particular it validates that the inclusion
+        ;; proof is valid, the nullifier is calculated correctly,
+        ;; and the committed unlocking function executed correctly.
+        (validate-input (lambda (input idx private-params public-params)
+            (let (
+                (txo-root (map-get :txo-root public-params))
+                (nullifiers (map-get :nullifiers public-params))
+                (script-commitment (map-get :script-commitment input))
+                (script-params (map-get :script-params input))
+                (spend-script-preimage (cons script-commitment script-params))
+                (script-hash (hash 'spend-script-preimage))
+                (amount (map-get :amount input))
+                (asset-id (map-get :asset-id input))
+                (state (map-get :state input))
+                (salt (map-get :salt input))
+                (commitment-idx (map-get :commitment-idx input))
+                (unlocking-params (map-get :unlocking-params input))
+                (inclusion-proof-hashes (map-get :inclusion-proof-hashes input))
+                (inclusion-proof-acc (map-get :inclusion-proof-acc input))
+                (nullifier (list-get idx nullifiers))
+                (calculated-nullifier (cat-and-hash '(commitment-idx salt script-commitment script-params)))
+                (output-commitment (cat-and-hash '(script-hash amount asset-id state salt))))
+
+                (if (eq ((open (comm script-commitment))
+                        script-params
+                        unlocking-params
+                        idx
+                        private-params
+                        public-params) nil)
+                    nil
+                    (if (eq (validate-inclusion-proof output-commitment
+                                commitment-idx
+                                inclusion-proof-hashes
+                                inclusion-proof-acc
+                                txo-root) nil)
+                        nil
+                        (= nullifier calculated-nullifier))))))
+
+        (validate-transaction (lambda (private-params public-params)
+
+            (letrec ((input (car (map-get :inputs private-params))))
+
+                    (validate-input input 0 private-params public-params))
+
+        ))
+    )";
