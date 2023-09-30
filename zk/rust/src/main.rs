@@ -35,30 +35,29 @@ fn main() {
     println!("{:?}", evaluation.expr_out);*/
     let unlocking_script = "(lambda (script-params unlocking-params input-index private-params public-params) (eq (car script-params) (car unlocking-params)))";
 
-    let private_params = "'(:inputs
- ((:script-commitment 0x{script-commitment}
-   :script-params '(234)
-   :commitment-idx 0
-   :amount 1000000000
-   :asset-id 0
-   :state 0
-   :salt 21
-   :unlocking-params '(123)
-   :inclusion-proof-hashes ((1 t) (2 nil) (3 t) (4 t) (5 nil) (6 nil) (7 t) (8 t))
-   :inclusion-proof-acc (0 1 2 3 4 5 6 7 8)))
- :outputs
- ((:script-hash 999
-   :amount 100000
-   :asset-id 0
-   :state 0
-   :salt 5)
-  (:script-hash 111
-   :amount 1000000
-   :asset-id 0
-   :state 0
-   :salt 19)))";
+    let private_params = "'(
+ ((0x{script-commitment}
+   1000000000
+   0
+   '(234)
+   0
+   0
+   21
+   '(123)
+   ((1 t) (2 nil) (3 t) (4 t) (5 nil) (6 nil) (7 t) (8 t))
+   (0 1 2 3 4 5 6 7 8)))
+ ((999
+   100000
+   0
+   0
+   5)
+  (111
+   1000000
+   0
+   0
+   19)))";
 
-    let public_params = "'(:sig-hash 5 :txo-root 6 :fee 120000 :coinbase 0 :mint-id nil :mint-amount 0 :nullifiers '(72) :outputs ((:commitment 99 :ciphertext '(9 2)) (:commitment 44 :ciphertext '(11 10))))";
+    let public_params = "'('(72) 6 120000 0 nil 0 (( 99 '(9 2)) (44 '(11 10))) 5)";
     let proof = prove(public_params, private_params, unlocking_script).expect("proof creation failed");
     println!("Proof Len: {}", proof.len());
 }
@@ -244,46 +243,164 @@ static lurk_program: &str = "(
         ;; parameters. In particular it validates that the inclusion
         ;; proof is valid, the nullifier is calculated correctly,
         ;; and the committed unlocking function executed correctly.
-        (validate-input (lambda (input idx private-params public-params)
+        (validate-input (lambda (input idx txo-root nullifiers private-params public-params)
             (let (
-                (txo-root (map-get :txo-root public-params))
-                (nullifiers (map-get :nullifiers public-params))
-                (script-commitment (map-get :script-commitment input))
-                (script-params (map-get :script-params input))
-                (spend-script-preimage (cons script-commitment script-params))
+                (script-commitment (car input))
+                (amount (cdr input))
+                (asset-id (cdr amount))
+                (script-params (cdr asset-id))
+                (commitment-idx (cdr script-params))
+                (state (cdr commitment-idx))
+                (salt (cdr state))
+                (unlocking-params (cdr salt))
+                (inclusion-proof-hashes (cdr unlocking-params))
+                (inclusion-proof-acc (cdr inclusion-proof-hashes))
+                (spend-script-preimage (cons script-commitment (car script-params)))
                 (script-hash (hash 'spend-script-preimage))
-                (amount (map-get :amount input))
-                (asset-id (map-get :asset-id input))
-                (state (map-get :state input))
-                (salt (map-get :salt input))
-                (commitment-idx (map-get :commitment-idx input))
-                (unlocking-params (map-get :unlocking-params input))
-                (inclusion-proof-hashes (map-get :inclusion-proof-hashes input))
-                (inclusion-proof-acc (map-get :inclusion-proof-acc input))
                 (nullifier (list-get idx nullifiers))
-                (calculated-nullifier (cat-and-hash '(commitment-idx salt script-commitment script-params)))
-                (output-commitment (cat-and-hash '(script-hash amount asset-id state salt))))
+                (calculated-nullifier (cat-and-hash '((car commitment-idx) (car salt) script-commitment (car script-params))))
+                (output-commitment (cat-and-hash '(script-hash (car amount) (car asset-id) (car state) (car salt)))))
 
                 (if (eq ((open (comm script-commitment))
-                        script-params
-                        unlocking-params
+                        (car script-params)
+                        (car unlocking-params)
                         idx
                         private-params
                         public-params) nil)
                     nil
                     (if (eq (validate-inclusion-proof output-commitment
-                                commitment-idx
-                                inclusion-proof-hashes
-                                inclusion-proof-acc
+                                (car commitment-idx)
+                                (car inclusion-proof-hashes)
+                                (car inclusion-proof-acc)
                                 txo-root) nil)
                         nil
                         (= nullifier calculated-nullifier))))))
 
+        ;; validate-output validates that the provided private output
+        ;; data matches the public output commitment found in the
+        ;; transaction.
+        (validate-output (lambda (output idx public-outputs)
+                    (let (
+                        (script-hash (car output))
+                        (amount (cdr output))
+                        (asset-id (cdr amount))
+                        (state (cdr asset-id))
+                        (salt (cdr state))
+                        (public-output (list-get idx public-outputs))
+                        (commitment-preimage (cat-and-hash '(
+                                                    script-hash
+                                                    (u64 (car amount))
+                                                    (car asset-id)
+                                                    (car state)
+                                                    (car salt))))
+                        (output-commitment (hash commitment-preimage)))
+                        (= output-commitment (car public-output)))))
+
+        ;; validate-amounts validates that the total private input
+        ;; values do not exceed the total private output values.
+        ;; It performs this check both for the illium asset ID and
+        ;; for other token asset IDs. It will return false if an
+        ;; integer overflow is detected.
+        (validate-amounts (lambda (private-inputs private-outputs coinbase fee mint-id mint-amount)
+            (letrec (
+                (check-overflow (lambda (a b)
+                        (if (> b 0)
+                            (if (> a (- 18446744073709551615 b))
+                                t
+                                nil)
+                            nil)))
+                (validate-assets (lambda (in-map out-map)
+                           (let (
+                                 (out-asset (car out-map))
+                                 (in-asset (map-get (car out-asset) in-map)))
+
+                                  (if (eq out-asset nil)
+                                      t
+                                      (if (eq in-asset nil)
+                                          (if (eq (car in-asset) mint-id)
+                                              (if (check-overflow (cdr in-asset) mint-amount)
+                                                  nil
+                                                  (> (cdr out-asset) (+ (cdr in-asset) mint-amount)))
+                                              nil)
+                                          (if (> (cdr out-asset) (cdr in-asset))
+                                              nil
+                                              (validate-assets in-map (cdr out-map)))))
+                )))
+                (sum-xputs (lambda (xputs illium-sum asset-map)
+                              (letrec (
+                                    (amount (cdr (car xputs)))
+                                    (asset-id (car (cdr amount)))
+                                    (sum-assets (lambda (asset-map a-id amt)
+                                                (let ((asset (map-get a-id asset-map)))
+
+                                                      (if (check-overflow (cdr asset) amt)
+                                                            nil
+                                                            (if (eq asset nil)
+                                                                (cons asset-map (cons a-id amt))
+                                                                (list-update (lambda (entry)
+                                                                    (if (= (car entry) a-id)
+                                                                   (cons a-id (+ (cdr entry) amt))
+                                                                    entry)) asset-map)))))))
+
+                                    (if (eq xputs nil)
+                                        (cons illium-sum asset-map)
+                                        (if (= asset-id 0)
+                                            (if (check-overflow illium-sum (car amount))
+                                                  nil
+                                                  (sum-xputs (cdr xputs) (+ illium-sum (car amount)) asset-map))
+                                            (let ((new-asset-map (sum-assets asset-map asset-id (car amount))))
+                                               (if (eq new-asset-map nil)
+                                                    nil
+                                                    (sum-xputs (cdr xputs) illium-sum new-asset-map))))))))
+
+                (in-vals (sum-xputs private-inputs 0 nil))
+                (out-vals (sum-xputs private-outputs 0 nil)))
+
+                (if (eq in-vals nil)
+                    nil
+                    (if (eq out-vals nil)
+                        nil
+                        (if (check-overflow (car in-vals) coinbase)
+                            nil
+                            (if (check-overflow (car out-vals) fee)
+                                nil
+                                (if (> (+ (car out-vals) fee) (+ (car in-vals) coinbase))
+                                    nil
+                                    (validate-assets (cdr in-vals) (cdr out-vals))))))))))
+
         (validate-transaction (lambda (private-params public-params)
+            (letrec (
+                    (private-inputs (car private-params))
+                    (private-outputs (car (cdr private-params)))
+                    (nullifiers (car public-params))
+                    (txo-root (cdr public-params))
+                    (fee (cdr txo-root))
+                    (coinbase (cdr fee))
+                    (mint-id (cdr coinbase))
+                    (mint-amount (cdr mint-id))
+                    (public-outputs (cdr mint-amount))
 
-            (letrec ((input (car (map-get :inputs private-params))))
+                    (validate-inputs (lambda (idx inputs)
+                        (if (eq inputs nil)
+                            t
+                            (if (validate-input (car inputs) idx (car txo-root) nullifiers private-params public-params)
+                                (validate-inputs (+ idx 1) (cdr inputs))
+                                nil))))
+                    (validate-outputs (lambda (idx outputs)
+                            (if (eq outputs nil)
+                                t
+                                (if (validate-output (car outputs) idx (car public-outputs))
+                                    (validate-outputs (+ idx 1) (cdr outputs))
+                                    nil)))))
 
-                    (validate-input input 0 private-params public-params))
 
-        ))
+                   (if (eq private-inputs nil)
+                       nil
+                       (if (validate-inputs 0 private-inputs)
+                           (if (eq private-outputs nil)
+                               nil
+                               (if (validate-outputs 0 private-outputs)
+                                  (validate-amounts private-inputs private-outputs (car coinbase) (car fee) (car mint-id) (car mint-amount))
+                                   nil))
+                           nil)))))
     )";
