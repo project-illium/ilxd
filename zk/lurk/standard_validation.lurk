@@ -195,38 +195,38 @@
                                                 (validate-assets (cdr in-vals) (cdr out-vals))))))))))
 
         (validate-transaction (lambda (private-params public-params)
-            (letrec (
-                    (private-inputs (car private-params))
-                    (private-outputs (car (cdr private-params)))
-                    (nullifiers (car public-params))
-                    (txo-root (cdr public-params))
-                    (fee (cdr txo-root))
-                    (coinbase (cdr fee))
-                    (mint-id (cdr coinbase))
-                    (mint-amount (cdr mint-id))
-                    (public-outputs (cdr mint-amount))
+                    (letrec (
+                            (private-inputs (car private-params))
+                            (private-outputs (car (cdr private-params)))
+                            (nullifiers (car public-params))
+                            (txo-root (cdr public-params))
+                            (fee (cdr txo-root))
+                            (coinbase (cdr fee))
+                            (mint-id (cdr coinbase))
+                            (mint-amount (cdr mint-id))
+                            (public-outputs (cdr mint-amount))
 
-                    (validate-inputs (lambda (idx inputs)
-                        (if (eq inputs nil)
-                            t
-                            (if (validate-input (car inputs) idx (car txo-root) nullifiers private-params public-params)
-                                (validate-inputs (+ idx 1) (cdr inputs))
-                                nil))))
-                    (validate-outputs (lambda (idx outputs)
-                            (if (eq outputs nil)
-                                t
-                                (if (validate-output (car outputs) idx (car public-outputs))
-                                    (validate-outputs (+ idx 1) (cdr outputs))
-                                    nil)))))
+                            (validate-inputs (lambda (idx inputs)
+                                (if (eq inputs nil)
+                                    t
+                                    (if (validate-input (car inputs) idx (car txo-root) nullifiers private-params public-params)
+                                        (validate-inputs (+ idx 1) (cdr inputs))
+                                        nil))))
+                            (validate-outputs (lambda (idx outputs)
+                                    (if (eq outputs nil)
+                                        t
+                                        (if (validate-output (car outputs) idx (car public-outputs))
+                                            (validate-outputs (+ idx 1) (cdr outputs))
+                                            nil)))))
 
-
-                   (if (eq private-inputs nil)
-                       nil
-                       (if (validate-inputs 0 private-inputs)
-                           (if (eq private-outputs nil)
+                          
+                           (if (eq private-inputs nil)
                                nil
-                               (if (validate-outputs 0 private-outputs)
-                                  (validate-amounts private-inputs private-outputs (car coinbase) (car fee) (car mint-id) (car mint-amount))
-                                   nil))
-                           nil)))))
+                               (if (validate-inputs 0 private-inputs)
+                                   (if (eq private-outputs nil)
+                                       nil
+                                       (if (validate-outputs 0 private-outputs)
+                                          (validate-amounts private-inputs private-outputs (car coinbase) (car fee) (car mint-id) (car mint-amount))
+                                           nil))
+                                   nil)))))
     )
