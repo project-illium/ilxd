@@ -133,71 +133,66 @@
         ;; for other token asset IDs. It will return false if an
         ;; integer overflow is detected.
         (validate-amounts (lambda (private-inputs private-outputs coinbase fee mint-id mint-amount)
-            (letrec (
-                (check-overflow (lambda (a b)
-                        (if (> b 0)
-                            (if (> a (- 18446744073709551615 b))
-                                t
-                                nil)
-                            nil)))
-                (validate-assets (lambda (in-map out-map)
-                           (let (
-                                 (out-asset (car out-map))
-                                 (in-asset (map-get (car out-asset) in-map)))
+                        (letrec (
+                            (check-overflow (lambda (a b)
+                                    (if (> b 0)
+                                        (if (> a (- 18446744073709551615 b))
+                                            t
+                                            nil)
+                                        nil)))
+                            (validate-assets (lambda (in-map out-map)
+                                       (let (
+                                             (out-asset-id (car out-map))
+                                             (in-value (map-get out-asset-id in-map)))
 
-                                  (if (eq out-asset nil)
-                                      t
-                                      (if (eq in-asset nil)
-                                          (if (eq (car in-asset) mint-id)
-                                              (if (check-overflow (cdr in-asset) mint-amount)
-                                                  nil
-                                                  (> (cdr out-asset) (+ (cdr in-asset) mint-amount)))
-                                              nil)
-                                          (if (> (cdr out-asset) (cdr in-asset))
-                                              nil
-                                              (validate-assets in-map (cdr out-map)))))
-                )))
-                (sum-xputs (lambda (xputs illium-sum asset-map)
-                              (letrec (
-                                    (amount (cdr (car xputs)))
-                                    (asset-id (car (cdr amount)))
-                                    (sum-assets (lambda (asset-map a-id amt)
-                                                (let ((asset (map-get a-id asset-map)))
+                                              (if (eq out-asset-id nil)
+                                                  t
+                                                  (if (eq in-value nil)
+                                                      (if (eq out-asset-id mint-id)
+                                                          (<= (car (cdr out-map)) mint-amount)
+                                                          nil)
+                                                      (if (> (car (cdr out-map)) (+ in-value mint-amount))
+                                                          nil
+                                                          (validate-assets in-map (cdr out-map))))))))
 
-                                                      (if (check-overflow (cdr asset) amt)
-                                                            nil
-                                                            (if (eq asset nil)
-                                                                (cons asset-map (cons a-id amt))
-                                                                (list-update (lambda (entry)
-                                                                    (if (= (car entry) a-id)
-                                                                   (cons a-id (+ (cdr entry) amt))
-                                                                    entry)) asset-map)))))))
+                            (sum-xputs (lambda (xputs illium-sum asset-map)
+                                            (letrec (
+                                                (amount (cdr (car xputs)))
+                                                (asset-id (car (cdr amount)))
+                                                (sum-assets (lambda (asset-map a-id amt)
+                                                                (let ((asset-amt (map-get a-id asset-map)))
 
-                                    (if (eq xputs nil)
-                                        (cons illium-sum asset-map)
-                                        (if (= asset-id 0)
-                                            (if (check-overflow illium-sum (car amount))
-                                                  nil
-                                                  (sum-xputs (cdr xputs) (+ illium-sum (car amount)) asset-map))
-                                            (let ((new-asset-map (sum-assets asset-map asset-id (car amount))))
-                                               (if (eq new-asset-map nil)
-                                                    nil
-                                                    (sum-xputs (cdr xputs) illium-sum new-asset-map))))))))
+                                                                (if (eq asset-amt nil)
+                                                                    (map-update a-id amt asset-map)
+                                                                    (if (check-overflow asset-amt amt)
+                                                                        nil
+                                                                        (map-update a-id (+ asset-amt amt) asset-map))) ))))
 
-                (in-vals (sum-xputs private-inputs 0 nil))
-                (out-vals (sum-xputs private-outputs 0 nil)))
+                                                (if (eq xputs nil)
+                                                    (cons illium-sum asset-map)
+                                                    (if (= asset-id 0)
+                                                        (if (check-overflow illium-sum (car amount))
+                                                              nil
+                                                              (sum-xputs (cdr xputs) (+ illium-sum (car amount)) asset-map))
+                                                        (let ((new-asset-map (sum-assets asset-map asset-id (car amount))))
+                                                           (if (eq new-asset-map nil)
+                                                                nil
+                                                                (sum-xputs (cdr xputs) illium-sum new-asset-map) )))))))
 
-                (if (eq in-vals nil)
-                    nil
-                    (if (eq out-vals nil)
-                        nil
-                        (if (check-overflow (car in-vals) coinbase)
-                            nil
-                            (if (check-overflow (car out-vals) fee)
+                            (in-vals (sum-xputs private-inputs 0 nil))
+                            (out-vals (sum-xputs private-outputs 0 nil)))
+
+                            (if (eq in-vals nil)
                                 nil
-                                (if (> (+ (car out-vals) fee) (+ (car in-vals) coinbase))
+                                (if (eq out-vals nil)
                                     nil
-                                    (validate-assets (cdr in-vals) (cdr out-vals))))))))))
+                                    (if (check-overflow (car in-vals) coinbase)
+                                        nil
+                                        (if (check-overflow (car out-vals) fee)
+                                            nil
+                                            (if (> (+ (car out-vals) fee) (+ (car in-vals) coinbase))
+                                                nil
+                                                (validate-assets (cdr in-vals) (cdr out-vals))))))))))
 
         (validate-transaction (lambda (private-params public-params)
             (letrec (

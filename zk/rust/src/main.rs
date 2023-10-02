@@ -38,7 +38,7 @@ fn main() {
     let private_params = "'(
  ((0x{script-commitment}
    1000000000
-   0
+   1
    '(234)
    0
    0
@@ -48,12 +48,12 @@ fn main() {
    (0 1 2 3 4 5 6 7 8)))
  ((999
    100000
-   0
+   1
    0
    5)
   (111
-   1000000
-   0
+   2000000
+   1
    0
    19)))";
 
@@ -73,7 +73,7 @@ fn prove(public_vars: &str, private_vars: &str, unlocking_script: &str) -> Resul
     let fcomm_path_val = tmp_dir_path.join("fcomm_data");
     std::env::set_var(fcomm_path_key, fcomm_path_val.clone());
 
-    let limit = 100000000;
+    let limit = 100000;
     let lang:Lang<S1, Coproc<S1>> = Lang::new();
     let lang_rc = Arc::new(lang.clone());
     let rc = ReductionCount::Ten;
@@ -129,6 +129,7 @@ fn prove(public_vars: &str, private_vars: &str, unlocking_script: &str) -> Resul
     bincode::serialize_into(&mut encoder, &compressed)?;
 
     let compressed_snark_encoded = encoder.finish()?;
+    println!("Num iterations: {:?}", proof.num_steps * rc.count());
     Ok(prepend_commitment(commitment_bytes, prepend_u32_to_bytes(proof.num_steps, compressed_snark_encoded)))
 }
 
@@ -203,13 +204,21 @@ static lurk_program: &str = "(
                 (car plist)
                 (list-get (- idx 1) (cdr plist)))))
 
-        ;; list-update applies a function to each item in a
-        ;; list. This provides an opportunity to update one
-        ;; or more items.
-        (list-update (lambda (f list)
-            (if list
-                (cons (f (car list))(map f (cdr list)))
-                nil)))
+        ;; map-update updates value of the given key in the
+        ;; provided map and returns the new map.
+        ;; If the key is not in the map a new map entry will
+        ;; be added.
+        ;; The map is formatted as a flat list of format
+        ;; (:key item :key item)
+        (map-update (lambda (key value map)
+              (if (eq map nil)
+                  (cons key (cons value nil))
+                  (let ((existing-key (car map))
+                        (rest-map (cdr map)))
+                        (if (= existing-key key)
+                            (cons key (cons value (cdr (cdr map))))
+                            (cons existing-key (map-update key value rest-map)))))))
+
 
         ;; validate-inclusion-proof validates that the provided
         ;; output commitment connects to the provided merkle root
@@ -302,71 +311,66 @@ static lurk_program: &str = "(
         ;; for other token asset IDs. It will return false if an
         ;; integer overflow is detected.
         (validate-amounts (lambda (private-inputs private-outputs coinbase fee mint-id mint-amount)
-            (letrec (
-                (check-overflow (lambda (a b)
-                        (if (> b 0)
-                            (if (> a (- 18446744073709551615 b))
-                                t
-                                nil)
-                            nil)))
-                (validate-assets (lambda (in-map out-map)
-                           (let (
-                                 (out-asset (car out-map))
-                                 (in-asset (map-get (car out-asset) in-map)))
+                (letrec (
+                    (check-overflow (lambda (a b)
+                            (if (> b 0)
+                                (if (> a (- 18446744073709551615 b))
+                                    t
+                                    nil)
+                                nil)))
+                    (validate-assets (lambda (in-map out-map)
+                               (let (
+                                     (out-asset-id (car out-map))
+                                     (in-value (map-get out-asset-id in-map)))
 
-                                  (if (eq out-asset nil)
-                                      t
-                                      (if (eq in-asset nil)
-                                          (if (eq (car in-asset) mint-id)
-                                              (if (check-overflow (cdr in-asset) mint-amount)
+                                      (if (eq out-asset-id nil)
+                                          t
+                                          (if (eq in-value nil)
+                                              (if (eq out-asset-id mint-id)
+                                                  (<= (car (cdr out-map)) mint-amount)
+                                                  nil)
+                                              (if (> (car (cdr out-map)) (+ in-value mint-amount))
                                                   nil
-                                                  (> (cdr out-asset) (+ (cdr in-asset) mint-amount)))
-                                              nil)
-                                          (if (> (cdr out-asset) (cdr in-asset))
-                                              nil
-                                              (validate-assets in-map (cdr out-map)))))
-                )))
-                (sum-xputs (lambda (xputs illium-sum asset-map)
-                              (letrec (
-                                    (amount (cdr (car xputs)))
-                                    (asset-id (car (cdr amount)))
-                                    (sum-assets (lambda (asset-map a-id amt)
-                                                (let ((asset (map-get a-id asset-map)))
+                                                  (validate-assets in-map (cdr out-map))))))))
 
-                                                      (if (check-overflow (cdr asset) amt)
-                                                            nil
-                                                            (if (eq asset nil)
-                                                                (cons asset-map (cons a-id amt))
-                                                                (list-update (lambda (entry)
-                                                                    (if (= (car entry) a-id)
-                                                                   (cons a-id (+ (cdr entry) amt))
-                                                                    entry)) asset-map)))))))
+                    (sum-xputs (lambda (xputs illium-sum asset-map)
+                                    (letrec (
+                                        (amount (cdr (car xputs)))
+                                        (asset-id (car (cdr amount)))
+                                        (sum-assets (lambda (asset-map a-id amt)
+                                                        (let ((asset-amt (map-get a-id asset-map)))
 
-                                    (if (eq xputs nil)
-                                        (cons illium-sum asset-map)
-                                        (if (= asset-id 0)
-                                            (if (check-overflow illium-sum (car amount))
-                                                  nil
-                                                  (sum-xputs (cdr xputs) (+ illium-sum (car amount)) asset-map))
-                                            (let ((new-asset-map (sum-assets asset-map asset-id (car amount))))
-                                               (if (eq new-asset-map nil)
-                                                    nil
-                                                    (sum-xputs (cdr xputs) illium-sum new-asset-map))))))))
+                                                        (if (eq asset-amt nil)
+                                                            (map-update a-id amt asset-map)
+                                                            (if (check-overflow asset-amt amt)
+                                                                nil
+                                                                (map-update a-id (+ asset-amt amt) asset-map))) ))))
 
-                (in-vals (sum-xputs private-inputs 0 nil))
-                (out-vals (sum-xputs private-outputs 0 nil)))
+                                        (if (eq xputs nil)
+                                            (cons illium-sum asset-map)
+                                            (if (= asset-id 0)
+                                                (if (check-overflow illium-sum (car amount))
+                                                      nil
+                                                      (sum-xputs (cdr xputs) (+ illium-sum (car amount)) asset-map))
+                                                (let ((new-asset-map (sum-assets asset-map asset-id (car amount))))
+                                                   (if (eq new-asset-map nil)
+                                                        nil
+                                                        (sum-xputs (cdr xputs) illium-sum new-asset-map) )))))))
 
-                (if (eq in-vals nil)
-                    nil
-                    (if (eq out-vals nil)
+                    (in-vals (sum-xputs private-inputs 0 nil))
+                    (out-vals (sum-xputs private-outputs 0 nil)))
+
+                    (if (eq in-vals nil)
                         nil
-                        (if (check-overflow (car in-vals) coinbase)
+                        (if (eq out-vals nil)
                             nil
-                            (if (check-overflow (car out-vals) fee)
+                            (if (check-overflow (car in-vals) coinbase)
                                 nil
-                                (if (> (+ (car out-vals) fee) (+ (car in-vals) coinbase))
+                                (if (check-overflow (car out-vals) fee)
                                     nil
-                                    (validate-assets (cdr in-vals) (cdr out-vals))))))))))
+                                    (if (> (+ (car out-vals) fee) (+ (car in-vals) coinbase))
+                                        nil
+                                        (validate-assets (cdr in-vals) (cdr out-vals))))))))))
 
         (validate-transaction (lambda (private-params public-params)
             (letrec (
@@ -393,14 +397,15 @@ static lurk_program: &str = "(
                                     (validate-outputs (+ idx 1) (cdr outputs))
                                     nil)))))
 
-
-                   (if (eq private-inputs nil)
-                       nil
-                       (if (validate-inputs 0 private-inputs)
-                           (if (eq private-outputs nil)
-                               nil
-                               (if (validate-outputs 0 private-outputs)
-                                  (validate-amounts private-inputs private-outputs (car coinbase) (car fee) (car mint-id) (car mint-amount))
-                                   nil))
-                           nil)))))
+                   (validate-amounts private-inputs private-outputs (car coinbase) (car fee) (car mint-id) (car mint-amount)))))
+                   ;;(validate-inputs 0 private-inputs))))
+                   ;;(if (eq private-inputs nil)
+                   ;;    nil
+                   ;;    (if (validate-inputs 0 private-inputs)
+                   ;;        (if (eq private-outputs nil)
+                   ;;            nil
+                   ;;            (if (validate-outputs 0 private-outputs)
+                   ;;               (validate-amounts private-inputs private-outputs (car coinbase) (car fee) (car mint-id) (car mint-amount))
+                   ;;                nil))
+                   ;;        nil)))))
     )";
