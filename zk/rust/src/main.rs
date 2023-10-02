@@ -35,29 +35,43 @@ fn main() {
     println!("{:?}", evaluation.expr_out);*/
     let unlocking_script = "(lambda (script-params unlocking-params input-index private-params public-params) (eq (car script-params) (car unlocking-params)))";
 
-    let private_params = "'(
- ((0x{script-commitment}
-   1000000000
-   1
-   '(234)
-   0
-   0
-   21
-   '(123)
-   ((1 t) (2 nil) (3 t) (4 t) (5 nil) (6 nil) (7 t) (8 t))
-   (0 1 2 3 4 5 6 7 8)))
- ((999
-   100000
-   1
-   0
-   5)
+    let private_params = "'( ;;inputs
+ ((0x{script-commitment} ;;commitment
+   1000000000            ;; amount
+   1                     ;; asset ID
+   '(234)                ;; script params
+   0                     ;; commitment index
+   0                     ;; state
+   21                    ;; salt
+   '(123)                ;; unlocking params
+   ((1 t) (2 nil) (3 t) (4 t) (5 nil) (6 nil) (7 t) (8 t)) ;; accumulator hashes
+   (0 1 2 3 4 5 6 7 8)))                                   ;; accumulator
+ ( ;; outputs
+   (999     ;; script hash
+   100000  ;; amount
+   1       ;; asset-iD
+   0       ;; state
+   5)      ;; salt
   (111
    2000000
    1
    0
    19)))";
 
-    let public_params = "'('(72) 6 120000 0 nil 0 (( 99 '(9 2)) (44 '(11 10))) 5)";
+    let public_params = "'(
+                    '(72)            ;; nullifiers
+                    6                ;; txo root
+                    0                ;; fee
+                    0                ;; coinbase
+                    nil              ;; mint id
+                    0                ;; mint amount
+                    (                ;; public outputs
+                        ( 99         ;; commitment
+                        '(9 2))      ;; ciphertext
+                        (44 '(11 10)))
+                    5                ;; sig hash
+                    0                ;; locktime
+                    )";
     let proof = prove(public_params, private_params, unlocking_script).expect("proof creation failed");
     println!("Proof Len: {}", proof.len());
 }
