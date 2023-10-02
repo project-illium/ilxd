@@ -26,27 +26,29 @@
 ;;
 ;; 'private-params' takes the following form:
 ;; (
-;;     :inputs (
+;;     INPUTS
+;;     (
 ;;           (
-;;               :script-commitment <commitment>
-;;               :script-params <cons<num>>
-;;               :commitment-idx <u64>
-;;               :amount <u64>
-;;               :asset-id <num>
-;;               :state <num>
-;;               :salt <num>
-;;               :unlocking-params <cons<num>>
-;;               :inclusion-proof-hashes <cons<num>>
-;;               :inclusion-proof-acc <cons<num>>
+;;               <script-commitment commitment>
+;;               <amount u64>
+;;               <asset-id num>
+;;               <script-params list(user-defined)>
+;;               <commitment-index num>
+;;               <state num>
+;;               <salt num>
+;;               <unlocking-params list(user-defined)>
+;;               <inclusion-proof-hashes list(cons <num> <bool>)>
+;;               <inclusion-proof-accumulator list(num)>
 ;;            )
 ;;     )
-;;     :outputs (
+;;     OUTPUTS
+;;     (
 ;;           (
-;;               :script-hash <num>
-;;               :amount <u64>
-;;               :asset-id <num>
-;;               :state <num>
-;;               :salt <num>
+;;               <script-hash num>
+;;               <amount u64>
+;;               <asset-id num>
+;;               <state num>
+;;               <salt num>
 ;;           )
 ;;     )
 ;; )
@@ -56,19 +58,15 @@
 ;;
 ;; 'public-params' takes the following form:
 ;; (
-;;     :sig-hash <num>
-;;     :txo-root <num>
-;;     :fee <u64>
-;;     :coinbase <u64>
-;;     :mint-id <num>
-;;     :mint-amount <u64>
-;;     :nullifiers <cons<num>>
-;;     :outputs (
-;;           (
-;;               :commitment <num>
-;;               :ciphertext <cons<num>>
-;;           )
-;;     )
+;;     <nullifiers list(num)>
+;;     <txo-root num>
+;;     <fee u64>
+;;     <coinbase u64>
+;;     <mint-id num>
+;;     <mint-amount u64>
+;;     <public-outputs list(cons <commitment num> <ciphertext list(num))>
+;;     <sig-hash num>
+;;     <locktime num>
 ;; )
 ;;
 ;; The private and public params are there just for you to inspect, if you wish,

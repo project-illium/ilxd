@@ -219,7 +219,7 @@
                                             (validate-outputs (+ idx 1) (cdr outputs))
                                             nil)))))
 
-                          
+
                            (if (eq private-inputs nil)
                                nil
                                (if (validate-inputs 0 private-inputs)
