@@ -34,13 +34,20 @@
                 (car plist)
                 (list-get (- idx 1) (cdr plist)))))
 
-        ;; list-update applies a function to each item in a
-        ;; list. This provides an opportunity to update one
-        ;; or more items.
-        (list-update (lambda (f list)
-            (if list
-                (cons (f (car list))(map f (cdr list)))
-                nil)))
+       ;; map-update updates value of the given key in the
+        ;; provided map and returns the new map.
+        ;; If the key is not in the map a new map entry will
+        ;; be added.
+        ;; The map is formatted as a flat list of format
+        ;; (:key item :key item)
+        (map-update (lambda (key value map)
+             (if (eq map nil)
+                 (cons key (cons value nil))
+                 (let ((existing-key (car map))
+                       (rest-map (cdr map)))
+                       (if (= existing-key key)
+                           (cons key (cons value (cdr (cdr map))))
+                           (cons existing-key (map-update key value rest-map)))))))
 
         ;; validate-inclusion-proof validates that the provided
         ;; output commitment connects to the provided merkle root
