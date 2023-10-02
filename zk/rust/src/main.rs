@@ -345,7 +345,7 @@ static lurk_program: &str = "(
                                                   nil)
                                               (if (> (car (cdr out-map)) (+ in-value mint-amount))
                                                   nil
-                                                  (validate-assets in-map (cdr out-map))))))))
+                                                  (validate-assets in-map (cdr (cdr out-map)))))))))
 
                     (sum-xputs (lambda (xputs illium-sum asset-map)
                                     (letrec (
