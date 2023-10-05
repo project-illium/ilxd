@@ -93,7 +93,7 @@ func (p *proofValidator) validateHandler() {
 			switch tx := t.GetTx().(type) {
 			case *transactions.Transaction_StandardTransaction:
 				proofHash := types.NewIDFromData(tx.StandardTransaction.Proof)
-				exists := p.proofCache.Exists(proofHash, tx.StandardTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.StandardTransaction.Proof, tx.StandardTransaction.ID())
 				if exists {
 					p.resultChan <- nil
 					break
@@ -133,11 +133,11 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
 					break
 				}
-				p.proofCache.Add(proofHash, tx.StandardTransaction.Proof)
+				p.proofCache.Add(proofHash, tx.StandardTransaction.Proof, tx.StandardTransaction.ID())
 				p.resultChan <- nil
 			case *transactions.Transaction_CoinbaseTransaction:
 				proofHash := types.NewIDFromData(tx.CoinbaseTransaction.Proof)
-				exists := p.proofCache.Exists(proofHash, tx.CoinbaseTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.CoinbaseTransaction.Proof, tx.CoinbaseTransaction.ID())
 				if exists {
 					p.resultChan <- nil
 					break
@@ -174,11 +174,11 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
 					break
 				}
-				p.proofCache.Add(proofHash, tx.CoinbaseTransaction.Proof)
+				p.proofCache.Add(proofHash, tx.CoinbaseTransaction.Proof, tx.CoinbaseTransaction.ID())
 				p.resultChan <- nil
 			case *transactions.Transaction_TreasuryTransaction:
 				proofHash := types.NewIDFromData(tx.TreasuryTransaction.Proof)
-				exists := p.proofCache.Exists(proofHash, tx.TreasuryTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.TreasuryTransaction.Proof, tx.TreasuryTransaction.ID())
 				if exists {
 					p.resultChan <- nil
 					break
@@ -215,11 +215,11 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
 					break
 				}
-				p.proofCache.Add(proofHash, tx.TreasuryTransaction.Proof)
+				p.proofCache.Add(proofHash, tx.TreasuryTransaction.Proof, tx.TreasuryTransaction.ID())
 				p.resultChan <- nil
 			case *transactions.Transaction_MintTransaction:
 				proofHash := types.NewIDFromData(tx.MintTransaction.Proof)
-				exists := p.proofCache.Exists(proofHash, tx.MintTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.MintTransaction.Proof, tx.MintTransaction.ID())
 				if exists {
 					p.resultChan <- nil
 					break
@@ -256,11 +256,11 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
 					break
 				}
-				p.proofCache.Add(proofHash, tx.MintTransaction.Proof)
+				p.proofCache.Add(proofHash, tx.MintTransaction.Proof, tx.MintTransaction.ID())
 				p.resultChan <- nil
 			case *transactions.Transaction_StakeTransaction:
 				proofHash := types.NewIDFromData(tx.StakeTransaction.Proof)
-				exists := p.proofCache.Exists(proofHash, tx.StakeTransaction.Proof)
+				exists := p.proofCache.Exists(proofHash, tx.StakeTransaction.Proof, tx.StakeTransaction.ID())
 				if exists {
 					p.resultChan <- nil
 					break
@@ -286,7 +286,7 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
 					break
 				}
-				p.proofCache.Add(proofHash, tx.StakeTransaction.Proof)
+				p.proofCache.Add(proofHash, tx.StakeTransaction.Proof, tx.StakeTransaction.ID())
 				p.resultChan <- nil
 			}
 		case <-p.done:

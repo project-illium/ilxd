@@ -12,6 +12,7 @@ import (
 
 type proofCacheEntry struct {
 	proof []byte
+	txid  types.ID
 }
 
 // ProofCache is used to cache the validation of zero knowledge proofs.
@@ -35,12 +36,12 @@ func NewProofCache(maxEntries uint) *ProofCache {
 }
 
 // Exists returns whether the proof exists in the cache.
-func (p *ProofCache) Exists(proofHash types.ID, proof []byte) bool {
+func (p *ProofCache) Exists(proofHash types.ID, proof []byte, txid types.ID) bool {
 	p.RLock()
 	entry, ok := p.validProofs[proofHash]
 	p.RUnlock()
 
-	return ok && bytes.Equal(entry.proof, proof)
+	return ok && entry.txid == txid && bytes.Equal(entry.proof, proof)
 }
 
 // Add will add a new proof to the cache. If the new proof would exceed maxEntries
@@ -48,7 +49,7 @@ func (p *ProofCache) Exists(proofHash types.ID, proof []byte) bool {
 //
 // NOTE: Proofs should be validated before adding to this cache and only valid
 // proofs should ever be added.
-func (p *ProofCache) Add(proofHash types.ID, proof []byte) {
+func (p *ProofCache) Add(proofHash types.ID, proof []byte, txid types.ID) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -73,5 +74,5 @@ func (p *ProofCache) Add(proofHash types.ID, proof []byte) {
 			break
 		}
 	}
-	p.validProofs[proofHash] = proofCacheEntry{proof}
+	p.validProofs[proofHash] = proofCacheEntry{proof, txid}
 }

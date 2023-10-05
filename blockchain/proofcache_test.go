@@ -20,9 +20,11 @@ func TestProofCache(t *testing.T) {
 		proof := make([]byte, 64)
 		rand.Read(proof)
 
+		txid := randomID()
+
 		proofHash := hash.HashFunc(proof)
-		cache.Add(types.NewID(proofHash), proof)
-		assert.True(t, cache.Exists(types.NewID(proofHash), proof))
+		cache.Add(types.NewID(proofHash), proof, txid)
+		assert.True(t, cache.Exists(types.NewID(proofHash), proof, txid))
 		assert.LessOrEqual(t, len(cache.validProofs), max)
 	}
 }
