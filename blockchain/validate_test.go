@@ -591,7 +591,6 @@ func TestValidateBlock(t *testing.T) {
 						Validator_ID: validatorIDBytes,
 						Nullifier:    nullifier,
 						TxoRoot:      txoRoot[:],
-						Locktime:     time.Time{}.Unix(),
 					}),
 				}
 
@@ -615,7 +614,6 @@ func TestValidateBlock(t *testing.T) {
 						Validator_ID: validatorIDBytes,
 						Nullifier:    nullifier4,
 						TxoRoot:      txoRoot[:],
-						Locktime:     time.Time{}.Unix(),
 						Amount:       25,
 					}),
 				}
@@ -641,7 +639,6 @@ func TestValidateBlock(t *testing.T) {
 						Validator_ID: validatorIDBytes,
 						Nullifier:    nullifier4,
 						TxoRoot:      txoRoot[:],
-						Locktime:     time.Time{}.Unix(),
 						Amount:       25,
 					}),
 				}
@@ -667,7 +664,6 @@ func TestValidateBlock(t *testing.T) {
 						Validator_ID: validatorIDBytes,
 						Nullifier:    nullifier,
 						TxoRoot:      txoRoot2[:],
-						Locktime:     time.Time{}.Unix(),
 					}),
 				}
 
@@ -701,7 +697,6 @@ func TestValidateBlock(t *testing.T) {
 						Validator_ID: validatorIDBytes,
 						Nullifier:    nullifier,
 						TxoRoot:      txoRoot[:],
-						Locktime:     time.Time{}.Unix(),
 					}),
 				}
 
@@ -731,7 +726,6 @@ func TestValidateBlock(t *testing.T) {
 						},
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
-						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 					}),
 				}
@@ -765,7 +759,6 @@ func TestValidateBlock(t *testing.T) {
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
 						Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
-						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 					}),
 				}
@@ -797,7 +790,6 @@ func TestValidateBlock(t *testing.T) {
 							},
 						},
 						Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
-						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
@@ -813,7 +805,6 @@ func TestValidateBlock(t *testing.T) {
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
 						Asset_ID:   bytes.Repeat([]byte{0x12}, types.AssetIDLen),
-						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x12}, PubkeyLen),
 					}),
 				}
@@ -847,7 +838,6 @@ func TestValidateBlock(t *testing.T) {
 							},
 						},
 						Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
-						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 						Nullifiers: [][]byte{nullifier2[:]},
 						TxoRoot:    txoRoot[:],
@@ -881,7 +871,6 @@ func TestValidateBlock(t *testing.T) {
 							},
 						},
 						Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
-						Locktime:   time.Time{}.Unix(),
 						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot2[:],
@@ -1190,7 +1179,6 @@ func TestValidateBlock(t *testing.T) {
 						Validator_ID: validatorIDBytes,
 						Nullifier:    nullifier,
 						TxoRoot:      root[:],
-						Locktime:     time.Time{}.Unix(),
 					}),
 				}
 
@@ -1224,7 +1212,6 @@ func TestValidateBlock(t *testing.T) {
 						Validator_ID: validatorIDBytes,
 						Nullifier:    nullifier,
 						TxoRoot:      root[:],
-						Locktime:     time.Time{}.Unix(),
 						Amount:       10001,
 					}),
 				}
@@ -1259,7 +1246,6 @@ func TestValidateBlock(t *testing.T) {
 						Validator_ID: validatorIDBytes,
 						Nullifier:    nullifier,
 						TxoRoot:      txoRoot[:],
-						Locktime:     time.Time{}.Unix(),
 					}),
 				}
 
@@ -1311,7 +1297,6 @@ func TestValidateBlock(t *testing.T) {
 						Validator_ID: validatorIDBytes,
 						Nullifier:    nullifier,
 						TxoRoot:      root[:],
-						Locktime:     time.Time{}.Unix(),
 					}),
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorIDBytes,
@@ -1432,7 +1417,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "standard valid",
 			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
-				Locktime:   time.Time{}.Unix(),
 				Outputs: []*transactions.Output{
 					{
 						Commitment: make([]byte, types.CommitmentLen),
@@ -1448,7 +1432,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
 				Outputs:    []*transactions.Output{},
 				Nullifiers: [][]byte{nullifier.Bytes()},
-				Locktime:   time.Time{}.Unix(),
 			}),
 			timestamp:   time.Now(),
 			expectedErr: ruleError(ErrInvalidTx, ""),
@@ -1457,7 +1440,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "standard no nullifiers",
 			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
 				Nullifiers: [][]byte{},
-				Locktime:   time.Time{}.Unix(),
 				Outputs: []*transactions.Output{
 					{
 						Commitment: make([]byte, types.CommitmentLen),
@@ -1472,7 +1454,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "standard invalid commitment len",
 			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
-				Locktime:   time.Time{}.Unix(),
 				Outputs: []*transactions.Output{
 					{
 						Commitment: make([]byte, types.CommitmentLen+1),
@@ -1487,7 +1468,10 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "standard invalid locktime",
 			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
-				Locktime:   time.Now().Add(time.Hour).Unix(),
+				Locktime: &transactions.Locktime{
+					Timestamp:   time.Now().Add(time.Hour).Unix(),
+					Granularity: 10,
+				},
 				Outputs: []*transactions.Output{
 					{
 						Commitment: make([]byte, types.CommitmentLen),
@@ -1503,7 +1487,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Nullifier:    nullifier.Bytes(),
 				Validator_ID: peerIDBytes,
-				Locktime:     time.Time{}.Unix(),
 			}),
 			timestamp:   time.Now(),
 			expectedErr: nil,
@@ -1513,7 +1496,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Nullifier:    nullifier.Bytes(),
 				Validator_ID: nil,
-				Locktime:     time.Time{}.Unix(),
 			}),
 			timestamp:   time.Now(),
 			expectedErr: ruleError(ErrInvalidTx, ""),
@@ -1523,7 +1505,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Nullifier:    nil,
 				Validator_ID: peerIDBytes,
-				Locktime:     time.Time{}.Unix(),
 			}),
 			timestamp:   time.Now(),
 			expectedErr: ruleError(ErrInvalidTx, ""),
@@ -1533,7 +1514,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
 				Asset_ID:   hash.HashFunc(nullifier.Bytes()),
-				Locktime:   time.Time{}.Unix(),
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{
@@ -1558,7 +1538,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 				},
 				Nullifiers: [][]byte{nullifier.Bytes()},
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
-				Locktime:   time.Time{}.Unix(),
 			}),
 			timestamp:   time.Now(),
 			expectedErr: nil,
@@ -1568,7 +1547,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Outputs:    []*transactions.Output{},
 				Nullifiers: [][]byte{nullifier.Bytes()},
-				Locktime:   time.Time{}.Unix(),
 				Asset_ID:   hash.HashFunc(nullifier.Bytes()),
 			}),
 			timestamp:   time.Now(),
@@ -1578,7 +1556,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "mint no nullifiers",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers: [][]byte{},
-				Locktime:   time.Time{}.Unix(),
 				Asset_ID:   hash.HashFunc(nullifier.Bytes()),
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
@@ -1595,7 +1572,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "mint invalid commitment len",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
-				Locktime:   time.Time{}.Unix(),
 				Asset_ID:   hash.HashFunc(nullifier.Bytes()),
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
@@ -1612,9 +1588,12 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "mint invalid locktime",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
-				Locktime:   time.Now().Add(time.Hour).Unix(),
-				Asset_ID:   hash.HashFunc(nullifier.Bytes()),
-				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
+				Locktime: &transactions.Locktime{
+					Timestamp:   time.Now().Add(time.Hour).Unix(),
+					Granularity: 10,
+				},
+				Asset_ID: hash.HashFunc(nullifier.Bytes()),
+				MintKey:  bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{
 						Commitment: make([]byte, types.CommitmentLen),
@@ -1629,7 +1608,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "mint invalid asset ID len",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
-				Locktime:   time.Time{}.Unix(),
 				Asset_ID:   []byte{0x01},
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
@@ -1646,7 +1624,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "mint invalid document hash len",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers:   [][]byte{nullifier.Bytes()},
-				Locktime:     time.Time{}.Unix(),
 				Asset_ID:     hash.HashFunc(nullifier.Bytes()),
 				DocumentHash: make([]byte, MaxDocumentHashLen+1),
 				Outputs: []*transactions.Output{
@@ -1663,7 +1640,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "mint invalid fixed supply asset ID",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
-				Locktime:   time.Time{}.Unix(),
 				Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
@@ -1681,7 +1657,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
 				Type:       transactions.MintTransaction_VARIABLE_SUPPLY,
-				Locktime:   time.Time{}.Unix(),
 				Asset_ID:   types.IlliumCoinID[:],
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
@@ -1699,7 +1674,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
 				Type:       transactions.MintTransaction_VARIABLE_SUPPLY,
-				Locktime:   time.Time{}.Unix(),
 				Asset_ID:   bytes.Repeat([]byte{0x22}, types.AssetIDLen),
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
@@ -1717,7 +1691,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
 				Type:       3,
-				Locktime:   time.Time{}.Unix(),
 				Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
@@ -1785,7 +1758,6 @@ func TestCheckTransactionSanity(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Nullifier:    nullifier.Bytes(),
 				Validator_ID: peerIDBytes,
-				Locktime:     time.Time{}.Unix(),
 				Signature:    make([]byte, 1000000),
 			}),
 			timestamp:   time.Now(),

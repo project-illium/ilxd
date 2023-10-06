@@ -57,15 +57,16 @@ type PrivateParams struct {
 }
 
 type PublicParams struct {
-	TXORoot    []byte
-	SigHash    []byte
-	Outputs    []PublicOutput
-	Nullifiers [][]byte
-	Fee        uint64
-	Coinbase   uint64
-	MintID     []byte
-	MintAmount uint64
-	Locktime   time.Time
+	TXORoot             []byte
+	SigHash             []byte
+	Outputs             []PublicOutput
+	Nullifiers          [][]byte
+	Fee                 uint64
+	Coinbase            uint64
+	MintID              []byte
+	MintAmount          uint64
+	Locktime            time.Time
+	LocktimeGranularity time.Duration
 }
 
 type UnlockingScriptInputs struct {

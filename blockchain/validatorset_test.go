@@ -210,13 +210,13 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 			Validator_ID: valIDBytes2,
 			Amount:       80000,
 			Nullifier:    nullifier3[:],
-			Locktime:     time.Unix(blk6.Header.Timestamp, 0).Add(time.Hour * 24 * 30 * 8).Unix(),
+			LockedUntil:  time.Unix(blk6.Header.Timestamp, 0).Add(time.Hour * 24 * 30 * 8).Unix(),
 		}),
 		transactions.WrapTransaction(&transactions.StakeTransaction{
 			Validator_ID: valIDBytes3,
 			Amount:       10,
 			Nullifier:    nullifier4[:],
-			Locktime:     0,
+			LockedUntil:  0,
 		}),
 	}
 	tx, err = vs.ConnectBlock(blk6, 0)

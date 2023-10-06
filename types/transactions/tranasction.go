@@ -219,9 +219,14 @@ type standardTxJSON struct {
 	Outputs    []*Output            `json:"outputs"`
 	Nullifiers []types.HexEncodable `json:"nullifiers"`
 	TxoRoot    types.HexEncodable   `json:"txo_root"`
-	Locktime   int64                `json:"locktime"`
+	Locktime   *locktimeJSON        `json:"locktime,omitempty"`
 	Fee        uint64               `json:"fee"`
 	Proof      types.HexEncodable   `json:"proof"`
+}
+
+type locktimeJSON struct {
+	Timestamp   int64 `json:"timestamp"`
+	Granularity int64 `json:"granularity"`
 }
 
 func (tx *StandardTransaction) Serialize() ([]byte, error) {
@@ -268,9 +273,14 @@ func (tx *StandardTransaction) MarshalJSON() ([]byte, error) {
 		Outputs:    tx.Outputs,
 		Nullifiers: nullifiers,
 		TxoRoot:    tx.TxoRoot,
-		Locktime:   tx.Locktime,
 		Fee:        tx.Fee,
 		Proof:      tx.Proof,
+	}
+	if tx.Locktime != nil {
+		s.Locktime = &locktimeJSON{
+			Timestamp:   tx.Locktime.Timestamp,
+			Granularity: tx.Locktime.Granularity,
+		}
 	}
 	return json.Marshal(s)
 }
@@ -288,9 +298,14 @@ func (tx *StandardTransaction) UnmarshalJSON(data []byte) error {
 		Outputs:    newTx.Outputs,
 		Nullifiers: nullifiers,
 		TxoRoot:    newTx.TxoRoot,
-		Locktime:   newTx.Locktime,
 		Fee:        newTx.Fee,
 		Proof:      newTx.Proof,
+	}
+	if newTx.Locktime != nil {
+		tx.Locktime = &Locktime{
+			Timestamp:   newTx.Locktime.Timestamp,
+			Granularity: newTx.Locktime.Granularity,
+		}
 	}
 	return nil
 }
@@ -369,7 +384,7 @@ type stakeTxJSON struct {
 	Amount       uint64             `json:"amount"`
 	Nullifier    types.HexEncodable `json:"nullifier"`
 	TxoRoot      types.HexEncodable `json:"txo_root"`
-	Locktime     int64              `json:"locktime"`
+	LockedUntil  int64              `json:"locked_until"`
 	Signature    types.HexEncodable `json:"signature"`
 	Proof        types.HexEncodable `json:"proof"`
 }
@@ -384,9 +399,9 @@ func (tx *StakeTransaction) Deserialize(data []byte) error {
 		return err
 	}
 	tx.Validator_ID = newTx.Validator_ID
-	tx.Locktime = newTx.Locktime
 	tx.Proof = newTx.Proof
 	tx.TxoRoot = newTx.TxoRoot
+	tx.LockedUntil = newTx.LockedUntil
 	tx.Signature = newTx.Signature
 	tx.Amount = newTx.Amount
 	tx.Nullifier = newTx.Nullifier
@@ -417,7 +432,7 @@ func (tx *StakeTransaction) MarshalJSON() ([]byte, error) {
 		Amount:       tx.Amount,
 		Nullifier:    tx.Nullifier,
 		TxoRoot:      tx.TxoRoot,
-		Locktime:     tx.Locktime,
+		LockedUntil:  tx.LockedUntil,
 		Signature:    tx.Signature,
 		Proof:        tx.Proof,
 	}
@@ -434,7 +449,7 @@ func (tx *StakeTransaction) UnmarshalJSON(data []byte) error {
 		Amount:       newTx.Amount,
 		Nullifier:    newTx.Nullifier,
 		TxoRoot:      newTx.TxoRoot,
-		Locktime:     newTx.Locktime,
+		LockedUntil:  newTx.LockedUntil,
 		Signature:    newTx.Signature,
 		Proof:        newTx.Proof,
 	}
@@ -515,7 +530,7 @@ type mintTxJSON struct {
 	Nullifiers   []types.HexEncodable      `json:"nullifiers"`
 	TxoRoot      types.HexEncodable        `json:"txo_root"`
 	MintKey      types.HexEncodable        `json:"mint_key"`
-	Locktime     int64                     `json:"locktime"`
+	Locktime     *locktimeJSON             `json:"locktime,omitempty"`
 	Signature    types.HexEncodable        `json:"signature"`
 	Proof        types.HexEncodable        `json:"proof"`
 }
@@ -576,9 +591,14 @@ func (tx *MintTransaction) MarshalJSON() ([]byte, error) {
 		Nullifiers:   nullifiers,
 		TxoRoot:      tx.TxoRoot,
 		MintKey:      tx.MintKey,
-		Locktime:     tx.Locktime,
 		Signature:    tx.Signature,
 		Proof:        tx.Proof,
+	}
+	if tx.Locktime != nil {
+		s.Locktime = &locktimeJSON{
+			Timestamp:   tx.Locktime.Timestamp,
+			Granularity: tx.Locktime.Granularity,
+		}
 	}
 	return json.Marshal(s)
 }
@@ -602,9 +622,14 @@ func (tx *MintTransaction) UnmarshalJSON(data []byte) error {
 		Nullifiers:   nullifiers,
 		TxoRoot:      newTx.TxoRoot,
 		MintKey:      newTx.MintKey,
-		Locktime:     newTx.Locktime,
 		Signature:    newTx.Signature,
 		Proof:        newTx.Proof,
+	}
+	if newTx.Locktime != nil {
+		tx.Locktime = &Locktime{
+			Timestamp:   newTx.Locktime.Timestamp,
+			Granularity: newTx.Locktime.Granularity,
+		}
 	}
 	return nil
 }

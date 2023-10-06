@@ -376,8 +376,8 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 		if err := validateOutputs(tx.StandardTransaction.Outputs); err != nil {
 			return err
 		}
-		if tx.StandardTransaction.Locktime > blockTime.Unix() {
-			return ruleError(ErrInvalidTx, "transaction locktime is ahead of block timestamp")
+		if ValidateLocktime(blockTime, tx.StandardTransaction.Locktime) {
+			return ruleError(ErrInvalidTx, "transaction locktime is invalid")
 		}
 	case *transactions.Transaction_MintTransaction:
 		if len(tx.MintTransaction.Nullifiers) == 0 {
@@ -409,8 +409,8 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 		default:
 			return ruleError(ErrUnknownTxEnum, "unknown mint transaction type")
 		}
-		if tx.MintTransaction.Locktime > blockTime.Unix() {
-			return ruleError(ErrInvalidTx, "transaction locktime is ahead of block timestamp")
+		if ValidateLocktime(blockTime, tx.MintTransaction.Locktime) {
+			return ruleError(ErrInvalidTx, "transaction locktime is invalid")
 		}
 	case *transactions.Transaction_TreasuryTransaction:
 		if err := validateOutputs(tx.TreasuryTransaction.Outputs); err != nil {
@@ -428,6 +428,20 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 		return ruleError(ErrInvalidTx, "transaction too large")
 	}
 	return nil
+}
+
+// ValidateLocktime validates that the blocktime is within the locktime range
+// specified by the provided granularity.
+func ValidateLocktime(blocktime time.Time, locktime *transactions.Locktime) bool {
+	if locktime == nil {
+		return true
+	}
+	timestamp := time.Unix(locktime.Timestamp, 0)
+	if blocktime.After(timestamp.Add(-time.Duration(locktime.Granularity))) &&
+		blocktime.Before(timestamp.Add(time.Duration(locktime.Granularity))) {
+		return true
+	}
+	return false
 }
 
 // validateOutputs makes sure the output fields do not exceed a certain length. Protobuf

@@ -160,7 +160,7 @@ func main() {
 				Amount:       stakeAmt,
 				Nullifier:    nullifier.Bytes(),
 				TxoRoot:      nil,
-				Locktime:     0,
+				Locktime:     nil,
 				Signature:    nil,
 				Proof:        nil, // TODO
 			}),
