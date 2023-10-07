@@ -7,16 +7,18 @@ use lurk::{
         lang::{Coproc, Lang},
     },
     public_parameters::public_params,
+    public_parameters::instance::{Instance, Kind},
     proof::nova::{NovaProver},
     proof::Prover,
     store::Store,
+    circuit::circuit_frame::MultiFrame,
 };
 use fcomm::{ReductionCount, Proof, CommittedExpression, LurkPtr, Commitment};
 use pasta_curves::pallas;
 use tempfile::Builder;
 use camino::Utf8Path;
 use hex::FromHex;
-use regex::Regex;
+use bincode;
 
 pub type S1 = pallas::Scalar;
 
@@ -91,10 +93,16 @@ fn prove(public_vars: &str, private_vars: &str, unlocking_script: &str) -> Resul
     let lang:Lang<S1, Coproc<S1>> = Lang::new();
     let lang_rc = Arc::new(lang.clone());
     let rc = ReductionCount::Ten;
-    let pp = public_params(
+
+    let instance = Instance::new(
         rc.count(),
-        true,
         lang_rc.clone(),
+        true,
+        Kind::NovaPublicParams,
+    );
+
+    let pp = public_params(
+        &instance,
         &fcomm_path_val.join("public_params"),
     )
         .expect("public params");
@@ -126,7 +134,12 @@ fn prove(public_vars: &str, private_vars: &str, unlocking_script: &str) -> Resul
     let exec_str = format!(r#"(validate-transaction (open 0x{commitment_str}) {public_vars}))"#);
     let expression = lurk_program.to_owned() + &exec_str;
 
-    let prover = NovaProver::<S1, Coproc<S1>>::new(rc.count(), lang.clone());
+    let prover = NovaProver::<'_, S1, Coproc<S1>, MultiFrame<'_, S1, Coproc<S1>>>::new(
+        rc.count(),
+        lang.clone(),
+    );
+    //let prover = NovaProver::<'_, F, Coproc<F>, MultiFrame<'_, F, Coproc<F>>>::new(rc.count(), lang.clone());
+    //let prover = NovaProver::<S1, Coproc<S1>>::new(rc.count(), lang.clone());
 
     let input = s.read(&expression)?;
 
@@ -177,10 +190,10 @@ fn prepend_commitment(prefix: Vec<u8>, data: Vec<u8>) -> Vec<u8> {
     combined
 }
 
-fn replace_sha256_expression(input: &str) -> String {
+/*fn replace_sha256_expression(input: &str) -> String {
     let re = Regex::new(r"\(sha256 ([^\)]+)\)").unwrap();
     re.replace_all(input, "(eval (cons 'sha256 (cons $1 nil)))").to_string()
-}
+}*/
 
 static lurk_program: &str = "(
     letrec (
