@@ -7,7 +7,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -370,7 +369,7 @@ func macroExpandDefun(lurkProgram string) string {
 }
 
 // PreProcess takes a lurk program string and expands all the macros.
-func PreProcess(lurkProgram string) string {
+func PreProcess(lurkProgram string) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(lurkProgram))
 
 	var (
@@ -417,8 +416,7 @@ func PreProcess(lurkProgram string) string {
 	lurkProgram = strings.Join(modifiedLines, "\n")
 
 	if err := scanner.Err(); err != nil {
-		fmt.Println("Error reading the string:", err)
-		os.Exit(1)
+		return "", err
 	}
 
 	lurkProgram = macroExpandDef(lurkProgram)
@@ -429,5 +427,5 @@ func PreProcess(lurkProgram string) string {
 	lurkProgram = macroExpandList(lurkProgram)
 	lurkProgram = macroExpandParam(lurkProgram)
 
-	return lurkProgram
+	return lurkProgram, nil
 }
