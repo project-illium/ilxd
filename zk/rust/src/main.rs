@@ -424,15 +424,15 @@ static lurk_program: &str = "(
                                     (validate-outputs (+ idx 1) (cdr outputs))
                                     nil)))))
 
-                   (validate-amounts private-inputs private-outputs (car coinbase) (car fee) (car mint-id) (car mint-amount)))))
+                   ;;(validate-amounts private-inputs private-outputs (car coinbase) (car fee) (car mint-id) (car mint-amount)))))
                    ;;(validate-inputs 0 private-inputs))))
-                   ;;(if (eq private-inputs nil)
-                   ;;    nil
-                   ;;    (if (validate-inputs 0 private-inputs)
-                   ;;        (if (eq private-outputs nil)
-                   ;;            nil
-                   ;;            (if (validate-outputs 0 private-outputs)
-                   ;;               (validate-amounts private-inputs private-outputs (car coinbase) (car fee) (car mint-id) (car mint-amount))
-                   ;;                nil))
-                   ;;        nil)))))
+                   (if (eq private-inputs nil)
+                       nil
+                       (if (validate-inputs 0 private-inputs)
+                           (if (eq private-outputs nil)
+                               nil
+                               (if (validate-outputs 0 private-outputs)
+                                  (validate-amounts private-inputs private-outputs (car coinbase) (car fee) (car mint-id) (car mint-amount))
+                                   nil))
+                           nil)))))
     )";

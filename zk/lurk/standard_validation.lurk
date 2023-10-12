@@ -49,12 +49,20 @@
                            (cons key (cons value (cdr (cdr map))))
                            (cons existing-key (map-update key value rest-map)))))))
 
+        ;; check-overflow returns whether the sum of a and b overflows a u64
+        (check-overflow (lambda (a b)
+            (if (> b 0)
+                (if (> a (- 18446744073709551615 b))
+                    t
+                    nil)
+                nil)))
+
         ;; validate-inclusion-proof validates that the provided
         ;; output commitment connects to the provided merkle root
         ;; via a merkle inclusion proof.
         (validate-inclusion-proof (lambda (output-commitment commitment-index hashes accumulator root)
             (letrec (
-                (h (cat-and-hash '(output-commitment (u64 commitment-index))))
+                (h (cat-and-hash '((u64 commitment-index) output-commitment)))
                 (is-hash-in-accumulator (lambda (h accumulator)
                     (if (= h (car accumulator))
                         t
@@ -141,12 +149,6 @@
         ;; integer overflow is detected.
         (validate-amounts (lambda (private-inputs private-outputs coinbase fee mint-id mint-amount)
                         (letrec (
-                            (check-overflow (lambda (a b)
-                                    (if (> b 0)
-                                        (if (> a (- 18446744073709551615 b))
-                                            t
-                                            nil)
-                                        nil)))
                             (validate-assets (lambda (in-map out-map)
                                        (let (
                                              (out-asset-id (car out-map))
