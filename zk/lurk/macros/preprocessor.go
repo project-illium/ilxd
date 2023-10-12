@@ -419,13 +419,9 @@ func PreProcess(lurkProgram string) (string, error) {
 		return "", err
 	}
 
-	lurkProgram = macroExpandDef(lurkProgram)
-	lurkProgram = macroExpandDefrec(lurkProgram)
-	lurkProgram = macroExpandDefun(lurkProgram)
-	lurkProgram = macroExpandAssert(lurkProgram)
-	lurkProgram = macroExpandAssertEq(lurkProgram)
-	lurkProgram = macroExpandList(lurkProgram)
-	lurkProgram = macroExpandParam(lurkProgram)
+	for _, macro := range []Macro{Def, Defrec, Defun, Assert, AssertEq, List, Param} {
+		lurkProgram = macro.Expand(lurkProgram)
+	}
 
 	return lurkProgram, nil
 }

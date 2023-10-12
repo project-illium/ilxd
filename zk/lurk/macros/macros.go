@@ -31,11 +31,28 @@ func (m Macro) IsNested() bool {
 	}
 }
 
-func IsMacro(s string) (Macro, bool) {
-	if strings.HasPrefix(s, "!(") {
-		s = s[2:]
+func (m Macro) Expand(program string) string {
+	switch m {
+	case Def:
+		return macroExpandDef(program)
+	case Defrec:
+		return macroExpandDefrec(program)
+	case Defun:
+		return macroExpandDefun(program)
+	case Assert:
+		return macroExpandAssert(program)
+	case AssertEq:
+		return macroExpandAssertEq(program)
+	case List:
+		return macroExpandList(program)
+	case Param:
+		return macroExpandParam(program)
 	}
-	s = strings.ToLower(s)
+	return program
+}
+
+func IsMacro(s string) (Macro, bool) {
+	s = strings.TrimPrefix(strings.ToLower(s), "!(")
 	if strings.HasPrefix(s, Def.String()) {
 		return Def, true
 	} else if strings.HasPrefix(s, Defrec.String()) {
