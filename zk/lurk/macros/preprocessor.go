@@ -6,9 +6,49 @@ package macros
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 )
+
+var ErrCircularImports = errors.New("circular imports")
+
+const LurkFileExtension = ".lurk"
+
+type MacroPreprocessor struct {
+	depDir string
+}
+
+func NewMacroPreprocessor(opts ...Option) (*MacroPreprocessor, error) {
+	var cfg config
+	for _, opt := range opts {
+		if err := opt(&cfg); err != nil {
+			return nil, err
+		}
+	}
+
+	return &MacroPreprocessor{
+		depDir: cfg.depDir,
+	}, nil
+}
+
+func (p *MacroPreprocessor) Preprocess(lurkProgram string) (string, error) {
+	if strings.Contains(lurkProgram, fmt.Sprintf("!(%s", Import.String())) {
+		if p.depDir == "" {
+			return "", errors.New("dependency directory not set")
+		}
+
+		// Recursively expand import macros and check for circular imports
+		var err error
+		lurkProgram, err = macroExpandImport(lurkProgram, p.depDir, nil)
+		if err != nil {
+			return "", err
+		}
+	}
+	return preProcess(lurkProgram)
+}
 
 var paramMap = map[string]string{
 	"txo-root":           "(list-get 1 public-params)",
@@ -45,6 +85,148 @@ var outputMap = map[string]int{
 var pubOutMap = map[string]int{
 	"commitment": 0,
 	"ciphertext": 1,
+}
+
+func loadFilesFromDirectory(directory string) ([]string, error) {
+	files, err := os.ReadDir(directory)
+	if err != nil {
+		return nil, err
+	}
+
+	var fileContents []string
+	for _, file := range files {
+		if !file.IsDir() && filepath.Ext(file.Name()) == LurkFileExtension {
+			content, err := os.ReadFile(filepath.Join(directory, file.Name()))
+			if err != nil {
+				return nil, err
+			}
+			fileContents = append(fileContents, string(content))
+		}
+	}
+	return fileContents, nil
+}
+
+func extractModule(files []string, moduleName string) (string, error) {
+	moduleCount := 0
+	moduleContent := ""
+
+	for _, content := range files {
+		p := NewParser(content)
+		for p.Peek() != 0 {
+			if strings.HasPrefix(p.input[p.pos:], "!(module") {
+				p.pos += 9 // Skip over "!(module"
+				nameStart := p.pos
+
+				for p.Peek() != ' ' && p.Peek() != 0 {
+					p.Consume()
+				}
+
+				name := p.input[nameStart:p.pos]
+				if name == moduleName {
+					moduleCount++
+
+					for p.Peek() != '(' && p.Peek() != 0 {
+						p.Consume()
+					}
+					if p.Peek() == '(' {
+						p.Consume() // Skip over opening parenthesis
+					}
+					depth := 1
+					moduleStart := p.pos
+					for depth > 0 && p.Peek() != 0 {
+						if p.Peek() == '(' {
+							depth++
+						} else if p.Peek() == ')' {
+							depth--
+						}
+						if depth > 0 {
+							p.Consume()
+						}
+					}
+					moduleContent += p.input[moduleStart:p.pos-1] + "\n" // Exclude the closing parenthesis
+				}
+			} else {
+				p.Consume()
+			}
+		}
+	}
+
+	if moduleCount > 1 {
+		return "", fmt.Errorf("found multiple modules named %s", moduleName)
+	} else if moduleCount == 0 {
+		return "", fmt.Errorf("module %s not found", moduleName)
+	}
+
+	return moduleContent, nil
+}
+
+func macroExpandImport(lurkProgram string, dependencyDirectoryPath string, dependencyChain []string) (string, error) {
+	var result string
+	p := NewParser(lurkProgram)
+
+	for p.Peek() != 0 {
+		if strings.HasPrefix(p.input[p.pos:], "!(import") {
+			p.pos += 9 // Skip over "!(import"
+			importPathStart := p.pos
+
+			for p.Peek() != ')' && p.Peek() != 0 {
+				p.Consume()
+			}
+
+			pathAndModule := p.input[importPathStart:p.pos]
+
+			depChainCpy := make([]string, len(dependencyChain))
+			copy(depChainCpy, dependencyChain)
+
+			for _, mod := range depChainCpy {
+				if mod == pathAndModule {
+					return "", fmt.Errorf("%w: %s", ErrCircularImports, strings.Join(depChainCpy, " -> "))
+				}
+			}
+			depChainCpy = append(depChainCpy, pathAndModule)
+
+			splits := strings.Split(pathAndModule, "/")
+
+			if len(splits) < 1 {
+				return "", fmt.Errorf("invalid import format")
+			}
+
+			// The last split is the module name, everything else is part of the directory.
+			moduleName := splits[len(splits)-1]
+			dir := filepath.Join(append([]string{dependencyDirectoryPath}, splits[:len(splits)-1]...)...)
+
+			// If there was only the module name without any directory, use dependencyDirectoryPath as the directory.
+			if len(splits) == 1 {
+				dir = dependencyDirectoryPath
+			}
+
+			// Load files
+			files, err := loadFilesFromDirectory(dir)
+			if err != nil {
+				return "", err
+			}
+
+			// Extract module content
+			moduleContent, err := extractModule(files, moduleName)
+			if err != nil {
+				return "", err
+			}
+
+			// Before returning the expanded content, process imports within the moduleContent
+			expandedModuleContent, err := macroExpandImport(moduleContent, dependencyDirectoryPath, depChainCpy)
+			if err != nil {
+				return "", err
+			}
+
+			p.ReadUntil(')')
+			p.Consume() // Consume the closing parenthesis after the import body
+
+			result += expandedModuleContent
+		} else {
+			result += string(p.Consume())
+		}
+	}
+	return result, nil
 }
 
 func macroExpandParam(lurkProgram string) string {
@@ -174,47 +356,50 @@ func macroExpandParam(lurkProgram string) string {
 }
 
 func macroExpandList(lurkProgram string) string {
-	p := NewParser(lurkProgram)
-	result := ""
+	for strings.Contains(lurkProgram, "!(list") {
+		p := NewParser(lurkProgram)
+		result := ""
 
-	for p.Peek() != 0 {
-		if strings.HasPrefix(p.input[p.pos:], "!(list") {
-			p.pos += 7 // Skip over "!(list"
-			var elements []string
+		for p.Peek() != 0 {
+			if strings.HasPrefix(p.input[p.pos:], "!(list") {
+				p.pos += 7 // Skip over "!(list"
+				var elements []string
 
-			// Ensure we capture all elements and that we don't accidentally consume the closing parenthesis of !(list ... )
-			for p.Peek() != ')' && p.Peek() != 0 {
-				// Skip over potential whitespace
-				for p.Peek() == ' ' {
-					p.Consume()
-				}
-				var body string
-				if p.Peek() == '(' {
-					body = p.ParseSExpr() // Parse the s-expression if body starts with (
-				} else {
-					bodyStart := p.pos
-					for p.Peek() != ' ' && p.Peek() != ')' && p.Peek() != 0 {
+				// Ensure we capture all elements and that we don't accidentally consume the closing parenthesis of !(list ... )
+				for p.Peek() != ')' && p.Peek() != 0 {
+					// Skip over potential whitespace
+					for p.Peek() == ' ' {
 						p.Consume()
 					}
-					body = p.input[bodyStart:p.pos]
+					var body string
+					if p.Peek() == '(' {
+						body = p.ParseSExpr() // Parse the s-expression if body starts with (
+					} else {
+						bodyStart := p.pos
+						for p.Peek() != ' ' && p.Peek() != ')' && p.Peek() != 0 {
+							p.Consume()
+						}
+						body = p.input[bodyStart:p.pos]
+					}
+
+					elements = append(elements, body)
 				}
 
-				elements = append(elements, body)
-			}
+				p.ReadUntil(')')
+				p.Consume() // Consume the closing parenthesis after the list body
 
-			p.ReadUntil(')')
-			p.Consume() // Consume the closing parenthesis after the list body
-
-			if len(elements) > 0 {
-				result += buildConsList(elements)
+				if len(elements) > 0 {
+					result += buildConsList(elements)
+				} else {
+					result += "nil"
+				}
 			} else {
-				result += "nil"
+				result += string(p.Consume())
 			}
-		} else {
-			result += string(p.Consume())
 		}
+		lurkProgram = result
 	}
-	return result
+	return lurkProgram
 }
 
 // Recursively builds a cons list from the elements
@@ -303,89 +488,97 @@ func macroExpandAssertEq(lurkProgram string) string {
 }
 
 func macroExpandDef(lurkProgram string) string {
-	p := NewParser(lurkProgram)
-	result := ""
+	for strings.Contains(lurkProgram, "!(def ") {
+		p := NewParser(lurkProgram)
+		result := ""
 
-	for p.Peek() != 0 {
-		if strings.HasPrefix(p.input[p.pos:], "!(def") &&
-			!strings.HasPrefix(p.input[p.pos:], "!(defrec") &&
-			!strings.HasPrefix(p.input[p.pos:], "!(defun") {
-			p.pos += 6 // Skip over "!(def"
-			variableName := strings.TrimSpace(p.ReadUntil(' '))
-			p.Consume()
-			var body string
-			if p.Peek() == '(' {
-				body = p.ParseSExpr() // Parse the s-expression if body starts with (
-			} else {
-				bodyStart := p.pos
-				for p.Peek() != ')' && p.Peek() != 0 {
-					p.Consume()
+		for p.Peek() != 0 {
+			if strings.HasPrefix(p.input[p.pos:], "!(def") &&
+				!strings.HasPrefix(p.input[p.pos:], "!(defrec") &&
+				!strings.HasPrefix(p.input[p.pos:], "!(defun") {
+				p.pos += 6 // Skip over "!(def"
+				variableName := strings.TrimSpace(p.ReadUntil(' '))
+				p.Consume()
+				var body string
+				if p.Peek() == '(' {
+					body = p.ParseSExpr() // Parse the s-expression if body starts with (
+				} else {
+					bodyStart := p.pos
+					for p.Peek() != ')' && p.Peek() != 0 {
+						p.Consume()
+					}
+					body = p.input[bodyStart:p.pos]
 				}
-				body = p.input[bodyStart:p.pos]
+				result += fmt.Sprintf("(let ((%s %s))", variableName, body)
+				p.ReadUntil(')')
+				p.Consume() // Consume the closing parenthesis after the def body
+			} else {
+				result += string(p.Consume())
 			}
-			result += fmt.Sprintf("(let ((%s %s))", variableName, body)
-			p.ReadUntil(')')
-			p.Consume() // Consume the closing parenthesis after the def body
-		} else {
-			result += string(p.Consume())
 		}
+		lurkProgram = result
 	}
-	return result
+	return lurkProgram
 }
 
 func macroExpandDefrec(lurkProgram string) string {
-	p := NewParser(lurkProgram)
-	result := ""
+	for strings.Contains(lurkProgram, "!(defrec") {
+		p := NewParser(lurkProgram)
+		result := ""
 
-	for p.Peek() != 0 {
-		if strings.HasPrefix(p.input[p.pos:], "!(defrec") {
-			p.pos += 9 // Skip over "!(defrec"
-			variableName := strings.TrimSpace(p.ReadUntil(' '))
-			p.Consume()
-			var body string
-			if p.Peek() == '(' {
-				body = p.ParseSExpr() // Parse the s-expression if body starts with (
-			} else {
-				bodyStart := p.pos
-				for p.Peek() != ')' && p.Peek() != 0 {
-					p.Consume()
+		for p.Peek() != 0 {
+			if strings.HasPrefix(p.input[p.pos:], "!(defrec") {
+				p.pos += 9 // Skip over "!(defrec"
+				variableName := strings.TrimSpace(p.ReadUntil(' '))
+				p.Consume()
+				var body string
+				if p.Peek() == '(' {
+					body = p.ParseSExpr() // Parse the s-expression if body starts with (
+				} else {
+					bodyStart := p.pos
+					for p.Peek() != ')' && p.Peek() != 0 {
+						p.Consume()
+					}
+					body = p.input[bodyStart:p.pos]
 				}
-				body = p.input[bodyStart:p.pos]
+				result += fmt.Sprintf("(letrec ((%s %s))", variableName, body)
+				p.ReadUntil(')')
+				p.Consume() // Consume the closing parenthesis after the defrec body
+			} else {
+				result += string(p.Consume())
 			}
-			result += fmt.Sprintf("(letrec ((%s %s))", variableName, body)
-			p.ReadUntil(')')
-			p.Consume() // Consume the closing parenthesis after the defrec body
-		} else {
-			result += string(p.Consume())
 		}
+		lurkProgram = result
 	}
-	return result
+	return lurkProgram
 }
 
 func macroExpandDefun(lurkProgram string) string {
-	p := NewParser(lurkProgram)
-	result := ""
+	for strings.Contains(lurkProgram, "!(defun") {
+		p := NewParser(lurkProgram)
+		result := ""
+		for p.Peek() != 0 {
+			if strings.HasPrefix(p.input[p.pos:], "!(defun") {
+				p.pos += 8 // Skip over "!(defun"
+				name := strings.TrimSpace(p.ReadUntil('('))
+				params := p.ParseSExpr()
+				p.ReadUntil('(')
+				body := p.ParseSExpr()
 
-	for p.Peek() != 0 {
-		if strings.HasPrefix(p.input[p.pos:], "!(defun") {
-			p.pos += 8 // Skip over "!(defun"
-			name := strings.TrimSpace(p.ReadUntil('('))
-			params := p.ParseSExpr()
-			p.ReadUntil('(')
-			body := p.ParseSExpr()
-
-			result += fmt.Sprintf("(letrec ((%s (lambda %s %s)))", name, params, body)
-			p.ReadUntil(')')
-			p.Consume() // Consume the closing parenthesis after the defun body
-		} else {
-			result += string(p.Consume())
+				result += fmt.Sprintf("(letrec ((%s (lambda %s %s)))", name, params, body)
+				p.ReadUntil(')')
+				p.Consume() // Consume the closing parenthesis after the defun body
+			} else {
+				result += string(p.Consume())
+			}
 		}
+		lurkProgram = result
 	}
-	return result
+	return lurkProgram
 }
 
-// PreProcess takes a lurk program string and expands all the macros.
-func PreProcess(lurkProgram string) (string, error) {
+// preProcess takes a lurk program string and expands all the macros
+func preProcess(lurkProgram string) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(lurkProgram))
 
 	var (

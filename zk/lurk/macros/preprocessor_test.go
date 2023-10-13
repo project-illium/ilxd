@@ -6,9 +6,14 @@ package macros_test
 
 import (
 	"container/list"
+	"errors"
 	"fmt"
 	"github.com/project-illium/ilxd/zk/lurk/macros"
 	"github.com/stretchr/testify/assert"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -88,61 +93,176 @@ func TestPreProcessValidParentheses(t *testing.T) {
 		expected string
 	}
 	tests := []testVector{
-		{"(+ x 3)", "(+ x 3)\n"},
-		{"!(def x 3)", "(let ((x 3))\n)"},
-		{"!(def x (car y))", "(let ((x (car y)))\n)"},
-		{"!(def x 3) t", "(let ((x 3)) t\n)"},
-		{"!(def x (car y)) t", "(let ((x (car y))) t\n)"},
-		{"!(defrec x 3)", "(letrec ((x 3))\n)"},
-		{"!(defrec x (car y))", "(letrec ((x (car y)))\n)"},
-		{"!(defrec x 3) t", "(letrec ((x 3)) t\n)"},
-		{"!(defrec x (car y)) t", "(letrec ((x (car y))) t\n)"},
-		{"!(defun f (x) (+ x 3))", "(letrec ((f (lambda (x) (+ x 3))))\n)"},
-		{"!(defun f (x) (+ x 3)) t", "(letrec ((f (lambda (x) (+ x 3)))) t\n)"},
-		{"!(assert t)", "(if (eq t nil) nil\n)"},
-		{"!(assert (+ x 5)) nil", "(if (eq (+ x 5) nil) nil nil\n)"},
-		{"!(assert t) nil", "(if (eq t nil) nil nil\n)"},
-		{"!(assert-eq x 3)", "(if (eq (eq x 3 ) nil) nil\n)"},
-		{"!(assert-eq x 3) t", "(if (eq (eq x 3 ) nil) nil t\n)"},
-		{"!(defun f (x) (!(assert t) 3))", "(letrec ((f (lambda (x) ((if (eq t nil) nil 3)))))\n)"},
-		{"(lambda (script-params unlocking-params input-index private-params public-params)\n !(assert-eq (+ x 5) 4) !(def z 5) !(assert t) t)", "(lambda (script-params unlocking-params input-index private-params public-params)\n (if (eq (eq (+ x 5) 4) nil) nil (let ((z 5)) (if (eq t nil) nil t))))\n"},
-		{"!(list 1 2 3 4)", "(cons 1 (cons 2 (cons 3 (cons 4 nil))))\n"},
-		{"!(list 1 (car x) 3 4)", "(cons 1 (cons (car x) (cons 3 (cons 4 nil))))\n"},
-		{"!(param nullifiers 0)", "(list-get 0 (list-get 0 public-params))\n"},
-		{"!(param txo-root)", "(list-get 1 public-params)\n"},
-		{"!(param fee)", "(list-get 2 public-params)\n"},
-		{"!(param coinbase)", "(list-get 3 public-params)\n"},
-		{"!(param mint-id)", "(list-get 4 public-params)\n"},
-		{"!(param mint-amount)", "(list-get 5 public-params)\n"},
-		{"!(param sighash)", "(list-get 7 public-params)\n"},
-		{"!(param locktime)", "(list-get 8 public-params)\n"},
-		{"!(param locktime-precision)", "(list-get 9 public-params)\n"},
-		{"!(param priv-in 2)", "(list-get 2 (car private-params))\n"},
-		{"!(param priv-out 3)", "(list-get 3 (car (cdr private-params)))\n"},
-		{"!(param pub-out 4)", "(list-get 4 (list-get 6 public-params))\n"},
-		{"!(param priv-in 2 script-commitment)", "(list-get 0 (list-get 2 (car private-params)))\n"},
-		{"!(param priv-in 2 amount)", "(list-get 1 (list-get 2 (car private-params)))\n"},
-		{"!(param priv-in 2 asset-id)", "(list-get 2 (list-get 2 (car private-params)))\n"},
-		{"!(param priv-in 2 script-params)", "(list-get 3 (list-get 2 (car private-params)))\n"},
-		{"!(param priv-in 2 commitment-index)", "(list-get 4 (list-get 2 (car private-params)))\n"},
-		{"!(param priv-in 2 state)", "(list-get 5 (list-get 2 (car private-params)))\n"},
-		{"!(param priv-in 2 salt)", "(list-get 6 (list-get 2 (car private-params)))\n"},
-		{"!(param priv-in 2 unlocking-params)", "(list-get 7 (list-get 2 (car private-params)))\n"},
-		{"!(param priv-in 2 inclusion-proof-hashes)", "(list-get 8 (list-get 2 (car private-params)))\n"},
-		{"!(param priv-in 2 inclusion-proof-accumulator)", "(list-get 9 (list-get 2 (car private-params)))\n"},
-		{"!(param priv-out 3 script-hash)", "(list-get 0 (list-get 3 (car (cdr private-params))))\n"},
-		{"!(param priv-out 3 amount)", "(list-get 1 (list-get 3 (car (cdr private-params))))\n"},
-		{"!(param priv-out 3 asset-id)", "(list-get 2 (list-get 3 (car (cdr private-params))))\n"},
-		{"!(param priv-out 3 state)", "(list-get 3 (list-get 3 (car (cdr private-params))))\n"},
-		{"!(param priv-out 3 salt)", "(list-get 4 (list-get 3 (car (cdr private-params))))\n"},
-		{"!(param pub-out 4 commitment)", "(list-get 0 (list-get 4 (list-get 6 public-params)))\n"},
-		{"!(param pub-out 4 ciphertext)", "(list-get 1 (list-get 4 (list-get 6 public-params)))\n"},
+		{"(+ x 3)", "(+ x 3)"},
+		{"!(def x 3)", "(let ((x 3)))"},
+		{"!(def x (car y))", "(let ((x (car y))))"},
+		{"!(def x 3) t", "(let ((x 3)) t)"},
+		{"!(def x (car y)) t", "(let ((x (car y))) t)"},
+		{"!(defrec x 3)", "(letrec ((x 3)))"},
+		{"!(defrec x (car y))", "(letrec ((x (car y))))"},
+		{"!(defrec x 3) t", "(letrec ((x 3)) t)"},
+		{"!(defrec x (car y)) t", "(letrec ((x (car y))) t)"},
+		{"!(defun f (x) (+ x 3))", "(letrec ((f (lambda (x) (+ x 3)))))"},
+		{"!(defun f (x) (+ x 3)) t", "(letrec ((f (lambda (x) (+ x 3)))) t)"},
+		{"!(assert t)", "(if (eq t nil) nil)"},
+		{"!(assert (+ x 5)) nil", "(if (eq (+ x 5) nil) nil nil)"},
+		{"!(assert t) nil", "(if (eq t nil) nil nil)"},
+		{"!(assert-eq x 3)", "(if (eq (eq x 3 ) nil) nil)"},
+		{"!(assert-eq x 3) t", "(if (eq (eq x 3 ) nil) nil t)"},
+		{"!(defun f (x) (!(assert t) 3))", "(letrec ((f (lambda (x) ((if (eq t nil) nil 3))))))"},
+		{"(lambda (script-params unlocking-params input-index private-params public-params) !(assert-eq (+ x 5) 4) !(def z 5) !(assert t) t)", "(lambda (script-params unlocking-params input-index private-params public-params) (if (eq (eq (+ x 5) 4) nil) nil (let ((z 5)) (if (eq t nil) nil t))))"},
+		{"!(list 1 2 3 4)", "(cons 1 (cons 2 (cons 3 (cons 4 nil))))"},
+		{"!(list 1 (car x) 3 4)", "(cons 1 (cons (car x) (cons 3 (cons 4 nil))))"},
+		{"!(param nullifiers 0)", "(list-get 0 (list-get 0 public-params))"},
+		{"!(param txo-root)", "(list-get 1 public-params)"},
+		{"!(param fee)", "(list-get 2 public-params)"},
+		{"!(param coinbase)", "(list-get 3 public-params)"},
+		{"!(param mint-id)", "(list-get 4 public-params)"},
+		{"!(param mint-amount)", "(list-get 5 public-params)"},
+		{"!(param sighash)", "(list-get 7 public-params)"},
+		{"!(param locktime)", "(list-get 8 public-params)"},
+		{"!(param locktime-precision)", "(list-get 9 public-params)"},
+		{"!(param priv-in 2)", "(list-get 2 (car private-params))"},
+		{"!(param priv-out 3)", "(list-get 3 (car (cdr private-params)))"},
+		{"!(param pub-out 4)", "(list-get 4 (list-get 6 public-params))"},
+		{"!(param priv-in 2 script-commitment)", "(list-get 0 (list-get 2 (car private-params)))"},
+		{"!(param priv-in 2 amount)", "(list-get 1 (list-get 2 (car private-params)))"},
+		{"!(param priv-in 2 asset-id)", "(list-get 2 (list-get 2 (car private-params)))"},
+		{"!(param priv-in 2 script-params)", "(list-get 3 (list-get 2 (car private-params)))"},
+		{"!(param priv-in 2 commitment-index)", "(list-get 4 (list-get 2 (car private-params)))"},
+		{"!(param priv-in 2 state)", "(list-get 5 (list-get 2 (car private-params)))"},
+		{"!(param priv-in 2 salt)", "(list-get 6 (list-get 2 (car private-params)))"},
+		{"!(param priv-in 2 unlocking-params)", "(list-get 7 (list-get 2 (car private-params)))"},
+		{"!(param priv-in 2 inclusion-proof-hashes)", "(list-get 8 (list-get 2 (car private-params)))"},
+		{"!(param priv-in 2 inclusion-proof-accumulator)", "(list-get 9 (list-get 2 (car private-params)))"},
+		{"!(param priv-out 3 script-hash)", "(list-get 0 (list-get 3 (car (cdr private-params))))"},
+		{"!(param priv-out 3 amount)", "(list-get 1 (list-get 3 (car (cdr private-params))))"},
+		{"!(param priv-out 3 asset-id)", "(list-get 2 (list-get 3 (car (cdr private-params))))"},
+		{"!(param priv-out 3 state)", "(list-get 3 (list-get 3 (car (cdr private-params))))"},
+		{"!(param priv-out 3 salt)", "(list-get 4 (list-get 3 (car (cdr private-params))))"},
+		{"!(param pub-out 4 commitment)", "(list-get 0 (list-get 4 (list-get 6 public-params)))"},
+		{"!(param pub-out 4 ciphertext)", "(list-get 1 (list-get 4 (list-get 6 public-params)))"},
 	}
 
+	mp, err := macros.NewMacroPreprocessor()
+	assert.NoError(t, err)
 	for i, test := range tests {
-		lurkProgram, err := macros.PreProcess(test.input)
+		lurkProgram, err := mp.Preprocess(test.input)
+		lurkProgram = strings.ReplaceAll(lurkProgram, "\n", "")
+		lurkProgram = strings.ReplaceAll(lurkProgram, "\t", "")
 		assert.NoError(t, err)
 		assert.Truef(t, isValid(lurkProgram), "Test %d should be valid", i)
 		assert.Equalf(t, test.expected, lurkProgram, "Test %d not as expected", i)
 	}
+}
+
+func TestMacroImports(t *testing.T) {
+	tempDir := path.Join(os.TempDir(), "marco_test")
+	defer os.Remove(tempDir)
+
+	type module struct {
+		path string
+		file string
+	}
+	type testVector struct {
+		input    string
+		modules  []module
+		expected string
+	}
+
+	mod1 := `!(module math (
+			!(defun plus-two (x) (+ x 2))
+			!(defun plus-three (x) (+ x 3))
+		))
+
+		!(module time (
+			!(assert (<= !(param locktime-precision) 30))
+		))
+		`
+
+	tests := []testVector{
+		{
+			input: `!(defun my-func (y) (
+				!(import math)
+				(plus-two 10)
+			))`,
+			modules:  []module{{path: filepath.Join(tempDir, "mod.lurk"), file: mod1}},
+			expected: "(letrec ((my-func (lambda (y) ((letrec ((plus-two (lambda (x) (+ x 2))))(letrec ((plus-three (lambda (x) (+ x 3))))(plus-two 10))))))))",
+		},
+		{
+			input: `!(defun my-func (y) (
+				!(import time)
+				(plus-two 10)
+			))`,
+			modules:  []module{{path: filepath.Join(tempDir, "mod.lurk"), file: mod1}},
+			expected: "(letrec ((my-func (lambda (y) ((if (eq (<= (list-get 9 public-params) 30) nil) nil(plus-two 10)))))))",
+		},
+		{
+			input: `!(defun my-func (y) (
+				!(import std/math)
+				(plus-two 10)
+			))`,
+			modules:  []module{{path: filepath.Join(tempDir, "std", "mod.lurk"), file: mod1}},
+			expected: "(letrec ((my-func (lambda (y) ((letrec ((plus-two (lambda (x) (+ x 2))))(letrec ((plus-three (lambda (x) (+ x 3))))(plus-two 10))))))))",
+		},
+	}
+
+	mp, err := macros.NewMacroPreprocessor(macros.DependencyDir(tempDir))
+	assert.NoError(t, err)
+	for i, test := range tests {
+		for _, mod := range test.modules {
+			err := os.MkdirAll(filepath.Dir(mod.path), 0755)
+			assert.NoError(t, err)
+
+			err = os.WriteFile(mod.path, []byte(mod.file), 0644)
+			assert.NoError(t, err)
+		}
+
+		lurkProgram, err := mp.Preprocess(test.input)
+		lurkProgram = strings.ReplaceAll(lurkProgram, "\n", "")
+		lurkProgram = strings.ReplaceAll(lurkProgram, "\t", "")
+		assert.NoError(t, err)
+		assert.Truef(t, isValid(lurkProgram), "Test %d should be valid", i)
+		assert.Equalf(t, test.expected, lurkProgram, "Test %d not as expected", i)
+	}
+}
+
+func TestCircularImports(t *testing.T) {
+	mod1 := `!(module math (
+			!(import utils)
+			!(defun plus-three (x) (+ x 3))
+		))
+
+		!(module time (
+			!(assert (<= !(param locktime-precision) 30))
+		))
+		`
+
+	mod2 := `!(module utils (
+			!(import math)
+		))
+		`
+
+	tempDir := path.Join(os.TempDir(), "circular_import_test")
+	defer os.Remove(tempDir)
+
+	err := os.MkdirAll(tempDir, 0755)
+	assert.NoError(t, err)
+
+	err = os.WriteFile(filepath.Join(tempDir, "mod1.lurk"), []byte(mod1), 0644)
+	assert.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "mod2.lurk"), []byte(mod2), 0644)
+	assert.NoError(t, err)
+
+	mp, err := macros.NewMacroPreprocessor(macros.DependencyDir(tempDir))
+	assert.NoError(t, err)
+
+	lurkProgram := `!(defun my-func (y) (
+				!(import math)
+				(plus-two 10)
+			))`
+
+	_, err = mp.Preprocess(lurkProgram)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, macros.ErrCircularImports))
 }

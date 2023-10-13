@@ -1,0 +1,9 @@
+!(module math (
+			!(defun plus-two (x) (+ x 2))
+			!(defun plus-three (x) (+ x 3))
+		))
+
+		!(module time (
+			(!assert (<= !(param locktime-precision) 30))
+		))
+		

@@ -20,6 +20,7 @@ const (
 	Param    Macro = "param"
 	Assert   Macro = "assert"
 	AssertEq Macro = "assert-eq"
+	Import   Macro = "import"
 )
 
 func (m Macro) IsNested() bool {
