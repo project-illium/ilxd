@@ -22,24 +22,24 @@ var paramMap = map[string]string{
 }
 
 var inputMap = map[string]int{
-	"script-commitment":            0,
-	"amount":                       1,
-	"asset-id":                     2,
-	"script-params":                3,
-	"commitment-index":             4,
-	"state":                        5,
-	"salt":                         6,
-	"unlocking-params":             7,
-	"inclusion-proof-hashes":       8,
-	"inclusion-proof-acccumulator": 9,
+	"script-commitment":           0,
+	"amount":                      1,
+	"asset-id":                    2,
+	"script-params":               3,
+	"commitment-index":            4,
+	"state":                       5,
+	"salt":                        6,
+	"unlocking-params":            7,
+	"inclusion-proof-hashes":      8,
+	"inclusion-proof-accumulator": 9,
 }
 
 var outputMap = map[string]int{
-	"script-commitment": 0,
-	"amount":            1,
-	"asset-id":          2,
-	"state":             3,
-	"salt":              4,
+	"script-hash": 0,
+	"amount":      1,
+	"asset-id":    2,
+	"state":       3,
+	"salt":        4,
 }
 
 var pubOutMap = map[string]int{
@@ -82,7 +82,7 @@ func macroExpandParam(lurkProgram string) string {
 					p.Consume()
 				}
 				index := p.input[indexStart:p.pos]
-				resultExp := fmt.Sprintf("(list-get %s (list-get 0 public-params))", index)
+				resultExp := fmt.Sprintf("(list-get %s (car private-params))", index)
 
 				if p.Peek() == ' ' {
 					// Consume whitespace and then check for sub-param
@@ -263,15 +263,34 @@ func macroExpandAssertEq(lurkProgram string) string {
 
 	for p.Peek() != 0 {
 		if strings.HasPrefix(p.input[p.pos:], "!(assert-eq") {
-			p.pos += 12            // Skip over "!(assert-eq"
-			val1 := p.ParseSExpr() // Parse the first value/expression
+			p.pos += 12 // Skip over "!(assert-eq"
+
+			var val1 string
+			if p.Peek() == '(' {
+				val1 = p.ParseSExpr() // Parse the s-expression if body starts with (
+			} else {
+				bodyStart := p.pos
+				for p.Peek() != ')' && p.Peek() != 0 {
+					p.Consume()
+				}
+				val1 = p.input[bodyStart:p.pos]
+			}
 
 			// Skip over potential whitespace
 			for p.Peek() == ' ' {
 				p.Consume()
 			}
 
-			val2 := p.ParseSExpr() // Parse the second value/expression
+			var val2 string
+			if p.Peek() == '(' {
+				val2 = p.ParseSExpr() // Parse the s-expression if body starts with (
+			} else {
+				bodyStart := p.pos
+				for p.Peek() != ')' && p.Peek() != 0 {
+					p.Consume()
+				}
+				val2 = p.input[bodyStart:p.pos]
+			}
 
 			result += fmt.Sprintf("(if (eq (eq %s %s) nil) nil", val1, val2)
 			p.ReadUntil(')')
@@ -351,12 +370,9 @@ func macroExpandDefun(lurkProgram string) string {
 		if strings.HasPrefix(p.input[p.pos:], "!(defun") {
 			p.pos += 8 // Skip over "!(defun"
 			name := strings.TrimSpace(p.ReadUntil('('))
-			fmt.Println(name)
 			params := p.ParseSExpr()
-			fmt.Println(params)
 			p.ReadUntil('(')
 			body := p.ParseSExpr()
-			fmt.Println(body)
 
 			result += fmt.Sprintf("(letrec ((%s (lambda %s %s)))", name, params, body)
 			p.ReadUntil(')')
