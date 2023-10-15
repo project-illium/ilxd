@@ -125,6 +125,7 @@ func TestPreProcessValidParentheses(t *testing.T) {
 		{"!(param priv-in 2)", "(list-get 2 (car private-params))"},
 		{"!(param priv-out 3)", "(list-get 3 (car (cdr private-params)))"},
 		{"!(param pub-out 4)", "(list-get 4 (list-get 6 public-params))"},
+		{"!(param priv-in 4 script-hash)", "(hash (cons (car (list-get 4 (car private-params))) (cons (list-get 3 (list-get 4 (car private-params))) nil)))"},
 		{"!(param priv-in 2 script-commitment)", "(list-get 0 (list-get 2 (car private-params)))"},
 		{"!(param priv-in 2 amount)", "(list-get 1 (list-get 2 (car private-params)))"},
 		{"!(param priv-in 2 asset-id)", "(list-get 2 (list-get 2 (car private-params)))"},

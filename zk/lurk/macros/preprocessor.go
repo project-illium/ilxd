@@ -72,6 +72,7 @@ var inputMap = map[string]int{
 	"unlocking-params":            7,
 	"inclusion-proof-hashes":      8,
 	"inclusion-proof-accumulator": 9,
+	"script-hash":                 10,
 }
 
 var outputMap = map[string]int{
@@ -275,7 +276,11 @@ func macroExpandParam(lurkProgram string) string {
 					}
 					subParam := p.input[subParamStart:p.pos]
 					if subIndex, ok := inputMap[subParam]; ok {
-						result += fmt.Sprintf("(list-get %d %s)", subIndex, resultExp)
+						if subIndex == 10 {
+							result += fmt.Sprintf("(hash (cons (car %s) (cons (list-get 3 %s) nil)))", resultExp, resultExp)
+						} else {
+							result += fmt.Sprintf("(list-get %d %s)", subIndex, resultExp)
+						}
 					} else {
 						result += resultExp
 					}
