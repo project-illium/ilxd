@@ -338,14 +338,14 @@ func (s *GrpcServer) CreateMultiSignature(ctx context.Context, req *pb.CreateMul
 
 // ProveMultisig creates a proof for a transaction with a multisig input
 func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigRequest) (*pb.ProveMultisigResponse, error) {
-	if req.Tx == nil {
+	if req.RawTx == nil {
 		return nil, status.Error(codes.InvalidArgument, "raw tx is nil")
 	}
-	if req.Tx.Tx == nil {
+	if req.RawTx.Tx == nil {
 		return nil, status.Error(codes.InvalidArgument, "tx is nil")
 	}
 
-	standardTx := req.Tx.Tx.GetStandardTransaction()
+	standardTx := req.RawTx.Tx.GetStandardTransaction()
 	if standardTx == nil {
 		return nil, status.Error(codes.InvalidArgument, "standard tx is nil")
 	}
@@ -356,8 +356,8 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 		Outputs: []standard.PrivateOutput{},
 	}
 
-	nullifiers := make([][]byte, 0, len(req.Tx.Inputs))
-	for _, in := range req.Tx.Inputs {
+	nullifiers := make([][]byte, 0, len(req.RawTx.Inputs))
+	for _, in := range req.RawTx.Inputs {
 		privIn := standard.PrivateInput{
 			Amount:          in.Amount,
 			CommitmentIndex: in.TxoProof.Index,
@@ -379,7 +379,7 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 		nullifier := types.CalculateNullifier(in.TxoProof.Index, privIn.Salt, privIn.ScriptCommitment, privIn.ScriptParams...)
 		nullifiers = append(nullifiers, nullifier.Bytes())
 	}
-	for _, out := range req.Tx.Outputs {
+	for _, out := range req.RawTx.Outputs {
 		privOut := standard.PrivateOutput{
 			ScriptHash: out.ScriptHash,
 			Amount:     out.Amount,
@@ -644,26 +644,29 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		}
 
 		for i, in := range req.RawTx.Inputs {
-			unlockingScript := types.UnlockingScript{
-				ScriptCommitment: in.ScriptCommitment,
-				ScriptParams:     in.ScriptParams,
-			}
-			scriptHash := unlockingScript.Hash()
-
-			var privKey crypto.PrivKey
-			for k, addr := range privkeyMap {
-				if addr.ScriptHash() == scriptHash {
-					privKey = k.SpendKey()
-					break
+			if in.UnlockingParams == nil {
+				unlockingScript := types.UnlockingScript{
+					ScriptCommitment: in.ScriptCommitment,
+					ScriptParams:     in.ScriptParams,
 				}
-			}
-			if privKey == nil {
-				return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("private key for input %d not found", i))
-			}
+				scriptHash := unlockingScript.Hash()
 
-			sig, err := privKey.Sign(sigHash)
-			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
+				var privKey crypto.PrivKey
+				for k, addr := range privkeyMap {
+					if addr.ScriptHash() == scriptHash {
+						privKey = k.SpendKey()
+						break
+					}
+				}
+				if privKey == nil {
+					return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("private key for input %d not found", i))
+				}
+
+				sig, err := privKey.Sign(sigHash)
+				if err != nil {
+					return nil, status.Error(codes.Internal, err.Error())
+				}
+				in.UnlockingParams = [][]byte{sig}
 			}
 			privIn := standard.PrivateInput{
 				Amount:          in.Amount,
@@ -675,7 +678,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 				},
 				ScriptCommitment: in.ScriptCommitment,
 				ScriptParams:     in.ScriptParams,
-				UnlockingParams:  [][]byte{sig},
+				UnlockingParams:  in.UnlockingParams,
 			}
 			copy(privIn.Salt[:], in.Salt)
 			copy(privIn.AssetID[:], in.Asset_ID)
@@ -731,31 +734,35 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 			return nil, status.Error(codes.InvalidArgument, "no inputs")
 		}
 
-		privkeyMap, err := s.wallet.PrivateKeys()
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-
-		unlockingScript := types.UnlockingScript{
-			ScriptCommitment: req.RawTx.Inputs[0].ScriptCommitment,
-			ScriptParams:     req.RawTx.Inputs[0].ScriptParams,
-		}
-		scriptHash := unlockingScript.Hash()
-
-		var privKey crypto.PrivKey
-		for k, addr := range privkeyMap {
-			if addr.ScriptHash() == scriptHash {
-				privKey = k.SpendKey()
-				break
+		if req.RawTx.Inputs[0].UnlockingParams == nil {
+			privkeyMap, err := s.wallet.PrivateKeys()
+			if err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
 			}
-		}
-		if privKey == nil {
-			return nil, status.Error(codes.InvalidArgument, "private key for input not found")
-		}
 
-		sig, err := privKey.Sign(sigHash)
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
+			unlockingScript := types.UnlockingScript{
+				ScriptCommitment: req.RawTx.Inputs[0].ScriptCommitment,
+				ScriptParams:     req.RawTx.Inputs[0].ScriptParams,
+			}
+			scriptHash := unlockingScript.Hash()
+
+			var privKey crypto.PrivKey
+			for k, addr := range privkeyMap {
+				if addr.ScriptHash() == scriptHash {
+					privKey = k.SpendKey()
+					break
+				}
+			}
+			if privKey == nil {
+				return nil, status.Error(codes.InvalidArgument, "private key for input not found")
+			}
+
+			sig, err := privKey.Sign(sigHash)
+			if err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+
+			req.RawTx.Inputs[0].UnlockingParams = [][]byte{sig}
 		}
 
 		// Create the transaction zk proof
@@ -768,7 +775,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 			},
 			ScriptCommitment: req.RawTx.Inputs[0].ScriptCommitment,
 			ScriptParams:     req.RawTx.Inputs[0].ScriptParams,
-			UnlockingParams:  [][]byte{sig},
+			UnlockingParams:  req.RawTx.Inputs[0].UnlockingParams,
 		}
 		copy(privateParams.Salt[:], req.RawTx.Inputs[0].Salt)
 		copy(privateParams.AssetID[:], req.RawTx.Inputs[0].Asset_ID)
