@@ -449,7 +449,7 @@ func (vs *ValidatorSet) ConnectBlock(blk *blocks.Block, validatorReward types.Am
 				}
 			}
 			weight := float64(1)
-			timeDiff := tx.StakeTransaction.Locktime - blk.Header.Timestamp
+			timeDiff := tx.StakeTransaction.LockedUntil - blk.Header.Timestamp
 			if timeDiff > 0 {
 				locktimeMonths := float64(timeDiff) / secondsPerMonth
 				weight = 1 + approximateYieldCurve(int(locktimeMonths))
@@ -465,7 +465,7 @@ func (vs *ValidatorSet) ConnectBlock(blk *blocks.Block, validatorReward types.Am
 			valNew.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)] = Stake{
 				Amount:         types.Amount(tx.StakeTransaction.Amount),
 				WeightedAmount: types.Amount(float64(tx.StakeTransaction.Amount) * weight),
-				Locktime:       time.Unix(tx.StakeTransaction.Locktime, 0),
+				Locktime:       time.Unix(tx.StakeTransaction.LockedUntil, 0),
 				Blockstamp:     blockTime,
 			}
 			vstx.updates[validatorID] = valNew

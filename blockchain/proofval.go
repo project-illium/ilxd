@@ -121,7 +121,10 @@ func (p *proofValidator) validateHandler() {
 					Coinbase:   0,
 					MintID:     nil,
 					MintAmount: 0,
-					Locktime:   time.Unix(tx.StandardTransaction.Locktime, 0),
+				}
+				if tx.StandardTransaction.Locktime != nil {
+					params.Locktime = time.Unix(tx.StandardTransaction.Locktime.Timestamp, 0)
+					params.LocktimePrecision = time.Duration(tx.StandardTransaction.Locktime.Precision)
 				}
 
 				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.StandardTransaction.Proof)
@@ -245,7 +248,10 @@ func (p *proofValidator) validateHandler() {
 					Coinbase:   0,
 					MintID:     tx.MintTransaction.Asset_ID,
 					MintAmount: tx.MintTransaction.NewTokens,
-					Locktime:   time.Unix(tx.MintTransaction.Locktime, 0),
+				}
+				if tx.MintTransaction.Locktime != nil {
+					params.Locktime = time.Unix(tx.MintTransaction.Locktime.Timestamp, 0)
+					params.LocktimePrecision = time.Duration(tx.MintTransaction.Locktime.Precision)
 				}
 				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.MintTransaction.Proof)
 				if err != nil {
@@ -271,11 +277,11 @@ func (p *proofValidator) validateHandler() {
 					break
 				}
 				params := stake.PublicParams{
-					TXORoot:   tx.StakeTransaction.TxoRoot,
-					SigHash:   sigHash,
-					Amount:    tx.StakeTransaction.Amount,
-					Nullifier: tx.StakeTransaction.Nullifier,
-					Locktime:  time.Unix(tx.StakeTransaction.Locktime, 0),
+					TXORoot:     tx.StakeTransaction.TxoRoot,
+					LockedUntil: time.Unix(tx.StakeTransaction.LockedUntil, 0),
+					SigHash:     sigHash,
+					Amount:      tx.StakeTransaction.Amount,
+					Nullifier:   tx.StakeTransaction.Nullifier,
 				}
 				valid, err := zk.ValidateSnark(stake.StakeCircuit, &params, tx.StakeTransaction.Proof)
 				if err != nil {

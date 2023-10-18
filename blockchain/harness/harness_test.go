@@ -62,7 +62,6 @@ func TestNewTestHarness(t *testing.T) {
 		},
 		Nullifiers: [][]byte{nullifer[:]},
 		TxoRoot:    root[:],
-		Locktime:   0,
 		Fee:        10,
 	}
 

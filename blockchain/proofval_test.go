@@ -74,7 +74,7 @@ func TestProofValidator(t *testing.T) {
 		},
 		Nullifiers: [][]byte{inNullifier[:]},
 		TxoRoot:    root[:],
-		Locktime:   0,
+		Locktime:   nil,
 		Fee:        100000,
 		Proof:      fakeProof,
 	}

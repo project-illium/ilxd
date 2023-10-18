@@ -24,7 +24,7 @@ message StandardTransaction {
     repeated Output outputs =   1;
     repeated bytes nullifiers = 2;
     bytes txo_root            = 3;
-    int64 locktime            = 4;
+    Locktime locktime         = 4;
     uint64 fee                = 5;
     bytes proof               = 6;
 }
@@ -42,7 +42,7 @@ message StakeTransaction {
     uint64 amount      = 2;
     bytes nullifier    = 3;
     bytes txo_root     = 4;
-    int64 locktime     = 5;
+    int64 locked_until = 5;
     bytes signature    = 6;
     bytes proof        = 7;
 }
@@ -64,7 +64,7 @@ message MintTransaction {
     repeated bytes nullifiers = 7;
     bytes txo_root            = 8;
     bytes mint_key            = 9;
-    int64 locktime            = 10;
+    Locktime locktime         = 10;
     bytes signature           = 11;
     bytes proof               = 12;
 
@@ -72,4 +72,9 @@ message MintTransaction {
         FIXED_SUPPLY    = 0;
         VARIABLE_SUPPLY = 1;
     }
+}
+
+message Locktime {
+    int64 timestamp = 1;
+    int64 precision = 2;
 }

@@ -26,11 +26,11 @@ type PrivateParams struct {
 }
 
 type PublicParams struct {
-	TXORoot   []byte
-	SigHash   []byte
-	Amount    uint64
-	Nullifier []byte
-	Locktime  time.Time
+	TXORoot     []byte
+	SigHash     []byte
+	Amount      uint64
+	Nullifier   []byte
+	LockedUntil time.Time
 }
 
 type UnlockingScriptInputs struct {
@@ -73,7 +73,7 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	}
 
 	// If the locktime is anything other than zero we need to:
-	if pub.Locktime.After(time.Unix(0, 0)) {
+	if pub.LockedUntil.After(time.Unix(0, 0)) {
 
 		// Verify that the input script is a TimelockedMultisig script.
 		if !bytes.Equal(priv.ScriptCommitment, timelockedmultisig.MockTimelockedMultisigScriptCommitment) {
@@ -87,7 +87,7 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 		// Verify that the locktime used by the script is the same as the one found
 		// in the body of the stake transaction.
 		locktime := int64(binary.BigEndian.Uint64(priv.ScriptParams[1]))
-		if !pub.Locktime.Equal(time.Unix(locktime, 0)) {
+		if !pub.LockedUntil.Equal(time.Unix(locktime, 0)) {
 			return false
 		}
 	}

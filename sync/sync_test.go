@@ -104,7 +104,6 @@ func TestSync(t *testing.T) {
 			Amount:       uint64(notes[0].Note.Amount),
 			Nullifier:    nullifier[:],
 			TxoRoot:      root[:],
-			Locktime:     0,
 			Signature:    nil,
 			Proof:        nil,
 		}
