@@ -177,8 +177,9 @@ func (g *BlockGenerator) generateBlock() error {
 					delete(txs, txid)
 				}
 			}
-			if t.StandardTransaction.Locktime.Timestamp > blockTime+t.StandardTransaction.Locktime.Precision ||
-				t.StandardTransaction.Locktime.Timestamp < blockTime-t.StandardTransaction.Locktime.Precision {
+			if (t.StandardTransaction.Locktime != nil && t.StandardTransaction.Locktime.Timestamp > 0) &&
+				(t.StandardTransaction.Locktime.Timestamp > blockTime+t.StandardTransaction.Locktime.Precision ||
+					t.StandardTransaction.Locktime.Timestamp < blockTime-t.StandardTransaction.Locktime.Precision) {
 				delete(txs, txid)
 			}
 		case *transactions.Transaction_MintTransaction:
@@ -187,8 +188,10 @@ func (g *BlockGenerator) generateBlock() error {
 					delete(txs, txid)
 				}
 			}
-			if t.MintTransaction.Locktime.Timestamp > blockTime+t.MintTransaction.Locktime.Precision ||
-				t.MintTransaction.Locktime.Timestamp < blockTime-t.MintTransaction.Locktime.Precision {
+
+			if (t.MintTransaction.Locktime != nil && t.MintTransaction.Locktime.Timestamp > 0) &&
+				(t.MintTransaction.Locktime.Timestamp > blockTime+t.MintTransaction.Locktime.Precision ||
+					t.MintTransaction.Locktime.Timestamp < blockTime-t.MintTransaction.Locktime.Precision) {
 				delete(txs, txid)
 			}
 		}

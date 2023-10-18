@@ -1465,11 +1465,29 @@ func TestCheckTransactionSanity(t *testing.T) {
 			expectedErr: ruleError(ErrInvalidTx, ""),
 		},
 		{
-			name: "standard invalid locktime",
+			name: "standard invalid locktime too high",
 			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
 				Locktime: &transactions.Locktime{
 					Timestamp: time.Now().Add(time.Hour).Unix(),
+					Precision: 10,
+				},
+				Outputs: []*transactions.Output{
+					{
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
+					},
+				},
+			}),
+			timestamp:   time.Now(),
+			expectedErr: ruleError(ErrInvalidTx, ""),
+		},
+		{
+			name: "standard invalid locktime too low",
+			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
+				Nullifiers: [][]byte{nullifier.Bytes()},
+				Locktime: &transactions.Locktime{
+					Timestamp: time.Now().Add(-time.Hour).Unix(),
 					Precision: 10,
 				},
 				Outputs: []*transactions.Output{
@@ -1585,11 +1603,31 @@ func TestCheckTransactionSanity(t *testing.T) {
 			expectedErr: ruleError(ErrInvalidTx, ""),
 		},
 		{
-			name: "mint invalid locktime",
+			name: "mint invalid locktime too high",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
 				Locktime: &transactions.Locktime{
 					Timestamp: time.Now().Add(time.Hour).Unix(),
+					Precision: 10,
+				},
+				Asset_ID: hash.HashFunc(nullifier.Bytes()),
+				MintKey:  bytes.Repeat([]byte{0x11}, PubkeyLen),
+				Outputs: []*transactions.Output{
+					{
+						Commitment: make([]byte, types.CommitmentLen),
+						Ciphertext: make([]byte, CiphertextLen),
+					},
+				},
+			}),
+			timestamp:   time.Now(),
+			expectedErr: ruleError(ErrInvalidTx, ""),
+		},
+		{
+			name: "mint invalid locktime too low",
+			tx: transactions.WrapTransaction(&transactions.MintTransaction{
+				Nullifiers: [][]byte{nullifier.Bytes()},
+				Locktime: &transactions.Locktime{
+					Timestamp: time.Now().Add(-time.Hour).Unix(),
 					Precision: 10,
 				},
 				Asset_ID: hash.HashFunc(nullifier.Bytes()),
