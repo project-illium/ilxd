@@ -70,7 +70,6 @@ func TestGenerator(t *testing.T) {
 		Amount:       uint64(notes[0].Note.Amount),
 		Nullifier:    nullifier[:],
 		TxoRoot:      root[:],
-		Locktime:     0,
 		Signature:    nil,
 		Proof:        make([]byte, 8000),
 	}
@@ -93,7 +92,6 @@ func TestGenerator(t *testing.T) {
 		},
 		Nullifiers: [][]byte{nullifier[:]},
 		TxoRoot:    root[:],
-		Locktime:   0,
 		Fee:        90000,
 		Proof:      make([]byte, 8000),
 	}

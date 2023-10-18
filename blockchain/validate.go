@@ -376,7 +376,7 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 		if err := validateOutputs(tx.StandardTransaction.Outputs); err != nil {
 			return err
 		}
-		if ValidateLocktime(blockTime, tx.StandardTransaction.Locktime) {
+		if !ValidateLocktime(blockTime, tx.StandardTransaction.Locktime) {
 			return ruleError(ErrInvalidTx, "transaction locktime is invalid")
 		}
 	case *transactions.Transaction_MintTransaction:
@@ -409,7 +409,7 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 		default:
 			return ruleError(ErrUnknownTxEnum, "unknown mint transaction type")
 		}
-		if ValidateLocktime(blockTime, tx.MintTransaction.Locktime) {
+		if !ValidateLocktime(blockTime, tx.MintTransaction.Locktime) {
 			return ruleError(ErrInvalidTx, "transaction locktime is invalid")
 		}
 	case *transactions.Transaction_TreasuryTransaction:
@@ -433,7 +433,7 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 // ValidateLocktime validates that the blocktime is within the locktime range
 // specified by the provided precision.
 func ValidateLocktime(blocktime time.Time, locktime *transactions.Locktime) bool {
-	if locktime == nil {
+	if locktime == nil || locktime.Timestamp <= 0 {
 		return true
 	}
 	timestamp := time.Unix(locktime.Timestamp, 0)

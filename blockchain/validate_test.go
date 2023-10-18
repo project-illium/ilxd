@@ -683,6 +683,11 @@ func TestValidateBlock(t *testing.T) {
 			name: "staked nullifier spent in same block",
 			block: func(blk *blocks.Block) (*blocks.Block, error) {
 				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.StakeTransaction{
+						Validator_ID: validatorIDBytes,
+						Nullifier:    nullifier,
+						TxoRoot:      txoRoot[:],
+					}),
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
@@ -692,11 +697,6 @@ func TestValidateBlock(t *testing.T) {
 						},
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
-					}),
-					transactions.WrapTransaction(&transactions.StakeTransaction{
-						Validator_ID: validatorIDBytes,
-						Nullifier:    nullifier,
-						TxoRoot:      txoRoot[:],
 					}),
 				}
 
@@ -789,10 +789,10 @@ func TestValidateBlock(t *testing.T) {
 								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
-						Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
-						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
+						Asset_ID:   bytes.Repeat([]byte{0x12}, types.AssetIDLen),
+						MintKey:    bytes.Repeat([]byte{0x12}, PubkeyLen),
 					}),
 					transactions.WrapTransaction(&transactions.MintTransaction{
 						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
@@ -802,10 +802,10 @@ func TestValidateBlock(t *testing.T) {
 								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
+						Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
+						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
-						Asset_ID:   bytes.Repeat([]byte{0x12}, types.AssetIDLen),
-						MintKey:    bytes.Repeat([]byte{0x12}, PubkeyLen),
 					}),
 				}
 				keyHash := hash.HashFunc(blk.Transactions[0].GetMintTransaction().MintKey)
