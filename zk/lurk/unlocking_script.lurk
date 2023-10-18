@@ -67,6 +67,7 @@
 ;;     <public-outputs list(cons <commitment num> <ciphertext list(num))>
 ;;     <sig-hash num>
 ;;     <locktime num>
+;;     <locktime-precision num>
 ;; )
 ;;
 ;; The private and public params are there just for you to inspect, if you wish,

@@ -498,7 +498,7 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 		return nil, err
 	}
 	resp := &pb.CreateRawTransactionResponse{
-		Tx: &pb.RawTransaction{
+		RawTx: &pb.RawTransaction{
 			Tx:      rawTx.Tx,
 			Inputs:  make([]*pb.PrivateInput, 0, len(rawTx.PrivateInputs)),
 			Outputs: make([]*pb.PrivateOutput, 0, len(rawTx.PrivateOutputs)),
@@ -519,7 +519,7 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 		}
 		commitment := note.Commitment()
 
-		resp.Tx.Inputs = append(resp.Tx.Inputs, &pb.PrivateInput{
+		resp.RawTx.Inputs = append(resp.RawTx.Inputs, &pb.PrivateInput{
 			Amount:           in.Amount,
 			Salt:             in.Salt[:],
 			Asset_ID:         in.AssetID[:],
@@ -547,7 +547,7 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 		copy(po.ScriptHash, out.ScriptHash)
 		copy(po.Asset_ID, out.AssetID[:])
 		copy(po.State, out.State[:])
-		resp.Tx.Outputs = append(resp.Tx.Outputs, po)
+		resp.RawTx.Outputs = append(resp.RawTx.Outputs, po)
 	}
 
 	return resp, nil
@@ -577,7 +577,7 @@ func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.Crea
 		return nil, err
 	}
 	resp := &pb.CreateRawStakeTransactionResponse{
-		Tx: &pb.RawTransaction{
+		RawTx: &pb.RawTransaction{
 			Tx:     rawTx.Tx,
 			Inputs: make([]*pb.PrivateInput, 0, len(rawTx.PrivateInputs)),
 		},
@@ -596,7 +596,7 @@ func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.Crea
 	}
 	commitment := note.Commitment()
 
-	resp.Tx.Inputs = append(resp.Tx.Inputs, &pb.PrivateInput{
+	resp.RawTx.Inputs = append(resp.RawTx.Inputs, &pb.PrivateInput{
 		Amount:           rawTx.PrivateInputs[0].Amount,
 		Salt:             rawTx.PrivateInputs[0].Salt[:],
 		Asset_ID:         rawTx.PrivateInputs[0].AssetID[:],
@@ -618,15 +618,15 @@ func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.Crea
 // ProveRawTransaction creates the zk-proof for the transaction. Assuming there are no errors, this
 // transaction should be ready for broadcast.
 func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTransactionRequest) (*pb.ProveRawTransactionResponse, error) {
-	if req.Tx == nil {
+	if req.RawTx == nil {
 		return nil, status.Error(codes.InvalidArgument, "raw tx is nil")
 	}
-	if req.Tx.Tx == nil {
+	if req.RawTx.Tx == nil {
 		return nil, status.Error(codes.InvalidArgument, "tx is nil")
 	}
 
-	if req.Tx.Tx.GetStandardTransaction() != nil {
-		standardTx := req.Tx.Tx.GetStandardTransaction()
+	if req.RawTx.Tx.GetStandardTransaction() != nil {
+		standardTx := req.RawTx.Tx.GetStandardTransaction()
 		sigHash, err := standardTx.SigHash()
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -643,7 +643,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 
-		for i, in := range req.Tx.Inputs {
+		for i, in := range req.RawTx.Inputs {
 			unlockingScript := types.UnlockingScript{
 				ScriptCommitment: in.ScriptCommitment,
 				ScriptParams:     in.ScriptParams,
@@ -684,7 +684,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 			privateParams.Inputs = append(privateParams.Inputs, privIn)
 		}
 
-		for _, out := range req.Tx.Outputs {
+		for _, out := range req.RawTx.Outputs {
 			privOut := standard.PrivateOutput{
 				ScriptHash: make([]byte, len(out.ScriptHash)),
 				Amount:     out.Amount,
@@ -720,14 +720,14 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		return &pb.ProveRawTransactionResponse{
 			ProvedTx: transactions.WrapTransaction(standardTx),
 		}, nil
-	} else if req.Tx.Tx.GetStakeTransaction() != nil {
-		stakeTx := req.Tx.Tx.GetStakeTransaction()
+	} else if req.RawTx.Tx.GetStakeTransaction() != nil {
+		stakeTx := req.RawTx.Tx.GetStakeTransaction()
 		sigHash, err := stakeTx.SigHash()
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 
-		if len(req.Tx.Inputs) == 0 {
+		if len(req.RawTx.Inputs) == 0 {
 			return nil, status.Error(codes.InvalidArgument, "no inputs")
 		}
 
@@ -737,8 +737,8 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		}
 
 		unlockingScript := types.UnlockingScript{
-			ScriptCommitment: req.Tx.Inputs[0].ScriptCommitment,
-			ScriptParams:     req.Tx.Inputs[0].ScriptParams,
+			ScriptCommitment: req.RawTx.Inputs[0].ScriptCommitment,
+			ScriptParams:     req.RawTx.Inputs[0].ScriptParams,
 		}
 		scriptHash := unlockingScript.Hash()
 
@@ -760,19 +760,19 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 
 		// Create the transaction zk proof
 		privateParams := &stake.PrivateParams{
-			CommitmentIndex: req.Tx.Inputs[0].TxoProof.Index,
+			CommitmentIndex: req.RawTx.Inputs[0].TxoProof.Index,
 			InclusionProof: standard.InclusionProof{
-				Hashes:      req.Tx.Inputs[0].TxoProof.Hashes,
-				Flags:       req.Tx.Inputs[0].TxoProof.Flags,
-				Accumulator: req.Tx.Inputs[0].TxoProof.Accumulator,
+				Hashes:      req.RawTx.Inputs[0].TxoProof.Hashes,
+				Flags:       req.RawTx.Inputs[0].TxoProof.Flags,
+				Accumulator: req.RawTx.Inputs[0].TxoProof.Accumulator,
 			},
-			ScriptCommitment: req.Tx.Inputs[0].ScriptCommitment,
-			ScriptParams:     req.Tx.Inputs[0].ScriptParams,
+			ScriptCommitment: req.RawTx.Inputs[0].ScriptCommitment,
+			ScriptParams:     req.RawTx.Inputs[0].ScriptParams,
 			UnlockingParams:  [][]byte{sig},
 		}
-		copy(privateParams.Salt[:], req.Tx.Inputs[0].Salt)
-		copy(privateParams.AssetID[:], req.Tx.Inputs[0].Asset_ID)
-		copy(privateParams.State[:], req.Tx.Inputs[0].State)
+		copy(privateParams.Salt[:], req.RawTx.Inputs[0].Salt)
+		copy(privateParams.AssetID[:], req.RawTx.Inputs[0].Asset_ID)
+		copy(privateParams.State[:], req.RawTx.Inputs[0].State)
 
 		publicParams := &stake.PublicParams{
 			TXORoot:   stakeTx.TxoRoot,
