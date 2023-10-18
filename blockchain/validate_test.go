@@ -1469,8 +1469,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.StandardTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
 				Locktime: &transactions.Locktime{
-					Timestamp:   time.Now().Add(time.Hour).Unix(),
-					Granularity: 10,
+					Timestamp: time.Now().Add(time.Hour).Unix(),
+					Precision: 10,
 				},
 				Outputs: []*transactions.Output{
 					{
@@ -1589,8 +1589,8 @@ func TestCheckTransactionSanity(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
 				Locktime: &transactions.Locktime{
-					Timestamp:   time.Now().Add(time.Hour).Unix(),
-					Granularity: 10,
+					Timestamp: time.Now().Add(time.Hour).Unix(),
+					Precision: 10,
 				},
 				Asset_ID: hash.HashFunc(nullifier.Bytes()),
 				MintKey:  bytes.Repeat([]byte{0x11}, PubkeyLen),

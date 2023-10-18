@@ -124,7 +124,7 @@ func (p *proofValidator) validateHandler() {
 				}
 				if tx.StandardTransaction.Locktime != nil {
 					params.Locktime = time.Unix(tx.StandardTransaction.Locktime.Timestamp, 0)
-					params.LocktimeGranularity = time.Duration(tx.StandardTransaction.Locktime.Granularity)
+					params.LocktimePrecision = time.Duration(tx.StandardTransaction.Locktime.Precision)
 				}
 
 				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.StandardTransaction.Proof)
@@ -251,7 +251,7 @@ func (p *proofValidator) validateHandler() {
 				}
 				if tx.MintTransaction.Locktime != nil {
 					params.Locktime = time.Unix(tx.MintTransaction.Locktime.Timestamp, 0)
-					params.LocktimeGranularity = time.Duration(tx.MintTransaction.Locktime.Granularity)
+					params.LocktimePrecision = time.Duration(tx.MintTransaction.Locktime.Precision)
 				}
 				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.MintTransaction.Proof)
 				if err != nil {

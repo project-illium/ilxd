@@ -75,6 +75,6 @@ message MintTransaction {
 }
 
 message Locktime {
-    int64 timestamp   = 1;
-    int64 granularity = 2;
+    int64 timestamp = 1;
+    int64 precision = 2;
 }

@@ -225,8 +225,8 @@ type standardTxJSON struct {
 }
 
 type locktimeJSON struct {
-	Timestamp   int64 `json:"timestamp"`
-	Granularity int64 `json:"granularity"`
+	Timestamp int64 `json:"timestamp"`
+	Precision int64 `json:"precision"`
 }
 
 func (tx *StandardTransaction) Serialize() ([]byte, error) {
@@ -278,8 +278,8 @@ func (tx *StandardTransaction) MarshalJSON() ([]byte, error) {
 	}
 	if tx.Locktime != nil {
 		s.Locktime = &locktimeJSON{
-			Timestamp:   tx.Locktime.Timestamp,
-			Granularity: tx.Locktime.Granularity,
+			Timestamp: tx.Locktime.Timestamp,
+			Precision: tx.Locktime.Precision,
 		}
 	}
 	return json.Marshal(s)
@@ -303,8 +303,8 @@ func (tx *StandardTransaction) UnmarshalJSON(data []byte) error {
 	}
 	if newTx.Locktime != nil {
 		tx.Locktime = &Locktime{
-			Timestamp:   newTx.Locktime.Timestamp,
-			Granularity: newTx.Locktime.Granularity,
+			Timestamp: newTx.Locktime.Timestamp,
+			Precision: newTx.Locktime.Precision,
 		}
 	}
 	return nil
@@ -596,8 +596,8 @@ func (tx *MintTransaction) MarshalJSON() ([]byte, error) {
 	}
 	if tx.Locktime != nil {
 		s.Locktime = &locktimeJSON{
-			Timestamp:   tx.Locktime.Timestamp,
-			Granularity: tx.Locktime.Granularity,
+			Timestamp: tx.Locktime.Timestamp,
+			Precision: tx.Locktime.Precision,
 		}
 	}
 	return json.Marshal(s)
@@ -627,8 +627,8 @@ func (tx *MintTransaction) UnmarshalJSON(data []byte) error {
 	}
 	if newTx.Locktime != nil {
 		tx.Locktime = &Locktime{
-			Timestamp:   newTx.Locktime.Timestamp,
-			Granularity: newTx.Locktime.Granularity,
+			Timestamp: newTx.Locktime.Timestamp,
+			Precision: newTx.Locktime.Precision,
 		}
 	}
 	return nil

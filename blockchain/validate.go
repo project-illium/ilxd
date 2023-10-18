@@ -431,14 +431,14 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 }
 
 // ValidateLocktime validates that the blocktime is within the locktime range
-// specified by the provided granularity.
+// specified by the provided precision.
 func ValidateLocktime(blocktime time.Time, locktime *transactions.Locktime) bool {
 	if locktime == nil {
 		return true
 	}
 	timestamp := time.Unix(locktime.Timestamp, 0)
-	if blocktime.After(timestamp.Add(-time.Duration(locktime.Granularity))) &&
-		blocktime.Before(timestamp.Add(time.Duration(locktime.Granularity))) {
+	if blocktime.After(timestamp.Add(-time.Duration(locktime.Precision))) &&
+		blocktime.Before(timestamp.Add(time.Duration(locktime.Precision))) {
 		return true
 	}
 	return false
