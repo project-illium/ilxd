@@ -498,7 +498,7 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 		return nil, err
 	}
 	resp := &pb.CreateRawTransactionResponse{
-		Tx: &pb.RawTransaction{
+		RawTx: &pb.RawTransaction{
 			Tx:      rawTx.Tx,
 			Inputs:  make([]*pb.PrivateInput, 0, len(rawTx.PrivateInputs)),
 			Outputs: make([]*pb.PrivateOutput, 0, len(rawTx.PrivateOutputs)),
@@ -519,7 +519,7 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 		}
 		commitment := note.Commitment()
 
-		resp.Tx.Inputs = append(resp.Tx.Inputs, &pb.PrivateInput{
+		resp.RawTx.Inputs = append(resp.RawTx.Inputs, &pb.PrivateInput{
 			Amount:           in.Amount,
 			Salt:             in.Salt[:],
 			Asset_ID:         in.AssetID[:],
@@ -547,7 +547,7 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 		copy(po.ScriptHash, out.ScriptHash)
 		copy(po.Asset_ID, out.AssetID[:])
 		copy(po.State, out.State[:])
-		resp.Tx.Outputs = append(resp.Tx.Outputs, po)
+		resp.RawTx.Outputs = append(resp.RawTx.Outputs, po)
 	}
 
 	return resp, nil

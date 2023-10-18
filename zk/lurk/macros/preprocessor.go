@@ -51,14 +51,14 @@ func (p *MacroPreprocessor) Preprocess(lurkProgram string) (string, error) {
 }
 
 var paramMap = map[string]string{
-	"txo-root":           "(list-get 1 public-params)",
-	"fee":                "(list-get 2 public-params)",
-	"coinbase":           "(list-get 3 public-params)",
-	"mint-id":            "(list-get 4 public-params)",
-	"mint-amount":        "(list-get 5 public-params)",
-	"sighash":            "(list-get 7 public-params)",
-	"locktime":           "(list-get 8 public-params)",
-	"locktime-precision": "(list-get 9 public-params)",
+	"txo-root":           "(nth 1 public-params)",
+	"fee":                "(nth 2 public-params)",
+	"coinbase":           "(nth 3 public-params)",
+	"mint-id":            "(nth 4 public-params)",
+	"mint-amount":        "(nth 5 public-params)",
+	"sighash":            "(nth 7 public-params)",
+	"locktime":           "(nth 8 public-params)",
+	"locktime-precision": "(nth 9 public-params)",
 }
 
 var inputMap = map[string]int{
@@ -254,7 +254,7 @@ func macroExpandParam(lurkProgram string) string {
 					p.Consume()
 				}
 				index := p.input[indexStart:p.pos]
-				result += fmt.Sprintf("(list-get %s (list-get 0 public-params))", index)
+				result += fmt.Sprintf("(nth %s (nth 0 public-params))", index)
 			} else if paramName == "priv-in" {
 				// Skip over potential whitespace
 				for p.Peek() == ' ' {
@@ -265,7 +265,7 @@ func macroExpandParam(lurkProgram string) string {
 					p.Consume()
 				}
 				index := p.input[indexStart:p.pos]
-				resultExp := fmt.Sprintf("(list-get %s (car private-params))", index)
+				resultExp := fmt.Sprintf("(nth %s (car private-params))", index)
 
 				if p.Peek() == ' ' {
 					// Consume whitespace and then check for sub-param
@@ -277,9 +277,9 @@ func macroExpandParam(lurkProgram string) string {
 					subParam := p.input[subParamStart:p.pos]
 					if subIndex, ok := inputMap[subParam]; ok {
 						if subIndex == 10 {
-							result += fmt.Sprintf("(hash (cons (car %s) (cons (list-get 3 %s) nil)))", resultExp, resultExp)
+							result += fmt.Sprintf("(hash (cons (car %s) (cons (nth 3 %s) nil)))", resultExp, resultExp)
 						} else {
-							result += fmt.Sprintf("(list-get %d %s)", subIndex, resultExp)
+							result += fmt.Sprintf("(nth %d %s)", subIndex, resultExp)
 						}
 					} else {
 						result += resultExp
@@ -298,7 +298,7 @@ func macroExpandParam(lurkProgram string) string {
 					p.Consume()
 				}
 				index := p.input[indexStart:p.pos]
-				resultExp := fmt.Sprintf("(list-get %s (car (cdr private-params)))", index)
+				resultExp := fmt.Sprintf("(nth %s (car (cdr private-params)))", index)
 
 				if p.Peek() == ' ' {
 					// Consume whitespace and then check for sub-param
@@ -309,7 +309,7 @@ func macroExpandParam(lurkProgram string) string {
 					}
 					subParam := p.input[subParamStart:p.pos]
 					if subIndex, ok := outputMap[subParam]; ok {
-						result += fmt.Sprintf("(list-get %d %s)", subIndex, resultExp)
+						result += fmt.Sprintf("(nth %d %s)", subIndex, resultExp)
 					} else {
 						result += resultExp
 					}
@@ -326,7 +326,7 @@ func macroExpandParam(lurkProgram string) string {
 					p.Consume()
 				}
 				index := p.input[indexStart:p.pos]
-				resultExp := fmt.Sprintf("(list-get %s (list-get 6 public-params))", index)
+				resultExp := fmt.Sprintf("(nth %s (nth 6 public-params))", index)
 
 				if p.Peek() == ' ' {
 					// Consume whitespace and then check for sub-param
@@ -337,7 +337,7 @@ func macroExpandParam(lurkProgram string) string {
 					}
 					subParam := p.input[subParamStart:p.pos]
 					if subIndex, ok := pubOutMap[subParam]; ok {
-						result += fmt.Sprintf("(list-get %d %s)", subIndex, resultExp)
+						result += fmt.Sprintf("(nth %d %s)", subIndex, resultExp)
 					} else {
 						result += resultExp
 					}

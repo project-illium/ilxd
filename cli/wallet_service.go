@@ -741,13 +741,13 @@ func (x *CreateRawTransaction) Execute(args []string) error {
 		return err
 	}
 	if x.Serialize {
-		ser, err := proto.Marshal(resp.Tx)
+		ser, err := proto.Marshal(resp.RawTx)
 		if err != nil {
 			return err
 		}
 		fmt.Println(hex.EncodeToString(ser))
 	} else {
-		out, err := json.MarshalIndent(resp.Tx, "", "    ")
+		out, err := json.MarshalIndent(resp.RawTx, "", "    ")
 		if err != nil {
 			return err
 		}

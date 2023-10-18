@@ -27,14 +27,14 @@
                     (map-get key (cdr (cdr plist))))
                 nil)))
 
-        ;; list-get returns the item at the given index from
+        ;; nth returns the item at the given index from
         ;; the list or nil if the index doesn't exist.
-        (list-get (lambda (idx plist)
+        (nth (lambda (idx plist)
             (if (= idx 0)
                 (car plist)
-                (list-get (- idx 1) (cdr plist)))))
+                (nth (- idx 1) (cdr plist)))))
 
-       ;; map-update updates value of the given key in the
+        ;; map-update updates value of the given key in the
         ;; provided map and returns the new map.
         ;; If the key is not in the map a new map entry will
         ;; be added.
@@ -103,9 +103,9 @@
                 (inclusion-proof-acc (cdr inclusion-proof-hashes))
                 (spend-script-preimage (cons script-commitment (car script-params)))
                 (script-hash (hash 'spend-script-preimage))
-                (nullifier (list-get idx nullifiers))
+                (nullifier (nth idx nullifiers))
                 (calculated-nullifier (cat-and-hash '((car commitment-idx) (car salt) script-commitment (car script-params))))
-                (output-commitment (cat-and-hash '(script-hash (car amount) (car asset-id) (car state) (car salt)))))
+                (output-commitment (cat-and-hash '(script-hash (u64 (car amount)) (car asset-id) (car state) (car salt)))))
 
                 (if (eq ((open (comm script-commitment))
                         (car script-params)
@@ -132,7 +132,7 @@
                         (asset-id (cdr amount))
                         (state (cdr asset-id))
                         (salt (cdr state))
-                        (public-output (list-get idx public-outputs))
+                        (public-output (nth idx public-outputs))
                         (commitment-preimage (cat-and-hash '(
                                                     script-hash
                                                     (u64 (car amount))
@@ -180,10 +180,10 @@
                                                 (if (eq xputs nil)
                                                     (cons illium-sum asset-map)
                                                     (if (= asset-id 0)
-                                                        (if (check-overflow illium-sum (car amount))
+                                                        (if (check-overflow illium-sum (u64 (car amount)))
                                                               nil
-                                                              (sum-xputs (cdr xputs) (+ illium-sum (car amount)) asset-map))
-                                                        (let ((new-asset-map (sum-assets asset-map asset-id (car amount))))
+                                                              (sum-xputs (cdr xputs) (+ illium-sum (u64 (car amount))) asset-map))
+                                                        (let ((new-asset-map (sum-assets asset-map asset-id (u64 (car amount)))))
                                                            (if (eq new-asset-map nil)
                                                                 nil
                                                                 (sum-xputs (cdr xputs) illium-sum new-asset-map) )))))))
