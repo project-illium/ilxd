@@ -32,7 +32,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/routing"
 	discovery "github.com/libp2p/go-libp2p/p2p/discovery/routing"
-	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/multiformats/go-multiaddr"
@@ -114,28 +114,12 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	}
 
 	if cfg.host == nil {
-		opts := pstoreds.DefaultOpts()
-		opts.GCPurgeInterval = time.Minute * 30
-		pstore, err = pstoreds.NewPeerstore(ctx, cfg.datastore, opts)
+		pstore, err = pstoremem.NewPeerstore()
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		pstore = cfg.host.Peerstore()
-	}
-
-loop:
-	for i, pid := range pstore.Peers() {
-		pi := pstore.PeerInfo(pid)
-		for _, s := range seedAddrs {
-			if pi.ID == s.ID || pid == self {
-				continue loop
-			}
-		}
-		seedAddrs = append(seedAddrs, pi)
-		if i > 50 {
-			break
-		}
 	}
 
 	conngater, err := NewConnectionGater(cfg.datastore, pstore, cfg.banDuration, cfg.maxBanscore)

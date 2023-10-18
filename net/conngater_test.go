@@ -5,10 +5,9 @@
 package net
 
 import (
-	"context"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/stretchr/testify/assert"
 	"net"
@@ -20,7 +19,7 @@ import (
 
 func TestConnectionGater(t *testing.T) {
 	ds := mock.NewMapDatastore()
-	pstore, err := pstoreds.NewPeerstore(context.Background(), ds, pstoreds.DefaultOpts())
+	pstore, err := pstoremem.NewPeerstore()
 	assert.NoError(t, err)
 
 	peerA, _ := peer.Decode("12D3KooWSE3nPEMZEXGpDRjZesMEVquvs3YjYPJdiC4ve66rVuu5")
@@ -202,7 +201,7 @@ func TestConnectionGater(t *testing.T) {
 
 func TestBanscore(t *testing.T) {
 	ds := mock.NewMapDatastore()
-	pstore, err := pstoreds.NewPeerstore(context.Background(), ds, pstoreds.DefaultOpts())
+	pstore, err := pstoremem.NewPeerstore()
 	assert.NoError(t, err)
 
 	peerA, _ := peer.Decode("12D3KooWSE3nPEMZEXGpDRjZesMEVquvs3YjYPJdiC4ve66rVuu5")
