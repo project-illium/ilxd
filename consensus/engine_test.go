@@ -117,7 +117,6 @@ func setup() ([]*mockNode, *mockNode, func(), error) {
 }
 
 func TestConsensusEngine(t *testing.T) {
-	rand.Seed(time.Now().Unix())
 
 	t.Run("Test block finalization when all nodes agree", func(t *testing.T) {
 		nodes, testNode, teardown, err := setup()
