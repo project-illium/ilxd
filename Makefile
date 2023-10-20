@@ -13,3 +13,15 @@ protos:
 install:
 	go install
 	cd cli && go build -o $(GOPATH)/bin/ilxcli
+
+ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+
+.PHONY: build-dynamic
+build-dynamic:
+	mkdir -p lib
+	@cd crypto/rust && cargo build --release
+	@cp crypto/rust/target/release/libillium_crypto.so lib/
+	go build -ldflags="-r $(ROOT_DIR)lib" *.go
+
+test-crypto:
+	LDFLAGS="-r $(ROOT_DIR)lib" CGO_ENABLED=1 go test -v ./crypto

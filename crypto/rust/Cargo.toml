@@ -1,0 +1,22 @@
+[package]
+name = "illium-crypto"
+version = "0.1.0"
+authors = ["cpacia <ctpacia@gmail.com>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Illium lurk vesta curve signature"
+repository = "https://github.com/project-illium/ilxd/crypto/rust"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ff = { version = "0.13.0", features = ["derive"] }
+sha3 = "0.10"
+pasta_curves = { version = "0.5", features = ["repr-c", "serde"] }
+num-bigint = { version = "0.4", features = ["serde", "rand"] }
+bitvec = "1.0"
+rand = "0.8.5"
+libc = "0.2"
+
+[lib]
+crate-type = ["cdylib"]
+
