@@ -34,7 +34,7 @@ func randomPeer(t *testing.T, addrCount int) peer.AddrInfo {
 			t.Fatal(err)
 		}
 	}
-	return peer.AddrInfo{pid, addrs}
+	return peer.AddrInfo{ID: pid, Addrs: addrs}
 }
 
 func TestDatastore(t *testing.T) {
