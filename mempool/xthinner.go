@@ -10,9 +10,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
-	"math/rand"
 	"sort"
-	"time"
 )
 
 // EncodeXthinner replaces the full transactions from a block.Block with
@@ -38,8 +36,6 @@ import (
 func (m *Mempool) EncodeXthinner(blkIds []types.ID) (*blocks.XThinnerBlock, error) {
 	m.mempoolLock.RLock()
 	defer m.mempoolLock.RUnlock()
-
-	rand.Seed(time.Now().Unix())
 
 	mempoolTxs := make([]types.ID, 0, len(m.pool)+2)
 

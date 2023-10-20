@@ -6,8 +6,6 @@ package blockchain
 
 import (
 	"context"
-	crand "crypto/rand"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -18,7 +16,6 @@ import (
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/weightedrand/v2"
 	"math"
-	"math/rand"
 	"sync"
 	"time"
 )
@@ -270,10 +267,6 @@ func (vs *ValidatorSet) Init(tip *blockNode) error {
 	case scsEmpty:
 		// Nothing to do here
 	}
-
-	b := make([]byte, 8)
-	crand.Read(b)
-	rand.Seed(int64(binary.BigEndian.Uint64(b)))
 
 	choices := make([]weightedrand.Choice[peer.ID, types.Amount], 0, len(vs.validators))
 	for peerID, validator := range vs.validators {

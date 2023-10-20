@@ -23,10 +23,6 @@ import (
 	"time"
 )
 
-func init() {
-	rand.Seed(time.Now().Unix())
-}
-
 const (
 	// AvalancheRequestTimeout is the amount of time to wait for a response to a
 	// query
