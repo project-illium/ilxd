@@ -52,6 +52,7 @@ type Network struct {
 	pubsub      *pubsub.PubSub
 	txTopic     *pubsub.Topic
 	blockTopic  *pubsub.Topic
+	pstoreds    *PeerstoreDS
 	txSub       *pubsub.Subscription
 	blkSub      *pubsub.Subscription
 }
@@ -120,6 +121,24 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		}
 	} else {
 		pstore = cfg.host.Peerstore()
+	}
+
+	pstoreds := NewPeerstoreDS(cfg.datastore, pstore)
+	addrInfos, err := pstoreds.AddrInfos()
+	if err != nil {
+		return nil, err
+	}
+loop:
+	for i, ai := range addrInfos {
+		for _, s := range seedAddrs {
+			if ai.ID == s.ID || ai.ID == self {
+				continue loop
+			}
+		}
+		seedAddrs = append(seedAddrs, ai)
+		if i > 50 {
+			break
+		}
 	}
 
 	conngater, err := NewConnectionGater(cfg.datastore, pstore, cfg.banDuration, cfg.maxBanscore)
@@ -358,6 +377,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		pubsub:      ps,
 		txTopic:     txTopic,
 		blockTopic:  blockTopic,
+		pstoreds:    pstoreds,
 		txSub:       txSub,
 		blkSub:      blockSub,
 	}
@@ -409,6 +429,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 func (n *Network) Close() error {
 	n.txSub.Cancel()
 	n.blkSub.Cancel()
+	n.pstoreds.Close()
 	if err := n.host.Close(); err != nil {
 		return err
 	}

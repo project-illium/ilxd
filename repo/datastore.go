@@ -51,6 +51,8 @@ const (
 	AutostakeDatastoreKey = "/ilxd/autostake/"
 	// PrunedBlockchainDatastoreKey is the datastore key used to store a flag setting whether the chain has ever been pruned.
 	PrunedBlockchainDatastoreKey = "/ilxd/pruned/"
+	// CachedAddrInfoDatastoreKey is the datastore key used to persist addrinfos from the peerstore.
+	CachedAddrInfoDatastoreKey = "/ilxd/peerstore/addrinfo/"
 )
 
 type Datastore interface {
