@@ -52,7 +52,7 @@ type Network struct {
 	pubsub      *pubsub.PubSub
 	txTopic     *pubsub.Topic
 	blockTopic  *pubsub.Topic
-	pstoreds    *PeerstoreDS
+	pstoreds    *Peerstoreds
 	txSub       *pubsub.Subscription
 	blkSub      *pubsub.Subscription
 }
@@ -123,7 +123,7 @@ func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 		pstore = cfg.host.Peerstore()
 	}
 
-	pstoreds := NewPeerstoreDS(cfg.datastore, pstore)
+	pstoreds := NewPeerstoreds(cfg.datastore, pstore)
 	addrInfos, err := pstoreds.AddrInfos()
 	if err != nil {
 		return nil, err

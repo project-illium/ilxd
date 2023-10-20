@@ -26,14 +26,22 @@ const (
 	cacheInterval = time.Hour
 )
 
-type PeerstoreDS struct {
+// Peerstoreds adds a layer of caching to the peerstore addresses.
+// The reason we want this is on each startup we are reliant exclusively on
+// the hardcoded bootstrap peers for connectivity to the network. Instead,
+// we can load a number of peers from the database and connect to them.
+//
+// Each datastore entry tracks the last seen time of the peer and garbage
+// collects peers that haven't been seen in over a month.
+type Peerstoreds struct {
 	ds     repo.Datastore
 	pstore peerstore.Peerstore
 	done   chan struct{}
 }
 
-func NewPeerstoreDS(ds repo.Datastore, pstore peerstore.Peerstore) *PeerstoreDS {
-	pds := &PeerstoreDS{
+// NewPeerstoreds returns a new Peerstoreds
+func NewPeerstoreds(ds repo.Datastore, pstore peerstore.Peerstore) *Peerstoreds {
+	pds := &Peerstoreds{
 		ds:     ds,
 		pstore: pstore,
 		done:   make(chan struct{}),
@@ -42,7 +50,8 @@ func NewPeerstoreDS(ds repo.Datastore, pstore peerstore.Peerstore) *PeerstoreDS 
 	return pds
 }
 
-func (pds *PeerstoreDS) AddrInfos() ([]peer.AddrInfo, error) {
+// AddrInfos returns a list of AddrInfos (peer, multiaddrs) from the database.
+func (pds *Peerstoreds) AddrInfos() ([]peer.AddrInfo, error) {
 	var addrInfos []peer.AddrInfo
 	query, err := pds.ds.Query(context.Background(), query.Query{
 		Prefix: repo.CachedAddrInfoDatastoreKey,
@@ -80,11 +89,12 @@ func (pds *PeerstoreDS) AddrInfos() ([]peer.AddrInfo, error) {
 	return addrInfos, nil
 }
 
-func (pds *PeerstoreDS) Close() {
+// Close shuts down the Peerstoreds
+func (pds *Peerstoreds) Close() {
 	close(pds.done)
 }
 
-func (pds *PeerstoreDS) run() {
+func (pds *Peerstoreds) run() {
 	cacheTicker := time.NewTicker(cacheInterval)
 	gsTicker := time.NewTicker(gcInterval)
 	time.AfterFunc(time.Minute, func() { pds.cachePeerAddrs() })
@@ -106,7 +116,7 @@ func (pds *PeerstoreDS) run() {
 	}
 }
 
-func (pds *PeerstoreDS) cachePeerAddrs() error {
+func (pds *Peerstoreds) cachePeerAddrs() error {
 	batch, err := pds.ds.Batch(context.Background())
 	if err != nil {
 		return err
@@ -136,7 +146,7 @@ func (pds *PeerstoreDS) cachePeerAddrs() error {
 	return batch.Commit(context.Background())
 }
 
-func (pds *PeerstoreDS) garbageCollect() error {
+func (pds *Peerstoreds) garbageCollect() error {
 	q := query.Query{
 		Prefix: repo.CachedAddrInfoDatastoreKey,
 	}

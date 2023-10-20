@@ -42,7 +42,7 @@ func TestDatastore(t *testing.T) {
 	pstore, err := pstoremem.NewPeerstore()
 	assert.NoError(t, err)
 
-	pstoreds := NewPeerstoreDS(ds, pstore)
+	pstoreds := NewPeerstoreds(ds, pstore)
 
 	for i := 0; i < 10; i++ {
 		peer := randomPeer(t, 4)
