@@ -34,7 +34,6 @@ dist
 .vscode
 .tags*
 *.sw?
-openbazaar-go*
 
 # macOS
 .DS_Store
