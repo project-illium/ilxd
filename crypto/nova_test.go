@@ -54,4 +54,15 @@ func TestNova(t *testing.T) {
 
 	assert.True(t, priv.Equals(priv2))
 	assert.True(t, pub.Equals(pub2))
+
+	var seed [32]byte
+	rand.Read(seed[:])
+
+	priv4, _, err := NewNovaKeyFromSeed(seed)
+	assert.NoError(t, err)
+
+	priv5, _, err := NewNovaKeyFromSeed(seed)
+	assert.NoError(t, err)
+
+	assert.True(t, priv4.Equals(priv5))
 }

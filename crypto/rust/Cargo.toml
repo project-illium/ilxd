@@ -15,6 +15,7 @@ pasta_curves = { version = "0.5", features = ["repr-c", "serde"] }
 num-bigint = { version = "0.4", features = ["serde", "rand"] }
 bitvec = "1.0"
 rand = "0.8.5"
+rand_chacha = "0.3"
 libc = "0.2"
 
 [lib]

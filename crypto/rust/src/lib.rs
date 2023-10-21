@@ -12,8 +12,9 @@ use pasta_curves::{
     group::{Group, Curve, GroupEncoding},
     arithmetic::CurveAffine,
 };
-use rand::{rngs::OsRng, RngCore};
+use rand::{rngs::OsRng, RngCore, SeedableRng};
 use sha3::{Digest, Sha3_512};
+use rand_chacha::ChaChaRng;
 
 type G2 = pasta_curves::vesta::Point;
 
@@ -38,6 +39,39 @@ pub extern "C" fn generate_secret_key(out: *mut u8) {
         std::ptr::copy_nonoverlapping(sk_bytes.as_ptr(), out, sk_bytes.len());
     }
 }
+
+#[no_mangle]
+pub extern "C" fn secret_key_from_seed(seed: *const u8, out: *mut u8) {
+    if seed.is_null() || out.is_null() {
+        return;
+    }
+
+    // Convert the raw seed into an array
+    let seed_array = unsafe {
+        std::slice::from_raw_parts(seed, 32)
+    };
+
+    if seed_array.len() != 32 {
+        return;
+    }
+
+    let mut seed_array: [u8; 32] = [0; 32];
+    unsafe {
+        std::ptr::copy_nonoverlapping(seed, seed_array.as_mut_ptr(), 32);
+    }
+
+    // Create a ChaChaRng from the seed
+    let mut rng = ChaChaRng::from_seed(seed_array);
+
+    let sk = SecretKey::<G2>::random(&mut rng);
+    let sk_bytes = sk.0.to_repr();
+
+    // Copy the secret key bytes to the provided output buffer
+    unsafe {
+        std::ptr::copy_nonoverlapping(sk_bytes.as_ptr(), out, sk_bytes.len());
+    }
+}
+
 
 #[no_mangle]
 pub extern "C" fn priv_to_pub(bytes: *const u8, out: *mut u8) {

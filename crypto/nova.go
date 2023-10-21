@@ -14,6 +14,8 @@ package crypto
 
 void generate_secret_key(uint8_t* out);
 
+void secret_key_from_seed(const uint8_t* seed, uint8_t* out);
+
 void priv_to_pub(const uint8_t* bytes, uint8_t* out);
 
 void sign(const uint8_t* privkey, const uint8_t* message_digest, uint8_t* out);
@@ -61,6 +63,24 @@ type NovaPublicKey struct {
 // GenerateNovaKey generates a new Nova private and public key pair.
 func GenerateNovaKey(src io.Reader) (crypto.PrivKey, crypto.PubKey, error) {
 	priv := novaGenerateSecretKey()
+	pub := novaPrivToPub(priv)
+
+	var combined [64]byte
+	copy(combined[:32], priv[:])
+	copy(combined[32:], pub[:])
+
+	return &NovaPrivateKey{
+			k: &combined,
+		},
+		&NovaPublicKey{
+			k: &pub,
+		},
+		nil
+}
+
+// NewNovaKeyFromSeed deterministically derives a nova private key from a seed
+func NewNovaKeyFromSeed(seed [32]byte) (crypto.PrivKey, crypto.PubKey, error) {
+	priv := novaSecretKeyFromSeed(seed)
 	pub := novaPrivToPub(priv)
 
 	var combined [64]byte
@@ -230,6 +250,24 @@ func novaGenerateSecretKey() [32]byte {
 
 	// Call the Rust function to generate the secret key
 	C.generate_secret_key((*C.uint8_t)(unsafe.Pointer(&secretKey[0])))
+
+	var ret [32]byte
+	copy(ret[:], secretKey)
+	return ret
+}
+
+func novaSecretKeyFromSeed(seed [32]byte) [32]byte {
+	// Define the length of the secret key (32 bytes)
+	secretKeyLen := 32
+
+	// Allocate memory for the secret key
+	secretKey := make([]byte, secretKeyLen)
+
+	// Convert the Go byte slice to a C byte pointer
+	cBytes := (*C.uint8_t)(unsafe.Pointer(&seed[0]))
+
+	// Call the Rust function to generate the secret key
+	C.secret_key_from_seed(cBytes, (*C.uint8_t)(unsafe.Pointer(&secretKey[0])))
 
 	var ret [32]byte
 	copy(ret[:], secretKey)
