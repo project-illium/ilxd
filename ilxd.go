@@ -5,7 +5,9 @@
 package main
 
 import (
+	"fmt"
 	"github.com/jessevdk/go-flags"
+	"github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/limits"
 	"github.com/project-illium/ilxd/repo"
 	"os"
@@ -14,6 +16,7 @@ import (
 )
 
 func main() {
+	fmt.Println(crypto.PrivToPub(crypto.NewSecretKey()))
 	// Up some limits.
 	if err := limits.SetLimits(); err != nil {
 		log.Fatalf("failed to set limits: %v\n", err)

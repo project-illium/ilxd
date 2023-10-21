@@ -11,6 +11,9 @@ import (
 )
 
 func TestNewSecretKey(t *testing.T) {
-	key := NewSecretKey()
-	fmt.Println(hex.EncodeToString(key))
+	sk := NewSecretKey()
+	fmt.Println(hex.EncodeToString(sk))
+
+	pk := PrivToPub(sk)
+	fmt.Println(hex.EncodeToString(pk))
 }

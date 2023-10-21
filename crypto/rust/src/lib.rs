@@ -9,29 +9,82 @@ use ff::{
 };
 use num_bigint::BigUint;
 use pasta_curves::{
-    group::Group,
+    group::{Group, Curve},
+    arithmetic::CurveAffine,
 };
 use rand::{rngs::OsRng, RngCore};
 use sha3::{Digest, Sha3_512};
 //use std::os::raw::c_void;
 
 #[repr(C)]
-pub struct SecretKeyBytes {
+pub struct KeyBytes {
     data: *const u8,
     len: usize,
 }
 
 #[no_mangle]
-pub extern "C" fn generate_secret_key() -> SecretKeyBytes {
+pub extern "C" fn generate_secret_key() -> KeyBytes {
     let sk = SecretKey::<G2>::random(&mut OsRng);
     let sk_bytes = sk.0.to_repr();
 
     let sk_len = sk_bytes.len();
     let sk_ptr = Box::into_raw(Box::new(sk_bytes)) as *const u8;
 
-    SecretKeyBytes {
+    KeyBytes {
         data: sk_ptr,
         len: sk_len,
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn priv_to_pub(bytes: *const u8, len: usize) -> KeyBytes {
+    // Ensure that the input bytes slice is valid and has the expected length
+    if len != 32 {
+        // Return an empty KeyBytes with a null pointer if the length is incorrect
+        return KeyBytes {
+            data: std::ptr::null(),
+            len: 0,
+        };
+    }
+
+    // Create a byte array from the input bytes
+    let mut input_bytes: [u8; 32] = [0; 32];
+    unsafe {
+        std::ptr::copy_nonoverlapping(bytes, input_bytes.as_mut_ptr(), len);
+    }
+
+    let mut u64_array: [u64; 4] = [0; 4];
+
+    // Use bitwise shifts to convert [u8; 32] to [u64; 4]
+    for i in 0..4 {
+        for j in 0..8 {
+            u64_array[i] |= (input_bytes[i * 8 + j] as u64) << (j * 8);
+        }
+    }
+
+    let b = <G2 as Group>::Scalar::from_raw(u64_array);
+    let sk = SecretKey::<G2>::from_scalar(b);
+    let pk = PublicKey::from_secret_key(&sk);
+
+    let pkxy = pk.0.to_affine().coordinates().unwrap();
+    let x = pkxy.x().to_repr();
+    let y = pkxy.y().to_repr();
+
+    // Serialize x and y into a Vec<u8>
+    let mut serialized_data = Vec::new();
+    serialized_data.extend_from_slice(&x);
+    serialized_data.extend_from_slice(&y);
+
+    // Allocate memory for the serialized data
+    let serialized_len = serialized_data.len();
+    let serialized_ptr = serialized_data.as_ptr();
+
+    // Ensure the serialized data lives as long as the KeyBytes object
+    std::mem::forget(serialized_data);
+
+    KeyBytes {
+        data: serialized_ptr,
+        len: serialized_len,
     }
 }
 
@@ -54,6 +107,10 @@ impl<G> SecretKey<G>
 {
     pub fn random(mut rng: impl RngCore) -> Self {
         let secret = G::Scalar::random(&mut rng);
+        Self(secret)
+    }
+
+    pub fn from_scalar(secret : G::Scalar) -> Self {
         Self(secret)
     }
 }

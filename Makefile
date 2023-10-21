@@ -24,4 +24,7 @@ build-dynamic:
 	go build -ldflags="-r $(ROOT_DIR)lib" *.go
 
 test-crypto:
-	LDFLAGS="-r $(ROOT_DIR)lib" CGO_ENABLED=1 go test -v ./crypto
+	export LD_LIBRARY_PATH=$(pwd)/lib:$LD_LIBRARY_PATH
+	CGO_ENABLED=1 go test -c -ldflags="-r $(ROOT_DIR)lib" -o mytest ./crypto
+	LD_LIBRARY_PATH=$(pwd)/lib ./mytest
+	#LDFLAGS="-r $(ROOT_DIR)lib" CGO_ENABLED=1 go test -v ./crypto
