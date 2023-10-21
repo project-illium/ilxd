@@ -59,9 +59,6 @@ func TestCurve25519(t *testing.T) {
 
 	assert.Equal(t, message, plainText)
 
-	assert.True(t, curvePriv.Equals(curvePriv))
-	assert.True(t, curvePub.Equals(curvePub))
-
 	assert.False(t, curvePriv.Equals(priv))
 	assert.False(t, curvePub.Equals(pub))
 }

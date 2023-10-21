@@ -6,30 +6,49 @@ package crypto
 
 import (
 	"crypto/rand"
-	"encoding/hex"
-	"fmt"
+	"github.com/go-test/deep"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func TestNewSecretKey(t *testing.T) {
-	sk := NewSecretKey()
-	fmt.Println(hex.EncodeToString(sk))
+func TestNova(t *testing.T) {
+	priv, pub, err := GenerateNovaKey(rand.Reader)
+	assert.NoError(t, err)
 
-	fmt.Println("***", len(sk))
+	privBytes, err := crypto.MarshalPrivateKey(priv)
+	assert.NoError(t, err)
 
-	pk := PrivToPub(sk)
-	fmt.Println(hex.EncodeToString(pk))
+	pubBytes, err := crypto.MarshalPublicKey(pub)
+	assert.NoError(t, err)
 
-	fmt.Println("***", len(pk))
+	priv2, err := crypto.UnmarshalPrivateKey(privBytes)
+	assert.NoError(t, err)
 
-	b := make([]byte, 32)
-	rand.Read(b)
+	pub2, err := crypto.UnmarshalPublicKey(pubBytes)
+	assert.NoError(t, err)
 
-	sig := Sign(sk, b)
-	fmt.Println(hex.EncodeToString(sig))
+	assert.Empty(t, deep.Equal(priv, priv2))
+	assert.Empty(t, deep.Equal(pub, pub2))
 
-	fmt.Println("***", len(sig))
+	message := []byte("message")
+	sig, err := priv.Sign(message)
+	assert.NoError(t, err)
 
-	valid := Verify(pk, b, sig)
-	fmt.Println(valid)
+	valid, err := pub.Verify(message, sig)
+	assert.NoError(t, err)
+	assert.True(t, valid)
+
+	valid, err = pub.Verify([]byte("fake message"), sig)
+	assert.NoError(t, err)
+	assert.False(t, valid)
+
+	pub3 := priv.GetPublic()
+
+	valid, err = pub3.Verify(message, sig)
+	assert.NoError(t, err)
+	assert.True(t, valid)
+
+	assert.True(t, priv.Equals(priv2))
+	assert.True(t, pub.Equals(pub2))
 }
