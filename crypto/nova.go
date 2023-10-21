@@ -10,17 +10,22 @@ package crypto
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 // Define the Rust function's C signature
-struct KeyBytes {
+struct SerializedBytes {
     const uint8_t* data;
     size_t len;
 };
 
-struct KeyBytes generate_secret_key();
+struct SerializedBytes generate_secret_key();
 size_t key_len();
 
-struct KeyBytes priv_to_pub(const uint8_t* bytes, size_t len);
+struct SerializedBytes priv_to_pub(const uint8_t* bytes, size_t len);
+
+struct SerializedBytes sign(const uint8_t* priv_bytes, size_t priv_len, const uint8_t* digest_bytes, size_t digest_len);
+
+bool verify(const uint8_t* pub_bytes, size_t pub_len, const uint8_t* digest_bytes, size_t digest_len, const uint8_t* sigr_bytes, size_t sigr_len, const uint8_t* sigs_bytes, size_t sigs_len);
 
 // Helper function to free memory allocated by Rust
 void free_memory(void* ptr);
@@ -35,7 +40,7 @@ func NewSecretKey() []byte {
 	cSecretKey := C.generate_secret_key()
 
 	// Convert the C struct to a pointer
-	secretKey := (*C.struct_KeyBytes)(unsafe.Pointer(&cSecretKey))
+	secretKey := (*C.struct_SerializedBytes)(unsafe.Pointer(&cSecretKey))
 
 	// Convert the C array to a Go byte slice
 	keyData := C.GoBytes(unsafe.Pointer(secretKey.data), C.int(secretKey.len))
@@ -62,4 +67,60 @@ func PrivToPub(data []byte) []byte {
 	C.free_memory(unsafe.Pointer(publicKey.data))
 
 	return []byte(keyData)
+}
+
+func Sign(privKey []byte, messageDigest []byte) []byte {
+	priv_len := len(privKey)
+
+	// Convert the Go byte slice to a C byte pointer
+	cPrivBytes := (*C.uint8_t)(unsafe.Pointer(&privKey[0]))
+
+	digest_len := len(messageDigest)
+
+	// Convert the Go byte slice to a C byte pointer
+	cDigestBytes := (*C.uint8_t)(unsafe.Pointer(&messageDigest[0]))
+
+	// Call the Rust function
+	signature := C.sign(cPrivBytes, C.size_t(priv_len), cDigestBytes, C.size_t(digest_len))
+
+	// Convert the returned data to a Go byte slice
+	sigData := C.GoBytes(unsafe.Pointer(signature.data), C.int(signature.len))
+
+	// Free the memory allocated by Rust
+	C.free_memory(unsafe.Pointer(signature.data))
+
+	return []byte(sigData)
+}
+
+func Verify(pubKey []byte, messageDigest []byte, signature []byte) bool {
+	pub_len := len(pubKey)
+
+	// Convert the Go byte slice to a C byte pointer
+	cPubBytes := (*C.uint8_t)(unsafe.Pointer(&pubKey[0]))
+
+	digest_len := len(messageDigest)
+
+	// Convert the Go byte slice to a C byte pointer
+	cDigestBytes := (*C.uint8_t)(unsafe.Pointer(&messageDigest[0]))
+
+	sigR := signature[:32]
+	sigS := signature[32:]
+
+	sigr_len := 32
+
+	// Convert the Go byte slice to a C byte pointer
+	cSigRBytes := (*C.uint8_t)(unsafe.Pointer(&sigR[0]))
+
+	sigs_len := 32
+
+	// Convert the Go byte slice to a C byte pointer
+	cSigSBytes := (*C.uint8_t)(unsafe.Pointer(&sigS[0]))
+
+	// Call the Rust function
+	valid := C.verify(cPubBytes, C.size_t(pub_len), cDigestBytes, C.size_t(digest_len), cSigRBytes, C.size_t(sigr_len), cSigSBytes, C.size_t(sigs_len))
+
+	// Free the memory allocated by Rust
+	//C.free_memory(unsafe.Pointer(valid))
+
+	return bool(valid)
 }
