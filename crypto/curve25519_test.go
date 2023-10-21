@@ -61,4 +61,15 @@ func TestCurve25519(t *testing.T) {
 
 	assert.False(t, curvePriv.Equals(priv))
 	assert.False(t, curvePub.Equals(pub))
+
+	var seed [32]byte
+	rand.Read(seed[:])
+
+	priv4, _, err := NewCurve25519KeyFromSeed(seed)
+	assert.NoError(t, err)
+
+	priv5, _, err := NewCurve25519KeyFromSeed(seed)
+	assert.NoError(t, err)
+
+	assert.True(t, priv4.Equals(priv5))
 }
