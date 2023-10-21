@@ -11,5 +11,47 @@ protos:
 	protoc -I=rpc -I=types/transactions -I=types/blocks --go_out=rpc/pb --go-grpc_out=rpc/pb --go_opt=paths=source_relative,Mtransactions.proto=github.com/project-illium/ilxd/types/transactions,Mblocks.proto=github.com/project-illium/ilxd/types/blocks --go-grpc_opt=paths=source_relative rpc/ilxrpc.proto
 
 install:
-	go install
+	@$(MAKE) build ARGS="-o $(GOPATH)/bin/ilxd"
 	cd cli && go build -o $(GOPATH)/bin/ilxcli
+
+ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+
+.PHONY: build
+build: ensure-rust-installed rust-bindings
+	go build -ldflags="-r $(ROOT_DIR)lib" $(ARGS) *.go
+
+.PHONY: rust-bindings
+rust-bindings:
+	mkdir -p lib
+	@cd crypto/rust && cargo build --release
+	@cp crypto/rust/target/release/libillium_crypto.so lib/
+
+.PHONY: ensure-rust-installed
+ensure-rust-installed:
+ifeq ($(OS),Windows_NT)
+	if not exist $(CARGO_HOME) (
+		echo "Cargo is not available, installing Rust..."
+		PowerShell -Command "Invoke-WebRequest -OutFile rustup-init.exe https://win.rustup.rs/x86_64"
+		./rustup-init.exe -y
+		del rustup-init.exe
+	) else (
+		echo "Cargo is already installed"
+	)
+else
+ifndef CARGO_HOME
+	$(eval CARGO_HOME := $(HOME)/.cargo)
+endif
+ifeq (, $(shell which cargo))
+	@echo "Cargo is not available, installing Rust..."
+	@curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+	@export PATH=$(CARGO_HOME)/bin:$(PATH)
+else
+	@echo "Cargo is already installed"
+endif
+endif
+
+test-crypto: rust-bindings
+	export LD_LIBRARY_PATH=$(pwd)/lib:$LD_LIBRARY_PATH
+	CGO_ENABLED=1 go test -v -c -ldflags="-r $(ROOT_DIR)lib" -o crypto_test ./crypto
+	LD_LIBRARY_PATH=$(pwd)/lib ./crypto_test
+	rm -f ./crypto_test

@@ -1,3 +1,6 @@
+//go:build !skiprusttests
+// +build !skiprusttests
+
 // Copyright (c) 2022 The illium developers
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
@@ -12,8 +15,8 @@ import (
 	"testing"
 )
 
-func TestCurve25519(t *testing.T) {
-	priv, pub, err := GenerateCurve25519Key(rand.Reader)
+func TestNova(t *testing.T) {
+	priv, pub, err := GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
 
 	privBytes, err := crypto.MarshalPrivateKey(priv)
@@ -31,44 +34,34 @@ func TestCurve25519(t *testing.T) {
 	assert.Empty(t, deep.Equal(priv, priv2))
 	assert.Empty(t, deep.Equal(pub, pub2))
 
-	edPriv, edPub, err := crypto.GenerateEd25519Key(rand.Reader)
-	assert.NoError(t, err)
-
-	curvePriv, err := Curve25519PrivateKeyFromEd25519(edPriv)
-	assert.NoError(t, err)
-
-	curvePub, err := Curve25519PublicKeyFromEd25519(edPub)
-	assert.NoError(t, err)
-
 	message := []byte("message")
-	cipherText, err := Encrypt(curvePub, message)
+	sig, err := priv.Sign(message)
 	assert.NoError(t, err)
 
-	plainText, err := Decrypt(curvePriv, cipherText)
+	valid, err := pub.Verify(message, sig)
 	assert.NoError(t, err)
+	assert.True(t, valid)
 
-	assert.Equal(t, message, plainText)
-
-	curvePub2 := curvePriv.GetPublic()
-
-	cipherText, err = Encrypt(curvePub2, message)
+	valid, err = pub.Verify([]byte("fake message"), sig)
 	assert.NoError(t, err)
+	assert.False(t, valid)
 
-	plainText, err = Decrypt(curvePriv, cipherText)
+	pub3 := priv.GetPublic()
+
+	valid, err = pub3.Verify(message, sig)
 	assert.NoError(t, err)
+	assert.True(t, valid)
 
-	assert.Equal(t, message, plainText)
-
-	assert.False(t, curvePriv.Equals(priv))
-	assert.False(t, curvePub.Equals(pub))
+	assert.True(t, priv.Equals(priv2))
+	assert.True(t, pub.Equals(pub2))
 
 	var seed [32]byte
 	rand.Read(seed[:])
 
-	priv4, _, err := NewCurve25519KeyFromSeed(seed)
+	priv4, _, err := NewNovaKeyFromSeed(seed)
 	assert.NoError(t, err)
 
-	priv5, _, err := NewCurve25519KeyFromSeed(seed)
+	priv5, _, err := NewNovaKeyFromSeed(seed)
 	assert.NoError(t, err)
 
 	assert.True(t, priv4.Equals(priv5))

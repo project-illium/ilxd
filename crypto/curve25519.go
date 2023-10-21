@@ -7,10 +7,12 @@ package crypto
 import (
 	"bytes"
 	"crypto/subtle"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	pb "github.com/libp2p/go-libp2p/core/crypto/pb"
+	"github.com/nixberg/chacha-rng-go"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/nacl/box"
 	"io"
@@ -42,6 +44,59 @@ type Curve25519PublicKey struct {
 // GenerateCurve25519Key generates a new Curve25519 private and public key pair.
 func GenerateCurve25519Key(src io.Reader) (crypto.PrivKey, crypto.PubKey, error) {
 	pub, priv, err := box.GenerateKey(src)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var combined [64]byte
+	copy(combined[:32], priv[:])
+	copy(combined[32:], pub[:])
+
+	return &Curve25519PrivateKey{
+			k: &combined,
+		},
+		&Curve25519PublicKey{
+			k: pub,
+		},
+		nil
+}
+
+type chachaRrng struct {
+	rng *chacha.ChaCha
+}
+
+func (c *chachaRrng) Read(p []byte) (n int, err error) {
+	remaining := len(p)
+	cursor := 0
+
+	for remaining > 0 {
+		val := c.rng.Uint64()
+		if remaining < 8 {
+			binary.LittleEndian.PutUint64(p[cursor:], val)
+			cursor += remaining
+			break
+		} else {
+			binary.LittleEndian.PutUint64(p[cursor:], val)
+			cursor += 8
+			remaining -= 8
+		}
+	}
+
+	if cursor == 0 {
+		return 0, errors.New("unable to fill byte slice")
+	}
+
+	return cursor, nil
+}
+
+func NewCurve25519KeyFromSeed(seed [32]byte) (crypto.PrivKey, crypto.PubKey, error) {
+	var s [8]uint32
+	for i := 0; i < 8; i++ {
+		s[i] = binary.LittleEndian.Uint32(seed[i*4 : (i+1)*4])
+	}
+	rng := chachaRrng{chacha.Seeded20(s, 0)}
+
+	pub, priv, err := box.GenerateKey(&rng)
 	if err != nil {
 		return nil, nil, err
 	}
