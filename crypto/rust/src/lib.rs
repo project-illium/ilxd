@@ -23,6 +23,22 @@ pub struct SerializedBytes {
 }
 
 #[no_mangle]
+pub extern "C" fn generate_secret_key(out: *mut u8) {
+    // Check if the provided output buffer is null
+    if out.is_null() {
+        return;
+    }
+
+    let sk = SecretKey::<G2>::random(&mut OsRng);
+    let sk_bytes = sk.0.to_repr();
+
+    // Copy the secret key bytes to the provided output buffer
+    unsafe {
+        std::ptr::copy_nonoverlapping(sk_bytes.as_ptr(), out, sk_bytes.len());
+    }
+}
+
+/*#[no_mangle]
 pub extern "C" fn generate_secret_key() -> SerializedBytes {
     let sk = SecretKey::<G2>::random(&mut OsRng);
     let sk_bytes = sk.0.to_repr();
@@ -34,9 +50,9 @@ pub extern "C" fn generate_secret_key() -> SerializedBytes {
         data: sk_ptr,
         len: sk_len,
     }
-}
+}*/
 
-#[no_mangle]
+/*#[no_mangle]
 pub extern "C" fn priv_to_pub(bytes: *const u8, len: usize) -> SerializedBytes {
     // Ensure that the input bytes slice is valid and has the expected length
     if len != 32 {
@@ -75,9 +91,102 @@ pub extern "C" fn priv_to_pub(bytes: *const u8, len: usize) -> SerializedBytes {
         data: pk_ptr,
         len: pk_len,
     }
+}*/
+
+#[no_mangle]
+pub extern "C" fn priv_to_pub(bytes: *const u8, out: *mut u8) {
+    // Ensure that the input bytes slice is valid and has the expected length
+    let len = 32;  // Assuming a constant length of 32 bytes
+
+    // Check if the provided output buffer is null
+    if out.is_null() {
+        return;
+    }
+
+    // Create a byte array from the input bytes
+    let mut input_bytes: [u8; 32] = [0; 32];
+    unsafe {
+        std::ptr::copy_nonoverlapping(bytes, input_bytes.as_mut_ptr(), len);
+    }
+
+    let mut u64_array: [u64; 4] = [0; 4];
+
+    // Use bitwise shifts to convert [u8; 32] to [u64; 4]
+    for i in 0..4 {
+        for j in 0..8 {
+            u64_array[i] |= (input_bytes[i * 8 + j] as u64) << (j * 8);
+        }
+    }
+
+    let b = <G2 as Group>::Scalar::from_raw(u64_array);
+    let sk = SecretKey::<G2>::from_scalar(b);
+    let pk = PublicKey::from_secret_key(&sk);
+
+    let pk_bytes = pk.0.to_bytes();
+
+    // Copy the public key bytes to the provided output buffer
+    unsafe {
+        std::ptr::copy_nonoverlapping(pk_bytes.as_ptr(), out, len);
+    }
 }
 
 #[no_mangle]
+pub extern "C" fn sign(privkey: *const u8, message_digest: *const u8, out: *mut u8) {
+    // Check if the provided output buffer is null
+    if out.is_null() {
+        return;
+    }
+
+    // Assuming privkey and message_digest are always 32 bytes each
+    let priv_len = 32;
+    let digest_len = 32;
+
+    // Create a byte array from the input private key and message digest
+    let mut priv_input_bytes: [u8; 32] = [0; 32];
+    let mut m_input_bytes: [u8; 32] = [0; 32];
+
+    unsafe {
+        std::ptr::copy_nonoverlapping(privkey, priv_input_bytes.as_mut_ptr(), priv_len);
+        std::ptr::copy_nonoverlapping(message_digest, m_input_bytes.as_mut_ptr(), digest_len);
+    }
+
+    let mut u64_priv_array: [u64; 4] = [0; 4];
+    let mut u64_m_array: [u64; 4] = [0; 4];
+
+    // Use bitwise shifts to convert [u8; 32] to [u64; 4]
+    for i in 0..4 {
+        for j in 0..8 {
+            u64_priv_array[i] |= (priv_input_bytes[i * 8 + j] as u64) << (j * 8);
+            u64_m_array[i] |= (m_input_bytes[i * 8 + j] as u64) << (j * 8);
+        }
+    }
+
+    let b1 = <G2 as Group>::Scalar::from_raw(u64_priv_array);
+    let sk = SecretKey::<G2>::from_scalar(b1);
+    let m = <G2 as Group>::Scalar::from_raw(u64_m_array);
+
+    let signature = sk.sign(m, &mut OsRng);
+
+    // Serialize the signature into the provided output buffer
+    let r = signature.r.to_bytes();
+    let s = signature.s.to_repr();
+
+    let mut serialized_data = Vec::new();
+    serialized_data.extend_from_slice(&r);
+    serialized_data.extend_from_slice(&s);
+
+    // Check if the provided output buffer is large enough for the serialized data
+    if serialized_data.len() <= 64 {
+        // Copy the serialized data to the provided output buffer
+        unsafe {
+            std::ptr::copy_nonoverlapping(serialized_data.as_ptr(), out, serialized_data.len());
+        }
+    }
+}
+
+
+
+/*#[no_mangle]
 pub extern "C" fn sign(priv_bytes: *const u8, priv_len: usize, digest_bytes: *const u8, digest_len: usize) -> SerializedBytes {
     // Ensure that the input bytes slice is valid and has the expected length
     if priv_len != 32 || digest_len != 32{
@@ -143,10 +252,61 @@ pub extern "C" fn sign(priv_bytes: *const u8, priv_len: usize, digest_bytes: *co
         data: serialized_ptr,
         len: serialized_len,
     }
+}*/
+
+#[no_mangle]
+pub extern "C" fn verify(pub_bytes: *const u8, digest_bytes: *const u8, sig_r: *const u8, sig_s: *const u8) -> bool {
+    // Ensure that the input bytes slices are valid and have the expected length
+    if pub_bytes.is_null() || digest_bytes.is_null() || sig_r.is_null() || sig_s.is_null() {
+        return false;
+    }
+
+    // Create byte arrays from the input bytes
+    let mut pub_input_bytes: [u8; 32] = [0; 32];
+    let mut m_bytes: [u8; 32] = [0; 32];
+    let mut sig_r_bytes: [u8; 32] = [0; 32];
+    let mut sig_s_bytes: [u8; 32] = [0; 32];
+
+    unsafe {
+        std::ptr::copy_nonoverlapping(pub_bytes, pub_input_bytes.as_mut_ptr(), 32);
+        std::ptr::copy_nonoverlapping(digest_bytes, m_bytes.as_mut_ptr(), 32);
+        std::ptr::copy_nonoverlapping(sig_r, sig_r_bytes.as_mut_ptr(), 32);
+        std::ptr::copy_nonoverlapping(sig_s, sig_s_bytes.as_mut_ptr(), 32);
+    }
+
+    // Convert bytes to the appropriate types
+    let pub_point = G2::from_bytes(&pub_input_bytes).unwrap();
+    let pk = PublicKey::from_point(pub_point);
+
+    let mut u64_m_array: [u64; 4] = [0; 4];
+    for i in 0..4 {
+        for j in 0..8 {
+            u64_m_array[i] |= (m_bytes[i * 8 + j] as u64) << (j * 8);
+        }
+    }
+    let m = <G2 as Group>::Scalar::from_raw(u64_m_array);
+
+    let r = G2::from_bytes(&sig_r_bytes).unwrap();
+
+    let mut u64_s_array: [u64; 4] = [0; 4];
+    for i in 0..4 {
+        for j in 0..8 {
+            u64_s_array[i] |= (sig_s_bytes[i * 8 + j] as u64) << (j * 8);
+        }
+    }
+    let s = <G2 as Group>::Scalar::from_raw(u64_s_array);
+
+    let signature = Signature { r, s };
+
+    // Verify the signature
+    let result = pk.verify(m, &signature);
+
+    result
 }
 
 
-#[no_mangle]
+
+/*#[no_mangle]
 pub extern "C" fn verify(pub_bytes: *const u8, pub_len: usize, digest_bytes: *const u8, digest_len: usize, sigr_bytes: *const u8, sigr_len: usize,  sigs_bytes: *const u8, sigs_len: usize) -> bool {
     // Ensure that the input bytes slice is valid and has the expected length
     if pub_len != 32 || digest_len != 32 {
@@ -204,7 +364,7 @@ pub extern "C" fn verify(pub_bytes: *const u8, pub_len: usize, digest_bytes: *co
     let result = pk.verify(m, &signature);
 
     result
-}
+}*/
 
 #[no_mangle]
 pub extern "C" fn free_memory(ptr: *mut u8) {
