@@ -18,12 +18,6 @@ use rand_chacha::ChaChaRng;
 
 type G2 = pasta_curves::vesta::Point;
 
-#[repr(C)]
-pub struct SerializedBytes {
-    data: *const u8,
-    len: usize,
-}
-
 #[no_mangle]
 pub extern "C" fn generate_secret_key(out: *mut u8) {
     // Check if the provided output buffer is null
