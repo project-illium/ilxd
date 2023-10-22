@@ -7,6 +7,8 @@ package zk
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
+	"math/big"
 )
 
 const MockProofSize = 9000
@@ -31,4 +33,19 @@ func CreateSnark(circuit CircuitFunc, privateParams, publicParams interface{}) (
 // we always return true for the snark being valid. This will obviously need to be changed.
 func ValidateSnark(circuit CircuitFunc, publicParams interface{}, proof []byte) (bool, error) {
 	return true, nil
+}
+
+// SignatureToLurkExpression converts a 64 byte signature to a lurk cons expression
+// containing the signature's R and S values.
+func SignatureToLurkExpression(sig []byte) string {
+	if len(sig) != 64 {
+		return ""
+	}
+	sigR := sig[:32]
+	sigS := sig[32:]
+
+	bigR := new(big.Int).SetBytes(sigR)
+	bigS := new(big.Int).SetBytes(sigS)
+
+	return fmt.Sprintf("(cons %s %s)", bigR.String(), bigS.String())
 }

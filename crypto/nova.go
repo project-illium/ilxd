@@ -37,7 +37,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto/pb"
 	"github.com/project-illium/ilxd/params/hash"
-	"golang.org/x/crypto/curve25519"
 	"io"
 	"unsafe"
 )
@@ -190,11 +189,6 @@ func (k *NovaPublicKey) Verify(data []byte, sig []byte) (bool, error) {
 	return valid, nil
 }
 
-// Encrypt encrypts the plaintext using the public key and returns the ciphertext.
-func (k *NovaPublicKey) Encrypt(plaintext []byte) ([]byte, error) {
-	return Encrypt(k, plaintext)
-}
-
 // UnmarshalNovaPublicKey returns a public key from input bytes.
 func UnmarshalNovaPublicKey(data []byte) (crypto.PubKey, error) {
 	if len(data) != 32 {
@@ -227,7 +221,7 @@ func UnmarshalNovaPrivateKey(data []byte) (crypto.PrivKey, error) {
 			privkey [32]byte
 		)
 		copy(privkey[:], data[:NovaPrivateKeySize])
-		curve25519.ScalarBaseMult(&pubkey, &privkey)
+		pubkey = novaPrivToPub(privkey)
 		copy(privKey[:NovaPrivateKeySize], privkey[:])
 		copy(privKey[NovaPrivateKeySize:], pubkey[:])
 	default:
@@ -277,12 +271,12 @@ func novaSecretKeyFromSeed(seed [32]byte) [32]byte {
 	return ret
 }
 
-func novaPrivToPub(pk [32]byte) [32]byte {
+func novaPrivToPub(sk [32]byte) [32]byte {
 	// Create a byte slice for the result
 	pubkey := make([]byte, 32)
 
 	// Convert the Go byte slice to a C byte pointer
-	cBytes := (*C.uint8_t)(unsafe.Pointer(&pk[0]))
+	cBytes := (*C.uint8_t)(unsafe.Pointer(&sk[0]))
 
 	// Call the Rust function to compute the public key
 	C.priv_to_pub(cBytes, (*C.uint8_t)(unsafe.Pointer(&pubkey[0])))
