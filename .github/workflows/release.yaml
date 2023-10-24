@@ -13,27 +13,66 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Install Rust targets
+        run: |
+          rustup target add x86_64-unknown-linux-gnu
+          rustup target add i686-unknown-linux-gnu
+          rustup target add x86_64-apple-darwin
+          rustup target add x86_64-pc-windows-gnu
+          rustup target add i686-pc-windows-gnu
+
+      - name: Build Rust bindings for all architectures
+        run: |
+          mkdir -p lib/linux_amd64
+          mkdir -p lib/linux_386
+          mkdir -p lib/darwin_amd64
+          mkdir -p lib/windows_amd64
+          mkdir -p lib/windows_386
+
+          cd crypto/rust
+          cargo build --release --target x86_64-unknown-linux-gnu
+          cp target/x86_64-unknown-linux-gnu/release/libillium_crypto.so ../../lib/linux_amd64/
+
+          cargo build --release --target i686-unknown-linux-gnu
+          cp target/i686-unknown-linux-gnu/release/libillium_crypto.so ../../lib/linux_386/
+
+          cargo build --release --target x86_64-apple-darwin
+          cp target/x86_64-apple-darwin/release/libillium_crypto.dylib ../../lib/darwin_amd64/
+
+          cargo build --release --target x86_64-pc-windows-gnu
+          cp target/x86_64-pc-windows-gnu/release/libillium_crypto.dll ../../lib/windows_amd64/
+
+          cargo build --release --target i686-pc-windows-gnu
+          cp target/i686-pc-windows-gnu/release/libillium_crypto.dll ../../lib/windows_386/
+
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.19
+          go-version: 1.21
 
       - name: Build Main Application
         run: |
-          GOOS=linux GOARCH=amd64 go build -o bin/linux_amd64/ilxd
-          GOOS=linux GOARCH=386 go build -o bin/linux_386/ilxd
-          GOOS=darwin GOARCH=amd64 go build -o bin/darwin_amd64/ilxd
-          GOOS=windows GOARCH=amd64 go build -o bin/windows_amd64/ilxd.exe
-          GOOS=windows GOARCH=386 go build -o bin/windows_386/ilxd.exe
+          GOOS=linux GOARCH=amd64 go build -ldflags="-r ./lib/linux_amd64" -o bin/linux_amd64/ilxd
+          GOOS=linux GOARCH=386 go build -ldflags="-r ./lib/linux_386" -o bin/linux_386/ilxd
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-r ./lib/darwin_amd64" -o bin/darwin_amd64/ilxd
+          GOOS=windows GOARCH=amd64 go build -ldflags="-r ./lib/windows_amd64" -o bin/windows_amd64/ilxd.exe
+          GOOS=windows GOARCH=386 go build -ldflags="-r ./lib/windows_386" -o bin/windows_386/ilxd.exe
 
       - name: Build CLI Application
         run: |
           cd cli
-          GOOS=linux GOARCH=amd64 go build -o ../bin/linux_amd64/ilxcli
-          GOOS=linux GOARCH=386 go build -o ../bin/linux_386/ilxcli
-          GOOS=darwin GOARCH=amd64 go build -o ../bin/darwin_amd64/ilxcli
-          GOOS=windows GOARCH=amd64 go build -o ../bin/windows_amd64/ilxcli.exe
-          GOOS=windows GOARCH=386 go build -o ../bin/windows_386/ilxcli.exe
+          GOOS=linux GOARCH=amd64 go build -ldflags="-r ./lib/linux_amd64" -o ../bin/linux_amd64/ilxcli
+          GOOS=linux GOARCH=386 go build -ldflags="-r ./lib/linux_386" -o ../bin/linux_386/ilxcli
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-r ./lib/darwin_amd64" -o ../bin/darwin_amd64/ilxcli
+          GOOS=windows GOARCH=amd64 go build -ldflags="-r ./lib/windows_amd64" -o ../bin/windows_amd64/ilxcli.exe
+          GOOS=windows GOARCH=386 go build -ldflags="-r ./lib/windows_386" -o ../bin/windows_386/ilxcli.exe
           cd ..
 
       - name: Get the version

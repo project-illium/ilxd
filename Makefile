@@ -10,11 +10,11 @@ protos:
 	protoc -I=net/pb --go_out=net/pb net/pb/db_net_models.proto
 	protoc -I=rpc -I=types/transactions -I=types/blocks --go_out=rpc/pb --go-grpc_out=rpc/pb --go_opt=paths=source_relative,Mtransactions.proto=github.com/project-illium/ilxd/types/transactions,Mblocks.proto=github.com/project-illium/ilxd/types/blocks --go-grpc_opt=paths=source_relative rpc/ilxrpc.proto
 
+ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+
 install:
 	@$(MAKE) build ARGS="-o $(GOPATH)/bin/ilxd"
-	cd cli && go build -o $(GOPATH)/bin/ilxcli
-
-ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+	cd cli && go build -ldflags="-r $(ROOT_DIR)lib" -o $(GOPATH)/bin/ilxcli
 
 .PHONY: build
 build: ensure-rust-installed rust-bindings
