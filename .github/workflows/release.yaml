@@ -36,13 +36,23 @@ jobs:
           path: upload_url.txt
 
   build_and_upload:
-    name: Build and Release for Linux
-    runs-on: ubuntu-latest
-
+    name: Build and Release for ${{ matrix.platform }} ${{ matrix.goarch }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        goarch: ['386', 'amd64']
-        platform: ['linux']
+        include:
+          - platform: linux
+            os: ubuntu-latest
+            goarch: '386'
+          - platform: linux
+            os: ubuntu-latest
+            goarch: 'amd64'
+          - platform: windows
+            os: windows-latest
+            goarch: '386'
+          - platform: windows
+            os: windows-latest
+            goarch: 'amd64'
 
     steps:
       - name: Checkout code
@@ -50,6 +60,7 @@ jobs:
 
       - name: Set version env
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        shell: bash
 
       - name: Set up Go
         uses: actions/setup-go@v2
@@ -63,26 +74,42 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Print upload_url from build_and_upload job
-        run: echo "${{ needs.create_release.outputs.upload_url }}"
-
       - name: Build Rust bindings
+        shell: bash
         run: |
           mkdir -p lib
           cd crypto/rust && cargo build --release
           cd ../..
-          cp crypto/rust/target/release/libillium_crypto.so lib/
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
+            cp crypto/rust/target/release/libillium_crypto.so lib/
+          else
+            cp crypto/rust/target/release/illium_crypto.dll lib/
+          fi
 
       - name: Compile ilxd and ilxcli for ${{ matrix.platform }} ${{ matrix.goarch }}
+        shell: bash
         run: |
-          sudo apt-get install gcc-multilib  # This is needed for 32-bit compilation on 64-bit machines
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
+            sudo apt-get install gcc-multilib  # This is needed for 32-bit compilation on 64-bit machines
+          fi
           go env
-          go build -ldflags="-r ./lib" -o bin/ilxd *.go
-          cd cli && go build -ldflags="-r ../lib" -o ../bin/ilxcli
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            export CGO_ENABLED=1
+            go build -ldflags="-r ./lib" -o bin/ilxd.exe *.go
+            cd cli && go build -ldflags="-r ../lib" -o ../bin/ilxcli.exe
+          else
+            go build -ldflags="-r ./lib" -o bin/ilxd *.go
+            cd cli && go build -ldflags="-r ../lib" -o ../bin/ilxcli
+          fi
 
       - name: Zip binaries
+        shell: bash
         run: |
-          zip ilxd-${{ env.VERSION }}-${{ matrix.platform }}_${{ matrix.goarch }}.zip bin/ilxd bin/ilxcli
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            7z a ilxd-${{ env.VERSION }}-${{ matrix.platform }}_${{ matrix.goarch }}.zip bin/ilxd.exe bin/ilxcli.exe
+          else
+            zip ilxd-${{ env.VERSION }}-${{ matrix.platform }}_${{ matrix.goarch }}.zip bin/ilxd bin/ilxcli
+          fi    
 
       - name: Download upload_url artifact
         uses: actions/download-artifact@v2
@@ -90,6 +117,7 @@ jobs:
           name: upload_url
 
       - name: Set upload_url from file
+        shell: bash
         id: get_upload_url
         run: echo "::set-output name=upload_url::$(cat upload_url.txt)"
 
