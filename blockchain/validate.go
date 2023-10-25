@@ -437,8 +437,12 @@ func ValidateLocktime(blocktime time.Time, locktime *transactions.Locktime) bool
 		return true
 	}
 	timestamp := time.Unix(locktime.Timestamp, 0)
-	if blocktime.After(timestamp.Add(-time.Duration(locktime.Precision))) &&
-		blocktime.Before(timestamp.Add(time.Duration(locktime.Precision))) {
+	precisionDuration := time.Duration(locktime.Precision) * time.Second
+
+	windowStart := timestamp.Add(-precisionDuration)
+	windowEnd := timestamp.Add(precisionDuration)
+
+	if blocktime.After(windowStart) && blocktime.Before(windowEnd) {
 		return true
 	}
 	return false

@@ -1811,3 +1811,19 @@ func TestCheckTransactionSanity(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateLocktime(t *testing.T) {
+	locktime := &transactions.Locktime{
+		Timestamp: time.Now().Unix(),
+		Precision: 20 * 60,
+	}
+	blocktime := time.Now().Add(time.Second)
+
+	assert.True(t, ValidateLocktime(blocktime, locktime))
+
+	blocktime = time.Now().Add(time.Second*60*21 + 1)
+	assert.False(t, ValidateLocktime(blocktime, locktime))
+
+	blocktime = time.Now().Add(-time.Second*60*21 + 1)
+	assert.False(t, ValidateLocktime(blocktime, locktime))
+}
