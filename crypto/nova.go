@@ -221,7 +221,7 @@ func UnmarshalNovaPrivateKey(data []byte) (crypto.PrivKey, error) {
 		copy(privKey[NovaPrivateKeySize:], pubkey[:])
 	default:
 		return nil, fmt.Errorf(
-			"expected Curve25519 data size to be %d or %d, got %d",
+			"expected Nova data size to be %d or %d, got %d",
 			NovaPrivateKeySize,
 			NovaPrivateKeySize+NovaPublicKeySize,
 			len(data),

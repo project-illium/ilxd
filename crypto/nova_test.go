@@ -31,6 +31,8 @@ func TestNova(t *testing.T) {
 	pub2, err := crypto.UnmarshalPublicKey(pubBytes)
 	assert.NoError(t, err)
 
+	assert.True(t, priv.Equals(priv2))
+
 	assert.Empty(t, deep.Equal(priv, priv2))
 	assert.Empty(t, deep.Equal(pub, pub2))
 

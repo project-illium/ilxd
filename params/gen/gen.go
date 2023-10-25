@@ -30,7 +30,7 @@ type GenerationParams struct {
 	NetParams    string `long:"params" description:"The network params to use: [mainnet, testnet1, regtest, alphanet]"`
 }
 
-// --timestamp=1686874710
+// --timestamp=1698255320
 // --initialcoins=230584300921369395
 
 func main() {
