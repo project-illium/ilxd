@@ -1,4 +1,4 @@
-name: Build and Release Go App
+name: Build and Release
 
 on:
   push:
@@ -6,109 +6,14 @@ on:
       - '*'
 
 jobs:
-  build:
-    name: Build
+  create_release:
     runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.output_step.outputs.upload_url }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-
-      - name: Install Rust targets
-        run: |
-          rustup target add x86_64-unknown-linux-gnu
-          rustup target add i686-unknown-linux-gnu
-          rustup target add x86_64-apple-darwin
-          rustup target add x86_64-pc-windows-gnu
-          rustup target add i686-pc-windows-gnu
-
-      - name: Build Rust bindings for all architectures
-        run: |
-          mkdir -p lib/linux_amd64
-          mkdir -p lib/linux_386
-          mkdir -p lib/darwin_amd64
-          mkdir -p lib/windows_amd64
-          mkdir -p lib/windows_386
-
-          cd crypto/rust
-          cargo build --release --target x86_64-unknown-linux-gnu
-          cp target/x86_64-unknown-linux-gnu/release/libillium_crypto.so ../../lib/linux_amd64/
-
-          cargo build --release --target i686-unknown-linux-gnu
-          cp target/i686-unknown-linux-gnu/release/libillium_crypto.so ../../lib/linux_386/
-
-          cargo build --release --target x86_64-apple-darwin
-          cp target/x86_64-apple-darwin/release/libillium_crypto.dylib ../../lib/darwin_amd64/
-
-          cargo build --release --target x86_64-pc-windows-gnu
-          cp target/x86_64-pc-windows-gnu/release/libillium_crypto.dll ../../lib/windows_amd64/
-
-          cargo build --release --target i686-pc-windows-gnu
-          cp target/i686-pc-windows-gnu/release/libillium_crypto.dll ../../lib/windows_386/
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      - name: Build Main Application
-        run: |
-          GOOS=linux GOARCH=amd64 go build -ldflags="-r ./lib/linux_amd64" -o bin/linux_amd64/ilxd
-          GOOS=linux GOARCH=386 go build -ldflags="-r ./lib/linux_386" -o bin/linux_386/ilxd
-          GOOS=darwin GOARCH=amd64 go build -ldflags="-r ./lib/darwin_amd64" -o bin/darwin_amd64/ilxd
-          GOOS=windows GOARCH=amd64 go build -ldflags="-r ./lib/windows_amd64" -o bin/windows_amd64/ilxd.exe
-          GOOS=windows GOARCH=386 go build -ldflags="-r ./lib/windows_386" -o bin/windows_386/ilxd.exe
-
-      - name: Build CLI Application
-        run: |
-          cd cli
-          GOOS=linux GOARCH=amd64 go build -ldflags="-r ./lib/linux_amd64" -o ../bin/linux_amd64/ilxcli
-          GOOS=linux GOARCH=386 go build -ldflags="-r ./lib/linux_386" -o ../bin/linux_386/ilxcli
-          GOOS=darwin GOARCH=amd64 go build -ldflags="-r ./lib/darwin_amd64" -o ../bin/darwin_amd64/ilxcli
-          GOOS=windows GOARCH=amd64 go build -ldflags="-r ./lib/windows_amd64" -o ../bin/windows_amd64/ilxcli.exe
-          GOOS=windows GOARCH=386 go build -ldflags="-r ./lib/windows_386" -o ../bin/windows_386/ilxcli.exe
-          cd ..
-
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
-
-      - name: Create zip archives
-        run: |
-          sudo apt-get install zip
-          cd bin
-          zip ilxd-${{ steps.get_version.outputs.VERSION }}-linux_amd64.zip linux_amd64/*
-          zip ilxd-${{ steps.get_version.outputs.VERSION }}-linux_386.zip linux_386/*
-          zip ilxd-${{ steps.get_version.outputs.VERSION }}-darwin_amd64.zip darwin_amd64/*
-          zip ilxd-${{ steps.get_version.outputs.VERSION }}-windows_amd64.zip windows_amd64/*
-          zip ilxd-${{ steps.get_version.outputs.VERSION }}-windows_386.zip windows_386/*
-          cd ..
-
-      - name: Archive production artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: compiled-archives
-          path: |
-            bin/*.zip
-
-  release:
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: compiled-archives
-          path: bin/
 
       - name: Create Release
         id: create_release
@@ -121,56 +26,80 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+      - name: Save upload_url to file
+        run: echo "${{ steps.create_release.outputs.upload_url }}" > upload_url.txt
 
-      - name: Upload Release Assets
-        uses: actions/upload-release-asset@v1
+      - name: Upload upload_url as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: upload_url
+          path: upload_url.txt
+
+  build_and_upload:
+    name: Build and Release for Linux
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        goarch: ['386', 'amd64']
+        platform: ['linux']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set version env
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.21'
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Print upload_url from build_and_upload job
+        run: echo "${{ needs.create_release.outputs.upload_url }}"
+
+      - name: Build Rust bindings
+        run: |
+          mkdir -p lib
+          cd crypto/rust && cargo build --release
+          cd ../..
+          cp crypto/rust/target/release/libillium_crypto.so lib/
+
+      - name: Compile ilxd and ilxcli for ${{ matrix.platform }} ${{ matrix.goarch }}
+        run: |
+          sudo apt-get install gcc-multilib  # This is needed for 32-bit compilation on 64-bit machines
+          go env
+          go build -ldflags="-r ./lib" -o bin/ilxd *.go
+          cd cli && go build -ldflags="-r ../lib" -o ../bin/ilxcli
+
+      - name: Zip binaries
+        run: |
+          zip ilxd-${{ env.VERSION }}-${{ matrix.platform }}_${{ matrix.goarch }}.zip bin/ilxd bin/ilxcli
+
+      - name: Download upload_url artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: upload_url
+
+      - name: Set upload_url from file
+        id: get_upload_url
+        run: echo "::set-output name=upload_url::$(cat upload_url.txt)"
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/ilxd-${{ steps.get_version.outputs.VERSION }}-linux_amd64.zip
-          asset_name: ilxd-${{ steps.get_version.outputs.VERSION }}-linux_amd64.zip
+          upload_url: ${{ steps.get_upload_url.outputs.upload_url }}
+          asset_path: ./ilxd-${{ env.VERSION }}-${{ matrix.platform }}_${{ matrix.goarch }}.zip
+          asset_name: ilxd-${{ env.VERSION }}-${{ matrix.platform }}_${{ matrix.goarch }}.zip
           asset_content_type: application/zip
 
-      - name: Upload Release Assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/ilxd-${{ steps.get_version.outputs.VERSION }}-linux_386.zip
-          asset_name: ilxd-${{ steps.get_version.outputs.VERSION }}-linux_386.zip
-          asset_content_type: application/zip
-
-      - name: Upload Release Assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/ilxd-${{ steps.get_version.outputs.VERSION }}-darwin_amd64.zip
-          asset_name: ilxd-${{ steps.get_version.outputs.VERSION }}-darwin_amd64.zip
-          asset_content_type: application/zip
-
-      - name: Upload Release Assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/ilxd-${{ steps.get_version.outputs.VERSION }}-windows_amd64.zip
-          asset_name: ilxd-${{ steps.get_version.outputs.VERSION }}-windows_amd64.zip
-          asset_content_type: application/zip
-
-      - name: Upload Release Assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/ilxd-${{ steps.get_version.outputs.VERSION }}-windows_386.zip
-          asset_name: ilxd-${{ steps.get_version.outputs.VERSION }}-windows_386.zip
-          asset_content_type: application/zip
