@@ -85,8 +85,10 @@ jobs:
           cd ../..
           if [[ "${{ matrix.platform }}" == "linux" ]]; then
             cp crypto/rust/target/release/libillium_crypto.so lib/
-          else
+          elif [[ "${{ matrix.platform }}" == "windows" ]]; then
             cp crypto/rust/target/release/illium_crypto.dll lib/
+          elif [[ "${{ matrix.platform }}" == "darwin" ]]; then
+            cp crypto/rust/target/release/libillium_crypto.dylib lib/
           fi
 
       - name: Compile ilxd and ilxcli for ${{ matrix.platform }} ${{ matrix.goarch }}
