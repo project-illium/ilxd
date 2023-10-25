@@ -53,6 +53,9 @@ jobs:
           - platform: windows
             os: windows-latest
             goarch: 'amd64'
+          - platform: darwin
+            os: macos-latest
+            goarch: 'arm64'
 
     steps:
       - name: Checkout code
@@ -91,15 +94,23 @@ jobs:
         run: |
           if [[ "${{ matrix.platform }}" == "linux" ]]; then
             sudo apt-get install gcc-multilib  # This is needed for 32-bit compilation on 64-bit machines
-          fi
-          go env
-          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            go env
+            export CGO_ENABLED=1
+            go build -ldflags="-r ./lib" -o bin/ilxd *.go
+            cd cli && go build -ldflags="-r ../lib" -o ../bin/ilxcli
+          elif [[ "${{ matrix.platform }}" == "windows" ]]; then
+            go env
             export CGO_ENABLED=1
             go build -ldflags="-r ./lib" -o bin/ilxd.exe *.go
             cd cli && go build -ldflags="-r ../lib" -o ../bin/ilxcli.exe
-          else
+          elif [[ "${{ matrix.platform }}" == "darwin" ]]; then
+            go env
+            export CGO_ENABLED=1
             go build -ldflags="-r ./lib" -o bin/ilxd *.go
             cd cli && go build -ldflags="-r ../lib" -o ../bin/ilxcli
+          else
+            echo "Unsupported platform: ${{ matrix.platform }}"
+            exit 1
           fi
 
       - name: Zip binaries

@@ -12,6 +12,8 @@ package crypto
 #cgo linux LDFLAGS: -Lrust/target/release -lillium_crypto -ldl -lpthread -lgcc_s -lc -lm
 #cgo windows CFLAGS: -Irust/target/release
 #cgo windows LDFLAGS: -Lrust/target/release -lillium_crypto
+#cgo darwin CFLAGS: -Irust/target/release
+#cgo darwin LDFLAGS: -Lrust/target/release -lillium_crypto
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
