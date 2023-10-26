@@ -22,3 +22,4 @@ issues:
     - "Error return value of `customStack.Pop` is not checked"
     - "SA4017: ForceReachabilityPublic doesn't have side effects and its return value is ignored"
     - "Error return value of `pds.cachePeerAddrs` is not checked"
+    - "Error return value of `ms.lk.Lock` is not checked"

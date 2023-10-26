@@ -43,14 +43,14 @@ type MessageSender interface {
 type messageSenderImpl struct {
 	host      host.Host // the network services we need
 	smlk      sync.Mutex
-	strmap    map[peer.ID]*sync.Pool
+	strmap    map[peer.ID]*messageSenderPool
 	protocols []protocol.ID
 }
 
 func NewMessageSender(h host.Host, protos ...protocol.ID) MessageSender {
 	ms := &messageSenderImpl{
 		host:      h,
-		strmap:    make(map[peer.ID]*sync.Pool),
+		strmap:    make(map[peer.ID]*messageSenderPool),
 		protocols: protos,
 	}
 
@@ -69,10 +69,11 @@ func NewMessageSender(h host.Host, protos ...protocol.ID) MessageSender {
 func (m *messageSenderImpl) OnDisconnect(ctx context.Context, p peer.ID) {
 	m.smlk.Lock()
 	defer m.smlk.Unlock()
-	_, ok := m.strmap[p]
+	pool, ok := m.strmap[p]
 	if !ok {
 		return
 	}
+	pool.Close()
 	delete(m.strmap, p)
 }
 
@@ -156,20 +157,18 @@ func (m *messageSenderImpl) messageSenderForPeer(ctx context.Context, p peer.ID)
 	m.smlk.Lock()
 	pool, ok := m.strmap[p]
 	if !ok {
-		pool = &sync.Pool{
-			New: func() any {
-				return &peerMessageSender{
-					lk: NewCtxMutex(),
-					p:  p,
-					m:  m,
-				}
-			},
-		}
+		pool = newMessageSenderPool(time.Minute, func() *peerMessageSender {
+			return &peerMessageSender{
+				lk: NewCtxMutex(),
+				p:  p,
+				m:  m,
+			}
+		})
 		m.strmap[p] = pool
 	}
 	m.smlk.Unlock()
 
-	ms := pool.Get().(*peerMessageSender)
+	ms := pool.Get()
 
 	if err := ms.prepOrInvalidate(ctx); err != nil {
 		return ms, err
@@ -186,8 +185,7 @@ type peerMessageSender struct {
 	p  peer.ID
 	m  *messageSenderImpl
 
-	invalid   bool
-	singleMes int
+	invalid bool
 }
 
 // invalidate is called before this peerMessageSender is removed from the strmap.
@@ -234,11 +232,6 @@ func (ms *peerMessageSender) prep(ctx context.Context) error {
 	return nil
 }
 
-// streamReuseTries is the number of times we will try to reuse a stream to a
-// given peer before giving up and reverting to the old one-message-per-stream
-// behaviour.
-const streamReuseTries = 3
-
 func (ms *peerMessageSender) SendMessage(ctx context.Context, pmes proto.Message) error {
 	if err := ms.lk.Lock(ctx); err != nil {
 		return err
@@ -264,15 +257,7 @@ func (ms *peerMessageSender) SendMessage(ctx context.Context, pmes proto.Message
 			continue
 		}
 
-		var err error
-		if ms.singleMes > streamReuseTries {
-			err = ms.s.Close()
-			ms.s = nil
-		} else if retry {
-			ms.singleMes++
-		}
-
-		return err
+		return nil
 	}
 }
 
@@ -312,15 +297,7 @@ func (ms *peerMessageSender) SendRequest(ctx context.Context, req proto.Message,
 			continue
 		}
 
-		var err error
-		if ms.singleMes > streamReuseTries {
-			err = ms.s.Close()
-			ms.s = nil
-		} else if retry {
-			ms.singleMes++
-		}
-
-		return err
+		return nil
 	}
 }
 
@@ -332,12 +309,31 @@ func (ms *peerMessageSender) ctxReadMsg(ctx context.Context, mes proto.Message) 
 	return ReadMsg(ctx, ms.r, mes)
 }
 
+func (ms *peerMessageSender) teardown() {
+	ms.lk.Lock(context.Background())
+	defer ms.lk.Unlock()
+
+	if ms.s != nil {
+		ms.s.Close()
+		ms.s = nil
+	}
+	if ms.r != nil {
+		ms.r.Close()
+		ms.r = nil
+	}
+	ms.m = nil
+}
+
 // The Protobuf writer performs multiple small writes when writing a message.
 // We need to buffer those writes, to make sure that we're not sending a new
 // packet for every single write.
 type bufferedDelimitedWriter struct {
 	*bufio.Writer
 	pbio.WriteCloser
+}
+
+func (w *bufferedDelimitedWriter) Flush() error {
+	return w.Writer.Flush()
 }
 
 var writerPool = sync.Pool{
@@ -360,10 +356,6 @@ func WriteMsg(w io.Writer, mes proto.Message) error {
 	bw.Reset(nil)
 	writerPool.Put(bw)
 	return err
-}
-
-func (w *bufferedDelimitedWriter) Flush() error {
-	return w.Writer.Flush()
 }
 
 func ReadMsg(ctx context.Context, r msgio.ReadCloser, mes proto.Message) error {
