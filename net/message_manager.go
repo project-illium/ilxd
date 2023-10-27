@@ -241,6 +241,7 @@ func (ms *peerMessageSender) SendMessage(ctx context.Context, pmes proto.Message
 	retry := false
 	for {
 		if err := ms.prep(ctx); err != nil {
+			ms.invalidate()
 			return err
 		}
 
@@ -250,6 +251,7 @@ func (ms *peerMessageSender) SendMessage(ctx context.Context, pmes proto.Message
 
 			if retry {
 				log.Debugw("error writing message", "error", err)
+				ms.invalidate()
 				return err
 			}
 			log.Debugw("error writing message", "error", err, "retrying", true)
@@ -270,6 +272,7 @@ func (ms *peerMessageSender) SendRequest(ctx context.Context, req proto.Message,
 	retry := false
 	for {
 		if err := ms.prep(ctx); err != nil {
+			ms.invalidate()
 			return err
 		}
 
@@ -279,6 +282,7 @@ func (ms *peerMessageSender) SendRequest(ctx context.Context, req proto.Message,
 
 			if retry {
 				log.Debugw("error writing message", "error", err)
+				ms.invalidate()
 				return err
 			}
 			log.Debugw("error writing message", "error", err, "retrying", true)
@@ -291,6 +295,7 @@ func (ms *peerMessageSender) SendRequest(ctx context.Context, req proto.Message,
 			ms.s = nil
 
 			if retry {
+				ms.invalidate()
 				return err
 			}
 			retry = true

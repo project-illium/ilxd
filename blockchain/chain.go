@@ -562,6 +562,14 @@ func (b *Blockchain) GetValidator(validatorID peer.ID) (*Validator, error) {
 	return ret, nil
 }
 
+// ValidatorExists returns whether the validator exists in the set.
+func (b *Blockchain) ValidatorExists(validatorID peer.ID) bool {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	return b.validatorSet.ValidatorExists(validatorID)
+}
+
 // GetAccumulatorCheckpointByTimestamp returns the accumulator checkpoint at or prior
 // to the given timestamp.
 // If there is no prior checkpoint and error will be returned.

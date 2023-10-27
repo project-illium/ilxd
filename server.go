@@ -317,8 +317,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = chain.GetValidator(hostID)
-	if err == nil {
+	if chain.ValidatorExists(hostID) {
 		networkOpts = append(networkOpts, net.ForceDHTServerMode())
 	}
 
@@ -520,15 +519,23 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 			}
 		}
 	case blockchain.NTAddValidator:
-		if pid, ok := ntf.Data.(peer.ID); ok && pid == s.network.Host().ID() {
-			if !s.generator.Active() {
-				s.generator.Start()
+		if pid, ok := ntf.Data.(peer.ID); ok {
+			if pid == s.network.Host().ID() {
+				if !s.generator.Active() {
+					s.generator.Start()
+				}
+			} else {
+				s.network.ConnManager().Protect(pid, net.ValidatorProtectionFlag)
 			}
 		}
 	case blockchain.NTRemoveValidator:
-		if pid, ok := ntf.Data.(peer.ID); ok && pid == s.network.Host().ID() {
-			if s.generator.Active() {
-				s.generator.Close()
+		if pid, ok := ntf.Data.(peer.ID); ok {
+			if pid == s.network.Host().ID() {
+				if s.generator.Active() {
+					s.generator.Close()
+				}
+			} else {
+				s.network.ConnManager().Unprotect(pid, net.ValidatorProtectionFlag)
 			}
 		}
 	case blockchain.NTNewEpoch:
@@ -841,8 +848,7 @@ func (s *Server) reIndexChain() error {
 
 func (s *Server) handleCurrentStatusChange() {
 	<-s.ready
-	_, err := s.blockchain.GetValidator(s.network.Host().ID())
-	if err == nil {
+	if s.blockchain.ValidatorExists(s.network.Host().ID()) {
 		s.generator.Start()
 	}
 }

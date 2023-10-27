@@ -74,10 +74,13 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 	reader := msgio.NewVarintReaderSize(contextReader, 1<<23)
 	remotePeer := s.Conn().RemotePeer()
 	defer reader.Close()
+	ticker := time.NewTicker(time.Minute)
 
 	for {
 		select {
 		case <-cs.ctx.Done():
+			return
+		case <-ticker.C:
 			return
 		default:
 		}
@@ -141,6 +144,7 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 				return
 			}
 		}
+		ticker.Reset(time.Minute)
 	}
 }
 

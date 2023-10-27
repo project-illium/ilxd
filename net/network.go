@@ -9,11 +9,26 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	pb "github.com/libp2p/go-libp2p-pubsub/pb"
+	coreconmgr "github.com/libp2p/go-libp2p/core/connmgr"
 	"github.com/libp2p/go-libp2p/core/event"
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
+	inet "github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/libp2p/go-libp2p/core/routing"
+	discovery "github.com/libp2p/go-libp2p/p2p/discovery/routing"
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
+	"github.com/libp2p/go-libp2p/p2p/host/resource-manager"
+	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
+	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
+	"github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/mempool"
@@ -21,27 +36,13 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"time"
-
-	"github.com/libp2p/go-libp2p"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	pb "github.com/libp2p/go-libp2p-pubsub/pb"
-	coreconmgr "github.com/libp2p/go-libp2p/core/connmgr"
-	"github.com/libp2p/go-libp2p/core/host"
-	inet "github.com/libp2p/go-libp2p/core/network"
-	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/routing"
-	discovery "github.com/libp2p/go-libp2p/p2p/discovery/routing"
-	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
-	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
-	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
-	"github.com/multiformats/go-multiaddr"
 )
 
 const (
-	BlockTopic        = "blocks"
-	TransactionsTopic = "transactions"
-	RelayKey          = "/ilx/relaypeers"
+	BlockTopic              = "blocks"
+	TransactionsTopic       = "transactions"
+	RelayKey                = "/ilx/relaypeers"
+	ValidatorProtectionFlag = "validator"
 )
 
 type Network struct {
@@ -168,6 +169,49 @@ loop:
 		return kdht.FindProvidersAsync(ctx, id, numPeers)
 	}
 
+	// Start with the default scaling limits.
+	scalingLimits := rcmgr.DefaultLimits
+
+	// Add limits around included libp2p protocols
+	libp2p.SetDefaultServiceLimits(&scalingLimits)
+
+	// Turn the scaling limits into a concrete set of limits using `.AutoScale`. This
+	// scales the limits proportional to your system memory.
+	scaledDefaultLimits := scalingLimits.AutoScale()
+
+	rCfg := rcmgr.PartialLimitConfig{
+		System: rcmgr.ResourceLimits{
+			Streams:         rcmgr.Unlimited,
+			StreamsInbound:  rcmgr.Unlimited,
+			StreamsOutbound: rcmgr.Unlimited,
+			Conns:           rcmgr.Unlimited,
+			ConnsInbound:    rcmgr.Unlimited,
+			ConnsOutbound:   rcmgr.Unlimited,
+		},
+		PeerDefault: rcmgr.ResourceLimits{
+			Streams:         512,
+			StreamsInbound:  256,
+			StreamsOutbound: 256,
+			Conns:           8,
+			ConnsInbound:    8,
+			ConnsOutbound:   8,
+		},
+	}
+
+	// Create our limits by using our cfg and replacing the default values with values from `scaledDefaultLimits`
+	limits := rCfg.Build(scaledDefaultLimits)
+
+	// The resource manager expects a limiter, se we create one from our limits.
+	limiter := rcmgr.NewFixedLimiter(limits)
+
+	// Metrics are enabled by default. If you want to disable metrics, use the
+	// WithMetricsDisabled option
+	// Initialize the resource manager
+	rm, err := rcmgr.NewResourceManager(limiter, rcmgr.WithMetricsDisabled())
+	if err != nil {
+		panic(err)
+	}
+
 	hostOpts := libp2p.ChainOptions(
 		// Use the keypair we generated
 		libp2p.Identity(cfg.privateKey),
@@ -215,6 +259,8 @@ loop:
 		libp2p.Peerstore(pstore),
 
 		libp2p.ConnectionGater(conngater),
+
+		libp2p.ResourceManager(rm),
 	)
 
 	if !cfg.disableNatPortMap {
