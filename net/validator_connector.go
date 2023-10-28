@@ -106,6 +106,7 @@ func (vc *ValidatorConnector) handleBlockchainNotification(ntf *blockchain.Notif
 func (vc *ValidatorConnector) handlePeerConnected(_ inet.Network, conn inet.Conn) {
 	_, err := vc.getValidatorFunc(conn.RemotePeer())
 	if err == nil {
+		vc.host.ConnManager().Protect(conn.RemotePeer(), ValidatorProtectionFlag)
 		vc.update()
 	}
 }
@@ -113,6 +114,7 @@ func (vc *ValidatorConnector) handlePeerConnected(_ inet.Network, conn inet.Conn
 func (vc *ValidatorConnector) handlePeerDisconnected(_ inet.Network, conn inet.Conn) {
 	_, err := vc.getValidatorFunc(conn.RemotePeer())
 	if err == nil {
+		vc.host.ConnManager().Unprotect(conn.RemotePeer(), ValidatorProtectionFlag)
 		vc.update()
 	}
 }

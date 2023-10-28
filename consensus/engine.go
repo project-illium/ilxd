@@ -248,10 +248,13 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 	reader := msgio.NewVarintReaderSize(contextReader, inet.MessageSizeMax)
 	remotePeer := s.Conn().RemotePeer()
 	defer reader.Close()
+	ticker := time.NewTicker(time.Minute)
 
 	for {
 		select {
 		case <-eng.ctx.Done():
+			return
+		case <-ticker.C:
 			return
 		default:
 		}
@@ -289,6 +292,7 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 			log.Errorf("Error writing avalanche stream to peer %d", remotePeer)
 			s.Reset()
 		}
+		ticker.Reset(time.Minute)
 	}
 }
 
