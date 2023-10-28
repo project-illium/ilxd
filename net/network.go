@@ -196,6 +196,24 @@ loop:
 			ConnsInbound:    8,
 			ConnsOutbound:   8,
 		},
+		ProtocolDefault: rcmgr.ResourceLimits{
+			Streams:         rcmgr.Unlimited,
+			StreamsInbound:  rcmgr.Unlimited,
+			StreamsOutbound: rcmgr.Unlimited,
+			Conns:           rcmgr.Unlimited,
+			ConnsInbound:    rcmgr.Unlimited,
+			ConnsOutbound:   rcmgr.Unlimited,
+			Memory:          rcmgr.Unlimited64,
+		},
+		ProtocolPeerDefault: rcmgr.ResourceLimits{
+			Streams:         rcmgr.Unlimited,
+			StreamsInbound:  rcmgr.Unlimited,
+			StreamsOutbound: rcmgr.Unlimited,
+			Conns:           rcmgr.Unlimited,
+			ConnsInbound:    rcmgr.Unlimited,
+			ConnsOutbound:   rcmgr.Unlimited,
+			Memory:          rcmgr.Unlimited64,
+		},
 	}
 
 	// Create our limits by using our cfg and replacing the default values with values from `scaledDefaultLimits`
