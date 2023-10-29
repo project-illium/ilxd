@@ -392,23 +392,23 @@ loop:
 		return nil, err
 	}
 	go func(sub event.Subscription) {
-		for {
-			select {
-			case evt, ok := <-sub.Out():
-				if !ok {
-					return
+		for evt := range sub.Out() {
+			event, ok := evt.(event.EvtPeerProtocolsUpdated)
+			if !ok {
+				return
+			}
+
+			var updated bool
+			for _, proto := range event.Added {
+				if proto == cfg.params.ProtocolPrefix+pubsub.GossipSubID_v11 {
+					updated = true
+					break
 				}
-				var updated bool
-				for _, proto := range evt.(event.EvtPeerProtocolsUpdated).Added {
-					if proto == cfg.params.ProtocolPrefix+pubsub.GossipSubID_v11 {
-						updated = true
-						break
-					}
-				}
-				if updated {
-					for _, c := range host.Network().ConnsToPeer(evt.(event.EvtPeerProtocolsUpdated).Peer) {
-						(*pubsub.PubSubNotif)(ps).Connected(host.Network(), c)
-					}
+			}
+
+			if updated {
+				for _, c := range host.Network().ConnsToPeer(event.Peer) {
+					(*pubsub.PubSubNotif)(ps).Connected(host.Network(), c)
 				}
 			}
 		}
