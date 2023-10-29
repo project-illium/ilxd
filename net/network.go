@@ -303,10 +303,6 @@ loop:
 		}
 	}
 
-	if err = kdht.Bootstrap(ctx); err != nil {
-		return nil, err
-	}
-
 	// Create a new PubSub service using the GossipSub router
 	ps, err := pubsub.NewGossipSub(
 		ctx,
@@ -319,7 +315,7 @@ loop:
 			return string(h[:])
 		}),
 		pubsub.WithGossipSubProtocols([]protocol.ID{cfg.params.ProtocolPrefix + pubsub.GossipSubID_v11}, func(feature pubsub.GossipSubFeature, id protocol.ID) bool {
-			if id == cfg.params.ProtocolPrefix+pubsub.GossipSubID_v11 && (feature == pubsub.GossipSubFeatureMesh || feature == pubsub.GossipSubFeaturePX) {
+			if feature == pubsub.GossipSubFeatureMesh || feature == pubsub.GossipSubFeaturePX {
 				return true
 			}
 			return false
@@ -387,6 +383,37 @@ loop:
 		return nil, err
 	}
 
+	if err = kdht.Bootstrap(ctx); err != nil {
+		return nil, err
+	}
+
+	protocolUpdatedSub, err := host.EventBus().Subscribe(new(event.EvtPeerProtocolsUpdated))
+	if err != nil {
+		return nil, err
+	}
+	go func(sub event.Subscription) {
+		for evt := range sub.Out() {
+			event, ok := evt.(event.EvtPeerProtocolsUpdated)
+			if !ok {
+				return
+			}
+
+			var updated bool
+			for _, proto := range event.Added {
+				if proto == cfg.params.ProtocolPrefix+pubsub.GossipSubID_v11 {
+					updated = true
+					break
+				}
+			}
+
+			if updated {
+				for _, c := range host.Network().ConnsToPeer(event.Peer) {
+					(*pubsub.PubSubNotif)(ps).Connected(host.Network(), c)
+				}
+			}
+		}
+	}(protocolUpdatedSub)
+
 	txTopic, err := ps.Join(TransactionsTopic)
 	if err != nil {
 		return nil, err
@@ -405,7 +432,7 @@ loop:
 		for {
 			_, err := txSub.Next(context.Background())
 			if errors.Is(err, pubsub.ErrSubscriptionCancelled) {
-				log.Error("Pubsub canecel, tx")
+				log.Error("Pubsub cancel, tx")
 				return
 			}
 			if err != nil {
@@ -423,7 +450,7 @@ loop:
 		for {
 			_, err := blockSub.Next(context.Background())
 			if errors.Is(err, pubsub.ErrSubscriptionCancelled) {
-				log.Error("Pubsub canecel, blk")
+				log.Error("Pubsub cancel, blk")
 				return
 			}
 			if err != nil {
@@ -464,7 +491,6 @@ loop:
 	if err != nil {
 		return nil, err
 	}
-	defer subReachability.Close()
 
 	go func(sub event.Subscription, r *dht.IpfsDHT) {
 		for {

@@ -234,26 +234,17 @@ func UnmarshalNovaPrivateKey(data []byte) (crypto.PrivKey, error) {
 }
 
 func novaGenerateSecretKey() [32]byte {
-	// Define the length of the secret key (32 bytes)
-	secretKeyLen := 32
-
-	// Allocate memory for the secret key
-	secretKey := make([]byte, secretKeyLen)
+	var secretKey [32]byte
 
 	// Call the Rust function to generate the secret key
 	C.generate_secret_key((*C.uint8_t)(unsafe.Pointer(&secretKey[0])))
 
-	var ret [32]byte
-	copy(ret[:], secretKey)
-	return ret
+	return secretKey
 }
 
 func novaSecretKeyFromSeed(seed [32]byte) [32]byte {
-	// Define the length of the secret key (32 bytes)
-	secretKeyLen := 32
-
 	// Allocate memory for the secret key
-	secretKey := make([]byte, secretKeyLen)
+	var secretKey [32]byte
 
 	// Convert the Go byte slice to a C byte pointer
 	cBytes := (*C.uint8_t)(unsafe.Pointer(&seed[0]))
@@ -261,14 +252,11 @@ func novaSecretKeyFromSeed(seed [32]byte) [32]byte {
 	// Call the Rust function to generate the secret key
 	C.secret_key_from_seed(cBytes, (*C.uint8_t)(unsafe.Pointer(&secretKey[0])))
 
-	var ret [32]byte
-	copy(ret[:], secretKey)
-	return ret
+	return secretKey
 }
 
 func novaPrivToPub(sk [32]byte) [32]byte {
-	// Create a byte slice for the result
-	pubkey := make([]byte, 32)
+	var pubkey [32]byte
 
 	// Convert the Go byte slice to a C byte pointer
 	cBytes := (*C.uint8_t)(unsafe.Pointer(&sk[0]))
@@ -276,14 +264,11 @@ func novaPrivToPub(sk [32]byte) [32]byte {
 	// Call the Rust function to compute the public key
 	C.priv_to_pub(cBytes, (*C.uint8_t)(unsafe.Pointer(&pubkey[0])))
 
-	var ret [32]byte
-	copy(ret[:], pubkey)
-	return ret
+	return pubkey
 }
 
 func novaSign(sk [32]byte, messageDigest [32]byte) [64]byte {
-	// Ensure that the provided signature buffer is large enough
-	signature := make([]byte, 64)
+	var signature [64]byte
 
 	// Convert the Go byte slices to C byte pointers
 	cPrivBytes := (*C.uint8_t)(unsafe.Pointer(&sk[0]))
@@ -292,9 +277,7 @@ func novaSign(sk [32]byte, messageDigest [32]byte) [64]byte {
 	// Call the Rust function
 	C.sign(cPrivBytes, cDigestBytes, (*C.uint8_t)(unsafe.Pointer(&signature[0])))
 
-	var ret [64]byte
-	copy(ret[:], signature)
-	return ret
+	return signature
 }
 
 func novaVerify(pk [32]byte, messageDigest [32]byte, signature [64]byte) bool {

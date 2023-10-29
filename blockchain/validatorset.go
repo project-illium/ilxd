@@ -317,7 +317,7 @@ func (vs *ValidatorSet) sendNotification(data interface{}, typ NotificationType)
 	vs.notifMtx.RLock()
 	n := Notification{Type: typ, Data: data}
 	for _, callback := range vs.notifications {
-		callback(&n)
+		go callback(&n)
 	}
 	vs.notifMtx.RUnlock()
 }
