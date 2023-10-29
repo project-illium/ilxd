@@ -35,8 +35,6 @@ import (
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
-	"path"
-	"sync"
 	"time"
 )
 
@@ -305,16 +303,10 @@ loop:
 		}
 	}
 
-	tracer, err := pubsub.NewJSONTracer(path.Join(cfg.logDir, "trace.json"))
-	if err != nil {
-		return nil, err
-	}
-
 	// Create a new PubSub service using the GossipSub router
 	ps, err := pubsub.NewGossipSub(
 		ctx,
 		host,
-		pubsub.WithEventTracer(tracer),
 		pubsub.WithNoAuthor(),
 		pubsub.WithDiscovery(discovery.NewRoutingDiscovery(kdht)),
 		pubsub.WithMaxMessageSize(cfg.maxMessageSize),
@@ -395,19 +387,32 @@ loop:
 		return nil, err
 	}
 
-	var wg sync.WaitGroup
-	for _, peerinfo := range seedAddrs {
-		wg.Add(1)
-		go func(p peer.AddrInfo) {
-			defer wg.Done()
-			if err := host.Connect(ctx, p); err != nil {
-				log.Errorf("Error while connecting to node %q: %-v", p, err)
-			} else {
-				log.Debugf("Connection established with bootstrap node: %q", p)
-			}
-		}(peerinfo)
+	protocolUpdatedSub, err := host.EventBus().Subscribe(new(event.EvtPeerProtocolsUpdated))
+	if err != nil {
+		return nil, err
 	}
-	wg.Wait()
+	go func(sub event.Subscription) {
+		for {
+			select {
+			case evt, ok := <-sub.Out():
+				if !ok {
+					return
+				}
+				var updated bool
+				for _, proto := range evt.(event.EvtPeerProtocolsUpdated).Added {
+					if proto == cfg.params.ProtocolPrefix+pubsub.GossipSubID_v11 {
+						updated = true
+						break
+					}
+				}
+				if updated {
+					for _, c := range host.Network().ConnsToPeer(evt.(event.EvtPeerProtocolsUpdated).Peer) {
+						(*pubsub.PubSubNotif)(ps).Connected(host.Network(), c)
+					}
+				}
+			}
+		}
+	}(protocolUpdatedSub)
 
 	txTopic, err := ps.Join(TransactionsTopic)
 	if err != nil {
@@ -486,7 +491,6 @@ loop:
 	if err != nil {
 		return nil, err
 	}
-	defer subReachability.Close()
 
 	go func(sub event.Subscription, r *dht.IpfsDHT) {
 		for {

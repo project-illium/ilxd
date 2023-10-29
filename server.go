@@ -304,7 +304,6 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		net.UserAgent(config.UserAgent),
 		net.PrivateKey(privKey),
 		net.Params(netParams),
-		net.LogDir(config.DataDir),
 		net.BlockValidator(s.handleIncomingBlock),
 		net.MempoolValidator(s.processMempoolTransaction),
 		net.MaxBanscore(config.MaxBanscore),
