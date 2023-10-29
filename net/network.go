@@ -35,6 +35,8 @@ import (
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"path"
+	"sync"
 	"time"
 )
 
@@ -303,7 +305,8 @@ loop:
 		}
 	}
 
-	if err = kdht.Bootstrap(ctx); err != nil {
+	tracer, err := pubsub.NewJSONTracer(path.Join(cfg.logDir, "trace.json"))
+	if err != nil {
 		return nil, err
 	}
 
@@ -311,6 +314,7 @@ loop:
 	ps, err := pubsub.NewGossipSub(
 		ctx,
 		host,
+		pubsub.WithEventTracer(tracer),
 		pubsub.WithNoAuthor(),
 		pubsub.WithDiscovery(discovery.NewRoutingDiscovery(kdht)),
 		pubsub.WithMaxMessageSize(cfg.maxMessageSize),
@@ -319,7 +323,7 @@ loop:
 			return string(h[:])
 		}),
 		pubsub.WithGossipSubProtocols([]protocol.ID{cfg.params.ProtocolPrefix + pubsub.GossipSubID_v11}, func(feature pubsub.GossipSubFeature, id protocol.ID) bool {
-			if id == cfg.params.ProtocolPrefix+pubsub.GossipSubID_v11 && (feature == pubsub.GossipSubFeatureMesh || feature == pubsub.GossipSubFeaturePX) {
+			if feature == pubsub.GossipSubFeatureMesh || feature == pubsub.GossipSubFeaturePX {
 				return true
 			}
 			return false
@@ -387,6 +391,24 @@ loop:
 		return nil, err
 	}
 
+	if err = kdht.Bootstrap(ctx); err != nil {
+		return nil, err
+	}
+
+	var wg sync.WaitGroup
+	for _, peerinfo := range seedAddrs {
+		wg.Add(1)
+		go func(p peer.AddrInfo) {
+			defer wg.Done()
+			if err := host.Connect(ctx, p); err != nil {
+				log.Errorf("Error while connecting to node %q: %-v", p, err)
+			} else {
+				log.Debugf("Connection established with bootstrap node: %q", p)
+			}
+		}(peerinfo)
+	}
+	wg.Wait()
+
 	txTopic, err := ps.Join(TransactionsTopic)
 	if err != nil {
 		return nil, err
@@ -405,7 +427,7 @@ loop:
 		for {
 			_, err := txSub.Next(context.Background())
 			if errors.Is(err, pubsub.ErrSubscriptionCancelled) {
-				log.Error("Pubsub canecel, tx")
+				log.Error("Pubsub cancel, tx")
 				return
 			}
 			if err != nil {
@@ -423,7 +445,7 @@ loop:
 		for {
 			_, err := blockSub.Next(context.Background())
 			if errors.Is(err, pubsub.ErrSubscriptionCancelled) {
-				log.Error("Pubsub canecel, blk")
+				log.Error("Pubsub cancel, blk")
 				return
 			}
 			if err != nil {

@@ -44,8 +44,10 @@ func TestDatastore(t *testing.T) {
 
 	pstoreds := NewPeerstoreds(ds, pstore)
 
+	peerMap := make(map[peer.ID]bool)
 	for i := 0; i < 10; i++ {
 		peer := randomPeer(t, 4)
+		peerMap[peer.ID] = true
 		pstore.AddAddrs(peer.ID, peer.Addrs, time.Hour)
 	}
 
@@ -58,4 +60,7 @@ func TestDatastore(t *testing.T) {
 	addrInfos, err = pstoreds.AddrInfos()
 	assert.NoError(t, err)
 	assert.Len(t, addrInfos, 10)
+	for _, a := range addrInfos {
+		assert.True(t, peerMap[a.ID])
+	}
 }

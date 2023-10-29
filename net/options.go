@@ -29,6 +29,13 @@ func MempoolValidator(acceptToMempool func(tx *transactions.Transaction) error) 
 	}
 }
 
+func LogDir(logdir string) Option {
+	return func(cfg *config) error {
+		cfg.logDir = logdir
+		return nil
+	}
+}
+
 func BlockValidator(validateBlock func(blk *blocks.XThinnerBlock, p peer.ID) error) Option {
 	return func(cfg *config) error {
 		cfg.validateBlock = validateBlock
@@ -130,6 +137,7 @@ type config struct {
 	listenAddrs       []string
 	disableNatPortMap bool
 	maxMessageSize    int
+	logDir            string
 	host              host.Host
 	privateKey        crypto.PrivKey
 	datastore         repo.Datastore

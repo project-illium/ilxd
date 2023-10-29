@@ -71,8 +71,12 @@ func (pds *Peerstoreds) AddrInfos() ([]peer.AddrInfo, error) {
 		}
 		if time.Now().Before(addrInfo.LastSeen.AsTime().Add(addrTTL)) {
 			s := strings.Split(r.Key, "/")
+			p, err := peer.Decode(s[len(s)-1])
+			if err != nil {
+				continue
+			}
 			ai := peer.AddrInfo{
-				ID:    peer.ID(s[len(s)-1]),
+				ID:    p,
 				Addrs: make([]multiaddr.Multiaddr, 0, len(addrInfo.Addrs)),
 			}
 			for _, b := range addrInfo.Addrs {
