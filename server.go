@@ -39,6 +39,7 @@ import (
 
 const maxOrphanDuration = time.Hour
 const maxOrphans = 100
+const orphanResyncThreshold = 5
 
 var log = zap.S()
 
@@ -588,6 +589,19 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 			blk:          blk,
 			firstSeen:    time.Now(),
 			relayingPeer: relayingPeer,
+		}
+
+		// This really shouldn't happen but if we're piling up the orphans
+		// and we haven't connected a block in a little bit let's trigger
+		// a resync since we likely missed a block.
+		_, _, tipTimstamp := s.blockchain.BestBlock()
+		if len(s.orphanBlocks) >= orphanResyncThreshold &&
+			s.syncManager.IsCurrent() &&
+			time.Now().After(tipTimstamp.Add(time.Minute*5)) {
+
+			s.generator.Close()
+			s.syncManager.Close()
+			s.syncManager.Start()
 		}
 		s.orphanLock.Unlock()
 		return err
