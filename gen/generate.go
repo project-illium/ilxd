@@ -263,16 +263,3 @@ out:
 
 	return g.broadcast(xthinnerBlock)
 }
-
-func drainChannel(interruptChan chan struct{}) {
-	// This loop will keep running until it is explicitly broken out of
-	for {
-		select {
-		case <-interruptChan:
-			// Item received and discarded, ready for next iteration to receive next item if present
-		default:
-			// No more items in channel, break out of the loop
-			return
-		}
-	}
-}
