@@ -328,7 +328,7 @@ message GetBlockchainInfoResponse {
     // When `tx_index` is true, the node has full transaction index enabled
     bool tx_index            = 5;
     // The total number of coins in circulation
-    uint64 ciculating_supply = 6;
+    uint64 circulating_supply = 6;
     // The total number of coins staked
     uint64 total_staked      = 7;
     // The balance of the treasury

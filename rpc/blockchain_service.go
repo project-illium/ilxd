@@ -94,14 +94,14 @@ func (s *GrpcServer) GetBlockchainInfo(ctx context.Context, req *pb.GetBlockchai
 	}
 
 	return &pb.GetBlockchainInfoResponse{
-		Network:          nt,
-		BestHeight:       height,
-		BestBlock_ID:     id[:],
-		BlockTime:        ts.Unix(),
-		TxIndex:          s.txIndex != nil,
-		CiculatingSupply: uint64(currentSupply),
-		TotalStaked:      uint64(totalStaked),
-		TreasuryBalance:  uint64(treasuryBal),
+		Network:           nt,
+		BestHeight:        height,
+		BestBlock_ID:      id[:],
+		BlockTime:         ts.Unix(),
+		TxIndex:           s.txIndex != nil,
+		CirculatingSupply: uint64(currentSupply),
+		TotalStaked:       uint64(totalStaked),
+		TreasuryBalance:   uint64(treasuryBal),
 	}, nil
 }
 
