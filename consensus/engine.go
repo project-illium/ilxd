@@ -225,6 +225,7 @@ func (eng *ConsensusEngine) handleNewBlock(header *blocks.BlockHeader, initialAc
 				if record.isPreferred() {
 					initialAcceptancePreference = false
 				}
+				log.Debugf("[CONSENSUS] Conflicting blocks at height %d: %s, %s", record.height, record.blockID, header.ID())
 			}
 		}
 	}
@@ -440,6 +441,7 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 		}
 
 		if vr.status() == StatusFinalized {
+			log.Debugf("[CONSENSUS] Block finalized in %d votes", vr.totalVotes)
 			callback, ok := eng.callbacks[inv]
 			if ok && callback != nil {
 				go func() {
