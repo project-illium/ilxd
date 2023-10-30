@@ -34,6 +34,7 @@ type BlockGenerator struct {
 	broadcast      func(blk *blocks.XThinnerBlock) error
 	active         bool
 	activeMtx      sync.RWMutex
+	interruptChan  chan uint32
 	quit           chan struct{}
 }
 
@@ -71,6 +72,7 @@ func NewBlockGenerator(opts ...Option) (*BlockGenerator, error) {
 		chain:          cfg.chain,
 		broadcast:      cfg.broadcastFunc,
 		activeMtx:      sync.RWMutex{},
+		interruptChan:  make(chan uint32),
 		active:         false,
 	}
 
@@ -93,6 +95,15 @@ func (g *BlockGenerator) Close() {
 	g.activeMtx.Lock()
 	defer g.activeMtx.Unlock()
 
+out:
+	for {
+		select {
+		case <-g.interruptChan:
+		default:
+			break out
+		}
+	}
+
 	if g.active {
 		g.active = false
 		close(g.quit)
@@ -106,6 +117,14 @@ func (g *BlockGenerator) Active() bool {
 	return g.active
 }
 
+func (g *BlockGenerator) Interrupt(height uint32) {
+	go func() {
+		if g.Active() {
+			g.interruptChan <- height
+		}
+	}()
+}
+
 func (g *BlockGenerator) eventLoop() {
 	ticker := time.NewTicker(g.tickInterval)
 	for {
@@ -117,7 +136,6 @@ func (g *BlockGenerator) eventLoop() {
 					log.Warnf("Error in block generator: %s", err.Error())
 				}
 			}
-
 		case <-g.quit:
 			return
 		}
@@ -230,5 +248,31 @@ func (g *BlockGenerator) generateBlock() error {
 	xthinnerBlock.Header = blk.Header
 	g.lastGenHeight = blk.Header.Height
 
+out:
+	for {
+		select {
+		case height := <-g.interruptChan:
+			if height >= blk.Header.Height {
+				return nil
+			}
+		default:
+			break out
+		}
+	}
+	log.Debugf("[GEN] Generated block at height %d: %s", blk.Header.Height, blk.Header.ID())
+
 	return g.broadcast(xthinnerBlock)
+}
+
+func drainChannel(interruptChan chan struct{}) {
+	// This loop will keep running until it is explicitly broken out of
+	for {
+		select {
+		case <-interruptChan:
+			// Item received and discarded, ready for next iteration to receive next item if present
+		default:
+			// No more items in channel, break out of the loop
+			return
+		}
+	}
 }

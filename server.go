@@ -471,9 +471,11 @@ func (s *Server) getNetworkKey() (crypto.PrivKey, error) {
 func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.ID) error {
 	<-s.ready
 	_, height, _ := s.blockchain.BestBlock()
+
 	if !s.syncManager.IsCurrent() && xThinnerBlk.Header.Height != height+1 {
 		return errors.New("not current")
 	}
+
 	// Try to decode the block. This should succeed most of the time unless
 	// the merkle root is invalid.
 	blockID := xThinnerBlk.ID()
@@ -504,16 +506,19 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 			s.mempool.RemoveBlockTransactions(blk.Transactions)
 
 			s.autoStakeLock.RLock()
-			defer s.autoStakeLock.RUnlock()
-			if len(s.coinbasesToStake) > 0 {
-				for txid := range s.coinbasesToStake {
+			toStake := s.coinbasesToStake
+			s.autoStakeLock.RUnlock()
+			if len(toStake) > 0 {
+				for txid := range toStake {
 					for _, tx := range blk.Transactions {
 						if tx.ID() == txid {
 							if err := s.wallet.Stake([]types.ID{types.NewID(tx.GetCoinbaseTransaction().Outputs[0].Commitment)}); err != nil {
 								log.Errorf("Error autostaking coinbase: %s", err)
 								continue
 							}
+							s.autoStakeLock.Lock()
 							delete(s.coinbasesToStake, txid)
+							s.autoStakeLock.Unlock()
 						}
 					}
 				}
@@ -576,6 +581,7 @@ func (s *Server) setAutostake(autostake bool) error {
 func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck bool) error {
 	<-s.ready
 	err := s.blockchain.CheckConnectBlock(blk)
+
 	switch err.(type) {
 	case blockchain.OrphanBlockError:
 		// An orphan is a block's whose height is greater than
@@ -652,6 +658,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 	if err != nil {
 		log.Warnf("Error calculating policy preference: %s", err)
 	}
+
 	s.inventoryLock.Lock()
 	s.activeInventory[blk.ID()] = blk
 	s.inventoryLock.Unlock()
@@ -662,6 +669,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 
 	log.Debugf("[CONSENSUS] new block: %s", blk.ID())
 	s.engine.NewBlock(blk.Header, initialPreference, callback)
+	s.generator.Interrupt(blk.Header.Height)
 
 	go func(b *blocks.Block, t time.Time) {
 		select {
@@ -825,7 +833,7 @@ func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
 		s.inflightLock.RUnlock()
 		return
 	}
-	s.inflightLock.RLock()
+	s.inflightLock.RUnlock()
 
 	s.inflightLock.Lock()
 	s.inflightRequests[blockID] = true
