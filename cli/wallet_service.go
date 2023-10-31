@@ -160,6 +160,7 @@ func (x *GetAddrInfo) Execute(args []string) error {
 	}{
 		Addr:            resp.Address,
 		UnlockingScript: resp.UnlockingScript,
+		ViewPrivateKey:  resp.ViewPrivateKey,
 		WatchOnly:       resp.WatchOnly,
 	}
 	out, err := json.MarshalIndent(&kp, "", "    ")
