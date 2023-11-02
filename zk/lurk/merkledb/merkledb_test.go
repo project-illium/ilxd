@@ -38,7 +38,7 @@ func TestMerkleDB(t *testing.T) {
 		assert.NoError(t, err)
 		assert.EqualValues(t, v, val)
 
-		valid, err := ValidateInclusionProof(k, v, root, proof)
+		valid, err := ValidateProof(k, v, root, proof)
 		assert.NoError(t, err)
 		assert.True(t, valid)
 
@@ -46,7 +46,7 @@ func TestMerkleDB(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, exists)
 
-		valid, err = ValidateInclusionProof(k, v, root, proof)
+		valid, err = ValidateProof(k, v, root, proof)
 		assert.NoError(t, err)
 		assert.True(t, valid)
 	}
@@ -65,7 +65,7 @@ func TestMerkleDB(t *testing.T) {
 		root, err := db.Root()
 		assert.NoError(t, err)
 
-		valid, err := ValidateInclusionProof(k, nil, root, proof)
+		valid, err := ValidateProof(k, nil, root, proof)
 		assert.NoError(t, err)
 		assert.True(t, valid)
 	}

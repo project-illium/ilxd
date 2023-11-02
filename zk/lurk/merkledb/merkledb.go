@@ -333,7 +333,7 @@ func (mdb *MerkleDB) Root() (types.ID, error) {
 	return rootNode.Hash(), nil
 }
 
-func ValidateInclusionProof(key types.ID, value []byte, root types.ID, proof MerkleProof) (bool, error) {
+func ValidateProof(key types.ID, value []byte, root types.ID, proof MerkleProof) (bool, error) {
 	keyBytes := key.Bytes()
 
 	if len(proof) < 1 {
