@@ -283,7 +283,7 @@ func (mdb *MerkleDB) Exists(key types.ID) (bool, MerkleProof, error) {
 	return exists, proof, nil
 }
 
-// Delete removes a key/value pair from the databae. In the tree
+// Delete removes a key/value pair from the database. In the tree
 // structure the value will be set to the nil hash.
 func (mdb *MerkleDB) Delete(key types.ID) error {
 	mdb.mtx.Lock()
