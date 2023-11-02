@@ -274,7 +274,7 @@ func (mdb *MerkleDB) Exists(key types.ID) (bool, MerkleProof, error) {
 }
 
 // Delete removes a key/value pair from the databae. In the tree
-// structure the left will be set to the nil hash.
+// structure the value will be set to the nil hash.
 func (mdb *MerkleDB) Delete(key types.ID) error {
 	mdb.mtx.Lock()
 	defer mdb.mtx.Unlock()
@@ -316,7 +316,7 @@ func (mdb *MerkleDB) Delete(key types.ID) error {
 	return dbtx.Commit(context.Background())
 }
 
-// Root returns the database's root has.
+// Root returns the database's root hash.
 func (mdb *MerkleDB) Root() (types.ID, error) {
 	mdb.mtx.RLock()
 	defer mdb.mtx.RUnlock()
@@ -333,6 +333,8 @@ func (mdb *MerkleDB) Root() (types.ID, error) {
 	return rootNode.Hash(), nil
 }
 
+// ValidateProof validates the merkle proof. If this is an exclusion proof the
+// data should be nil.
 func ValidateProof(key types.ID, value []byte, root types.ID, proof MerkleProof) (bool, error) {
 	keyBytes := key.Bytes()
 
