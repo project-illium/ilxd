@@ -99,6 +99,16 @@ func (mdb *MerkleDB) Put(key types.ID, value []byte) error {
 		return err
 	}
 
+	val, err := getValue(dbtx, key)
+	if !errors.Is(err, datastore.ErrNotFound) && err != nil {
+		return err
+	}
+	var existingValHash *types.ID
+	if val != nil {
+		v := types.NewIDFromData(val)
+		existingValHash = &v
+	}
+
 	if err := putValue(dbtx, key, value); err != nil {
 		return err
 	}
@@ -111,7 +121,7 @@ func (mdb *MerkleDB) Put(key types.ID, value []byte) error {
 		return err
 	}
 
-	if err := recursivePut(dbtx, key, value, rootNode, 0, nodeMap, toDelete); err != nil {
+	if err := recursivePut(dbtx, key, types.NewIDFromData(value), rootNode, 0, nodeMap, toDelete, existingValHash); err != nil {
 		return err
 	}
 
@@ -373,7 +383,7 @@ type nodeTracker struct {
 	left bool
 }
 
-func recursivePut(dbtx datastore.Txn, key types.ID, value []byte, n *Node, level int, nodeMap map[int]*nodeTracker, toDelete map[types.ID]struct{}) error {
+func recursivePut(dbtx datastore.Txn, key types.ID, valHash types.ID, n *Node, level int, nodeMap map[int]*nodeTracker, toDelete map[types.ID]struct{}, existingValHash *types.ID) error {
 	// Get the bit at the level
 	bit, err := getBit(key.Bytes(), level)
 	if err != nil {
@@ -383,17 +393,10 @@ func recursivePut(dbtx datastore.Txn, key types.ID, value []byte, n *Node, level
 	toDelete[n.Hash()] = struct{}{}
 
 	if bit == 0 { // zero
-		if isNil(n.left) {
+		if isNil(n.left) || (existingValHash != nil && n.left.Compare(*existingValHash) == 0) {
 			// If the left hash is zero this means there are no nodes
 			// below this level, and we can set the data here.
-			//
-			// Nil data is a delete op so use the nil hash here rather
-			// than a hash of a zero byte slice.
-			if value == nil {
-				n.left = types.NewID(nil)
-			} else {
-				n.left = types.NewIDFromData(value)
-			}
+			n.left = valHash
 		} else {
 			// If it's not nil this means either:
 			// - There are child nodes below this one.
@@ -421,6 +424,7 @@ func recursivePut(dbtx datastore.Txn, key types.ID, value []byte, n *Node, level
 						right: n.left.Clone(),
 					}
 				}
+				//fmt.Printf("Moving, level: %d,  bit: %d to level: %d,  bit: %d\n", level, bit, level+1, nextBit)
 				if err := putNode(dbtx, next); err != nil {
 					return err
 				}
@@ -431,20 +435,13 @@ func recursivePut(dbtx datastore.Txn, key types.ID, value []byte, n *Node, level
 				node: n,
 				left: true,
 			}
-			return recursivePut(dbtx, key, value, next, level+1, nodeMap, toDelete)
+			return recursivePut(dbtx, key, valHash, next, level+1, nodeMap, toDelete, existingValHash)
 		}
 	} else { // one
-		if isNil(n.right) {
+		if isNil(n.right) || (existingValHash != nil && n.left.Compare(*existingValHash) == 0) {
 			// If the right hash is zero this means there are no nodes
 			// below this level, and we can set the data here.
-			//
-			// Nil data is a delete op so use the nil hash here rather
-			// than a hash of a zero byte slice.
-			if value == nil {
-				n.right = types.NewID(nil)
-			} else {
-				n.right = types.NewIDFromData(value)
-			}
+			n.right = valHash
 		} else {
 			// If it's not nil this means either:
 			// - There are child nodes below this one.
@@ -472,6 +469,7 @@ func recursivePut(dbtx datastore.Txn, key types.ID, value []byte, n *Node, level
 						right: n.right.Clone(),
 					}
 				}
+				//fmt.Printf("Moving, level: %d,  bit: %d to level: %d,  bit: %d\n", level, bit, level+1, nextBit)
 				if err := putNode(dbtx, next); err != nil {
 					return err
 				}
@@ -482,7 +480,7 @@ func recursivePut(dbtx datastore.Txn, key types.ID, value []byte, n *Node, level
 				node: n,
 				left: false,
 			}
-			return recursivePut(dbtx, key, value, next, level+1, nodeMap, toDelete)
+			return recursivePut(dbtx, key, valHash, next, level+1, nodeMap, toDelete, existingValHash)
 		}
 	}
 	// Put the updated node to the database.
