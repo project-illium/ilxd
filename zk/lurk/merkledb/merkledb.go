@@ -17,7 +17,7 @@ import (
 
 // MerkleProof represents a merkle inclusion or exclusion proof
 // that links the data to a root hash.
-type MerkleProof []*Node
+type MerkleProof []types.ID
 
 // Node represents a branch in the merkle tree. The left and right
 // values can either be:
@@ -140,14 +140,14 @@ func (mdb *MerkleDB) Get(key types.ID) ([]byte, MerkleProof, error) {
 	}
 	valHash := types.NewIDFromData(value)
 
-	var proof MerkleProof
+	var nodes []*Node
 
 	rootNode, err := fetchRoot(dbtx)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	proof = append(proof, rootNode)
+	nodes = append(nodes, rootNode)
 
 	var (
 		keyBytes = key.Bytes()
@@ -179,7 +179,19 @@ func (mdb *MerkleDB) Get(key types.ID) ([]byte, MerkleProof, error) {
 				return nil, nil, err
 			}
 		}
-		proof = append(proof, node)
+		nodes = append(nodes, node)
+	}
+	proof := make(MerkleProof, len(nodes))
+	for i, n := range nodes {
+		bit, err := getBit(keyBytes, i)
+		if err != nil {
+			return nil, nil, err
+		}
+		if bit == 0 {
+			proof[i] = n.right
+		} else {
+			proof[i] = n.left
+		}
 	}
 
 	return value, proof, nil
@@ -198,7 +210,7 @@ func (mdb *MerkleDB) Exists(key types.ID) (bool, MerkleProof, error) {
 	}
 
 	var (
-		proof  MerkleProof
+		nodes  []*Node
 		exists bool
 	)
 
@@ -207,7 +219,7 @@ func (mdb *MerkleDB) Exists(key types.ID) (bool, MerkleProof, error) {
 		return false, nil, err
 	}
 
-	proof = append(proof, rootNode)
+	nodes = append(nodes, rootNode)
 
 	var (
 		keyBytes = key.Bytes()
@@ -243,9 +255,21 @@ func (mdb *MerkleDB) Exists(key types.ID) (bool, MerkleProof, error) {
 				return false, nil, err
 			}
 		}
-		proof = append(proof, node)
+		nodes = append(nodes, node)
 	}
 
+	proof := make(MerkleProof, len(nodes))
+	for i, n := range nodes {
+		bit, err := getBit(keyBytes, i)
+		if err != nil {
+			return false, nil, err
+		}
+		if bit == 0 {
+			proof[i] = n.right
+		} else {
+			proof[i] = n.left
+		}
+	}
 	return exists, proof, nil
 }
 
@@ -316,10 +340,6 @@ func ValidateInclusionProof(key types.ID, value []byte, root types.ID, proof Mer
 		return false, nil
 	}
 
-	if proof[0].Hash().Compare(root) != 0 {
-		return false, nil
-	}
-
 	dataHash := types.NewIDFromData(value)
 	if value == nil {
 		dataHash = types.NewID(nil)
@@ -331,21 +351,19 @@ func ValidateInclusionProof(key types.ID, value []byte, root types.ID, proof Mer
 		if err != nil {
 			return false, err
 		}
-		node := proof[i]
-
+		h := proof[i]
+		var node Node
 		if bit == 0 {
-			if node.left.Compare(hashVal) != 0 {
-				return false, nil
-			}
+			node.left = hashVal
+			node.right = h
 		} else {
-			if node.right.Compare(hashVal) != 0 {
-				return false, nil
-			}
+			node.left = h
+			node.right = hashVal
 		}
 
 		hashVal = node.Hash()
 	}
-	return true, nil
+	return hashVal.Compare(root) == 0, nil
 }
 
 type nodeTracker struct {
