@@ -5,6 +5,7 @@
 package merkledb
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -17,7 +18,7 @@ import (
 
 // MerkleProof represents a merkle inclusion or exclusion proof
 // that links the data to a root hash.
-type MerkleProof []types.ID
+type MerkleProof []HashVal
 
 // Node represents a branch in the merkle tree. The left and right
 // values can either be:
@@ -25,34 +26,32 @@ type MerkleProof []types.ID
 // - A hash of data
 // - A hash of a child node
 type Node struct {
-	left  types.ID
-	right types.ID
+	left  HashVal
+	right HashVal
 }
 
 // Left returns the left branch of the node.
-func (n *Node) Left() types.ID {
-	var id types.ID
-	copy(id[:], n.left[:])
-	return id
+func (n *Node) Left() HashVal {
+	return n.left.Clone()
 }
 
 // Right returns the right branch of the node.
-func (n *Node) Right() types.ID {
-	var id types.ID
-	copy(id[:], n.right[:])
-	return id
+func (n *Node) Right() HashVal {
+	return n.right.Clone()
 }
 
 // Hash returns the hash of the concatenation of the left and
 // right branches.
-func (n *Node) Hash() types.ID {
-	return types.NewID(hash.HashMerkleBranches(n.left.Bytes(), n.right.Bytes()))
+func (n *Node) Hash() HashVal {
+	v := append(n.left.Clone().Bytes(), n.right.Clone().Bytes()...)
+	return hash.HashFunc(v)
 }
 
 func (n *Node) copy() *Node {
-	n2 := &Node{}
-	copy(n2.left[:], n.left[:])
-	copy(n2.right[:], n.right[:])
+	n2 := &Node{
+		left:  n.left.Clone(),
+		right: n.right.Clone(),
+	}
 	return n2
 }
 
@@ -72,8 +71,8 @@ func NewMerkleDB(ds repo.Datastore) (*MerkleDB, error) {
 		return nil, err
 	}
 	err = putRoot(dbtx, &Node{
-		left:  types.NewID(nil),
-		right: types.NewID(nil),
+		left:  NewHashVal(),
+		right: NewHashVal(),
 	})
 	if err != nil {
 		return nil, err
@@ -100,20 +99,7 @@ func (mdb *MerkleDB) Put(key types.ID, value []byte) error {
 	}
 	defer dbtx.Discard(context.Background())
 
-	val, err := getValue(dbtx, key)
-	if !errors.Is(err, datastore.ErrNotFound) && err != nil {
-		return err
-	}
-	var existingValHash *types.ID
-	if val != nil {
-		v := types.NewIDFromData(val)
-		existingValHash = &v
-	}
-
 	if err := putValue(dbtx, key, value); err != nil {
-		return err
-	}
-	if err := putKey(dbtx, types.NewIDFromData(value), key); err != nil {
 		return err
 	}
 
@@ -122,7 +108,7 @@ func (mdb *MerkleDB) Put(key types.ID, value []byte) error {
 		return err
 	}
 
-	if err := recursivePut(dbtx, key, types.NewIDFromData(value), rootNode, 0, nodeMap, toDelete, existingValHash); err != nil {
+	if err := recursivePut(dbtx, key, types.NewIDFromData(value), rootNode, 0, nodeMap, toDelete); err != nil {
 		return err
 	}
 
@@ -151,7 +137,6 @@ func (mdb *MerkleDB) Get(key types.ID) ([]byte, MerkleProof, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	valHash := types.NewIDFromData(value)
 
 	var nodes []*Node
 
@@ -172,9 +157,9 @@ func (mdb *MerkleDB) Get(key types.ID) ([]byte, MerkleProof, error) {
 			return nil, nil, err
 		}
 		if bit == 0 {
-			if node.left.Compare(valHash) == 0 {
+			if bytes.Equal(node.left.Key(), keyBytes) {
 				break
-			} else if isNil(node.left) {
+			} else if node.left.IsNil() {
 				return nil, nil, errors.New("node not found in tree")
 			}
 			node, err = fetchNode(dbtx, node.left)
@@ -182,9 +167,9 @@ func (mdb *MerkleDB) Get(key types.ID) ([]byte, MerkleProof, error) {
 				return nil, nil, err
 			}
 		} else {
-			if node.right.Compare(valHash) == 0 {
+			if bytes.Equal(node.right.Key(), keyBytes) {
 				break
-			} else if isNil(node.right) {
+			} else if node.right.IsNil() {
 				return nil, nil, errors.New("node not found in tree")
 			}
 			node, err = fetchNode(dbtx, node.right)
@@ -206,6 +191,7 @@ func (mdb *MerkleDB) Get(key types.ID) ([]byte, MerkleProof, error) {
 			proof[i] = n.left
 		}
 	}
+	proof = append(proof, append(key.Bytes(), types.NewIDFromData(value).Bytes()...))
 
 	return value, proof, dbtx.Commit(context.Background())
 }
@@ -238,6 +224,7 @@ func (mdb *MerkleDB) Exists(key types.ID) (bool, MerkleProof, error) {
 	var (
 		keyBytes = key.Bytes()
 		node     = rootNode.copy()
+		final    HashVal
 	)
 	for i := 0; ; i++ {
 		bit, err := getBit(keyBytes, i)
@@ -245,14 +232,18 @@ func (mdb *MerkleDB) Exists(key types.ID) (bool, MerkleProof, error) {
 			return false, nil, err
 		}
 		if bit == 0 {
-			if isNil(node.left) {
+			if node.left.IsNil() {
 				exists = false
+				final = NewHashVal()
 				break
 			}
-			_, err = getKey(dbtx, node.left)
-			if err == nil {
-				fmt.Println("Exists ", node.left)
-				exists = true
+			if node.left.IsData() {
+				if bytes.Equal(node.left.Key(), keyBytes) {
+					exists = true
+				} else {
+					exists = false
+				}
+				final = node.left.Clone()
 				break
 			}
 			node, err = fetchNode(dbtx, node.left)
@@ -260,14 +251,18 @@ func (mdb *MerkleDB) Exists(key types.ID) (bool, MerkleProof, error) {
 				return false, nil, err
 			}
 		} else {
-			if isNil(node.right) {
+			if node.right.IsNil() {
 				exists = false
+				final = NewHashVal()
 				break
 			}
-			_, err = getKey(dbtx, node.right)
-			if err == nil {
-				fmt.Println("Exists ", node.right)
-				exists = true
+			if node.right.IsData() {
+				if bytes.Equal(node.right.Key(), keyBytes) {
+					exists = true
+				} else {
+					exists = false
+				}
+				final = node.right.Clone()
 				break
 			}
 			node, err = fetchNode(dbtx, node.right)
@@ -290,6 +285,7 @@ func (mdb *MerkleDB) Exists(key types.ID) (bool, MerkleProof, error) {
 			proof[i] = n.left
 		}
 	}
+	proof = append(proof, final)
 	return exists, proof, dbtx.Commit(context.Background())
 }
 
@@ -330,11 +326,6 @@ func (mdb *MerkleDB) Delete(key types.ID) error {
 	if err := deleteValue(dbtx, key); err != nil {
 		return err
 	}
-	valHash := types.NewIDFromData(val)
-	fmt.Println("Delete valhash: ", valHash)
-	if err := deleteKey(dbtx, valHash); err != nil {
-		return err
-	}
 
 	return dbtx.Commit(context.Background())
 }
@@ -353,7 +344,7 @@ func (mdb *MerkleDB) Root() (types.ID, error) {
 	if err != nil {
 		return types.ID{}, err
 	}
-	return rootNode.Hash(), nil
+	return types.NewID(rootNode.Hash()), nil
 }
 
 // ValidateProof validates the merkle proof. If this is an exclusion proof the
@@ -364,14 +355,22 @@ func ValidateProof(key types.ID, value []byte, root types.ID, proof MerkleProof)
 	if len(proof) < 1 {
 		return false, nil
 	}
-
-	dataHash := types.NewIDFromData(value)
-	if value == nil {
-		dataHash = types.NewID(nil)
+	hashVal := proof[len(proof)-1]
+	if value == nil && (!hashVal.IsNil() && bytes.Equal(hashVal.Key(), key.Bytes())) {
+		return false, nil
+	}
+	if value != nil {
+		vh, err := hashVal.ValueHash()
+		if err != nil {
+			return false, err
+		}
+		vh2 := types.NewIDFromData(value).Bytes()
+		if !bytes.Equal(hashVal.Key(), key.Bytes()) || !bytes.Equal(vh, vh2) {
+			return false, nil
+		}
 	}
 
-	hashVal := dataHash.Clone()
-	for i := len(proof) - 1; i >= 0; i-- {
+	for i := len(proof) - 2; i >= 0; i-- {
 		bit, err := getBit(keyBytes, i)
 		if err != nil {
 			return false, err
@@ -380,15 +379,15 @@ func ValidateProof(key types.ID, value []byte, root types.ID, proof MerkleProof)
 		var node Node
 		if bit == 0 {
 			node.left = hashVal
-			node.right = h
+			node.right = h.Bytes()
 		} else {
-			node.left = h
+			node.left = h.Bytes()
 			node.right = hashVal
 		}
 
 		hashVal = node.Hash()
 	}
-	return hashVal.Compare(root) == 0, nil
+	return types.NewID(hashVal).Compare(root) == 0, nil
 }
 
 func (mdb *MerkleDB) print() {
@@ -411,23 +410,28 @@ func (mdb *MerkleDB) print() {
 		for _, n := range nodes {
 			lstr := n.left.String()
 			rstr := n.right.String()
-			left, err := fetchNode(dbtx, n.left)
-			if err == nil {
-				ret = append(ret, &printNode{
-					Node: *left,
-					path: n.path + "0",
-				})
-			} else if errors.Is(err, datastore.ErrNotFound) {
+
+			if n.left.IsNil() || n.left.IsData() {
 				lstr = "*" + lstr
+			} else {
+				left, err := fetchNode(dbtx, n.left)
+				if err == nil {
+					ret = append(ret, &printNode{
+						Node: *left,
+						path: n.path + "0",
+					})
+				}
 			}
-			right, err := fetchNode(dbtx, n.right)
-			if err == nil {
-				ret = append(ret, &printNode{
-					Node: *right,
-					path: n.path + "1",
-				})
-			} else if errors.Is(err, datastore.ErrNotFound) {
+			if n.right.IsNil() || n.right.IsData() {
 				rstr = "*" + rstr
+			} else {
+				right, err := fetchNode(dbtx, n.right)
+				if err == nil {
+					ret = append(ret, &printNode{
+						Node: *right,
+						path: n.path + "1",
+					})
+				}
 			}
 
 			fmt.Printf("Path: %s, Left: %s, Right: %s\n", n.path, lstr, rstr)
@@ -446,7 +450,6 @@ func (mdb *MerkleDB) print() {
 		}
 		fmt.Println()
 	}
-	dbtx.Commit(context.Background())
 }
 
 type nodeTracker struct {
@@ -454,104 +457,100 @@ type nodeTracker struct {
 	left bool
 }
 
-func recursivePut(dbtx datastore.Txn, key types.ID, valHash types.ID, n *Node, level int, nodeMap map[int]*nodeTracker, toDelete map[types.ID]struct{}, existingValHash *types.ID) error {
+func recursivePut(dbtx datastore.Txn, key types.ID, valHash types.ID, n *Node, level int, nodeMap map[int]*nodeTracker, toDelete map[types.ID]struct{}) error {
 	// Get the bit at the level
 	bit, err := getBit(key.Bytes(), level)
 	if err != nil {
 		return err
 	}
 
-	toDelete[n.Hash()] = struct{}{}
+	toDelete[types.NewID(n.Hash())] = struct{}{}
 
 	if bit == 0 { // zero
-		if isNil(n.left) || (existingValHash != nil && n.left.Compare(*existingValHash) == 0) {
+		if n.left.IsNil() || (n.left.IsData() && bytes.Equal(n.left.Key(), key.Bytes())) {
 			// If the left hash is zero this means there are no nodes
 			// below this level, and we can set the data here.
-			n.left = valHash
+			v := append(key.Clone().Bytes(), valHash.Clone().Bytes()...)
+			n.left = v
 		} else {
-			// If it's not nil this means either:
-			// - There are child nodes below this one.
-			// - This node holds the hash of the data and there are no children.
-			next, err := fetchNode(dbtx, n.left)
 			// If the node is not found it must be that this node holds data
 			// and there are no children. So we'll create a nil child.
-			if errors.Is(err, datastore.ErrNotFound) {
-				nextKey, err := getKey(dbtx, n.left)
-				if err != nil {
-					return err
-				}
-				nextBit, err := getBit(nextKey.Bytes(), level+1)
+			var next *Node
+			if n.left.IsData() {
+				nextKey := n.left.Key()
+
+				nextBit, err := getBit(nextKey, level+1)
 				if err != nil {
 					return err
 				}
 				if nextBit == 0 {
 					next = &Node{
 						left:  n.left.Clone(),
-						right: types.NewID(nil),
+						right: NewHashVal(),
 					}
 				} else {
 					next = &Node{
-						left:  types.NewID(nil),
+						left:  NewHashVal(),
 						right: n.left.Clone(),
 					}
 				}
-				//fmt.Printf("Moving, level: %d,  bit: %d to level: %d,  bit: %d\n", level, bit, level+1, nextBit)
 				if err := putNode(dbtx, next); err != nil {
 					return err
 				}
-			} else if err != nil {
-				return err
+			} else {
+				next, err = fetchNode(dbtx, n.left)
+				if err != nil {
+					return err
+				}
 			}
 			nodeMap[level] = &nodeTracker{
 				node: n,
 				left: true,
 			}
-			return recursivePut(dbtx, key, valHash, next, level+1, nodeMap, toDelete, existingValHash)
+			return recursivePut(dbtx, key, valHash, next, level+1, nodeMap, toDelete)
 		}
 	} else { // one
-		if isNil(n.right) || (existingValHash != nil && n.left.Compare(*existingValHash) == 0) {
+		if n.right.IsNil() || (n.right.IsData() && bytes.Equal(n.right.Key(), key.Bytes())) {
 			// If the right hash is zero this means there are no nodes
 			// below this level, and we can set the data here.
-			n.right = valHash
+			v := append(key.Clone().Bytes(), valHash.Clone().Bytes()...)
+			n.right = v
 		} else {
-			// If it's not nil this means either:
-			// - There are child nodes below this one.
-			// - This node holds the hash of the data and there are no children.
-			next, err := fetchNode(dbtx, n.right)
 			// If the node is not found it must be that this node holds data
 			// and there are no children. So we'll create a nil child.
-			if errors.Is(err, datastore.ErrNotFound) {
-				nextKey, err := getKey(dbtx, n.right)
-				if err != nil {
-					return err
-				}
-				nextBit, err := getBit(nextKey.Bytes(), level+1)
+			var next *Node
+			if n.right.IsData() {
+				nextKey := n.right.Key()
+
+				nextBit, err := getBit(nextKey, level+1)
 				if err != nil {
 					return err
 				}
 				if nextBit == 0 {
 					next = &Node{
 						left:  n.right.Clone(),
-						right: types.NewID(nil),
+						right: NewHashVal(),
 					}
 				} else {
 					next = &Node{
-						left:  types.NewID(nil),
+						left:  NewHashVal(),
 						right: n.right.Clone(),
 					}
 				}
-				//fmt.Printf("Moving, level: %d,  bit: %d to level: %d,  bit: %d\n", level, bit, level+1, nextBit)
 				if err := putNode(dbtx, next); err != nil {
 					return err
 				}
-			} else if err != nil {
-				return err
+			} else {
+				next, err = fetchNode(dbtx, n.right)
+				if err != nil {
+					return err
+				}
 			}
 			nodeMap[level] = &nodeTracker{
 				node: n,
 				left: false,
 			}
-			return recursivePut(dbtx, key, valHash, next, level+1, nodeMap, toDelete, existingValHash)
+			return recursivePut(dbtx, key, valHash, next, level+1, nodeMap, toDelete)
 		}
 	}
 	// Put the updated node to the database.
@@ -579,7 +578,7 @@ func recursivePut(dbtx datastore.Txn, key types.ID, valHash types.ID, n *Node, l
 		}
 	}
 	for id := range toDelete {
-		if err := deleteNode(dbtx, id); err != nil {
+		if err := deleteNode(dbtx, id.Bytes()); err != nil {
 			return err
 		}
 	}
@@ -593,14 +592,14 @@ func recursiveDelete(dbtx datastore.Txn, key types.ID, value []byte, n *Node, le
 		return err
 	}
 
-	toDelete[n.Hash()] = struct{}{}
+	toDelete[types.NewID(n.Hash())] = struct{}{}
 
 	if bit == 0 { // zero
-		if isNil(n.left) {
+		if n.left.IsNil() {
 			return nil
 		}
-		if n.left.Compare(types.NewIDFromData(value)) == 0 {
-			n.left = types.NewID(nil)
+		if n.left.IsData() && bytes.Equal(n.left.Key(), key.Bytes()) {
+			n.left = NewHashVal()
 		} else {
 			next, err := fetchNode(dbtx, n.left)
 			if err != nil {
@@ -613,11 +612,11 @@ func recursiveDelete(dbtx datastore.Txn, key types.ID, value []byte, n *Node, le
 			return recursiveDelete(dbtx, key, value, next, level+1, nodeMap, toDelete)
 		}
 	} else { // one
-		if isNil(n.right) {
+		if n.right.IsNil() {
 			return nil
 		}
-		if n.right.Compare(types.NewIDFromData(value)) == 0 {
-			n.right = types.NewID(nil)
+		if n.right.IsData() && bytes.Equal(n.right.Key(), key.Bytes()) {
+			n.right = NewHashVal()
 		} else {
 			next, err := fetchNode(dbtx, n.right)
 			if err != nil {
@@ -645,27 +644,24 @@ func recursiveDelete(dbtx datastore.Txn, key types.ID, value []byte, n *Node, le
 		if err := deleteNode(dbtx, prev.node.Hash()); err != nil {
 			return err
 		}
-		childIsLeaf, leafID, err := isLeaf(dbtx, nodeMap[i+1].node)
-		if err != nil {
-			return err
-		}
+		childIsLeaf, leafID := isLeaf(nodeMap[i+1].node)
 		if prev.left {
 			h := nodeMap[i+1].node.Hash()
-			if isNil(h) {
-				prev.node.left = types.NewID(nil)
+			if h.IsNil() {
+				prev.node.left = NewHashVal()
 			} else if childIsLeaf {
 				prev.node.left = leafID
-				toDelete[nodeMap[i+1].node.Hash()] = struct{}{}
+				toDelete[types.NewID(nodeMap[i+1].node.Hash())] = struct{}{}
 			} else {
 				prev.node.left = h
 			}
 		} else {
 			h := nodeMap[i+1].node.Hash()
-			if isNil(h) {
-				prev.node.right = types.NewID(nil)
+			if h.IsNil() {
+				prev.node.right = NewHashVal()
 			} else if childIsLeaf {
 				prev.node.right = leafID
-				toDelete[nodeMap[i+1].node.Hash()] = struct{}{}
+				toDelete[types.NewID(nodeMap[i+1].node.Hash())] = struct{}{}
 			} else {
 				prev.node.right = h
 			}
@@ -675,7 +671,7 @@ func recursiveDelete(dbtx datastore.Txn, key types.ID, value []byte, n *Node, le
 		}
 	}
 	for id := range toDelete {
-		if err := deleteNode(dbtx, id); err != nil {
+		if err := deleteNode(dbtx, id.Bytes()); err != nil {
 			return err
 		}
 	}
@@ -687,25 +683,14 @@ type printNode struct {
 	path string
 }
 
-func isLeaf(dbtx datastore.Txn, n *Node) (isLeaf bool, id types.ID, err error) {
-	if isNil(n.left) && !isNil(n.right) {
-		_, err := getKey(dbtx, n.right)
-		if err == nil {
-			return true, n.right, nil
-		}
+func isLeaf(n *Node) (bool, HashVal) {
+	if n.left.IsNil() && n.right.IsData() {
+		return true, n.right
 	}
-	if isNil(n.right) && !isNil(n.left) {
-		_, err := getKey(dbtx, n.left)
-		if err == nil {
-			return true, n.left, nil
-		}
+	if n.right.IsNil() && n.left.IsData() {
+		return true, n.left
 	}
-	return false, types.ID{}, nil
-}
-
-func isNil(id types.ID) bool {
-	return id.Compare(types.NewID(nil)) == 0 ||
-		id.Compare(types.NewID(hash.HashMerkleBranches(types.NewID(nil).Bytes(), types.NewID(nil).Bytes()))) == 0
+	return false, nil
 }
 
 func getBit(slice []byte, pos int) (int, error) {

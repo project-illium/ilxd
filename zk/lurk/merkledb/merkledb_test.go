@@ -8,7 +8,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
-	"fmt"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +22,7 @@ func TestMerkleDB(t *testing.T) {
 	rand.Read(r)
 
 	m := make(map[types.ID][]byte)
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 1000; i++ {
 		iBytes := make([]byte, 4)
 		binary.BigEndian.PutUint32(iBytes, uint32(i))
 		key := sha256.Sum256(append(r, append([]byte{0x00}, iBytes...)...))
@@ -33,8 +32,6 @@ func TestMerkleDB(t *testing.T) {
 
 		err = db.Put(types.NewID(key[:]), value[:])
 		assert.NoErrorf(t, err, "%d", i)
-		db.print()
-		println("*********************")
 	}
 
 	root, err := db.Root()
@@ -58,12 +55,9 @@ func TestMerkleDB(t *testing.T) {
 		assert.True(t, valid)
 	}
 
-	for k, v := range m {
-		fmt.Println(types.NewIDFromData(v))
+	for k := range m {
 		err := db.Delete(k)
 		assert.NoError(t, err)
-
-		db.print()
 
 		_, _, err = db.Get(k)
 		assert.Error(t, err)
@@ -78,7 +72,6 @@ func TestMerkleDB(t *testing.T) {
 		valid, err := ValidateProof(k, nil, root, proof)
 		assert.NoError(t, err)
 		assert.True(t, valid)
-		break
 	}
 }
 
