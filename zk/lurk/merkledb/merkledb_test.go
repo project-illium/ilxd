@@ -152,23 +152,28 @@ func TestRootHashAfterDelete(t *testing.T) {
 		assert.NoErrorf(t, err, "%d", i)
 	}
 
-	root, err := db.Root()
-	assert.NoError(t, err)
-
 	rand.Read(r)
-	iBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(iBytes, uint32(11))
-	key := sha256.Sum256(append(r, append([]byte{0x00}, iBytes...)...))
-	value := sha256.Sum256(append(r, append([]byte{0x01}, iBytes...)...))
+	for i := 0; i < 50; i++ {
+		iBytes := make([]byte, 4)
+		binary.BigEndian.PutUint32(iBytes, uint32(i))
+		key := sha256.Sum256(append(r, append([]byte{0x00}, iBytes...)...))
+		value := sha256.Sum256(append(r, append([]byte{0x01}, iBytes...)...))
 
-	err = db.Put(types.NewID(key[:]), value[:])
-	assert.NoError(t, err)
+		m[types.NewID(key[:])] = value[:]
 
-	err = db.Delete(types.NewID(key[:]))
-	assert.NoError(t, err)
+		root, err := db.Root()
+		assert.NoError(t, err)
 
-	root2, err := db.Root()
-	assert.NoError(t, err)
+		err = db.Put(types.NewID(key[:]), value[:])
+		assert.NoErrorf(t, err, "%d", i)
 
-	assert.Equal(t, root, root2)
+		err = db.Delete(types.NewID(key[:]))
+		assert.NoError(t, err)
+
+		root2, err := db.Root()
+		assert.NoError(t, err)
+
+		assert.Equal(t, root, root2)
+	}
+
 }
