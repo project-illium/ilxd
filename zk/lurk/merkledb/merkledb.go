@@ -98,6 +98,7 @@ func (mdb *MerkleDB) Put(key types.ID, value []byte) error {
 	if err != nil {
 		return err
 	}
+	defer dbtx.Discard(context.Background())
 
 	val, err := getValue(dbtx, key)
 	if !errors.Is(err, datastore.ErrNotFound) && err != nil {
@@ -144,6 +145,8 @@ func (mdb *MerkleDB) Get(key types.ID) ([]byte, MerkleProof, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	defer dbtx.Discard(context.Background())
+
 	value, err := getValue(dbtx, key)
 	if err != nil {
 		return nil, nil, err
@@ -204,7 +207,7 @@ func (mdb *MerkleDB) Get(key types.ID) ([]byte, MerkleProof, error) {
 		}
 	}
 
-	return value, proof, nil
+	return value, proof, dbtx.Commit(context.Background())
 }
 
 // Exists returns whether the key exists in the database along with
@@ -218,6 +221,7 @@ func (mdb *MerkleDB) Exists(key types.ID) (bool, MerkleProof, error) {
 	if err != nil {
 		return false, nil, err
 	}
+	defer dbtx.Discard(context.Background())
 
 	var (
 		nodes  []*Node
@@ -245,11 +249,14 @@ func (mdb *MerkleDB) Exists(key types.ID) (bool, MerkleProof, error) {
 				exists = false
 				break
 			}
-			node, err = fetchNode(dbtx, node.left)
-			if errors.Is(err, datastore.ErrNotFound) {
+			_, err = getKey(dbtx, node.left)
+			if err == nil {
+				fmt.Println("Exists ", node.left)
 				exists = true
 				break
-			} else if err != nil {
+			}
+			node, err = fetchNode(dbtx, node.left)
+			if err != nil {
 				return false, nil, err
 			}
 		} else {
@@ -257,11 +264,14 @@ func (mdb *MerkleDB) Exists(key types.ID) (bool, MerkleProof, error) {
 				exists = false
 				break
 			}
-			node, err = fetchNode(dbtx, node.right)
-			if errors.Is(err, datastore.ErrNotFound) {
+			_, err = getKey(dbtx, node.right)
+			if err == nil {
+				fmt.Println("Exists ", node.right)
 				exists = true
 				break
-			} else if err != nil {
+			}
+			node, err = fetchNode(dbtx, node.right)
+			if err != nil {
 				return false, nil, err
 			}
 		}
@@ -280,7 +290,7 @@ func (mdb *MerkleDB) Exists(key types.ID) (bool, MerkleProof, error) {
 			proof[i] = n.left
 		}
 	}
-	return exists, proof, nil
+	return exists, proof, dbtx.Commit(context.Background())
 }
 
 // Delete removes a key/value pair from the database. In the tree
@@ -297,6 +307,7 @@ func (mdb *MerkleDB) Delete(key types.ID) error {
 	if err != nil {
 		return err
 	}
+	defer dbtx.Discard(context.Background())
 
 	val, err := getValue(dbtx, key)
 	if err != nil {
@@ -319,7 +330,9 @@ func (mdb *MerkleDB) Delete(key types.ID) error {
 	if err := deleteValue(dbtx, key); err != nil {
 		return err
 	}
-	if err := deleteKey(dbtx, types.NewIDFromData(val)); err != nil {
+	valHash := types.NewIDFromData(val)
+	fmt.Println("Delete valhash: ", valHash)
+	if err := deleteKey(dbtx, valHash); err != nil {
 		return err
 	}
 
@@ -376,6 +389,64 @@ func ValidateProof(key types.ID, value []byte, root types.ID, proof MerkleProof)
 		hashVal = node.Hash()
 	}
 	return hashVal.Compare(root) == 0, nil
+}
+
+func (mdb *MerkleDB) print() {
+	mdb.mtx.RLock()
+	defer mdb.mtx.RUnlock()
+
+	dbtx, err := mdb.ds.NewTransaction(context.Background(), false)
+	if err != nil {
+		return
+	}
+	defer dbtx.Discard(context.Background())
+
+	rootNode, err := fetchRoot(dbtx)
+	if err != nil {
+		return
+	}
+
+	printFunc := func(dbtx datastore.Txn, nodes []*printNode, level int) []*printNode {
+		var ret []*printNode
+		for _, n := range nodes {
+			lstr := n.left.String()
+			rstr := n.right.String()
+			left, err := fetchNode(dbtx, n.left)
+			if err == nil {
+				ret = append(ret, &printNode{
+					Node: *left,
+					path: n.path + "0",
+				})
+			} else if errors.Is(err, datastore.ErrNotFound) {
+				lstr = "*" + lstr
+			}
+			right, err := fetchNode(dbtx, n.right)
+			if err == nil {
+				ret = append(ret, &printNode{
+					Node: *right,
+					path: n.path + "1",
+				})
+			} else if errors.Is(err, datastore.ErrNotFound) {
+				rstr = "*" + rstr
+			}
+
+			fmt.Printf("Path: %s, Left: %s, Right: %s\n", n.path, lstr, rstr)
+		}
+		return ret
+	}
+
+	nodes := []*printNode{{
+		Node: *rootNode,
+		path: "",
+	}}
+	for i := 0; ; i++ {
+		nodes = printFunc(dbtx, nodes, i)
+		if len(nodes) == 0 {
+			break
+		}
+		fmt.Println()
+	}
+	dbtx.Commit(context.Background())
 }
 
 type nodeTracker struct {
@@ -574,10 +645,17 @@ func recursiveDelete(dbtx datastore.Txn, key types.ID, value []byte, n *Node, le
 		if err := deleteNode(dbtx, prev.node.Hash()); err != nil {
 			return err
 		}
+		childIsLeaf, leafID, err := isLeaf(dbtx, nodeMap[i+1].node)
+		if err != nil {
+			return err
+		}
 		if prev.left {
 			h := nodeMap[i+1].node.Hash()
 			if isNil(h) {
 				prev.node.left = types.NewID(nil)
+			} else if childIsLeaf {
+				prev.node.left = leafID
+				toDelete[nodeMap[i+1].node.Hash()] = struct{}{}
 			} else {
 				prev.node.left = h
 			}
@@ -585,6 +663,9 @@ func recursiveDelete(dbtx datastore.Txn, key types.ID, value []byte, n *Node, le
 			h := nodeMap[i+1].node.Hash()
 			if isNil(h) {
 				prev.node.right = types.NewID(nil)
+			} else if childIsLeaf {
+				prev.node.right = leafID
+				toDelete[nodeMap[i+1].node.Hash()] = struct{}{}
 			} else {
 				prev.node.right = h
 			}
@@ -599,6 +680,27 @@ func recursiveDelete(dbtx datastore.Txn, key types.ID, value []byte, n *Node, le
 		}
 	}
 	return nil
+}
+
+type printNode struct {
+	Node
+	path string
+}
+
+func isLeaf(dbtx datastore.Txn, n *Node) (isLeaf bool, id types.ID, err error) {
+	if isNil(n.left) && !isNil(n.right) {
+		_, err := getKey(dbtx, n.right)
+		if err == nil {
+			return true, n.right, nil
+		}
+	}
+	if isNil(n.right) && !isNil(n.left) {
+		_, err := getKey(dbtx, n.left)
+		if err == nil {
+			return true, n.left, nil
+		}
+	}
+	return false, types.ID{}, nil
 }
 
 func isNil(id types.ID) bool {
