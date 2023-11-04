@@ -315,10 +315,14 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	}
 
 	if b.prune && blk.Header.Height >= pruneDepth {
-		if err := dsDeleteBlockIDFromHeight(dbtx, blk.Header.Height-pruneDepth); err != nil {
+		blockID, err := dsFetchBlockIDFromHeightWithTx(dbtx, blk.Header.Height-pruneDepth)
+		if err != nil {
 			return err
 		}
 		if err := dsDeleteBlockIDFromHeight(dbtx, blk.Header.Height-pruneDepth); err != nil {
+			return err
+		}
+		if err := dsDeleteBlock(dbtx, blockID); err != nil {
 			return err
 		}
 	}

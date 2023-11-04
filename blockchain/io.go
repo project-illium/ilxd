@@ -264,6 +264,14 @@ func dsFetchBlockIDFromHeight(ds repo.Datastore, height uint32) (types.ID, error
 	return types.NewID(blockIDBytes), nil
 }
 
+func dsFetchBlockIDFromHeightWithTx(dbtx datastore.Txn, height uint32) (types.ID, error) {
+	blockIDBytes, err := dbtx.Get(context.Background(), datastore.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))))
+	if err != nil {
+		return types.ID{}, err
+	}
+	return types.NewID(blockIDBytes), nil
+}
+
 func dsDeleteBlockIDFromHeight(dbtx datastore.Txn, height uint32) error {
 	return dbtx.Delete(context.Background(), datastore.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))))
 }
