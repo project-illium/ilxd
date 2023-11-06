@@ -1141,6 +1141,11 @@ type WalletServiceClient interface {
 	//
 	// **Requires wallet to be unlocked**
 	SweepWallet(ctx context.Context, in *SweepWalletRequest, opts ...grpc.CallOption) (*SweepWalletResponse, error)
+	// SubscribeWalletTransactions subscribes to a stream of WalletTransactionsNotifications that return
+	// whenever a transaction belonging to the wallet finalizes.
+	SubscribeWalletTransactions(ctx context.Context, in *SubscribeWalletTransactionsRequest, opts ...grpc.CallOption) (WalletService_SubscribeWalletTransactionsClient, error)
+	// SubscribeWalletSyncNotifications streams notifications about the status of the wallet sync.
+	SubscribeWalletSyncNotifications(ctx context.Context, in *SubscribeWalletSyncNotificationsRequest, opts ...grpc.CallOption) (WalletService_SubscribeWalletSyncNotificationsClient, error)
 }
 
 type walletServiceClient struct {
@@ -1412,6 +1417,70 @@ func (c *walletServiceClient) SweepWallet(ctx context.Context, in *SweepWalletRe
 	return out, nil
 }
 
+func (c *walletServiceClient) SubscribeWalletTransactions(ctx context.Context, in *SubscribeWalletTransactionsRequest, opts ...grpc.CallOption) (WalletService_SubscribeWalletTransactionsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &WalletService_ServiceDesc.Streams[0], "/pb.WalletService/SubscribeWalletTransactions", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &walletServiceSubscribeWalletTransactionsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type WalletService_SubscribeWalletTransactionsClient interface {
+	Recv() (*WalletTransactionNotification, error)
+	grpc.ClientStream
+}
+
+type walletServiceSubscribeWalletTransactionsClient struct {
+	grpc.ClientStream
+}
+
+func (x *walletServiceSubscribeWalletTransactionsClient) Recv() (*WalletTransactionNotification, error) {
+	m := new(WalletTransactionNotification)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *walletServiceClient) SubscribeWalletSyncNotifications(ctx context.Context, in *SubscribeWalletSyncNotificationsRequest, opts ...grpc.CallOption) (WalletService_SubscribeWalletSyncNotificationsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &WalletService_ServiceDesc.Streams[1], "/pb.WalletService/SubscribeWalletSyncNotifications", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &walletServiceSubscribeWalletSyncNotificationsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type WalletService_SubscribeWalletSyncNotificationsClient interface {
+	Recv() (*WalletSyncNotification, error)
+	grpc.ClientStream
+}
+
+type walletServiceSubscribeWalletSyncNotificationsClient struct {
+	grpc.ClientStream
+}
+
+func (x *walletServiceSubscribeWalletSyncNotificationsClient) Recv() (*WalletSyncNotification, error) {
+	m := new(WalletSyncNotification)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // WalletServiceServer is the server API for WalletService service.
 // All implementations must embed UnimplementedWalletServiceServer
 // for forward compatibility
@@ -1510,6 +1579,11 @@ type WalletServiceServer interface {
 	//
 	// **Requires wallet to be unlocked**
 	SweepWallet(context.Context, *SweepWalletRequest) (*SweepWalletResponse, error)
+	// SubscribeWalletTransactions subscribes to a stream of WalletTransactionsNotifications that return
+	// whenever a transaction belonging to the wallet finalizes.
+	SubscribeWalletTransactions(*SubscribeWalletTransactionsRequest, WalletService_SubscribeWalletTransactionsServer) error
+	// SubscribeWalletSyncNotifications streams notifications about the status of the wallet sync.
+	SubscribeWalletSyncNotifications(*SubscribeWalletSyncNotificationsRequest, WalletService_SubscribeWalletSyncNotificationsServer) error
 	mustEmbedUnimplementedWalletServiceServer()
 }
 
@@ -1603,6 +1677,12 @@ func (UnimplementedWalletServiceServer) TimelockCoins(context.Context, *Timelock
 }
 func (UnimplementedWalletServiceServer) SweepWallet(context.Context, *SweepWalletRequest) (*SweepWalletResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SweepWallet not implemented")
+}
+func (UnimplementedWalletServiceServer) SubscribeWalletTransactions(*SubscribeWalletTransactionsRequest, WalletService_SubscribeWalletTransactionsServer) error {
+	return status.Errorf(codes.Unimplemented, "method SubscribeWalletTransactions not implemented")
+}
+func (UnimplementedWalletServiceServer) SubscribeWalletSyncNotifications(*SubscribeWalletSyncNotificationsRequest, WalletService_SubscribeWalletSyncNotificationsServer) error {
+	return status.Errorf(codes.Unimplemented, "method SubscribeWalletSyncNotifications not implemented")
 }
 func (UnimplementedWalletServiceServer) mustEmbedUnimplementedWalletServiceServer() {}
 
@@ -2139,6 +2219,48 @@ func _WalletService_SweepWallet_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _WalletService_SubscribeWalletTransactions_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(SubscribeWalletTransactionsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(WalletServiceServer).SubscribeWalletTransactions(m, &walletServiceSubscribeWalletTransactionsServer{stream})
+}
+
+type WalletService_SubscribeWalletTransactionsServer interface {
+	Send(*WalletTransactionNotification) error
+	grpc.ServerStream
+}
+
+type walletServiceSubscribeWalletTransactionsServer struct {
+	grpc.ServerStream
+}
+
+func (x *walletServiceSubscribeWalletTransactionsServer) Send(m *WalletTransactionNotification) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _WalletService_SubscribeWalletSyncNotifications_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(SubscribeWalletSyncNotificationsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(WalletServiceServer).SubscribeWalletSyncNotifications(m, &walletServiceSubscribeWalletSyncNotificationsServer{stream})
+}
+
+type WalletService_SubscribeWalletSyncNotificationsServer interface {
+	Send(*WalletSyncNotification) error
+	grpc.ServerStream
+}
+
+type walletServiceSubscribeWalletSyncNotificationsServer struct {
+	grpc.ServerStream
+}
+
+func (x *walletServiceSubscribeWalletSyncNotificationsServer) Send(m *WalletSyncNotification) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // WalletService_ServiceDesc is the grpc.ServiceDesc for WalletService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2263,7 +2385,18 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _WalletService_SweepWallet_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "SubscribeWalletTransactions",
+			Handler:       _WalletService_SubscribeWalletTransactions_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "SubscribeWalletSyncNotifications",
+			Handler:       _WalletService_SubscribeWalletSyncNotifications_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "ilxrpc.proto",
 }
 

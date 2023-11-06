@@ -879,3 +879,52 @@ func (s *GrpcServer) SweepWallet(ctx context.Context, req *pb.SweepWalletRequest
 	}
 	return &pb.SweepWalletResponse{Transaction_ID: txid[:]}, nil
 }
+
+// SubscribeWalletTransactions subscribes to a stream of WalletTransactionsNotifications that return
+// whenever a transaction belonging to the wallet finalizes.
+func (s *GrpcServer) SubscribeWalletTransactions(req *pb.SubscribeWalletTransactionsRequest, stream pb.WalletService_SubscribeWalletTransactionsServer) error {
+	sub := s.wallet.SubscribeTransactions()
+	defer sub.Close()
+
+	for {
+		select {
+		case walletTx := <-sub.C:
+			if walletTx != nil {
+				err := stream.Send(&pb.WalletTransactionNotification{
+					Transaction: &pb.WalletTransaction{
+						Transaction_ID: walletTx.Txid.Bytes(),
+						NetCoins:       int64(walletTx.AmountIn) - int64(walletTx.AmountOut),
+					},
+				})
+				if err != nil {
+					return status.Error(codes.InvalidArgument, err.Error())
+				}
+			}
+		case <-stream.Context().Done():
+			return nil
+		}
+	}
+}
+
+// SubscribeWalletSyncNotifications streams notifications about the status of the wallet sync.
+func (s *GrpcServer) SubscribeWalletSyncNotifications(req *pb.SubscribeWalletSyncNotificationsRequest, stream pb.WalletService_SubscribeWalletSyncNotificationsServer) error {
+	sub := s.wallet.SubscribeSyncNotifications()
+	defer sub.Close()
+
+	for {
+		select {
+		case notif := <-sub.C:
+			if notif != nil {
+				err := stream.Send(&pb.WalletSyncNotification{
+					CurrentHeight: notif.CurrentBlock,
+					BestHeight:    notif.BestBlock,
+				})
+				if err != nil {
+					return status.Error(codes.InvalidArgument, err.Error())
+				}
+			}
+		case <-stream.Context().Done():
+			return nil
+		}
+	}
+}

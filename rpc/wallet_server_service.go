@@ -70,13 +70,15 @@ func (s *GrpcServer) SubscribeTransactions(req *pb.SubscribeTransactionsRequest,
 	for {
 		select {
 		case userTx := <-sub.C:
-			for _, key := range keys {
-				if key.Equals(userTx.ViewKey) {
-					err := stream.Send(&pb.TransactionNotification{
-						Transaction: userTx.Tx,
-					})
-					if err != nil {
-						return status.Error(codes.InvalidArgument, err.Error())
+			if userTx != nil {
+				for _, key := range keys {
+					if key.Equals(userTx.ViewKey) {
+						err := stream.Send(&pb.TransactionNotification{
+							Transaction: userTx.Tx,
+						})
+						if err != nil {
+							return status.Error(codes.InvalidArgument, err.Error())
+						}
 					}
 				}
 			}
