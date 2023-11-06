@@ -905,3 +905,26 @@ func (s *GrpcServer) SubscribeWalletTransactions(req *pb.SubscribeWalletTransact
 		}
 	}
 }
+
+// SubscribeWalletSyncNotifications streams notifications about the status of the wallet sync.
+func (s *GrpcServer) SubscribeWalletSyncNotifications(req *pb.SubscribeWalletSyncNotificationsRequest, stream pb.WalletService_SubscribeWalletSyncNotificationsServer) error {
+	sub := s.wallet.SubscribeSyncNotifications()
+	defer sub.Close()
+
+	for {
+		select {
+		case notif := <-sub.C:
+			if notif != nil {
+				err := stream.Send(&pb.WalletSyncNotification{
+					CurrentHeight: notif.CurrentBlock,
+					BestHeight:    notif.BestBlock,
+				})
+				if err != nil {
+					return status.Error(codes.InvalidArgument, err.Error())
+				}
+			}
+		case <-stream.Context().Done():
+			return nil
+		}
+	}
+}
