@@ -37,9 +37,9 @@ func TestMessageSenderPool(t *testing.T) {
 	pool.Put(sender2)
 	pool.Put(sender3)
 	time.Sleep(gcInterval * 2)
+	assert.Len(t, pool.pool, 1)
 
 	// Acquire a new peerMessageSender and check that the old one was cleaned up
 	sender4 := pool.Get()
-	assert.True(t, sender1 != sender4)
-	assert.True(t, sender2 != sender4)
+	assert.True(t, sender4 == sender1 || sender4 == sender3)
 }
