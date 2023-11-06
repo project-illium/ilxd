@@ -901,16 +901,17 @@ func (s *Server) makeBlockchainClient(chain *blockchain.Blockchain) *client.Inte
 	c := &client.InternalClient{
 		BroadcastFunc:                s.submitTransaction,
 		GetAccumulatorCheckpointFunc: chain.GetAccumulatorCheckpointByHeight,
-		GetBlocksFunc: func(from, to uint32) ([]*blocks.Block, error) {
+		GetBlocksFunc: func(from, to uint32) ([]*blocks.Block, uint32, error) {
 			blocks := make([]*blocks.Block, 0, to-from+1)
 			for i := from; i <= to; i++ {
 				blk, err := chain.GetBlockByHeight(i)
 				if err != nil {
-					return nil, err
+					return nil, 0, err
 				}
 				blocks = append(blocks, blk)
 			}
-			return blocks, nil
+			_, bestHeight, _ := chain.BestBlock()
+			return blocks, bestHeight, nil
 		},
 		SubscribeBlocksFunc: func() (<-chan *blocks.Block, error) {
 			ch := make(chan *blocks.Block)
