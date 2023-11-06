@@ -218,6 +218,10 @@ service WalletService {
     //
     // **Requires wallet to be unlocked**
     rpc SweepWallet(SweepWalletRequest) returns (SweepWalletResponse) {}
+
+    // SubscribeWalletTransactions subscribes to a stream of WalletTransactionsNotifications that return
+    // whenever a transaction belonging to the wallet finalizes.
+    rpc SubscribeWalletTransactions(SubscribeWalletTransactionsRequest) returns (stream WalletTransactionNotification) {}
 }
 
 service NodeService {
@@ -560,7 +564,7 @@ message GetWalletTransactionsRequest{
 }
 message GetWalletTransactionsResponse {
     // The height of the chain as of this query
-    uint32 chain_height               = 1;
+    uint32 chain_height                     = 1;
     // A list of transactions as the response
     repeated Transaction transactions = 2;
 }
@@ -910,6 +914,8 @@ message SweepWalletResponse {
     bytes transaction_ID = 1;
 }
 
+message SubscribeWalletTransactionsRequest {}
+
 // NodeService
 message GetHostInfoRequest {}
 message GetHostInfoResponse {
@@ -1041,6 +1047,12 @@ message TransactionNotification {
     // The transaction in this notification has finalized and
     // been added to the blockchain.
     Transaction transaction = 1;
+}
+
+message WalletTransactionNotification {
+    // The transaction in this notification has finalized and
+    // been added to the blockchain.
+    WalletTransaction transaction = 1;
 }
 
 message BlockNotification {
