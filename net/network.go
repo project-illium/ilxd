@@ -372,6 +372,8 @@ loop:
 			// Rule errors do
 			log.Debugf("Block %s rule error: %s:%s", blk.ID(), e.ErrorCode, e.Description)
 			return pubsub.ValidationReject
+		case blockchain.NotCurrentError:
+			return pubsub.ValidationIgnore
 		case nil:
 			return pubsub.ValidationAccept
 		default:

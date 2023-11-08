@@ -15,6 +15,7 @@ import (
 	"github.com/project-illium/ilxd/types/transactions"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io"
 	"time"
 )
 
@@ -76,7 +77,9 @@ func (s *GrpcServer) SubscribeTransactions(req *pb.SubscribeTransactionsRequest,
 						err := stream.Send(&pb.TransactionNotification{
 							Transaction: userTx.Tx,
 						})
-						if err != nil {
+						if err == io.EOF {
+							return nil
+						} else if err != nil {
 							return status.Error(codes.InvalidArgument, err.Error())
 						}
 					}

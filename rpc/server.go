@@ -165,6 +165,11 @@ func (s *GrpcServer) subscribeEvents() *subscription {
 	go func(sb *subscription, id types.ID) {
 		<-sb.quit
 		s.subMtx.Lock()
+		go func() {
+			for range sub.C {
+			}
+		}()
+		close(sub.C)
 		delete(s.subs, id)
 		s.subMtx.Unlock()
 	}(sub, types.NewID(b))

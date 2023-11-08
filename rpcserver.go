@@ -31,7 +31,7 @@ func newGrpcServer(cfgOpts repo.RPCOptions, rpcCfg *rpc.GrpcServerConfig) (*rpc.
 	if err != nil {
 		return nil, err
 	}
-	opts = append(opts, grpc.Creds(creds))
+	opts = append(opts, grpc.Creds(creds), grpc.MaxSendMsgSize(1000000))
 	server := grpc.NewServer(opts...)
 
 	allowAllOrigins := grpcweb.WithOriginFunc(func(origin string) bool {

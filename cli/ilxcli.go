@@ -177,7 +177,7 @@ func makeBlockchainClient(opts *options) (pb.BlockchainServiceClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn, err := grpc.Dial(netAddr.String(), grpc.WithTransportCredentials(creds))
+	conn, err := grpc.Dial(netAddr.String(), grpc.WithTransportCredentials(creds), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1000000)))
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ func makeNodeClient(opts *options) (pb.NodeServiceClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn, err := grpc.Dial(netAddr.String(), grpc.WithTransportCredentials(creds))
+	conn, err := grpc.Dial(netAddr.String(), grpc.WithTransportCredentials(creds), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1000000)))
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +239,7 @@ func makeWalletClient(opts *options) (pb.WalletServiceClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn, err := grpc.Dial(netAddr.String(), grpc.WithTransportCredentials(creds))
+	conn, err := grpc.Dial(netAddr.String(), grpc.WithTransportCredentials(creds), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1000000)))
 	if err != nil {
 		return nil, err
 	}

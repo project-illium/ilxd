@@ -186,11 +186,11 @@ func (cs *ChainService) handleGetBlockTxs(req *wire.GetBlockTxsReq) (*wire.MsgBl
 		Transactions: make([]*transactions.Transaction, len(req.TxIndexes)),
 	}
 
-	for _, idx := range req.TxIndexes {
+	for i, idx := range req.TxIndexes {
 		if idx > uint32(len(blk.Transactions))-1 {
 			return &wire.MsgBlockTxsResp{Error: wire.ErrorResponse_BadRequest}, nil
 		}
-		resp.Transactions[idx] = blk.Transactions[idx]
+		resp.Transactions[i] = blk.Transactions[idx]
 	}
 
 	return resp, nil

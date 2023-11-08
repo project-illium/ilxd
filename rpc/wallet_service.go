@@ -22,6 +22,7 @@ import (
 	"github.com/project-illium/walletlib"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io"
 	"time"
 
 	pb "github.com/project-illium/ilxd/rpc/pb"
@@ -830,7 +831,6 @@ func (s *GrpcServer) Spend(ctx context.Context, req *pb.SpendRequest) (*pb.Spend
 	for _, c := range req.InputCommitments {
 		commitments = append(commitments, types.NewID(c))
 	}
-
 	addr, err := walletlib.DecodeAddress(req.ToAddress, s.chainParams)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -896,7 +896,9 @@ func (s *GrpcServer) SubscribeWalletTransactions(req *pb.SubscribeWalletTransact
 						NetCoins:       int64(walletTx.AmountIn) - int64(walletTx.AmountOut),
 					},
 				})
-				if err != nil {
+				if err == io.EOF {
+					return nil
+				} else if err != nil {
 					return status.Error(codes.InvalidArgument, err.Error())
 				}
 			}
@@ -919,7 +921,9 @@ func (s *GrpcServer) SubscribeWalletSyncNotifications(req *pb.SubscribeWalletSyn
 					CurrentHeight: notif.CurrentBlock,
 					BestHeight:    notif.BestBlock,
 				})
-				if err != nil {
+				if err == io.EOF {
+					return nil
+				} else if err != nil {
 					return status.Error(codes.InvalidArgument, err.Error())
 				}
 			}

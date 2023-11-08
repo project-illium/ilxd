@@ -562,6 +562,11 @@ func (idx *WalletServerIndex) Subscribe() *Subscription {
 	}
 	sub.Close = func() {
 		idx.subMtx.Lock()
+		go func() {
+			for range sub.C {
+			}
+		}()
+		close(sub.C)
 		delete(idx.subs, sub.id)
 		idx.subMtx.Unlock()
 	}

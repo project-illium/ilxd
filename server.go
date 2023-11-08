@@ -473,7 +473,7 @@ func (s *Server) handleIncomingBlock(xThinnerBlk *blocks.XThinnerBlock, p peer.I
 	_, height, _ := s.blockchain.BestBlock()
 
 	if !s.syncManager.IsCurrent() && xThinnerBlk.Header.Height != height+1 {
-		return errors.New("not current")
+		return blockchain.NotCurrentError("chain not current")
 	}
 
 	// Try to decode the block. This should succeed most of the time unless
@@ -545,6 +545,7 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 			}
 		}
 	case blockchain.NTNewEpoch:
+		log.Info("New blockchain epoch")
 		validator, err := s.blockchain.GetValidator(s.network.Host().ID())
 		if err == nil && validator.UnclaimedCoins > 0 {
 			tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.coinbaseAddr, s.networkKey)
@@ -701,7 +702,8 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 				if orphan.blk.Header.Height == blk.Header.Height {
 					delete(s.orphanBlocks, orphan.blk.ID())
 				} else if orphan.blk.Header.Height == blk.Header.Height+1 {
-					s.processBlock(orphan.blk, orphan.relayingPeer, false)
+					log.Debugf("Re-procssing orphan at height %d: %s", orphan.blk.Header.Height, orphan.blk.ID())
+					go s.processBlock(orphan.blk, orphan.relayingPeer, false)
 					break
 				} else if time.Since(orphan.firstSeen) > maxOrphanDuration {
 					delete(s.orphanBlocks, orphan.blk.ID())
