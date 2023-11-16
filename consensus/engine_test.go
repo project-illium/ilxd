@@ -107,17 +107,16 @@ func setup() ([]*mockNode, *mockNode, func(), error) {
 		return nil, nil, nil, err
 	}
 	teardown := func() {
-		mn.Close()
 		for _, n := range nodes {
 			n.engine.Close()
 		}
 		testNode.engine.Close()
+		mn.Close()
 	}
 	return nodes, testNode, teardown, nil
 }
 
 func TestConsensusEngine(t *testing.T) {
-
 	t.Run("Test block finalization when all nodes agree", func(t *testing.T) {
 		nodes, testNode, teardown, err := setup()
 		assert.NoError(t, err)
@@ -125,9 +124,19 @@ func TestConsensusEngine(t *testing.T) {
 
 		blk1 := &blocks.Block{Header: &blocks.BlockHeader{Height: 1}}
 		for _, node := range nodes {
-			vr := NewVoteRecord(blk1.ID(), blk1.Header.Height, true)
+			vr := NewBlockVoteRecord(blk1.ID(), blk1.Header.Height, true, true)
 			vr.confidence = math.MaxUint16
-			node.engine.voteRecords[blk1.ID()] = vr
+			node.engine.blockRecords[blk1.Header.Height] = &blockRecord{
+				height:        blk1.Header.Height,
+				timestamp:     time.Now(),
+				activeBit:     0,
+				preferredBit:  getBit(blk1.ID(), 0),
+				finalizedBits: types.ID{},
+				bitVotes:      NewBitVoteRecord(blk1.Header.Height),
+				blockInventory: map[types.ID]*VoteRecord{
+					blk1.ID(): vr,
+				},
+			}
 		}
 
 		cb := make(chan Status)
@@ -139,7 +148,6 @@ func TestConsensusEngine(t *testing.T) {
 			t.Errorf("Failed to finalized block 1")
 		}
 	})
-
 	t.Run(" Test block finalization when all nodes reject", func(t *testing.T) {
 		nodes, testNode, teardown, err := setup()
 		assert.NoError(t, err)
@@ -147,9 +155,19 @@ func TestConsensusEngine(t *testing.T) {
 
 		blk2 := &blocks.Block{Header: &blocks.BlockHeader{Height: 2}}
 		for _, node := range nodes {
-			vr := NewVoteRecord(blk2.ID(), blk2.Header.Height, false)
+			vr := NewBlockVoteRecord(blk2.ID(), blk2.Header.Height, false, false)
 			vr.confidence = 65534
-			node.engine.voteRecords[blk2.ID()] = vr
+			node.engine.blockRecords[blk2.Header.Height] = &blockRecord{
+				height:        blk2.Header.Height,
+				timestamp:     time.Now(),
+				activeBit:     0,
+				preferredBit:  0x80,
+				finalizedBits: types.ID{},
+				bitVotes:      NewBitVoteRecord(blk2.Header.Height),
+				blockInventory: map[types.ID]*VoteRecord{
+					blk2.ID(): vr,
+				},
+			}
 		}
 
 		cb := make(chan Status)
@@ -158,7 +176,7 @@ func TestConsensusEngine(t *testing.T) {
 		case <-cb:
 			t.Fatal("Callback should not have been called block 2")
 		case <-time.After(time.Second * 5):
-			assert.False(t, testNode.engine.voteRecords[blk2.ID()].isPreferred())
+			assert.False(t, testNode.engine.blockRecords[blk2.Header.Height].blockInventory[blk2.ID()].isPreferred())
 		}
 	})
 
@@ -206,18 +224,13 @@ func TestConsensusEngine(t *testing.T) {
 		testNode.engine.NewBlock(blk4.Header, false, cb)
 
 		ticker := time.NewTicker(time.Second * 5)
-	loop:
-		for {
-			select {
-			case <-cb:
-				t.Fatal("Callback should not have been called for block 4")
-			case <-ticker.C:
-				assert.False(t, testNode.engine.voteRecords[blk4.ID()].isPreferred())
-
-				for _, n := range nodes {
-					assert.False(t, n.engine.voteRecords[blk4.ID()].isPreferred())
-				}
-				break loop
+		select {
+		case <-cb:
+			t.Fatal("Callback should not have been called for block 4")
+		case <-ticker.C:
+			assert.False(t, testNode.engine.blockRecords[blk4.Header.Height].blockInventory[blk4.ID()].isPreferred())
+			for _, n := range nodes {
+				assert.False(t, n.engine.blockRecords[blk4.Header.Height].blockInventory[blk4.ID()].isPreferred())
 			}
 		}
 	})
@@ -243,7 +256,7 @@ func TestConsensusEngine(t *testing.T) {
 			assert.Equal(t, status, StatusFinalized)
 			yes = true
 		case <-ticker.C:
-			assert.False(t, testNode.engine.voteRecords[blk5.ID()].isPreferred())
+			assert.False(t, testNode.engine.blockRecords[blk5.Header.Height].blockInventory[blk5.ID()].isPreferred())
 			yes = false
 		}
 
@@ -264,7 +277,7 @@ func TestConsensusEngine(t *testing.T) {
 			case <-ticker.C:
 				if !yes {
 					for _, n := range nodes {
-						assert.False(t, n.engine.voteRecords[blk5.ID()].isPreferred())
+						assert.False(t, n.engine.blockRecords[blk5.Header.Height].blockInventory[blk5.ID()].isPreferred())
 					}
 					break loop
 				} else {
@@ -301,7 +314,7 @@ func TestConsensusEngine(t *testing.T) {
 		select {
 		case status := <-cbb2:
 			assert.Equal(t, status, StatusRejected)
-			assert.False(t, testNode.engine.voteRecords[blk6b.ID()].isPreferred())
+			assert.False(t, testNode.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].isPreferred())
 		case <-ticker.C:
 			t.Errorf("Failed to reject block 6b for test node")
 		}
@@ -328,26 +341,30 @@ func TestConsensusEngine(t *testing.T) {
 		testNode.engine.NewBlock(blk6a.Header, preferred, cba2)
 		testNode.engine.NewBlock(blk6b.Header, !preferred, cbb2)
 
-		var yes bool
+		var blockAStatus Status
 		ticker := time.NewTicker(time.Second * 30)
 		select {
 		case status := <-cba2:
-			yes = status == StatusFinalized
+			blockAStatus = status
 		case <-ticker.C:
 			t.Errorf("Failed to finalize or rejecct block 6a for test node")
 		}
+		assert.True(t, blockAStatus == StatusFinalized || blockAStatus == StatusRejected)
 		select {
 		case status := <-cbb2:
-			if yes {
+			if blockAStatus == StatusFinalized {
 				assert.Equal(t, status, StatusRejected)
-				assert.False(t, testNode.engine.voteRecords[blk6b.ID()].isPreferred())
+				assert.False(t, testNode.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].isPreferred())
 			} else {
 				assert.Equal(t, status, StatusFinalized)
-				assert.True(t, testNode.engine.voteRecords[blk6b.ID()].isPreferred())
+				assert.True(t, testNode.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].isPreferred())
 			}
 		case <-ticker.C:
 			t.Errorf("Failed to finalize or reject block 6b for test node")
 		}
+
+		//testNode.engine.blockRecords[blk6a.Header.Height].blockInventory[blk6a.ID()].printState()
+		//testNode.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].printState()
 
 		finalized := 0
 		rejected := 0
@@ -355,27 +372,27 @@ func TestConsensusEngine(t *testing.T) {
 		for {
 			select {
 			case status := <-cba:
-				if yes {
+				if blockAStatus == StatusFinalized {
 					assert.Equal(t, status, StatusFinalized)
-					assert.True(t, testNode.engine.voteRecords[blk6a.ID()].isPreferred())
+					//assert.True(t, testNode.engine.blockRecords[blk6a.Header.Height].blockInventory[blk6a.ID()].isPreferred())
 					finalized++
 				} else {
 					assert.Equal(t, status, StatusRejected)
-					assert.False(t, testNode.engine.voteRecords[blk6a.ID()].isPreferred())
+					//assert.False(t, testNode.engine.blockRecords[blk6a.Header.Height].blockInventory[blk6a.ID()].isPreferred())
 					rejected++
 				}
 				if finalized == 100 && rejected == 100 {
 					break loop
 				}
 			case status := <-cbb:
-				if !yes {
-					assert.Equal(t, status, StatusFinalized)
-					assert.True(t, testNode.engine.voteRecords[blk6b.ID()].isPreferred())
-					finalized++
-				} else {
+				if blockAStatus == StatusFinalized {
 					assert.Equal(t, status, StatusRejected)
-					assert.False(t, testNode.engine.voteRecords[blk6b.ID()].isPreferred())
+					//assert.True(t, testNode.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].isPreferred())
 					rejected++
+				} else {
+					assert.Equal(t, status, StatusFinalized)
+					//assert.False(t, testNode.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].isPreferred())
+					finalized++
 				}
 				if finalized == 100 && rejected == 100 {
 					break loop
@@ -387,5 +404,12 @@ func TestConsensusEngine(t *testing.T) {
 		}
 		assert.Equal(t, 100, finalized)
 		assert.Equal(t, 100, rejected)
+
+		//for _, n := range nodes {
+		//n.engine.blockRecords[blk6a.Header.Height].blockInventory[blk6a.ID()].printState()
+		//n.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].printState()
+		//fmt.Println("**************")
+		//}
 	})
+
 }

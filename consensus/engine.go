@@ -60,6 +60,25 @@ const (
 	MinConnectedStakeThreshold = .5
 )
 
+type blockRecord struct {
+	height         uint32
+	activeBit      uint8
+	preferredBit   uint8
+	timestamp      time.Time
+	finalizedBits  types.ID
+	bitVotes       *VoteRecord
+	blockInventory map[types.ID]*VoteRecord
+}
+
+func (br *blockRecord) HasFinalized() bool {
+	for _, vr := range br.blockInventory {
+		if vr.hasFinalized() {
+			return true
+		}
+	}
+	return false
+}
+
 // requestExpirationMsg signifies a request has expired and
 // should be removed from the map.
 type requestExpirationMsg struct {
@@ -76,9 +95,9 @@ type queryMsg struct {
 
 // newBlockMessage represents new work for the engine.
 type newBlockMessage struct {
-	header                      *blocks.BlockHeader
-	initialAcceptancePreference bool
-	callback                    chan<- Status
+	header       *blocks.BlockHeader
+	isAcceptable bool
+	callback     chan<- Status
 }
 
 // registerVotesMsg signifies a response to a query from another peer.
@@ -113,7 +132,7 @@ type ConsensusEngine struct {
 	quit         chan struct{}
 	msgChan      chan interface{}
 
-	voteRecords    map[types.ID]*VoteRecord
+	blockRecords   map[uint32]*blockRecord
 	conflicts      map[uint32][]types.ID
 	rejectedBlocks map[types.ID]struct{}
 	queries        map[string]RequestRecord
@@ -146,7 +165,7 @@ func NewConsensusEngine(ctx context.Context, opts ...Option) (*ConsensusEngine, 
 		hasBlock:       cfg.hasBlock,
 		quit:           make(chan struct{}),
 		msgChan:        make(chan interface{}),
-		voteRecords:    make(map[types.ID]*VoteRecord),
+		blockRecords:   make(map[uint32]*blockRecord),
 		rejectedBlocks: make(map[types.ID]struct{}),
 		conflicts:      make(map[uint32][]types.ID),
 		queries:        make(map[string]RequestRecord),
@@ -176,7 +195,7 @@ out:
 			case *queryMsg:
 				eng.handleQuery(msg.request, msg.remotePeer, msg.respChan)
 			case *newBlockMessage:
-				eng.handleNewBlock(msg.header, msg.initialAcceptancePreference, msg.callback)
+				eng.handleNewBlock(msg.header, msg.isAcceptable, msg.callback)
 			case *registerVotesMsg:
 				eng.handleRegisterVotes(msg.p, msg.resp)
 			}
@@ -194,45 +213,59 @@ out:
 // status (either Finalized or Rejected). Unfinalized but NotPreffered blocks will remain active
 // in the engine until a conflicting block at the same height is finalized. At that point the block
 // will be marked as Rejected.
-func (eng *ConsensusEngine) NewBlock(header *blocks.BlockHeader, initialAcceptancePreference bool, callback chan<- Status) {
+func (eng *ConsensusEngine) NewBlock(header *blocks.BlockHeader, isAcceptable bool, callback chan<- Status) {
 	eng.msgChan <- &newBlockMessage{
-		header:                      header,
-		initialAcceptancePreference: initialAcceptancePreference,
-		callback:                    callback,
+		header:       header,
+		isAcceptable: isAcceptable,
+		callback:     callback,
 	}
 }
 
-func (eng *ConsensusEngine) handleNewBlock(header *blocks.BlockHeader, initialAcceptancePreference bool, callback chan<- Status) {
+func (eng *ConsensusEngine) handleNewBlock(header *blocks.BlockHeader, isAcceptable bool, callback chan<- Status) {
 	blockID := header.ID().Clone()
-	_, ok := eng.voteRecords[blockID]
+	_, ok := eng.rejectedBlocks[blockID]
 	if ok {
 		return
 	}
-	_, ok = eng.rejectedBlocks[blockID]
-	if ok {
-		return
-	}
-	_, ok = eng.conflicts[header.Height]
+
+	record, ok := eng.blockRecords[header.Height]
 	if !ok {
-		eng.conflicts[header.Height] = make([]types.ID, 0, 1)
+		record = &blockRecord{
+			timestamp:      time.Now(),
+			height:         header.Height,
+			activeBit:      0,
+			preferredBit:   0x80,
+			finalizedBits:  types.ID{},
+			bitVotes:       NewBitVoteRecord(header.Height),
+			blockInventory: make(map[types.ID]*VoteRecord),
+		}
+		eng.blockRecords[header.Height] = record
 	}
+
+	initialPreference := isAcceptable
 	// If we already have a preferred block at this height set the initial
 	// preference to false.
-	for _, conflict := range eng.conflicts[header.Height] {
-		if conflict != header.ID() {
-			record, ok := eng.voteRecords[conflict]
-			if ok {
-				if record.isPreferred() {
-					initialAcceptancePreference = false
-				}
-				log.Debugf("[CONSENSUS] Conflicting blocks at height %d: %s, %s", record.height, record.blockID, header.ID())
-			}
+	for invID, voteRecord := range record.blockInventory {
+		if blockID == invID {
+			return
 		}
+		if voteRecord.isPreferred() {
+			initialPreference = false
+		}
+		log.Debugf("[CONSENSUS] Conflicting blocks at height %d: %s, %s", record.height, invID, header.ID())
 	}
-	eng.conflicts[header.Height] = append(eng.conflicts[header.Height], blockID)
 
-	vr := NewVoteRecord(blockID, header.Height, initialAcceptancePreference)
-	eng.voteRecords[blockID] = vr
+	if record.activeBit > 0 && !compareBits(record.finalizedBits, blockID, record.activeBit-1) {
+		initialPreference = false
+		log.Debugf("[CONSENSUS] received new block with rejected starting bits: %s", blockID)
+	}
+
+	if initialPreference {
+		record.preferredBit = getBit(blockID, record.activeBit)
+	}
+
+	vr := NewBlockVoteRecord(blockID, header.Height, isAcceptable, initialPreference)
+	record.blockInventory[blockID] = vr
 
 	eng.callbacks[blockID] = callback
 }
@@ -298,39 +331,59 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 }
 
 func (eng *ConsensusEngine) handleQuery(req *wire.MsgAvaRequest, remotePeer peer.ID, respChan chan *wire.MsgAvaResponse) {
-	votes := make([]byte, len(req.Invs))
 	if len(req.Invs) == 0 {
 		log.Debugf("Received empty avalanche request from peer %s", remotePeer)
 		eng.network.IncreaseBanscore(remotePeer, 30, 0)
 		return
 	}
+	resp := &wire.MsgAvaResponse{
+		Request_ID: req.Request_ID,
+		BitVote:    nil,
+		BlockVotes: make([]byte, len(req.Invs)),
+	}
+	blkrec, blockRecExists := eng.blockRecords[req.Height]
+	if !blockRecExists {
+		resp.BitVote = []byte{0x80}
+	} else {
+		if req.Bit == uint32(blkrec.activeBit) {
+			resp.BitVote = []byte{blkrec.preferredBit}
+		} else if req.Bit > uint32(blkrec.activeBit) {
+			resp.BitVote = []byte{0x80}
+		} else if req.Bit < uint32(blkrec.activeBit) {
+			bit := getBit(blkrec.finalizedBits, uint8(req.Bit))
+			resp.BitVote = []byte{bit}
+		}
+	}
+
 	for i, invBytes := range req.Invs {
 		inv := types.NewID(invBytes)
 
 		if _, exists := eng.rejectedBlocks[inv]; exists {
-			votes[i] = 0x00 // No vote
+			resp.BlockVotes[i] = 0x00 // No vote
 			continue
 		}
-		record, ok := eng.voteRecords[inv]
+		var (
+			record *VoteRecord
+			ok     bool
+		)
+		if blockRecExists {
+			record, ok = blkrec.blockInventory[inv]
+		}
 		if ok {
 			// We're only going to vote for items we have a record for.
-			votes[i] = 0x00 // No vote
+			resp.BlockVotes[i] = 0x00 // No vote
 			if record.isPreferred() {
-				votes[i] = 0x01 // Yes vote
+				resp.BlockVotes[i] = 0x01 // Yes vote
 			}
 		} else {
 			if eng.hasBlock(inv) {
-				votes[i] = 0x01
+				resp.BlockVotes[i] = 0x01
 			} else {
-				votes[i] = 0x80 // Neutral vote
+				resp.BlockVotes[i] = 0x80 // Neutral vote
 				// Request to download the block from the remote peer
 				go eng.requestBlock(inv, remotePeer)
 			}
 		}
-	}
-	resp := &wire.MsgAvaResponse{
-		Request_ID: req.Request_ID,
-		Votes:      votes,
 	}
 
 	respChan <- resp
@@ -343,12 +396,14 @@ func (eng *ConsensusEngine) handleRequestExpiration(key string, p peer.ID) {
 		return
 	}
 	delete(eng.queries, key)
-
 	invs := r.GetInvs()
 	for inv := range invs {
-		vr, ok := eng.voteRecords[inv]
+		br, ok := eng.blockRecords[r.height]
 		if ok {
-			vr.inflightRequests--
+			vr, ok := br.blockInventory[inv]
+			if ok {
+				vr.inflightRequests--
+			}
 		}
 	}
 }
@@ -405,16 +460,31 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 	}
 
 	invs := r.GetInvs()
-	if len(resp.Votes) != len(invs) {
-		log.Debugf("Received avalanche response from peer %s with incorrect number of votes", p)
+	if len(resp.BlockVotes) != len(invs) {
+		log.Debugf("Received avalanche response from peer %s with incorrect number of block votes", p)
 		eng.network.IncreaseBanscore(p, 30, 0)
 		return
 	}
 
-	i := -1
+	if len(resp.BitVote) != 1 {
+		log.Debugf("Received avalanche response from peer %s with incorrect number of bit votes", p)
+		eng.network.IncreaseBanscore(p, 30, 0)
+		return
+	}
+
+	br, ok := eng.blockRecords[r.height]
+	if !ok {
+		return
+	}
+
+	var (
+		i          = -1
+		bitFlipped = false
+	)
+
 	for inv := range invs {
 		i++
-		vr, ok := eng.voteRecords[inv]
+		vr, ok := br.blockInventory[inv]
 		if !ok {
 			// We are not voting on this anymore
 			continue
@@ -424,18 +494,25 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 			continue
 		}
 
-		if !vr.regsiterVote(resp.Votes[i]) {
+		if !vr.regsiterVote(resp.BlockVotes[i]) {
 			// This vote did not provide any extra information
 			continue
 		}
 
 		if vr.isPreferred() {
+			bit := getBit(vr.blockID, br.activeBit)
+			if bit != br.preferredBit {
+				bitFlipped = true
+				br.preferredBit = bit
+				br.bitVotes.Reset(bit == 1)
+			}
+
 			// We need to keep track of conflicting blocks
 			// when this one becomes accepted we need to set the
 			// confidence of the conflicts back to zero.
-			for _, conflict := range eng.conflicts[vr.height] {
+			for conflict, rec := range br.blockInventory {
 				if conflict != vr.blockID {
-					eng.voteRecords[conflict].Reset(false)
+					rec.Reset(false)
 				}
 			}
 		}
@@ -444,23 +521,59 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 			log.Debugf("[CONSENSUS] Block finalized in %d votes", vr.totalVotes)
 			callback, ok := eng.callbacks[inv]
 			if ok && callback != nil {
-				go func() {
-					callback <- vr.status()
-				}()
+				go func(cb chan<- Status, stat Status) {
+					cb <- vr.status()
+				}(callback, vr.status())
 			}
-			for _, conflict := range eng.conflicts[vr.height] {
-				conflictID := conflict.Clone()
-				if conflictID != vr.blockID {
-					eng.voteRecords[conflictID].Reject()
+			for conflict, rec := range br.blockInventory {
+				if conflict != vr.blockID {
+					rec.Reject()
 					eng.limitRejected()
-					eng.rejectedBlocks[conflictID] = struct{}{}
-					callback, ok := eng.callbacks[conflictID]
+					eng.rejectedBlocks[conflict] = struct{}{}
+					callback, ok := eng.callbacks[conflict]
 					if ok && callback != nil {
-						go func() {
-							callback <- eng.voteRecords[conflictID].status()
-						}()
+						go func(cb chan<- Status, stat Status) {
+							callback <- stat
+						}(callback, rec.status())
 					}
 				}
+			}
+		}
+	}
+
+	if !br.HasFinalized() && !bitFlipped {
+		if br.bitVotes.regsiterVote(resp.BitVote[0]) {
+			br.preferredBit = boolToUint8(br.bitVotes.isPreferred())
+
+			if br.bitVotes.status() == StatusFinalized {
+				var (
+					id              types.ID
+					preferredExists = false
+					newlyFlipped    = false
+					nextBit         = uint8(0x80)
+				)
+				for _, vr := range br.blockInventory {
+					if getBit(vr.blockID, br.activeBit) != br.preferredBit {
+						vr.Reset(false)
+					} else if vr.isPreferred() {
+						id = vr.blockID
+						preferredExists = true
+					} else if vr.acceptable {
+						id = vr.blockID
+						preferredExists = true
+						newlyFlipped = true
+					}
+				}
+				if preferredExists {
+					if newlyFlipped {
+						br.blockInventory[id].Reset(true)
+					}
+					nextBit = getBit(id, br.activeBit+1)
+				}
+
+				br.activeBit++
+				br.bitVotes.Reset(nextBit == 1)
+				br.preferredBit = nextBit
 			}
 		}
 	}
@@ -470,46 +583,59 @@ func (eng *ConsensusEngine) pollLoop() {
 	if eng.valConn.ConnectedStakePercentage() < MinConnectedStakeThreshold {
 		return
 	}
-	invs := eng.getInvsForNextPoll()
-	if len(invs) == 0 {
-		return
-	}
-
-	p := eng.chooser.WeightedRandomValidator()
-	if p == "" {
-		for _, inv := range invs {
-			eng.voteRecords[inv].inflightRequests--
+	for height, record := range eng.blockRecords {
+		if time.Since(record.timestamp) > DeleteInventoryAfter {
+			delete(eng.blockRecords, height)
+			continue
 		}
-		return
+		if record.HasFinalized() {
+			continue
+		}
+
+		invs := eng.getInvsForNextPoll(height)
+		if len(invs) == 0 {
+			return
+		}
+
+		p := eng.chooser.WeightedRandomValidator()
+		if p == "" {
+			for _, inv := range record.blockInventory {
+				inv.inflightRequests--
+			}
+			continue
+		}
+		requestID := rand.Uint32()
+
+		key := queryKey(requestID, p.String())
+		eng.queries[key] = NewRequestRecord(time.Now().Unix(), height, invs)
+
+		invList := make([][]byte, 0, len(invs))
+		for _, inv := range invs {
+			b := inv.Clone()
+			invList = append(invList, b[:])
+		}
+
+		req := &wire.MsgAvaRequest{
+			Request_ID: requestID,
+			Height:     height,
+			Bit:        uint32(record.activeBit),
+			Invs:       invList,
+		}
+
+		go eng.queueMessageToPeer(req, p)
 	}
-	requestID := rand.Uint32()
-
-	key := queryKey(requestID, p.String())
-	eng.queries[key] = NewRequestRecord(time.Now().Unix(), invs)
-
-	invList := make([][]byte, 0, len(invs))
-	for _, inv := range invs {
-		b := inv.Clone()
-		invList = append(invList, b[:])
-	}
-
-	req := &wire.MsgAvaRequest{
-		Request_ID: requestID,
-		Invs:       invList,
-	}
-
-	go eng.queueMessageToPeer(req, p)
 }
 
-func (eng *ConsensusEngine) getInvsForNextPoll() []types.ID {
-	var (
-		invs     []types.ID
-		toDelete []types.ID
-	)
-	for id, r := range eng.voteRecords {
+func (eng *ConsensusEngine) getInvsForNextPoll(height uint32) []types.ID {
+	var invs []types.ID
+	br, ok := eng.blockRecords[height]
+	if !ok {
+		return nil
+	}
+	for id, r := range br.blockInventory {
 		// Delete very old inventory that hasn't finalized
 		if time.Since(r.timestamp) > DeleteInventoryAfter {
-			toDelete = append(toDelete, id)
+			delete(br.blockInventory, id)
 			continue
 		}
 
@@ -542,10 +668,6 @@ func (eng *ConsensusEngine) getInvsForNextPoll() []types.ID {
 		invs = invs[:AvalancheMaxElementPoll]
 	}
 
-	for _, td := range toDelete {
-		delete(eng.voteRecords, td)
-	}
-
 	return invs
 }
 
@@ -560,4 +682,31 @@ func (eng *ConsensusEngine) limitRejected() {
 
 func queryKey(requestID uint32, peerID string) string {
 	return fmt.Sprintf("%d|%s", requestID, peerID)
+}
+
+func getBit(id types.ID, pos uint8) uint8 {
+	byteIndex := pos / 8
+	bitIndex := pos % 8
+
+	value := id[byteIndex]
+	bit := (value >> (7 - bitIndex)) & 1
+	return bit
+}
+
+func compareBits(a, b types.ID, x uint8) bool {
+	for i := uint8(0); i < x/8; i++ {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	// Check the remaining bits if x is not a multiple of 8
+	if x%8 != 0 {
+		mask := byte(255 << (8 - x%8)) // Create a mask for remaining bits
+		if (a[x/8] & mask) != (b[x/8] & mask) {
+			return false
+		}
+	}
+
+	return true
 }

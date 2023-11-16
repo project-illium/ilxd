@@ -49,6 +49,7 @@ const (
 // VoteRecord keeps track of a series of votes for a target
 type VoteRecord struct {
 	blockID          types.ID
+	acceptable       bool
 	height           uint32
 	votes            uint16
 	consider         uint16
@@ -60,10 +61,16 @@ type VoteRecord struct {
 	print            bool
 }
 
-// NewVoteRecord instantiates a new base record for voting on a target
+// NewBlockVoteRecord instantiates a new base record for voting on a block target
 // `accepted` indicates whether or not the initial state should be preferred
-func NewVoteRecord(blockID types.ID, height uint32, preferred bool) *VoteRecord {
-	return &VoteRecord{blockID: blockID, height: height, confidence: boolToUint16(preferred), timestamp: time.Now(), lastChange: time.Now()}
+func NewBlockVoteRecord(blockID types.ID, height uint32, acceptable bool, preferred bool) *VoteRecord {
+	return &VoteRecord{blockID: blockID, height: height, acceptable: acceptable, confidence: boolToUint16(preferred), timestamp: time.Now(), lastChange: time.Now()}
+}
+
+// NewBitVoteRecord instantiates a new base record for voting on a bit target
+// `accepted` indicates whether or not the initial state should be preferred
+func NewBitVoteRecord(height uint32) *VoteRecord {
+	return &VoteRecord{height: height, timestamp: time.Now(), lastChange: time.Now()}
 }
 
 // isPreferred returns whether or not the voted state is preferred or not

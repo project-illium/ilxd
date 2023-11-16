@@ -11,7 +11,7 @@ import (
 )
 
 func TestVoteRecord(t *testing.T) {
-	vr := NewVoteRecord(types.ID{}, 0, true)
+	vr := NewBlockVoteRecord(types.ID{}, 0, true, true)
 
 	for i := 0; i < 1000; i++ {
 		assert.False(t, vr.regsiterVote(0x80))
@@ -32,14 +32,14 @@ func TestVoteRecord(t *testing.T) {
 	vr.Reject()
 	assert.Equal(t, StatusRejected, vr.status())
 
-	vr = NewVoteRecord(types.ID{}, 0, false)
+	vr = NewBlockVoteRecord(types.ID{}, 0, true, false)
 	for i := 0; i < 12; i++ {
 		assert.False(t, vr.regsiterVote(1))
 		assert.Equal(t, StatusNotPreferred, vr.status())
 	}
 	assert.True(t, vr.regsiterVote(1))
 
-	vr = NewVoteRecord(types.ID{}, 0, false)
+	vr = NewBlockVoteRecord(types.ID{}, 0, true, false)
 	for i := 0; i < AvalancheFinalizationScore+100; i++ {
 		assert.False(t, vr.regsiterVote(0))
 		assert.Equal(t, StatusNotPreferred, vr.status())

@@ -12,12 +12,13 @@ import (
 // RequestRecord is a poll request for more votes
 type RequestRecord struct {
 	timestamp int64
+	height    uint32
 	invs      []types.ID
 }
 
 // NewRequestRecord creates a new RequestRecord
-func NewRequestRecord(timestamp int64, invs []types.ID) RequestRecord {
-	return RequestRecord{timestamp, invs}
+func NewRequestRecord(timestamp int64, height uint32, invs []types.ID) RequestRecord {
+	return RequestRecord{timestamp, height, invs}
 }
 
 // GetTimestamp returns the timestamp that the request was created
