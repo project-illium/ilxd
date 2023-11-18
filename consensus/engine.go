@@ -131,6 +131,7 @@ type ConsensusEngine struct {
 	hasBlock     HasBlockFunc
 	quit         chan struct{}
 	msgChan      chan interface{}
+	print        bool
 
 	blockRecords   map[uint32]*blockRecord
 	conflicts      map[uint32][]types.ID
@@ -353,6 +354,9 @@ func (eng *ConsensusEngine) handleQuery(req *wire.MsgAvaRequest, remotePeer peer
 			bit := getBit(blkrec.finalizedBits, uint8(req.Bit))
 			resp.BitVote = []byte{bit}
 		}
+		if eng.print {
+			fmt.Printf("*** %d %d %08b %d\n", req.Bit, blkrec.activeBit, blkrec.finalizedBits[0], resp.BitVote[0])
+		}
 	}
 
 	for i, invBytes := range req.Invs {
@@ -541,19 +545,24 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 		}
 	}
 
-	if !br.HasFinalized() && !bitFlipped {
+	if !br.HasFinalized() && !bitFlipped && r.activeBit == br.activeBit {
 		if br.bitVotes.regsiterVote(resp.BitVote[0]) {
 			br.preferredBit = boolToUint8(br.bitVotes.isPreferred())
-
-			if br.bitVotes.status() == StatusFinalized {
+			if br.bitVotes.hasFinalized() {
 				var (
 					id              types.ID
 					preferredExists = false
 					newlyFlipped    = false
 					nextBit         = uint8(0x80)
 				)
+				setBit(&br.finalizedBits, br.activeBit, br.preferredBit == 1)
+				if eng.print {
+					fmt.Printf("bit %d finalized as %d\n", br.activeBit, br.preferredBit)
+					br.bitVotes.printState()
+				}
+				i := 0
 				for _, vr := range br.blockInventory {
-					if getBit(vr.blockID, br.activeBit) != br.preferredBit {
+					if !compareBits(vr.blockID, br.finalizedBits, br.activeBit) {
 						vr.Reset(false)
 					} else if vr.isPreferred() {
 						id = vr.blockID
@@ -563,6 +572,7 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 						preferredExists = true
 						newlyFlipped = true
 					}
+					i++
 				}
 				if preferredExists {
 					if newlyFlipped {
@@ -571,6 +581,9 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 					nextBit = getBit(id, br.activeBit+1)
 				}
 
+				if eng.print {
+					fmt.Println("next bit ", nextBit)
+				}
 				br.activeBit++
 				br.bitVotes.Reset(nextBit == 1)
 				br.preferredBit = nextBit
@@ -607,7 +620,7 @@ func (eng *ConsensusEngine) pollLoop() {
 		requestID := rand.Uint32()
 
 		key := queryKey(requestID, p.String())
-		eng.queries[key] = NewRequestRecord(time.Now().Unix(), height, invs)
+		eng.queries[key] = NewRequestRecord(time.Now().Unix(), height, record.activeBit, invs)
 
 		invList := make([][]byte, 0, len(invs))
 		for _, inv := range invs {
@@ -694,19 +707,37 @@ func getBit(id types.ID, pos uint8) uint8 {
 }
 
 func compareBits(a, b types.ID, x uint8) bool {
-	for i := uint8(0); i < x/8; i++ {
+	// Determine the number of full bytes to compare
+	fullBytes := (x + 1) / 8
+	remainingBits := (x + 1) % 8
+
+	// Compare full bytes
+	for i := uint8(0); i < fullBytes; i++ {
 		if a[i] != b[i] {
 			return false
 		}
 	}
 
-	// Check the remaining bits if x is not a multiple of 8
-	if x%8 != 0 {
-		mask := byte(255 << (8 - x%8)) // Create a mask for remaining bits
-		if (a[x/8] & mask) != (b[x/8] & mask) {
+	// Check the remaining bits if there are any
+	if remainingBits != 0 {
+		mask := byte(255 << (8 - remainingBits)) // Create a mask for the remaining bits
+		if (a[fullBytes] & mask) != (b[fullBytes] & mask) {
 			return false
 		}
 	}
 
 	return true
+}
+
+func setBit(arr *types.ID, bitIndex uint8, value bool) {
+	byteIndex := bitIndex / 8     // Find the index of the byte
+	bitPosition := 7 - bitIndex%8 // Find the position of the bit within the byte (MSB to LSB)
+
+	if value {
+		// Set the bit to 1
+		arr[byteIndex] |= 1 << bitPosition
+	} else {
+		// Set the bit to 0
+		arr[byteIndex] &^= 1 << bitPosition
+	}
 }

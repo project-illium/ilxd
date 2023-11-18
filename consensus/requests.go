@@ -13,12 +13,13 @@ import (
 type RequestRecord struct {
 	timestamp int64
 	height    uint32
+	activeBit uint8
 	invs      []types.ID
 }
 
 // NewRequestRecord creates a new RequestRecord
-func NewRequestRecord(timestamp int64, height uint32, invs []types.ID) RequestRecord {
-	return RequestRecord{timestamp, height, invs}
+func NewRequestRecord(timestamp int64, height uint32, activeBit uint8, invs []types.ID) RequestRecord {
+	return RequestRecord{timestamp, height, activeBit, invs}
 }
 
 // GetTimestamp returns the timestamp that the request was created

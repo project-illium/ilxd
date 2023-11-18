@@ -58,6 +58,7 @@ type VoteRecord struct {
 	timestamp        time.Time
 	lastChange       time.Time
 	totalVotes       int
+	isBitRecord      bool
 	print            bool
 }
 
@@ -70,7 +71,7 @@ func NewBlockVoteRecord(blockID types.ID, height uint32, acceptable bool, prefer
 // NewBitVoteRecord instantiates a new base record for voting on a bit target
 // `accepted` indicates whether or not the initial state should be preferred
 func NewBitVoteRecord(height uint32) *VoteRecord {
-	return &VoteRecord{height: height, timestamp: time.Now(), lastChange: time.Now()}
+	return &VoteRecord{height: height, timestamp: time.Now(), lastChange: time.Now(), isBitRecord: true}
 }
 
 // isPreferred returns whether or not the voted state is preferred or not
@@ -113,7 +114,7 @@ func (vr *VoteRecord) regsiterVote(vote uint8) bool {
 
 	// Vote is conclusive and agrees with our current state
 	if vr.isPreferred() == yes {
-		if vr.isPreferred() {
+		if vr.isPreferred() || vr.isBitRecord {
 			vr.confidence += 2
 			return vr.getConfidence() >= AvalancheFinalizationScore
 		}
@@ -128,6 +129,7 @@ func (vr *VoteRecord) regsiterVote(vote uint8) bool {
 }
 
 func (vr *VoteRecord) Reset(preference bool) {
+	vr.votes = 0
 	vr.confidence = boolToUint16(preference)
 }
 

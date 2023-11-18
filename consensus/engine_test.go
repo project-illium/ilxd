@@ -6,6 +6,7 @@ package consensus
 
 import (
 	"context"
+	"fmt"
 	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/project-illium/ilxd/net"
@@ -398,7 +399,7 @@ func TestConsensusEngine(t *testing.T) {
 					break loop
 				}
 			case <-ticker.C:
-				t.Errorf("Failed to finalize or rejecct block 6a for test node")
+				t.Errorf("Failed to finalize or reject block 6 for node")
 				break loop
 			}
 		}
@@ -411,5 +412,82 @@ func TestConsensusEngine(t *testing.T) {
 		//fmt.Println("**************")
 		//}
 	})
+	t.Run("Test block finalization of all nodes with many blocks", func(t *testing.T) {
+		nodes, testNode, teardown, err := setup()
+		assert.NoError(t, err)
+		defer teardown()
 
+		blk6a := &blocks.Block{Header: &blocks.BlockHeader{Version: 0, Height: 6}}
+		blk6b := &blocks.Block{Header: &blocks.BlockHeader{Version: 1, Height: 6}}
+		blk6c := &blocks.Block{Header: &blocks.BlockHeader{Version: 2, Height: 6}}
+		blk6d := &blocks.Block{Header: &blocks.BlockHeader{Version: 3, Height: 6}}
+		blk6e := &blocks.Block{Header: &blocks.BlockHeader{Version: 4, Height: 6}}
+		fmt.Printf("%08b\n", blk6a.ID()[0])
+		fmt.Printf("%08b\n", blk6b.ID()[0])
+		fmt.Printf("%08b\n", blk6c.ID()[0])
+		fmt.Printf("%08b\n", blk6d.ID()[0])
+		fmt.Printf("%08b\n", blk6e.ID()[0])
+		blocks := []*blocks.Block{blk6a, blk6b, blk6c, blk6d, blk6e}
+		cb := make(chan Status)
+		for _, node := range nodes {
+			rand.Shuffle(len(blocks), func(i, j int) {
+				blocks[i], blocks[j] = blocks[j], blocks[i]
+			})
+			node.engine.NewBlock(blocks[0].Header, true, cb)
+			node.engine.NewBlock(blocks[1].Header, true, cb)
+			node.engine.NewBlock(blocks[2].Header, true, cb)
+			node.engine.NewBlock(blocks[3].Header, true, cb)
+			node.engine.NewBlock(blocks[4].Header, true, cb)
+		}
+
+		cb2 := make(chan Status)
+		rand.Shuffle(len(blocks), func(i, j int) {
+			blocks[i], blocks[j] = blocks[j], blocks[i]
+		})
+		testNode.engine.print = true
+		testNode.engine.NewBlock(blocks[0].Header, true, cb2)
+		testNode.engine.NewBlock(blocks[1].Header, true, cb2)
+		testNode.engine.NewBlock(blocks[2].Header, true, cb2)
+		testNode.engine.NewBlock(blocks[3].Header, true, cb2)
+		testNode.engine.NewBlock(blocks[4].Header, true, cb2)
+
+		ticker := time.NewTicker(time.Second * 20)
+		i := 0
+	loop:
+		for {
+			select {
+			case status := <-cb2:
+				fmt.Println(status)
+				i++
+				if i == 5 {
+					break loop
+				}
+			case <-ticker.C:
+				testNode.engine.blockRecords[blk6a.Header.Height].blockInventory[blk6a.ID()].printState()
+				testNode.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].printState()
+				testNode.engine.blockRecords[blk6c.Header.Height].blockInventory[blk6c.ID()].printState()
+				testNode.engine.blockRecords[blk6d.Header.Height].blockInventory[blk6d.ID()].printState()
+				testNode.engine.blockRecords[blk6e.Header.Height].blockInventory[blk6e.ID()].printState()
+				fmt.Println("**************")
+				fmt.Println(testNode.engine.blockRecords[blk6e.Header.Height].activeBit)
+				testNode.engine.blockRecords[blk6e.Header.Height].bitVotes.printState()
+				for _, n := range nodes {
+					fmt.Printf("%08b\n", n.engine.blockRecords[blk6e.Header.Height].finalizedBits[0])
+					fmt.Println(n.engine.blockRecords[blk6e.Header.Height].activeBit)
+					n.engine.blockRecords[blk6e.Header.Height].bitVotes.printState()
+				}
+				t.Errorf("Failed to finalize or reject block 6")
+				break loop
+
+			}
+		}
+	})
+}
+
+func TestChooser(t *testing.T) {
+	a := types.ID{}
+	b := types.ID{}
+	a[0] = 0b10110110
+	b[0] = 0b10110111
+	fmt.Println(compareBits(a, b, 7))
 }
