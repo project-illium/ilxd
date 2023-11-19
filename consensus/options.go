@@ -78,13 +78,13 @@ func RequestBlock(requestBlockFunc RequestBlockFunc) Option {
 	}
 }
 
-// HasBlock is a function which checks if the blockchain contains
-// the given block
+// GetBlockID is a function which returns the blockID at the given height or
+// an error.
 //
 // This option is required.
-func HasBlock(hasBlockFunc HasBlockFunc) Option {
+func GetBlockID(getBlockIDFunc GetBlockIDFunc) Option {
 	return func(cfg *config) error {
-		cfg.hasBlock = hasBlockFunc
+		cfg.getBlockIDFunc = getBlockIDFunc
 		return nil
 	}
 }
@@ -101,13 +101,13 @@ func PeerID(self peer.ID) Option {
 
 // Config specifies the blockchain configuration.
 type config struct {
-	params       *params.NetworkParams
-	network      *net.Network
-	valConn      ValidatorSetConnection
-	chooser      blockchain.WeightedChooser
-	self         peer.ID
-	requestBlock RequestBlockFunc
-	hasBlock     HasBlockFunc
+	params         *params.NetworkParams
+	network        *net.Network
+	valConn        ValidatorSetConnection
+	chooser        blockchain.WeightedChooser
+	self           peer.ID
+	requestBlock   RequestBlockFunc
+	getBlockIDFunc GetBlockIDFunc
 }
 
 func (cfg *config) validate() error {
@@ -129,8 +129,8 @@ func (cfg *config) validate() error {
 	if cfg.requestBlock == nil {
 		return AssertError("NewConsensusEngine: requestBlockFunc cannot be nil")
 	}
-	if cfg.hasBlock == nil {
-		return AssertError("NewConsensusEngine: hasBlockFunc cannot be nil")
+	if cfg.getBlockIDFunc == nil {
+		return AssertError("NewConsensusEngine: getBlockIDFunc cannot be nil")
 	}
 	if cfg.self == "" {
 		return AssertError("NewConsensusEngine: own peerID cannot be empty")

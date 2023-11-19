@@ -16,16 +16,13 @@ enum ErrorResponse {
 }
 
 message MsgAvaRequest {
-    uint32 request_ID   = 1;
-    uint32 height       = 2;
-    uint32 bit          = 3;
-    repeated bytes invs = 4;
+    uint32 request_ID       = 1;
+    repeated uint32 heights = 2;
 }
 
 message MsgAvaResponse {
-    uint32 request_ID = 1;
-    bytes bitVote     = 2;
-    bytes blockVotes  = 3;
+    uint32 request_ID    = 1;
+    repeated bytes votes = 2;
 }
 
 message MsgChainServiceRequest {

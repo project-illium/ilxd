@@ -6,7 +6,7 @@ package consensus
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/project-illium/ilxd/net"
@@ -17,7 +17,6 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/stretchr/testify/assert"
-	"math"
 	rand "math/rand"
 	"testing"
 	"time"
@@ -74,7 +73,7 @@ func newMockNode(mn mocknet.Mocknet) (*mockNode, error) {
 		Network(network),
 		ValidatorConnector(&MockValConn{}),
 		Chooser(&MockChooser{network: network}),
-		HasBlock(func(id types.ID) bool { return false }),
+		GetBlockID(func(height uint32) (types.ID, error) { return types.ID{}, errors.New("not found") }),
 		RequestBlock(func(id types.ID, id2 peer.ID) {}),
 		PeerID(network.Host().ID()),
 	)
@@ -125,19 +124,7 @@ func TestConsensusEngine(t *testing.T) {
 
 		blk1 := &blocks.Block{Header: &blocks.BlockHeader{Height: 1}}
 		for _, node := range nodes {
-			vr := NewBlockVoteRecord(blk1.ID(), blk1.Header.Height, true, true)
-			vr.confidence = math.MaxUint16
-			node.engine.blockRecords[blk1.Header.Height] = &blockRecord{
-				height:        blk1.Header.Height,
-				timestamp:     time.Now(),
-				activeBit:     0,
-				preferredBit:  getBit(blk1.ID(), 0),
-				finalizedBits: types.ID{},
-				bitVotes:      NewBitVoteRecord(blk1.Header.Height),
-				blockInventory: map[types.ID]*VoteRecord{
-					blk1.ID(): vr,
-				},
-			}
+			node.engine.NewBlock(blk1.Header, true, nil)
 		}
 
 		cb := make(chan Status)
@@ -149,6 +136,7 @@ func TestConsensusEngine(t *testing.T) {
 			t.Errorf("Failed to finalized block 1")
 		}
 	})
+
 	t.Run(" Test block finalization when all nodes reject", func(t *testing.T) {
 		nodes, testNode, teardown, err := setup()
 		assert.NoError(t, err)
@@ -156,19 +144,7 @@ func TestConsensusEngine(t *testing.T) {
 
 		blk2 := &blocks.Block{Header: &blocks.BlockHeader{Height: 2}}
 		for _, node := range nodes {
-			vr := NewBlockVoteRecord(blk2.ID(), blk2.Header.Height, false, false)
-			vr.confidence = 65534
-			node.engine.blockRecords[blk2.Header.Height] = &blockRecord{
-				height:        blk2.Header.Height,
-				timestamp:     time.Now(),
-				activeBit:     0,
-				preferredBit:  0x80,
-				finalizedBits: types.ID{},
-				bitVotes:      NewBitVoteRecord(blk2.Header.Height),
-				blockInventory: map[types.ID]*VoteRecord{
-					blk2.ID(): vr,
-				},
-			}
+			node.engine.NewBlock(blk2.Header, false, nil)
 		}
 
 		cb := make(chan Status)
@@ -177,10 +153,9 @@ func TestConsensusEngine(t *testing.T) {
 		case <-cb:
 			t.Fatal("Callback should not have been called block 2")
 		case <-time.After(time.Second * 5):
-			assert.False(t, testNode.engine.blockRecords[blk2.Header.Height].blockInventory[blk2.ID()].isPreferred())
+			assert.Equal(t, testNode.engine.blocks[blk2.Header.Height].blockVotes[blk2.ID()].Status(), StatusNotPreferred)
 		}
 	})
-
 	t.Run("Test block finalization of all nodes with initial preference yes", func(t *testing.T) {
 		nodes, testNode, teardown, err := setup()
 		assert.NoError(t, err)
@@ -229,9 +204,9 @@ func TestConsensusEngine(t *testing.T) {
 		case <-cb:
 			t.Fatal("Callback should not have been called for block 4")
 		case <-ticker.C:
-			assert.False(t, testNode.engine.blockRecords[blk4.Header.Height].blockInventory[blk4.ID()].isPreferred())
+			assert.Equal(t, testNode.engine.blocks[blk4.Header.Height].blockVotes[blk4.ID()].Status(), StatusNotPreferred)
 			for _, n := range nodes {
-				assert.False(t, n.engine.blockRecords[blk4.Header.Height].blockInventory[blk4.ID()].isPreferred())
+				assert.Equal(t, n.engine.blocks[blk4.Header.Height].blockVotes[blk4.ID()].Status(), StatusNotPreferred)
 			}
 		}
 	})
@@ -257,7 +232,7 @@ func TestConsensusEngine(t *testing.T) {
 			assert.Equal(t, status, StatusFinalized)
 			yes = true
 		case <-ticker.C:
-			assert.False(t, testNode.engine.blockRecords[blk5.Header.Height].blockInventory[blk5.ID()].isPreferred())
+			assert.Equal(t, testNode.engine.blocks[blk5.Header.Height].blockVotes[blk5.ID()].Status(), StatusNotPreferred)
 			yes = false
 		}
 
@@ -278,7 +253,7 @@ func TestConsensusEngine(t *testing.T) {
 			case <-ticker.C:
 				if !yes {
 					for _, n := range nodes {
-						assert.False(t, n.engine.blockRecords[blk5.Header.Height].blockInventory[blk5.ID()].isPreferred())
+						assert.Equal(t, n.engine.blocks[blk5.Header.Height].blockVotes[blk5.ID()].Status(), StatusNotPreferred)
 					}
 					break loop
 				} else {
@@ -301,9 +276,8 @@ func TestConsensusEngine(t *testing.T) {
 
 		cba2 := make(chan Status)
 		cbb2 := make(chan Status)
-		preferred := rand.Intn(2) == 1
-		testNode.engine.NewBlock(blk6a.Header, preferred, cba2)
-		testNode.engine.NewBlock(blk6b.Header, !preferred, cbb2)
+		testNode.engine.NewBlock(blk6b.Header, true, cbb2)
+		testNode.engine.NewBlock(blk6a.Header, true, cba2)
 
 		ticker := time.NewTicker(time.Second * 30)
 		select {
@@ -315,7 +289,7 @@ func TestConsensusEngine(t *testing.T) {
 		select {
 		case status := <-cbb2:
 			assert.Equal(t, status, StatusRejected)
-			assert.False(t, testNode.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].isPreferred())
+			assert.Equal(t, testNode.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status(), StatusNotPreferred)
 		case <-ticker.C:
 			t.Errorf("Failed to reject block 6b for test node")
 		}
@@ -328,89 +302,70 @@ func TestConsensusEngine(t *testing.T) {
 
 		blk6a := &blocks.Block{Header: &blocks.BlockHeader{Version: 0, Height: 6}}
 		blk6b := &blocks.Block{Header: &blocks.BlockHeader{Version: 1, Height: 6}}
-		cba := make(chan Status)
-		cbb := make(chan Status)
+		blks := []*blocks.Block{blk6a, blk6b}
+		cb := make(chan Status)
 		for _, node := range nodes {
-			preferred := rand.Intn(2) == 1
-			node.engine.NewBlock(blk6a.Header, preferred, cba)
-			node.engine.NewBlock(blk6b.Header, !preferred, cbb)
+			rand.Shuffle(len(blks), func(i, j int) {
+				blks[i], blks[j] = blks[j], blks[i]
+			})
+			node.engine.NewBlock(blks[0].Header, true, cb)
+			node.engine.NewBlock(blks[1].Header, true, cb)
 		}
 
-		cba2 := make(chan Status)
-		cbb2 := make(chan Status)
-		preferred := rand.Intn(2) == 1
-		testNode.engine.NewBlock(blk6a.Header, preferred, cba2)
-		testNode.engine.NewBlock(blk6b.Header, !preferred, cbb2)
+		cb2 := make(chan Status)
+		rand.Shuffle(len(blks), func(i, j int) {
+			blks[i], blks[j] = blks[j], blks[i]
+		})
+		testNode.engine.print = true
+		testNode.engine.NewBlock(blks[0].Header, true, cb2)
+		testNode.engine.NewBlock(blks[1].Header, true, cb2)
 
-		var blockAStatus Status
 		ticker := time.NewTicker(time.Second * 30)
-		select {
-		case status := <-cba2:
-			blockAStatus = status
-		case <-ticker.C:
-			t.Errorf("Failed to finalize or rejecct block 6a for test node")
-		}
-		assert.True(t, blockAStatus == StatusFinalized || blockAStatus == StatusRejected)
-		select {
-		case status := <-cbb2:
-			if blockAStatus == StatusFinalized {
-				assert.Equal(t, status, StatusRejected)
-				assert.False(t, testNode.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].isPreferred())
-			} else {
-				assert.Equal(t, status, StatusFinalized)
-				assert.True(t, testNode.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].isPreferred())
-			}
-		case <-ticker.C:
-			t.Errorf("Failed to finalize or reject block 6b for test node")
-		}
-
-		//testNode.engine.blockRecords[blk6a.Header.Height].blockInventory[blk6a.ID()].printState()
-		//testNode.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].printState()
-
-		finalized := 0
-		rejected := 0
+		finalized, rejected := 0, 0
 	loop:
 		for {
 			select {
-			case status := <-cba:
-				if blockAStatus == StatusFinalized {
-					assert.Equal(t, status, StatusFinalized)
-					//assert.True(t, testNode.engine.blockRecords[blk6a.Header.Height].blockInventory[blk6a.ID()].isPreferred())
+			case status := <-cb2:
+				if status == StatusFinalized {
 					finalized++
-				} else {
-					assert.Equal(t, status, StatusRejected)
-					//assert.False(t, testNode.engine.blockRecords[blk6a.Header.Height].blockInventory[blk6a.ID()].isPreferred())
+				} else if status == StatusRejected {
 					rejected++
 				}
-				if finalized == 100 && rejected == 100 {
-					break loop
-				}
-			case status := <-cbb:
-				if blockAStatus == StatusFinalized {
-					assert.Equal(t, status, StatusRejected)
-					//assert.True(t, testNode.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].isPreferred())
-					rejected++
-				} else {
-					assert.Equal(t, status, StatusFinalized)
-					//assert.False(t, testNode.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].isPreferred())
-					finalized++
-				}
-				if finalized == 100 && rejected == 100 {
+				if finalized == 1 && rejected == 1 {
 					break loop
 				}
 			case <-ticker.C:
+				t.Errorf("Failed to finalize or rejecct block 6a for test node")
+			}
+		}
+		blockAStatus := testNode.engine.blocks[blk6a.Header.Height].blockVotes[blk6a.ID()].Status()
+		blockBStatus := testNode.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status()
+
+		finalized, rejected = 0, 0
+	loop2:
+		for {
+			select {
+			case status := <-cb:
+				if status == StatusFinalized {
+					finalized++
+				} else if status == StatusRejected {
+					rejected++
+				}
+				if finalized == 100 && rejected == 100 {
+					break loop2
+				}
+			case <-ticker.C:
 				t.Errorf("Failed to finalize or reject block 6 for node")
-				break loop
+				break loop2
 			}
 		}
 		assert.Equal(t, 100, finalized)
 		assert.Equal(t, 100, rejected)
 
-		//for _, n := range nodes {
-		//n.engine.blockRecords[blk6a.Header.Height].blockInventory[blk6a.ID()].printState()
-		//n.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].printState()
-		//fmt.Println("**************")
-		//}
+		for _, n := range nodes {
+			assert.Equal(t, n.engine.blocks[blk6a.Header.Height].blockVotes[blk6a.ID()].Status(), blockAStatus)
+			assert.Equal(t, n.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status(), blockBStatus)
+		}
 	})
 	t.Run("Test block finalization of all nodes with many blocks", func(t *testing.T) {
 		nodes, testNode, teardown, err := setup()
@@ -422,11 +377,6 @@ func TestConsensusEngine(t *testing.T) {
 		blk6c := &blocks.Block{Header: &blocks.BlockHeader{Version: 2, Height: 6}}
 		blk6d := &blocks.Block{Header: &blocks.BlockHeader{Version: 3, Height: 6}}
 		blk6e := &blocks.Block{Header: &blocks.BlockHeader{Version: 4, Height: 6}}
-		fmt.Printf("%08b\n", blk6a.ID()[0])
-		fmt.Printf("%08b\n", blk6b.ID()[0])
-		fmt.Printf("%08b\n", blk6c.ID()[0])
-		fmt.Printf("%08b\n", blk6d.ID()[0])
-		fmt.Printf("%08b\n", blk6e.ID()[0])
 		blocks := []*blocks.Block{blk6a, blk6b, blk6c, blk6d, blk6e}
 		cb := make(chan Status)
 		for _, node := range nodes {
@@ -452,42 +402,61 @@ func TestConsensusEngine(t *testing.T) {
 		testNode.engine.NewBlock(blocks[4].Header, true, cb2)
 
 		ticker := time.NewTicker(time.Second * 20)
-		i := 0
+		finalized, rejected := 0, 0
 	loop:
 		for {
 			select {
 			case status := <-cb2:
-				fmt.Println(status)
-				i++
-				if i == 5 {
+				if status == StatusFinalized {
+					finalized++
+				} else if status == StatusRejected {
+					rejected++
+				}
+				if finalized == 1 && rejected == 4 {
 					break loop
 				}
 			case <-ticker.C:
-				testNode.engine.blockRecords[blk6a.Header.Height].blockInventory[blk6a.ID()].printState()
-				testNode.engine.blockRecords[blk6b.Header.Height].blockInventory[blk6b.ID()].printState()
-				testNode.engine.blockRecords[blk6c.Header.Height].blockInventory[blk6c.ID()].printState()
-				testNode.engine.blockRecords[blk6d.Header.Height].blockInventory[blk6d.ID()].printState()
-				testNode.engine.blockRecords[blk6e.Header.Height].blockInventory[blk6e.ID()].printState()
-				fmt.Println("**************")
-				fmt.Println(testNode.engine.blockRecords[blk6e.Header.Height].activeBit)
-				testNode.engine.blockRecords[blk6e.Header.Height].bitVotes.printState()
-				for _, n := range nodes {
-					fmt.Printf("%08b\n", n.engine.blockRecords[blk6e.Header.Height].finalizedBits[0])
-					fmt.Println(n.engine.blockRecords[blk6e.Header.Height].activeBit)
-					n.engine.blockRecords[blk6e.Header.Height].bitVotes.printState()
-				}
 				t.Errorf("Failed to finalize or reject block 6")
 				break loop
 
 			}
 		}
-	})
-}
 
-func TestChooser(t *testing.T) {
-	a := types.ID{}
-	b := types.ID{}
-	a[0] = 0b10110110
-	b[0] = 0b10110111
-	fmt.Println(compareBits(a, b, 7))
+		blkAStatus := testNode.engine.blocks[blk6a.Header.Height].blockVotes[blk6a.ID()].Status()
+		blkBStatus := testNode.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status()
+		blkCStatus := testNode.engine.blocks[blk6c.Header.Height].blockVotes[blk6c.ID()].Status()
+		blkDStatus := testNode.engine.blocks[blk6d.Header.Height].blockVotes[blk6d.ID()].Status()
+		blkEStatus := testNode.engine.blocks[blk6e.Header.Height].blockVotes[blk6e.ID()].Status()
+
+		finalized, rejected = 0, 0
+	loop2:
+		for {
+			select {
+			case status := <-cb:
+				if status == StatusFinalized {
+					finalized++
+				} else if status == StatusRejected {
+					rejected++
+				}
+				if finalized == 100 && rejected == 400 {
+					break loop2
+				}
+			case <-ticker.C:
+				t.Errorf("Failed to finalize or reject block 6")
+				break loop2
+
+			}
+		}
+
+		assert.Equal(t, finalized, 100)
+		assert.Equal(t, rejected, 400)
+
+		for _, n := range nodes {
+			assert.Equal(t, n.engine.blocks[blk6a.Header.Height].blockVotes[blk6a.ID()].Status(), blkAStatus)
+			assert.Equal(t, n.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status(), blkBStatus)
+			assert.Equal(t, n.engine.blocks[blk6c.Header.Height].blockVotes[blk6c.ID()].Status(), blkCStatus)
+			assert.Equal(t, n.engine.blocks[blk6d.Header.Height].blockVotes[blk6d.ID()].Status(), blkDStatus)
+			assert.Equal(t, n.engine.blocks[blk6e.Header.Height].blockVotes[blk6e.ID()].Status(), blkEStatus)
+		}
+	})
 }
