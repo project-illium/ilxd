@@ -148,12 +148,12 @@ func TestConsensusEngine(t *testing.T) {
 		}
 
 		cb := make(chan Status)
-		testNode.engine.NewBlock(blk2.Header, true, cb)
+		testNode.engine.NewBlock(blk2.Header, false, cb)
 		select {
 		case <-cb:
 			t.Fatal("Callback should not have been called block 2")
 		case <-time.After(time.Second * 5):
-			assert.Equal(t, testNode.engine.blocks[blk2.Header.Height].blockVotes[blk2.ID()].Status(), StatusNotPreferred)
+			assert.Equal(t, StatusNotPreferred, testNode.engine.blocks[blk2.Header.Height].blockVotes[blk2.ID()].Status())
 		}
 	})
 	t.Run("Test block finalization of all nodes with initial preference yes", func(t *testing.T) {
@@ -204,9 +204,9 @@ func TestConsensusEngine(t *testing.T) {
 		case <-cb:
 			t.Fatal("Callback should not have been called for block 4")
 		case <-ticker.C:
-			assert.Equal(t, testNode.engine.blocks[blk4.Header.Height].blockVotes[blk4.ID()].Status(), StatusNotPreferred)
+			assert.Equal(t, StatusNotPreferred, testNode.engine.blocks[blk4.Header.Height].blockVotes[blk4.ID()].Status())
 			for _, n := range nodes {
-				assert.Equal(t, n.engine.blocks[blk4.Header.Height].blockVotes[blk4.ID()].Status(), StatusNotPreferred)
+				assert.Equal(t, StatusNotPreferred, n.engine.blocks[blk4.Header.Height].blockVotes[blk4.ID()].Status())
 			}
 		}
 	})
@@ -232,7 +232,7 @@ func TestConsensusEngine(t *testing.T) {
 			assert.Equal(t, status, StatusFinalized)
 			yes = true
 		case <-ticker.C:
-			assert.Equal(t, testNode.engine.blocks[blk5.Header.Height].blockVotes[blk5.ID()].Status(), StatusNotPreferred)
+			assert.Equal(t, StatusNotPreferred, testNode.engine.blocks[blk5.Header.Height].blockVotes[blk5.ID()].Status())
 			yes = false
 		}
 
@@ -253,7 +253,7 @@ func TestConsensusEngine(t *testing.T) {
 			case <-ticker.C:
 				if !yes {
 					for _, n := range nodes {
-						assert.Equal(t, n.engine.blocks[blk5.Header.Height].blockVotes[blk5.ID()].Status(), StatusNotPreferred)
+						assert.Equal(t, StatusNotPreferred, n.engine.blocks[blk5.Header.Height].blockVotes[blk5.ID()].Status())
 					}
 					break loop
 				} else {
@@ -289,7 +289,7 @@ func TestConsensusEngine(t *testing.T) {
 		select {
 		case status := <-cbb2:
 			assert.Equal(t, status, StatusRejected)
-			assert.Equal(t, testNode.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status(), StatusNotPreferred)
+			assert.Equal(t, StatusNotPreferred, testNode.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status())
 		case <-ticker.C:
 			t.Errorf("Failed to reject block 6b for test node")
 		}
@@ -363,8 +363,8 @@ func TestConsensusEngine(t *testing.T) {
 		assert.Equal(t, 100, rejected)
 
 		for _, n := range nodes {
-			assert.Equal(t, n.engine.blocks[blk6a.Header.Height].blockVotes[blk6a.ID()].Status(), blockAStatus)
-			assert.Equal(t, n.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status(), blockBStatus)
+			assert.Equal(t, blockAStatus, n.engine.blocks[blk6a.Header.Height].blockVotes[blk6a.ID()].Status())
+			assert.Equal(t, blockBStatus, n.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status())
 		}
 	})
 	t.Run("Test block finalization of all nodes with many blocks", func(t *testing.T) {
@@ -452,11 +452,11 @@ func TestConsensusEngine(t *testing.T) {
 		assert.Equal(t, rejected, 400)
 
 		for _, n := range nodes {
-			assert.Equal(t, n.engine.blocks[blk6a.Header.Height].blockVotes[blk6a.ID()].Status(), blkAStatus)
-			assert.Equal(t, n.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status(), blkBStatus)
-			assert.Equal(t, n.engine.blocks[blk6c.Header.Height].blockVotes[blk6c.ID()].Status(), blkCStatus)
-			assert.Equal(t, n.engine.blocks[blk6d.Header.Height].blockVotes[blk6d.ID()].Status(), blkDStatus)
-			assert.Equal(t, n.engine.blocks[blk6e.Header.Height].blockVotes[blk6e.ID()].Status(), blkEStatus)
+			assert.Equal(t, blkAStatus, n.engine.blocks[blk6a.Header.Height].blockVotes[blk6a.ID()].Status())
+			assert.Equal(t, blkBStatus, n.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status())
+			assert.Equal(t, blkCStatus, n.engine.blocks[blk6c.Header.Height].blockVotes[blk6c.ID()].Status())
+			assert.Equal(t, blkDStatus, n.engine.blocks[blk6d.Header.Height].blockVotes[blk6d.ID()].Status())
+			assert.Equal(t, blkEStatus, n.engine.blocks[blk6e.Header.Height].blockVotes[blk6e.ID()].Status())
 		}
 	})
 }
