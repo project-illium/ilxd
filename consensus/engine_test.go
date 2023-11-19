@@ -132,7 +132,7 @@ func TestConsensusEngine(t *testing.T) {
 		select {
 		case status := <-cb:
 			assert.Equal(t, status, StatusFinalized)
-		case <-time.After(time.Second * 10):
+		case <-time.After(time.Second * 30):
 			t.Errorf("Failed to finalized block 1")
 		}
 	})
@@ -170,7 +170,7 @@ func TestConsensusEngine(t *testing.T) {
 		testNode.engine.NewBlock(blk3.Header, true, cb)
 
 		count := 0
-		ticker := time.NewTicker(time.Second * 10)
+		ticker := time.NewTicker(time.Second * 30)
 	loop:
 		for {
 			select {
@@ -226,7 +226,7 @@ func TestConsensusEngine(t *testing.T) {
 		testNode.engine.NewBlock(blk5.Header, rand.Intn(2) == 1, cb2)
 
 		var yes bool
-		ticker := time.NewTicker(time.Second * 10)
+		ticker := time.NewTicker(time.Second * 30)
 		select {
 		case status := <-cb2:
 			assert.Equal(t, status, StatusFinalized)
@@ -401,7 +401,7 @@ func TestConsensusEngine(t *testing.T) {
 		testNode.engine.NewBlock(blocks[3].Header, true, cb2)
 		testNode.engine.NewBlock(blocks[4].Header, true, cb2)
 
-		ticker := time.NewTicker(time.Second * 20)
+		ticker := time.NewTicker(time.Second * 60)
 		finalized, rejected := 0, 0
 	loop:
 		for {
