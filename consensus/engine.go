@@ -209,7 +209,7 @@ func (eng *ConsensusEngine) handleNewBlock(header *blocks.BlockHeader, isAccepta
 
 	bc.AddNewBlock(blockID, isAcceptable)
 
-	if len(bc.blockVotes) > 0 {
+	if len(bc.blockVotes) > 1 {
 		log.Debugf("[CONSENSUS] Conflicting blocks at height %d: conflicts %d, block %s", header.Height, len(bc.blockVotes), header.ID())
 	}
 
@@ -399,7 +399,7 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 		voteID := types.NewID(resp.Votes[i])
 
 		_, ok = bc.blockVotes[voteID]
-		if !ok {
+		if !ok && voteID.Compare(types.ID{}) != 0 {
 			// If we don't know about this block let's request
 			// it and also record it as an unknown vote.
 			go eng.requestBlock(voteID, p)
