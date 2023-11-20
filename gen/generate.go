@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	BlockGenerationInterval = time.Second
-	BlockVersion            = 1
+	BlockGenerationInterval          = time.Second
+	BlockVersion                     = 1
+	MinAllowableTimeBetweenDupBlocks = time.Minute * 2
 )
 
 type BlockGenerator struct {
@@ -28,6 +29,7 @@ type BlockGenerator struct {
 	ownPeerID      peer.ID
 	ownPeerIDBytes []byte
 	lastGenHeight  uint32
+	lastGenTime    time.Time
 	mpool          *mempool.Mempool
 	tickInterval   time.Duration
 	chain          *blockchain.Blockchain
@@ -152,12 +154,12 @@ func (g *BlockGenerator) generateBlock() error {
 		return nil
 	}
 
+	now := time.Now()
 	bestID, height, timestamp := g.chain.BestBlock()
-	if g.lastGenHeight != 0 && g.lastGenHeight == height+1 {
+	if g.lastGenHeight != 0 && g.lastGenHeight == height+1 && now.Before(g.lastGenTime.Add(MinAllowableTimeBetweenDupBlocks)) {
 		return nil
 	}
-
-	now := time.Now()
+	
 	blockTime := now.Unix()
 	if blockTime <= timestamp.Unix() {
 		blockTime = timestamp.Unix() + 1
@@ -247,6 +249,7 @@ func (g *BlockGenerator) generateBlock() error {
 	}
 	xthinnerBlock.Header = blk.Header
 	g.lastGenHeight = blk.Header.Height
+	g.lastGenTime = time.Unix(blk.Header.Timestamp, 0)
 
 out:
 	for {

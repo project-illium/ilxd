@@ -146,8 +146,11 @@ fn prove(public_vars: &str, private_vars: &str, unlocking_script: &str) -> Resul
     let proof_start = Instant::now();
     let proof = Proof::eval_and_prove(s, input, None, limit, false, &prover, &pp, lang_rc.clone())?;
 
+    let compress_start = Instant::now();
     let compressed = proof.proof.compress(&pp)?;
+    let compress_end = compress_start.elapsed();
     let proof_end = proof_start.elapsed();
+    println!("Compression took {:?}", compress_end);
     println!("Proofs took {:?}", proof_end);
 
     println!("{:?}", proof.claim.evaluation().unwrap().expr_out);

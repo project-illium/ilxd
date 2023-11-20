@@ -37,9 +37,11 @@ import (
 	"time"
 )
 
-const maxOrphanDuration = time.Hour
-const maxOrphans = 100
-const orphanResyncThreshold = 5
+const (
+	maxOrphanDuration     = time.Hour
+	maxOrphans            = 100
+	orphanResyncThreshold = 5
+)
 
 var log = zap.S()
 
@@ -661,6 +663,19 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 	}
 
 	s.inventoryLock.Lock()
+	for _, inv := range s.activeInventory {
+		if inv.Header.Height == blk.Header.Height &&
+			inv.ID() != blk.ID() &&
+			bytes.Equal(inv.Header.Producer_ID, blk.Header.Producer_ID) &&
+			time.Unix(blk.Header.Timestamp, 0).Before(time.Unix(inv.Header.Timestamp, 0).Add(gen.MinAllowableTimeBetweenDupBlocks)) {
+
+			// The block producer sent us two blocks at the same height
+			// too close together.
+			s.network.IncreaseBanscore(relayingPeer, 101, 0)
+			s.inventoryLock.Unlock()
+			return errors.New("multiple blocks from the same validator")
+		}
+	}
 	s.activeInventory[blk.ID()] = blk
 	s.inventoryLock.Unlock()
 
@@ -743,6 +758,7 @@ func (s *Server) decodeXthinner(xThinnerBlk *blocks.XThinnerBlock, relayingPeer 
 			// us the block. If the block is invalid they may not be able to legitimately
 			// respond to our request.
 		}
+		return nil, errors.New("failed to decode from all peers")
 	}
 	return blk, nil
 }
@@ -762,8 +778,12 @@ func (s *Server) fetchBlockTxids(blk *blocks.Block, p peer.ID) (*blocks.Block, e
 			missing = append(missing, uint32(i))
 		}
 	}
+	// This function is only called if the block's merkle root was invalid. That
+	// can only happen with an otherwise valid block if we had a prefix collision
+	// in the mempool. If the missing slice is empty it means that there was no
+	// prefix collision detected and the block is genuinely invalid.
 	if len(missing) == 0 {
-		return nil, errors.New("block invalid")
+		return nil, errors.New("block invalid merkle root")
 	}
 	txs, err := s.chainService.GetBlockTxs(p, blk.ID(), missing)
 	if err != nil {
@@ -841,6 +861,7 @@ func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
 	s.inflightRequests[blockID] = true
 	s.inflightLock.Unlock()
 
+	log.Debugf("Requesting unknown block %s from peer %s", blockID, remotePeer.String())
 	blk, err := s.chainService.GetBlock(remotePeer, blockID)
 	if err != nil {
 		s.network.IncreaseBanscore(remotePeer, 0, 30)
@@ -939,12 +960,20 @@ func (s *Server) limitOrphans() {
 }
 
 func (s *Server) printListenAddrs() {
-	fmt.Println(`.__.__  .__  .__`)
-	fmt.Println(`|__|  | |  | |__|__ __  _____`)
-	fmt.Println(`|  |  | |  | |  |  |  \/     \`)
-	fmt.Println(`|  |  |_|  |_|  |  |  /  Y Y  \`)
-	fmt.Println(`|__|____/____/__|____/|__|_|  /`)
-	fmt.Println(`                            \/`)
+	colors := []string{
+		"\033[35m", // Magenta
+		"\033[95m", // Light Magenta
+		"\033[94m", // Light Blue
+		"\033[34m", // Blue
+	}
+
+	// Apply colors to each line
+	fmt.Println(colors[0] + ".__.__  .__  .__" + "\033[0m")
+	fmt.Println(colors[0] + "|__|  | |  | |__|__ __  _____" + "\033[0m")
+	fmt.Println(colors[1] + "|  |  | |  | |  |  |  \\/     \\" + "\033[0m")
+	fmt.Println(colors[2] + "|  |  |_|  |_|  |  |  /  Y Y  \\" + "\033[0m")
+	fmt.Println(colors[3] + "|__|____/____/__|____/|__|_|  /" + "\033[0m")
+	fmt.Println(colors[2] + "                            \\/" + "\033[0m")
 
 	log.Infof("PeerID: %s", s.network.Host().ID().String())
 	var lisAddrs []string

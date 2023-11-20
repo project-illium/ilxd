@@ -46,10 +46,6 @@ pub extern "C" fn secret_key_from_seed(seed: *const u8, out: *mut u8) {
         std::ptr::copy_nonoverlapping(seed, seed_array.as_mut_ptr(), 32);
     }
 
-    if seed_array.len() != 32 {
-        return;
-    }
-
     // Create a ChaChaRng from the seed
     let mut rng = ChaChaRng::from_seed(seed_array);
 

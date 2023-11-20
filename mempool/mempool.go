@@ -9,6 +9,7 @@ import (
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
+	"google.golang.org/protobuf/proto"
 	"sync"
 	"time"
 )
@@ -138,7 +139,7 @@ func (m *Mempool) ProcessTransaction(tx *transactions.Transaction) error {
 
 	resultChan := make(chan error)
 	m.msgChan <- &validationReq{
-		tx:         tx,
+		tx:         proto.Clone(tx).(*transactions.Transaction),
 		resultChan: resultChan,
 	}
 	err = <-resultChan
@@ -154,7 +155,8 @@ func (m *Mempool) GetTransaction(txid types.ID) (*transactions.Transaction, erro
 	if !ok {
 		return nil, ErrNotFound
 	}
-	return tx.tx, nil
+	cpy := proto.Clone(tx.tx)
+	return cpy.(*transactions.Transaction), nil
 }
 
 // GetTransactions returns the full list of transactions from the pool.
@@ -164,7 +166,8 @@ func (m *Mempool) GetTransactions() map[types.ID]*transactions.Transaction {
 
 	pool := make(map[types.ID]*transactions.Transaction)
 	for id, tx := range m.pool {
-		pool[id] = tx.tx
+		cpy := proto.Clone(tx.tx)
+		pool[id] = cpy.(*transactions.Transaction)
 	}
 
 	return pool
@@ -361,6 +364,8 @@ func (m *Mempool) validateTransaction(tx *transactions.Transaction) error {
 		}
 
 		m.treasuryDebits[t.TreasuryTransaction.ID()] = types.Amount(t.TreasuryTransaction.Amount)
+	default:
+		return ruleError(blockchain.ErrInvalidTx, "unknown transaction type")
 	}
 	m.pool[tx.ID()] = &ttlTx{
 		tx:         tx,

@@ -246,8 +246,11 @@ func novaSecretKeyFromSeed(seed [32]byte) [32]byte {
 	// Allocate memory for the secret key
 	var secretKey [32]byte
 
+	var seedCopy [32]byte
+	copy(seedCopy[:], seed[:])
+
 	// Convert the Go byte slice to a C byte pointer
-	cBytes := (*C.uint8_t)(unsafe.Pointer(&seed[0]))
+	cBytes := (*C.uint8_t)(unsafe.Pointer(&seedCopy[0]))
 
 	// Call the Rust function to generate the secret key
 	C.secret_key_from_seed(cBytes, (*C.uint8_t)(unsafe.Pointer(&secretKey[0])))
