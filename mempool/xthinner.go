@@ -201,7 +201,11 @@ func (m *Mempool) DecodeXthinner(blk *blocks.XThinnerBlock) (*blocks.Block, []ui
 		} else if tx, ok := prefilled[mempoolTxs[mempoolposition]]; ok {
 			fullBlk.Transactions[pos] = tx
 		} else {
-			fullBlk.Transactions[pos] = m.pool[mempoolTxs[mempoolposition]].tx
+			poolTxid := mempoolTxs[mempoolposition]
+			ttx, ok := m.pool[poolTxid]
+			if ok {
+				fullBlk.Transactions[pos] = ttx.tx
+			}
 		}
 	}
 	return fullBlk, rerequests

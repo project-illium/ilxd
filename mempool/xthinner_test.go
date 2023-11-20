@@ -242,6 +242,44 @@ func TestMempool_EncodeXthinner(t *testing.T) {
 		}
 	}
 }
+func TestEmptyPool(t *testing.T) {
+	m := &Mempool{
+		pool: make(map[types.ID]*ttlTx),
+	}
+	mempoolTxs := []*transactions.Transaction{
+		transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 51245}), // 0bc4757779ffb01681696ff4fe8ef43dff4411f81a7c173f55b1601f54fe9097
+		transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 97286}), // a798055057b39b7f26ebe0e72fc2768f60ca41b5ed66b7ae6b6858d07a6b84db
+		transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 38973}), // a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a
+		transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 83577}), // e11870bd0ca0cd4c846ec100ca264f9968866c4381bcf6f0750b8a89d5b97d84
+		transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 571}),   // f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d
+	}
+	for _, tx := range mempoolTxs {
+		m.pool[tx.ID()] = &ttlTx{tx: tx}
+	}
+
+	blockHashes := []string{
+		"a798055057b39b7f26ebe0e72fc2768f60ca41b5ed66b7ae6b6858d07a6b84db",
+		"a798f4c1534852561d7273a2b8331241f5f8caaad4c31d5b43f07db627f6ea5a",
+		"f876d51d4b0b73ffa0bd5721545cf0365c59289b4267dc84311af9abc6488f7d",
+	}
+
+	blockIDs := make([]types.ID, 0, len(blockHashes))
+	for _, h := range blockHashes {
+		id, err := hex.DecodeString(h)
+		assert.NoError(t, err)
+		blockIDs = append(blockIDs, types.NewID(id))
+	}
+
+	blk, err := m.EncodeXthinner(blockIDs)
+	assert.NoError(t, err)
+
+	m2 := &Mempool{
+		pool: make(map[types.ID]*ttlTx),
+	}
+
+	_, missing := m2.DecodeXthinner(blk)
+	assert.Len(t, missing, 3)
+}
 
 func TestBitmapEncoding(t *testing.T) {
 	tests := [][]uint32{
