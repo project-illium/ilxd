@@ -335,11 +335,9 @@ func TestConsensusEngine(t *testing.T) {
 					break loop
 				}
 			case <-ticker.C:
-				t.Errorf("Failed to finalize or rejecct block 6a for test node")
+				t.Errorf("Failed to finalize or rejecct block 6 for test node")
 			}
 		}
-		blockAStatus := testNode.engine.blocks[blk6a.Header.Height].blockVotes[blk6a.ID()].Status()
-		blockBStatus := testNode.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status()
 
 		finalized, rejected = 0, 0
 	loop2:
@@ -362,6 +360,8 @@ func TestConsensusEngine(t *testing.T) {
 		assert.Equal(t, 100, finalized)
 		assert.Equal(t, 100, rejected)
 
+		blockAStatus := testNode.engine.blocks[blk6a.Header.Height].blockVotes[blk6a.ID()].Status()
+		blockBStatus := testNode.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status()
 		for _, n := range nodes {
 			assert.Equal(t, blockAStatus, n.engine.blocks[blk6a.Header.Height].blockVotes[blk6a.ID()].Status())
 			assert.Equal(t, blockBStatus, n.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status())

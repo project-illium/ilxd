@@ -6,6 +6,7 @@ package consensus
 
 import (
 	"crypto/rand"
+	"fmt"
 	"github.com/project-illium/ilxd/types"
 	"github.com/stretchr/testify/assert"
 	mrand "math/rand"
@@ -40,9 +41,11 @@ func TestBlockChoice(t *testing.T) {
 	assert.Equal(t, bc.bitRecord.isOnePreferred(), getBit(blk1, 0) == 1)
 
 	for i := 0; i < AvalancheFinalizationScore+10; i++ {
-		assert.False(t, bc.RecordVote(blk1))
+		_, ok := bc.RecordVote(blk1)
+		assert.False(t, ok)
 	}
-	assert.True(t, bc.RecordVote(blk1))
+	_, ok := bc.RecordVote(blk1)
+	assert.True(t, ok)
 	assert.True(t, bc.blockVotes[blk1].Status() == StatusFinalized)
 	assert.True(t, bc.blockVotes[blk2].Status() == StatusNotPreferred)
 }
@@ -65,8 +68,21 @@ func TestBlockChoiceWithConflicts(t *testing.T) {
 
 	for i := 0; i < 10000; i++ {
 		r := mrand.Intn(3)
-		assert.False(t, bc.RecordVote(blks[r]))
+		_, ok := bc.RecordVote(blks[r])
+		assert.False(t, ok)
 	}
 
 	assert.True(t, bc.bitRecord.activeBit > 0)
+}
+
+func TestGetBlockID(t *testing.T) {
+	votes := uint16(0b1110111111111111)
+	consider := uint16(0b1110111111111111)
+
+	fmt.Println(countBits16(votes & consider))
+
+	votes = (votes << 1) | boolToUint16(0x80 == 1)
+	consider = (consider << 1) | boolToUint16(0x80 < 2)
+
+	fmt.Println(countBits16(votes & consider))
 }

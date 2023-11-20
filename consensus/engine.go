@@ -49,9 +49,6 @@ const (
 	// ConsensusProtocolVersion is the version of the ConsensusProtocol
 	ConsensusProtocolVersion = "1.0.0"
 
-	// MaxRejectedCache is the maximum size of the rejected cache
-	MaxRejectedCache = 200
-
 	// MinConnectedStakeThreshold is the minimum percentage of the weighted stake
 	// set we must be connected to in order to finalize blocks.
 	MinConnectedStakeThreshold = .5
@@ -189,8 +186,9 @@ out:
 // in the engine until a conflicting block at the same height is finalized. At that point the block
 // will be marked as Rejected.
 func (eng *ConsensusEngine) NewBlock(header *blocks.BlockHeader, isAcceptable bool, callback chan<- Status) {
+	headerCpy := proto.Clone(header).(*blocks.BlockHeader)
 	eng.msgChan <- &newBlockMessage{
-		header:       header,
+		header:       headerCpy,
 		isAcceptable: isAcceptable,
 		callback:     callback,
 	}
@@ -409,17 +407,17 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 		}
 
 		// Block finalized, fire callbacks
-		if bc.RecordVote(voteID) {
-			callback, ok := eng.callbacks[voteID]
+		if finalizedID, ok := bc.RecordVote(voteID); ok {
+			callback, ok := eng.callbacks[finalizedID]
 			if ok && callback != nil {
-				delete(eng.callbacks, voteID)
+				delete(eng.callbacks, finalizedID)
 				go func(cb chan<- Status) {
 					cb <- StatusFinalized
 				}(callback)
 			}
 
 			for id := range bc.blockVotes {
-				if id.Compare(voteID) != 0 {
+				if id.Compare(finalizedID) != 0 {
 					callback, ok := eng.callbacks[id]
 					if ok && callback != nil {
 						delete(eng.callbacks, id)

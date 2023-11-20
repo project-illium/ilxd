@@ -74,7 +74,7 @@ func NewBlockChoice(height uint32) *BlockChoice {
 func (bc *BlockChoice) GetPreference() types.ID {
 	for id, rec := range bc.blockVotes {
 		if rec.isPreferred() {
-			return id
+			return id.Clone()
 		}
 	}
 	return types.ID{}
@@ -128,7 +128,7 @@ func (bc *BlockChoice) AddNewBlock(blockID types.ID, isAcceptable bool) {
 	}
 }
 
-func (bc *BlockChoice) RecordVote(voteID types.ID) bool {
+func (bc *BlockChoice) RecordVote(voteID types.ID) (types.ID, bool) {
 	bc.totalVotes++
 
 	// Set the vote to unknown if the voteID is all zeros.
@@ -141,14 +141,16 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) bool {
 	record, ok := bc.blockVotes[voteID]
 	if ok {
 		if record.RecordVote(v1) == ResultFinalized {
-			return true
+			return voteID, true
 		}
 	}
 
 	// Iterate over all other blocks and record a no vote
 	for id, record := range bc.blockVotes {
-		if id.Compare(voteID) != 0 {
-			record.RecordVote(v2)
+		if id != voteID {
+			if record.RecordVote(v2) == ResultFinalized {
+				return id, true
+			}
 		}
 	}
 
@@ -167,7 +169,7 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) bool {
 			// The current preference matches the newly finalized bits, so we
 			// don't need to do anything.
 			if currentPreference.Compare(types.ID{}) != 0 && bc.bitRecord.CompareBits(currentPreference) {
-				return false
+				return types.ID{}, false
 			}
 
 			// Loop through the existing records and see if we can't find one that matches
@@ -211,7 +213,7 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) bool {
 		}
 	}
 
-	return false
+	return types.ID{}, false
 }
 
 type BitVoteRecord struct {
