@@ -335,7 +335,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		consensus.ValidatorConnector(valConn),
 		consensus.Chooser(chain),
 		consensus.RequestBlock(s.requestBlock),
-		consensus.HasBlock(chain.HasBlock),
+		consensus.GetBlockID(chain.GetBlockIDByHeight),
 		consensus.PeerID(network.Host().ID()),
 	}...)
 	if err != nil {

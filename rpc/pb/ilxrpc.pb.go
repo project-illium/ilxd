@@ -6965,8 +6965,10 @@ type WalletSyncNotification struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// The current height the wallet is synced up to
 	CurrentHeight uint32 `protobuf:"varint,1,opt,name=current_height,json=currentHeight,proto3" json:"current_height,omitempty"`
-	BestHeight    uint32 `protobuf:"varint,2,opt,name=best_height,json=bestHeight,proto3" json:"best_height,omitempty"`
+	// The height of the chain that the wallet is syncing to
+	BestHeight uint32 `protobuf:"varint,2,opt,name=best_height,json=bestHeight,proto3" json:"best_height,omitempty"`
 }
 
 func (x *WalletSyncNotification) Reset() {

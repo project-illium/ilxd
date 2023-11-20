@@ -5,19 +5,18 @@
 package consensus
 
 import (
-	"github.com/project-illium/ilxd/types"
 	"time"
 )
 
 // RequestRecord is a poll request for more votes
 type RequestRecord struct {
 	timestamp int64
-	invs      []types.ID
+	heights   []uint32
 }
 
 // NewRequestRecord creates a new RequestRecord
-func NewRequestRecord(timestamp int64, invs []types.ID) RequestRecord {
-	return RequestRecord{timestamp, invs}
+func NewRequestRecord(timestamp int64, heights []uint32) RequestRecord {
+	return RequestRecord{timestamp, heights}
 }
 
 // GetTimestamp returns the timestamp that the request was created
@@ -25,13 +24,9 @@ func (r RequestRecord) GetTimestamp() int64 {
 	return r.timestamp
 }
 
-// GetInvs returns the poll Invs for the request
-func (r RequestRecord) GetInvs() map[types.ID]bool {
-	m := make(map[types.ID]bool)
-	for _, inv := range r.invs {
-		m[inv] = true
-	}
-	return m
+// GetHeights returns the heights that were requested in this request.
+func (r RequestRecord) GetHeights() []uint32 {
+	return r.heights
 }
 
 // IsExpired returns true if the request has expired
