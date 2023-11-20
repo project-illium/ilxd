@@ -12,6 +12,7 @@ import (
 // Status is the status of consensus on a particular target
 type Status int
 
+// String returns the String representation of the Status
 func (s Status) String() string {
 	switch s {
 	case 0:
@@ -45,14 +46,26 @@ const (
 	StatusFinalized
 )
 
+// Result represents the result of a vote record operation
 type Result uint8
 
 const (
+	// ResultNoChange means the vote did not produce any change
+	// in the record state.
 	ResultNoChange = iota
+	// ResultFlipped means the preference of the record has flipped
+	// as a result of the vote.
 	ResultFlipped
+	// ResultFinalized means the last vote caused a finalization
 	ResultFinalized
 )
 
+// BlockChoice represents a choice of blocks at a given height in the
+// chain.
+//
+// At every height there can be one or more blocks to chose from. This
+// object tracks them all and makes a selection based on the recorded
+// votes.
 type BlockChoice struct {
 	height           uint32
 	bitRecord        *BitVoteRecord
@@ -62,6 +75,7 @@ type BlockChoice struct {
 	totalVotes       int
 }
 
+// NewBlockChoice returns a new BlockChoice for this height
 func NewBlockChoice(height uint32) *BlockChoice {
 	return &BlockChoice{
 		height:     height,
@@ -71,6 +85,8 @@ func NewBlockChoice(height uint32) *BlockChoice {
 	}
 }
 
+// GetPreference returns the current block preference at this height
+// or a zero ID if there is no acceptable choice.
 func (bc *BlockChoice) GetPreference() types.ID {
 	for id, rec := range bc.blockVotes {
 		if rec.isPreferred() {
@@ -80,6 +96,7 @@ func (bc *BlockChoice) GetPreference() types.ID {
 	return types.ID{}
 }
 
+// HasFinalized returns whether a block at this height has finalized.
 func (bc *BlockChoice) HasFinalized() bool {
 	for _, rec := range bc.blockVotes {
 		if rec.Status() == StatusFinalized {
@@ -89,6 +106,10 @@ func (bc *BlockChoice) HasFinalized() bool {
 	return false
 }
 
+// VotesNeededToFinalize returns the minimum number of votes needed
+// to finalize a block given the current distribution of votes. More
+// votes may ultimately be needed but this can be used to throttle
+// inflight requests.
 func (bc *BlockChoice) VotesNeededToFinalize() int {
 	max := AvalancheMaxInflightPoll
 	for _, rec := range bc.blockVotes {
@@ -100,11 +121,15 @@ func (bc *BlockChoice) VotesNeededToFinalize() int {
 	return max
 }
 
+// HasBlock returns whether a block is currently saved at this height
 func (bc *BlockChoice) HasBlock(id types.ID) bool {
 	_, ok := bc.blockVotes[id]
 	return ok
 }
 
+// AddNewBlock adds a new block at this height. If there currently is no
+// preference, and if this block is acceptable, it will be selected as
+// the new preference.
 func (bc *BlockChoice) AddNewBlock(blockID types.ID, isAcceptable bool) {
 	havePreferred := false
 	for _, record := range bc.blockVotes {
@@ -128,6 +153,10 @@ func (bc *BlockChoice) AddNewBlock(blockID types.ID, isAcceptable bool) {
 	}
 }
 
+// RecordVote records a vote for this height. If the vote is a block ID
+// then a YES will be recorded for that block and a NO for all other
+// conflicting blocks. If it is a ZERO ID then neither YES nor NO will
+// be recorded.
 func (bc *BlockChoice) RecordVote(voteID types.ID) (types.ID, bool) {
 	bc.totalVotes++
 
@@ -233,6 +262,11 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) (types.ID, bool) {
 	return types.ID{}, false
 }
 
+// BitVoteRecord is responsible for tracking and finalizing bits.
+// We start with the most significant bit (MSB) and attempt to finalize
+// a 0 or 1 based on the MSB of the block ID votes. Since we're only
+// making a binary choice, one should eventually finalize. We record
+// the finalized bits and move on to trying to finalize the 2nd MSB.
 type BitVoteRecord struct {
 	activeBit     uint8
 	finalizedBits types.ID
@@ -242,6 +276,9 @@ type BitVoteRecord struct {
 	confidence uint16
 }
 
+// RecordVote records a vote for active bit. If the bit finalizes
+// we increment the active bit and reset the state to work on
+// the next most significant bit.
 func (vr *BitVoteRecord) RecordVote(voteID types.ID) Result {
 	bit := getBit(voteID, vr.activeBit)
 	if voteID.Compare(types.ID{}) == 0 {
@@ -280,10 +317,14 @@ func (vr *BitVoteRecord) RecordVote(voteID types.ID) Result {
 	return ResultFlipped
 }
 
+// SetBit sets the value for the active bit
 func (vr *BitVoteRecord) SetBit(yes bool) {
 	vr.confidence = boolToUint16(yes)
 }
 
+// CompareBits compares the ID to the bits we've already finalized
+// and returns whether they match or not.
+// It does not compare the active bit.
 func (vr *BitVoteRecord) CompareBits(id types.ID) bool {
 	if vr.activeBit == 0 {
 		return true
@@ -299,6 +340,7 @@ func (vr *BitVoteRecord) isOnePreferred() bool {
 	return (vr.confidence & 0x01) == 1
 }
 
+// BlockVoteRecord keeps track of votes for a single block ID
 type BlockVoteRecord struct {
 	acceptable bool
 
@@ -307,6 +349,11 @@ type BlockVoteRecord struct {
 	confidence uint16
 }
 
+// RecordVote records the votes for a block ID and computes whether
+// a block is finalized.
+//
+// Unlike bits, a block ID never finalizes as NO. It only remains in
+// a NOT_PREFERRED state.
 func (vr *BlockVoteRecord) RecordVote(vote byte) Result {
 	vr.votes = (vr.votes << 1) | boolToUint16(vote == 1)
 	vr.consider = (vr.consider << 1) | boolToUint16(vote < 2)
@@ -336,12 +383,15 @@ func (vr *BlockVoteRecord) RecordVote(vote byte) Result {
 	return ResultFlipped
 }
 
+// Reset resets the state of the vote and sets the preference to
+// the bool argument.
 func (vr *BlockVoteRecord) Reset(yes bool) {
 	vr.confidence = boolToUint16(yes)
 	vr.votes = 0
 	vr.consider = 0
 }
 
+// Status returns the current status of the block ID
 func (vr *BlockVoteRecord) Status() (status Status) {
 	finalized := vr.hasFinalized()
 	preferred := vr.isPreferred()
