@@ -667,7 +667,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 		if inv.Header.Height == blk.Header.Height &&
 			inv.ID() != blk.ID() &&
 			bytes.Equal(inv.Header.Producer_ID, blk.Header.Producer_ID) &&
-			time.Unix(blk.Header.Timestamp, 0).Before(time.Unix(inv.Header.Timestamp, 0).Add(minAllowableTimeBetweenDupBlocks)) {
+			time.Unix(blk.Header.Timestamp, 0).Before(time.Unix(inv.Header.Timestamp, 0).Add(gen.MinAllowableTimeBetweenDupBlocks)) {
 
 			// The block producer sent us two blocks at the same height
 			// too close together.
