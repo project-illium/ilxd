@@ -156,7 +156,12 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) (types.ID, bool) {
 
 	// Record the bit vote based on the voteID and check to
 	// see if our bit preference either flipped or finalized.
-	if result := bc.bitRecord.RecordVote(voteID); result != ResultNoChange {
+	var (
+		newPreferred *types.ID
+		reselect     bool
+	)
+	result := bc.bitRecord.RecordVote(voteID)
+	if result != ResultNoChange {
 		var currentPreference types.ID
 		for id, record := range bc.blockVotes {
 			if record.isPreferred() {
@@ -164,7 +169,6 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) (types.ID, bool) {
 				break
 			}
 		}
-		var newPreferred *types.ID
 		if result == ResultFinalized {
 			// The current preference matches the newly finalized bits, so we
 			// don't need to do anything.
@@ -201,15 +205,28 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) (types.ID, bool) {
 				}
 			}
 		}
-
-		if newPreferred != nil {
-			bc.blockVotes[*newPreferred].Reset(true)
-
-			// When we finalize a bit we need to set the preference for
-			// the active bit to that of our newly selected block.
-			if result == ResultFinalized {
-				bc.bitRecord.SetBit(getBit(*newPreferred, bc.bitRecord.activeBit) == 1)
+	} else {
+		// All blocks are not preferred. Likely due to evenly distributed
+		// votes across many blocks. Let's look through and see if any
+		// are acceptable and reset that block as our new preference.
+		if bc.GetPreference().Compare(types.ID{}) == 0 {
+			for id, record := range bc.blockVotes {
+				if record.acceptable && bc.bitRecord.CompareBits(id) {
+					newPreferred = &id
+					reselect = true
+					break
+				}
 			}
+		}
+	}
+
+	if newPreferred != nil {
+		bc.blockVotes[*newPreferred].Reset(true)
+
+		// When we finalize a bit we need to set the preference for
+		// the active bit to that of our newly selected block.
+		if result == ResultFinalized || reselect {
+			bc.bitRecord.SetBit(getBit(*newPreferred, bc.bitRecord.activeBit) == 1)
 		}
 	}
 
@@ -234,11 +251,11 @@ func (vr *BitVoteRecord) RecordVote(voteID types.ID) Result {
 	vr.votes = (vr.votes << 1) | boolToUint16(bit == 1)
 	vr.consider = (vr.consider << 1) | boolToUint16(bit < 2)
 
-	one := countBits16(vr.votes&vr.consider) > 11
+	one := countBits16(vr.votes&vr.consider) > 12
 
 	// The round is inconclusive
 	if !one {
-		zero := countBits16((-vr.votes-1)&vr.consider) > 11
+		zero := countBits16((-vr.votes-1)&vr.consider) > 12
 		if !zero {
 			return ResultNoChange
 		}
@@ -294,11 +311,11 @@ func (vr *BlockVoteRecord) RecordVote(vote byte) Result {
 	vr.votes = (vr.votes << 1) | boolToUint16(vote == 1)
 	vr.consider = (vr.consider << 1) | boolToUint16(vote < 2)
 
-	yes := countBits16(vr.votes&vr.consider) > 11
+	yes := countBits16(vr.votes&vr.consider) > 12
 
 	// The round is inconclusive
 	if !yes {
-		no := countBits16((-vr.votes-1)&vr.consider) > 11
+		no := countBits16((-vr.votes-1)&vr.consider) > 12
 		if !no {
 			return ResultNoChange
 		}

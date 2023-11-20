@@ -7,6 +7,7 @@ package consensus
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/project-illium/ilxd/net"
@@ -377,7 +378,8 @@ func TestConsensusEngine(t *testing.T) {
 		blk6c := &blocks.Block{Header: &blocks.BlockHeader{Version: 2, Height: 6}}
 		blk6d := &blocks.Block{Header: &blocks.BlockHeader{Version: 3, Height: 6}}
 		blk6e := &blocks.Block{Header: &blocks.BlockHeader{Version: 4, Height: 6}}
-		blocks := []*blocks.Block{blk6a, blk6b, blk6c, blk6d, blk6e}
+		blk6f := &blocks.Block{Header: &blocks.BlockHeader{Version: 5, Height: 6}}
+		blocks := []*blocks.Block{blk6a, blk6b, blk6c, blk6d, blk6e, blk6f}
 		cb := make(chan Status)
 		for _, node := range nodes {
 			rand.Shuffle(len(blocks), func(i, j int) {
@@ -388,6 +390,7 @@ func TestConsensusEngine(t *testing.T) {
 			node.engine.NewBlock(blocks[2].Header, true, cb)
 			node.engine.NewBlock(blocks[3].Header, true, cb)
 			node.engine.NewBlock(blocks[4].Header, true, cb)
+			node.engine.NewBlock(blocks[5].Header, true, cb)
 		}
 
 		cb2 := make(chan Status)
@@ -400,6 +403,7 @@ func TestConsensusEngine(t *testing.T) {
 		testNode.engine.NewBlock(blocks[2].Header, true, cb2)
 		testNode.engine.NewBlock(blocks[3].Header, true, cb2)
 		testNode.engine.NewBlock(blocks[4].Header, true, cb2)
+		testNode.engine.NewBlock(blocks[5].Header, true, cb2)
 
 		ticker := time.NewTicker(time.Second * 60)
 		finalized, rejected := 0, 0
@@ -412,21 +416,30 @@ func TestConsensusEngine(t *testing.T) {
 				} else if status == StatusRejected {
 					rejected++
 				}
-				if finalized == 1 && rejected == 4 {
+				if finalized == 1 && rejected == 5 {
 					break loop
 				}
 			case <-ticker.C:
+				fmt.Printf("%08b\n", blk6a.ID()[0])
+				fmt.Printf("%08b\n", blk6b.ID()[0])
+				fmt.Printf("%08b\n", blk6c.ID()[0])
+				fmt.Printf("%08b\n", blk6d.ID()[0])
+				fmt.Printf("%08b\n", blk6e.ID()[0])
+				fmt.Printf("%08b\n", blk6f.ID()[0])
+				fmt.Println("*****")
+				fmt.Printf("%d\n", testNode.engine.blocks[6].bitRecord.activeBit)
+				fmt.Printf("%08b\n", testNode.engine.blocks[6].bitRecord.finalizedBits[0])
 				t.Errorf("Failed to finalize or reject block 6")
+				for _, rec := range testNode.engine.blocks[6].blockVotes {
+					fmt.Printf("%08b\n", rec.votes)
+					fmt.Printf("%08b\n", rec.consider)
+					fmt.Printf("%08b\n", rec.confidence)
+					fmt.Println()
+				}
 				break loop
 
 			}
 		}
-
-		blkAStatus := testNode.engine.blocks[blk6a.Header.Height].blockVotes[blk6a.ID()].Status()
-		blkBStatus := testNode.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status()
-		blkCStatus := testNode.engine.blocks[blk6c.Header.Height].blockVotes[blk6c.ID()].Status()
-		blkDStatus := testNode.engine.blocks[blk6d.Header.Height].blockVotes[blk6d.ID()].Status()
-		blkEStatus := testNode.engine.blocks[blk6e.Header.Height].blockVotes[blk6e.ID()].Status()
 
 		finalized, rejected = 0, 0
 	loop2:
@@ -438,7 +451,7 @@ func TestConsensusEngine(t *testing.T) {
 				} else if status == StatusRejected {
 					rejected++
 				}
-				if finalized == 100 && rejected == 400 {
+				if finalized == 100 && rejected == 500 {
 					break loop2
 				}
 			case <-ticker.C:
@@ -449,7 +462,14 @@ func TestConsensusEngine(t *testing.T) {
 		}
 
 		assert.Equal(t, finalized, 100)
-		assert.Equal(t, rejected, 400)
+		assert.Equal(t, rejected, 500)
+
+		blkAStatus := testNode.engine.blocks[blk6a.Header.Height].blockVotes[blk6a.ID()].Status()
+		blkBStatus := testNode.engine.blocks[blk6b.Header.Height].blockVotes[blk6b.ID()].Status()
+		blkCStatus := testNode.engine.blocks[blk6c.Header.Height].blockVotes[blk6c.ID()].Status()
+		blkDStatus := testNode.engine.blocks[blk6d.Header.Height].blockVotes[blk6d.ID()].Status()
+		blkEStatus := testNode.engine.blocks[blk6e.Header.Height].blockVotes[blk6e.ID()].Status()
+		blkFStatus := testNode.engine.blocks[blk6f.Header.Height].blockVotes[blk6f.ID()].Status()
 
 		for _, n := range nodes {
 			assert.Equal(t, blkAStatus, n.engine.blocks[blk6a.Header.Height].blockVotes[blk6a.ID()].Status())
@@ -457,6 +477,7 @@ func TestConsensusEngine(t *testing.T) {
 			assert.Equal(t, blkCStatus, n.engine.blocks[blk6c.Header.Height].blockVotes[blk6c.ID()].Status())
 			assert.Equal(t, blkDStatus, n.engine.blocks[blk6d.Header.Height].blockVotes[blk6d.ID()].Status())
 			assert.Equal(t, blkEStatus, n.engine.blocks[blk6e.Header.Height].blockVotes[blk6e.ID()].Status())
+			assert.Equal(t, blkFStatus, n.engine.blocks[blk6f.Header.Height].blockVotes[blk6f.ID()].Status())
 		}
 	})
 }
