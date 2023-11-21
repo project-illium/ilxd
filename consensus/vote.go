@@ -166,7 +166,7 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) (types.ID, bool) {
 		v1, v2 = 0x80, 0x80
 	}
 
-	// Record the new block vote and check for finalization
+	// Record the new YES block vote and check for finalization
 	record, ok := bc.blockVotes[voteID]
 	if ok {
 		if record.RecordVote(v1) == ResultFinalized {
@@ -174,7 +174,7 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) (types.ID, bool) {
 		}
 	}
 
-	// Iterate over all other blocks and record a no vote.
+	// Iterate over all other blocks and record a NO vote.
 	// We need to check for (YES) finalization here because
 	// even if the last vote is NO, there could still be
 	// enough YES votes to increment the confidence counter
@@ -233,7 +233,7 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) (types.ID, bool) {
 				// Select this record if:
 				// - It was marked as acceptable
 				// - It matches the current finalized bits
-				// - The active bit
+				// - It matches the active bit
 				if record.acceptable && bc.bitRecord.CompareBits(id) &&
 					(getBit(id, bc.bitRecord.activeBit) == 1) == bc.bitRecord.isOnePreferred() {
 
