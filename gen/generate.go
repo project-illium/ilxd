@@ -159,7 +159,7 @@ func (g *BlockGenerator) generateBlock() error {
 	if g.lastGenHeight != 0 && g.lastGenHeight == height+1 && now.Before(g.lastGenTime.Add(MinAllowableTimeBetweenDupBlocks)) {
 		return nil
 	}
-	
+
 	blockTime := now.Unix()
 	if blockTime <= timestamp.Unix() {
 		blockTime = timestamp.Unix() + 1

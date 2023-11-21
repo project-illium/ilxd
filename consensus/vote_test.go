@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"github.com/project-illium/ilxd/types"
 	"github.com/stretchr/testify/assert"
+	"math"
 	"testing"
 )
 
@@ -46,4 +47,37 @@ func TestBlockChoice(t *testing.T) {
 	assert.True(t, ok)
 	assert.True(t, bc.blockVotes[blk1].Status() == StatusFinalized)
 	assert.True(t, bc.blockVotes[blk2].Status() == StatusNotPreferred)
+}
+
+func TestFlipping(t *testing.T) {
+	bc := NewBlockChoice(1)
+
+	blk1 := randomBlockID()
+	blk2 := randomBlockID()
+	blk1[0] = 0b00000000
+	blk2[0] = 0b11111111
+	bc.AddNewBlock(blk1, true)
+	bc.AddNewBlock(blk2, true)
+	bc.blockVotes[blk1].consider = 1
+	bc.blockVotes[blk2].consider = 0
+
+	// Preference is 0. Bit flips from 0 to 1.
+	bc.bitRecord.confidence = 0b100111110
+	bc.bitRecord.votes = math.MaxUint16
+	bc.bitRecord.consider = math.MaxUint16
+
+	bc.RecordVote(blk2)
+
+	assert.Equal(t, blk2, bc.GetPreference())
+	assert.Equal(t, uint8(0), bc.bitRecord.activeBit)
+
+	// Preference is 0. Bit flips from 0 to 1.
+	bc.bitRecord.confidence = 0b100111111
+	bc.bitRecord.votes = math.MaxUint16
+	bc.bitRecord.consider = math.MaxUint16
+
+	bc.RecordVote(blk2)
+
+	assert.Equal(t, blk2, bc.GetPreference())
+	assert.Equal(t, uint8(1), bc.bitRecord.activeBit)
 }

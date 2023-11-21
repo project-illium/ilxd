@@ -206,7 +206,8 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) (types.ID, bool) {
 			}
 
 			// Loop through the existing records and see if we can't find one that matches
-			// the newly finalized bits
+			// the newly finalized bits. This really shouldn't happen if we are correctly
+			// flipping when the bit flips.
 			for id, record := range bc.blockVotes {
 				if record.acceptable && bc.bitRecord.CompareBits(id) {
 					newPreferred = &id
@@ -225,7 +226,7 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) (types.ID, bool) {
 				// Select this record if:
 				// - It was marked as acceptable
 				// - It matches the current finalized bits
-				// - The active bit matches
+				// - The active bit
 				if record.acceptable && bc.bitRecord.CompareBits(id) &&
 					(getBit(id, bc.bitRecord.activeBit) == 1) == bc.bitRecord.isOnePreferred() {
 
