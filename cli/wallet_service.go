@@ -438,6 +438,8 @@ func (x *CreateMultisigAddress) Execute(args []string) error {
 		chainParams = &params.Testnet1Params
 	case "regtest":
 		chainParams = &params.RegestParams
+	case "alphanet":
+		chainParams = &params.AlphanetParams
 	default:
 		return errors.New("invalid net")
 	}
@@ -464,7 +466,7 @@ func (x *CreateMultisigAddress) Execute(args []string) error {
 }
 
 type CreateMultiSignature struct {
-	Tx         string `short:"t" long:"tx" description:"A transaction to sign. Serialized as hex string. Use this or sighash."`
+	Tx         string `short:"t" long:"tx" description:"A transaction to sign (either Transaction or RawTransaction). Serialized as hex string. Use this or sighash."`
 	SigHash    string `short:"h" long:"sighash" description:"A sighash to sign. Serialized as hex string. Use this or tx."`
 	PrivateKey string `short:"k" long:"privkey" description:"A spend private key. Serialized as hex string."`
 	opts       *options
@@ -488,7 +490,11 @@ func (x *CreateMultiSignature) Execute(args []string) error {
 		}
 		var tx transactions.Transaction
 		if err := proto.Unmarshal(txBytes, &tx); err != nil {
-			return err
+			var raw pb.RawTransaction
+			if err := proto.Unmarshal(txBytes, &raw); err != nil {
+				return err
+			}
+			tx = *raw.Tx
 		}
 		if tx.GetStandardTransaction() != nil {
 			sigHash, err = tx.GetStandardTransaction().SigHash()
