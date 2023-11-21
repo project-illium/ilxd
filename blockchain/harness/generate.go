@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
+	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
@@ -65,7 +66,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 
 			for x := 0; x < outputsPerTx; x++ {
 				nCommitments++
-				privKey, pubKey, err := crypto.GenerateEd25519Key(rand.Reader)
+				privKey, pubKey, err := icrypto.GenerateNovaKey(rand.Reader)
 				if err != nil {
 					return nil, nil, err
 				}

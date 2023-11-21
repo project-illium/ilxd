@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/repo/mock"
@@ -20,7 +21,7 @@ func DefaultOptions() Option {
 		if err != nil {
 			return err
 		}
-		spendPriv, _, err := crypto.GenerateEd25519Key(rand.Reader)
+		spendPriv, _, err := icrypto.GenerateNovaKey(rand.Reader)
 		if err != nil {
 			return err
 		}
