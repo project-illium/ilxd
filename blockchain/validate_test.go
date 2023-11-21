@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
+	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/repo/mock"
@@ -29,7 +30,7 @@ func TestValidateHeader(t *testing.T) {
 
 	// Build valid header
 	validHeader := randomBlockHeader(1, randomID())
-	sk, pk, err := crypto.GenerateEd25519Key(rand.Reader)
+	sk, pk, err := icrypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
 
 	pid, err := peer.IDFromPublicKey(pk)

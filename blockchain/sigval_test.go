@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
+	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -17,7 +18,7 @@ func TestSigValidator(t *testing.T) {
 	sigCache := NewSigCache(10)
 	sigValidator := NewSigValidator(sigCache)
 
-	sk, pk, err := crypto.GenerateEd25519Key(rand.Reader)
+	sk, pk, err := icrypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
 
 	pkBytes, err := crypto.MarshalPublicKey(pk)
