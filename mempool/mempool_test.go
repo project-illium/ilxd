@@ -448,7 +448,7 @@ func TestMempool(t *testing.T) {
 				tx.GetCoinbaseTransaction().Signature = sig
 				return nil
 			},
-			expectedErr: policyError(ErrDuplicateCoinbase, ""),
+			expectedErr: ruleError(ErrDuplicateCoinbase, ""),
 		},
 		{
 			name: "valid coinbase replacement",

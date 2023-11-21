@@ -143,7 +143,7 @@ func (bc *BlockChoice) AddNewBlock(blockID types.ID, isAcceptable bool) {
 	if !havePreferred && isAcceptable && bc.bitRecord.CompareBits(blockID) {
 		preferred = true
 		if bc.bitRecord.getConfidence() == 0 {
-			bc.bitRecord.SetBit(getBit(blockID, bc.bitRecord.activeBit) == 1)
+			bc.bitRecord.SetActiveBit(getBit(blockID, bc.bitRecord.activeBit) == 1)
 		}
 	}
 
@@ -174,7 +174,11 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) (types.ID, bool) {
 		}
 	}
 
-	// Iterate over all other blocks and record a no vote
+	// Iterate over all other blocks and record a no vote.
+	// We need to check for (YES) finalization here because
+	// even if the last vote is NO, there could still be
+	// enough YES votes to increment the confidence counter
+	// and cause a finalization.
 	for id, record := range bc.blockVotes {
 		if id != voteID {
 			if record.RecordVote(v2) == ResultFinalized {
@@ -206,8 +210,11 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) (types.ID, bool) {
 			}
 
 			// Loop through the existing records and see if we can't find one that matches
-			// the newly finalized bits. This really shouldn't happen if we are correctly
-			// flipping when the bit flips.
+			// the newly finalized bits.
+			//
+			// This should never happen. If we correctly flipped our block preference when
+			// the bit preference flipped our block preference should be correct when the
+			// bit finalizes. We'll pick a new block here just in case.
 			for id, record := range bc.blockVotes {
 				if record.acceptable && bc.bitRecord.CompareBits(id) {
 					newPreferred = &id
@@ -256,7 +263,7 @@ func (bc *BlockChoice) RecordVote(voteID types.ID) (types.ID, bool) {
 		// When we finalize a bit we need to set the preference for
 		// the active bit to that of our newly selected block.
 		if result == ResultFinalized || reselect {
-			bc.bitRecord.SetBit(getBit(*newPreferred, bc.bitRecord.activeBit) == 1)
+			bc.bitRecord.SetActiveBit(getBit(*newPreferred, bc.bitRecord.activeBit) == 1)
 		}
 	}
 
@@ -318,8 +325,8 @@ func (vr *BitVoteRecord) RecordVote(voteID types.ID) Result {
 	return ResultFlipped
 }
 
-// SetBit sets the value for the active bit
-func (vr *BitVoteRecord) SetBit(yes bool) {
+// SetActiveBit sets the value for the active bit
+func (vr *BitVoteRecord) SetActiveBit(yes bool) {
 	vr.confidence = boolToUint16(yes)
 }
 

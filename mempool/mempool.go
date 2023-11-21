@@ -259,7 +259,7 @@ func (m *Mempool) validateTransaction(tx *transactions.Transaction) error {
 				delete(m.pool, prevCoinbase.ID())
 				m.coinbases[validatorID] = t.CoinbaseTransaction
 			} else {
-				return policyError(ErrDuplicateCoinbase, "coinbase from validator already in pool")
+				return ruleError(ErrDuplicateCoinbase, "coinbase from validator already in pool")
 			}
 		} else {
 			m.coinbases[validatorID] = t.CoinbaseTransaction
