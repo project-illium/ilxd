@@ -319,7 +319,7 @@ type CreateMultisigSpendKeypair struct {
 }
 
 func (x *CreateMultisigSpendKeypair) Execute(args []string) error {
-	priv, pub, err := crypto.GenerateEd25519Key(rand.Reader)
+	priv, pub, err := icrypto.GenerateNovaKey(rand.Reader)
 	if err != nil {
 		return err
 	}

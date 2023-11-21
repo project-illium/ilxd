@@ -6,7 +6,7 @@ package blockchain
 
 import (
 	"crypto/rand"
-	"github.com/libp2p/go-libp2p/core/crypto"
+	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +20,7 @@ func TestSigCache(t *testing.T) {
 	for i := 0; i < 11; i++ {
 		sig := make([]byte, 64)
 		rand.Read(sig)
-		_, pk, err := crypto.GenerateEd25519Key(rand.Reader)
+		_, pk, err := icrypto.GenerateNovaKey(rand.Reader)
 		assert.NoError(t, err)
 
 		sigHash := hash.HashFunc(sig)

@@ -683,9 +683,9 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 	delete(s.orphanBlocks, blk.ID())
 	s.orphanLock.Unlock()
 
+	s.generator.Interrupt(blk.Header.Height)
 	log.Debugf("[CONSENSUS] new block: %s", blk.ID())
 	s.engine.NewBlock(blk.Header, isAcceptable, callback)
-	s.generator.Interrupt(blk.Header.Height)
 
 	go func(b *blocks.Block, t time.Time) {
 		select {
@@ -704,7 +704,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 				log.Debugf("Block %s rejected by consensus", b.ID())
 			}
 
-			// Leave it here for a little bit in case a peer requests it.
+			// Leave it here for a little in case a peer requests it.
 			// This likely would only happen in a race condition.
 			time.AfterFunc(time.Minute, func() {
 				s.inventoryLock.Lock()

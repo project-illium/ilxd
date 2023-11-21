@@ -239,7 +239,7 @@ func (s *GrpcServer) ImportAddress(ctx context.Context, req *pb.ImportAddressReq
 
 // CreateMultisigSpendKeypair generates a spend keypair for use in a multisig address
 func (s *GrpcServer) CreateMultisigSpendKeypair(ctx context.Context, req *pb.CreateMultisigSpendKeypairRequest) (*pb.CreateMultisigSpendKeypairResponse, error) {
-	priv, pub, err := crypto.GenerateEd25519Key(rand.Reader)
+	priv, pub, err := icrypto.GenerateNovaKey(rand.Reader)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

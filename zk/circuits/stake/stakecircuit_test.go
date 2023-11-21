@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
+	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/zk/circuits/stake"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
@@ -25,15 +26,15 @@ func TestStakeCircuit(t *testing.T) {
 	scriptCommitment := make([]byte, 32)
 	rand.Read(scriptCommitment)
 
-	_, pub1, err := crypto.GenerateEd25519Key(rand.Reader)
+	_, pub1, err := icrypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
 	pub1bytes, err := crypto.MarshalPublicKey(pub1)
 	assert.NoError(t, err)
-	_, pub2, err := crypto.GenerateEd25519Key(rand.Reader)
+	_, pub2, err := icrypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
 	pub2bytes, err := crypto.MarshalPublicKey(pub2)
 	assert.NoError(t, err)
-	_, pub3, err := crypto.GenerateEd25519Key(rand.Reader)
+	_, pub3, err := icrypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
 	pub3bytes, err := crypto.MarshalPublicKey(pub3)
 	assert.NoError(t, err)

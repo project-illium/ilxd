@@ -7,6 +7,7 @@ package blockchain
 import (
 	"crypto/rand"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,7 @@ func TestProofValidator(t *testing.T) {
 	var salt1 [32]byte
 	rand.Read(salt1[:])
 
-	spendKey, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	spendKey, _, err := icrypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
 
 	mockScriptCommitment := make([]byte, 32)

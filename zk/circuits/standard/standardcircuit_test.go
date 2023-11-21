@@ -7,8 +7,8 @@ package standard_test
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
+	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/stretchr/testify/assert"
@@ -17,7 +17,7 @@ import (
 )
 
 func TestStandardCircuit(t *testing.T) {
-	_, pub, err := crypto.GenerateEd25519Key(rand.Reader)
+	_, pub, err := icrypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
 
 	raw, err := pub.Raw()
@@ -33,7 +33,7 @@ func TestStandardCircuit(t *testing.T) {
 
 	usScriptHash := us.Hash()
 
-	_, pub2, err := crypto.GenerateEd25519Key(rand.Reader)
+	_, pub2, err := icrypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
 
 	raw2, err := pub2.Raw()
