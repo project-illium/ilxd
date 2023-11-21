@@ -47,12 +47,17 @@ type privateInputJSON struct {
 	ScriptCommitment types.HexEncodable   `json:"scriptCommitment"`
 	ScriptParams     []types.HexEncodable `json:"scriptParams"`
 	TxoProof         *TxoProof            `json:"txoProof"`
+	UnlockingParams  []types.HexEncodable `json:"unlockingParams"`
 }
 
 func (i *PrivateInput) MarshalJSON() ([]byte, error) {
 	params := make([]types.HexEncodable, 0, len(i.ScriptParams))
 	for _, p := range i.ScriptParams {
 		params = append(params, p)
+	}
+	ulp := make([]types.HexEncodable, 0, len(i.UnlockingParams))
+	for _, p := range i.UnlockingParams {
+		ulp = append(ulp, p)
 	}
 	s := &privateInputJSON{
 		Amount:           i.Amount,
@@ -62,6 +67,7 @@ func (i *PrivateInput) MarshalJSON() ([]byte, error) {
 		ScriptCommitment: i.ScriptCommitment,
 		ScriptParams:     params,
 		TxoProof:         i.TxoProof,
+		UnlockingParams:  ulp,
 	}
 	return json.Marshal(s)
 }
@@ -77,6 +83,11 @@ func (i *PrivateInput) UnmarshalJSON(data []byte) error {
 		params = append(params, p)
 	}
 
+	ulp := make([][]byte, 0, len(input.UnlockingParams))
+	for _, p := range input.UnlockingParams {
+		ulp = append(ulp, p)
+	}
+
 	*i = PrivateInput{
 		Amount:           input.Amount,
 		Salt:             input.Salt,
@@ -85,6 +96,7 @@ func (i *PrivateInput) UnmarshalJSON(data []byte) error {
 		ScriptCommitment: input.ScriptCommitment,
 		ScriptParams:     params,
 		TxoProof:         input.TxoProof,
+		UnlockingParams:  ulp,
 	}
 	return nil
 }
