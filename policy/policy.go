@@ -106,7 +106,7 @@ loop:
 	}
 }
 
-func (p *Policy) IsPreferredBlock(blk *blocks.Block) (bool, error) {
+func (p *Policy) IsAcceptableBlock(blk *blocks.Block) (bool, error) {
 	p.mtx.RLock()
 	defer p.mtx.RUnlock()
 

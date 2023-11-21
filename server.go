@@ -657,7 +657,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 
 	startTime := time.Now()
 
-	initialPreference, err := s.policy.IsPreferredBlock(blk)
+	isAcceptable, err := s.policy.IsAcceptableBlock(blk)
 	if err != nil {
 		log.Warnf("Error calculating policy preference: %s", err)
 	}
@@ -684,7 +684,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 	s.orphanLock.Unlock()
 
 	log.Debugf("[CONSENSUS] new block: %s", blk.ID())
-	s.engine.NewBlock(blk.Header, initialPreference, callback)
+	s.engine.NewBlock(blk.Header, isAcceptable, callback)
 	s.generator.Interrupt(blk.Header.Height)
 
 	go func(b *blocks.Block, t time.Time) {
