@@ -386,7 +386,7 @@ type CreateMultisigAddress struct {
 	ViewPubKey string   `short:"k" long:"viewpubkey" description:"The view public key for the address. Serialized as hex string."`
 	Pubkeys    []string `short:"p" long:"pubkey" description:"One or more public keys to use with the address. Serialized as a hex string. Use this option more than once for more than one key."`
 	Threshold  uint32   `short:"t" long:"threshold" description:"The number of keys needing to sign to the spend from this address."`
-	Net        string   `short:"n" long:"net" description:"Which network the address is for: [mainnet, testnet, regtest]"`
+	Net        string   `short:"n" long:"net" description:"Which network the address is for: [mainnet, testnet, regtest] Default: mainnet"`
 	opts       *options
 }
 
@@ -432,7 +432,7 @@ func (x *CreateMultisigAddress) Execute(args []string) error {
 
 	var chainParams *params.NetworkParams
 	switch strings.ToLower(x.Net) {
-	case "mainnet":
+	case "mainnet", "":
 		chainParams = &params.MainnetParams
 	case "testnet":
 		chainParams = &params.Testnet1Params
@@ -488,7 +488,7 @@ func (x *CreateMultiSignature) Execute(args []string) error {
 		if err != nil {
 			return err
 		}
-		var tx *transactions.Transaction
+		tx := new(transactions.Transaction)
 		if err := proto.Unmarshal(txBytes, tx); err != nil {
 			var raw pb.RawTransaction
 			if err := proto.Unmarshal(txBytes, &raw); err != nil {
