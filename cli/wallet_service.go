@@ -947,10 +947,10 @@ func (x *ProveRawTransaction) Execute(args []string) error {
 		}
 	}
 
-	hasUnlockingScripts := true
+	hasUnlockingScripts := false
 	for _, i := range rawTx.Inputs {
-		if i.UnlockingParams == nil {
-			hasUnlockingScripts = false
+		if len(i.UnlockingParams) > 0 {
+			hasUnlockingScripts = true
 			break
 		}
 	}

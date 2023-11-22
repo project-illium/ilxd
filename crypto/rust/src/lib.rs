@@ -40,7 +40,6 @@ pub extern "C" fn secret_key_from_seed(seed: *const u8, out: *mut u8) {
         return;
     }
 
-
     let mut seed_array: [u8; 32] = [0; 32];
     unsafe {
         std::ptr::copy_nonoverlapping(seed, seed_array.as_mut_ptr(), 32);
