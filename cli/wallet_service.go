@@ -488,13 +488,13 @@ func (x *CreateMultiSignature) Execute(args []string) error {
 		if err != nil {
 			return err
 		}
-		var tx transactions.Transaction
-		if err := proto.Unmarshal(txBytes, &tx); err != nil {
+		var tx *transactions.Transaction
+		if err := proto.Unmarshal(txBytes, tx); err != nil {
 			var raw pb.RawTransaction
 			if err := proto.Unmarshal(txBytes, &raw); err != nil {
 				return err
 			}
-			tx = *raw.Tx
+			tx = raw.Tx
 		}
 		if tx.GetStandardTransaction() != nil {
 			sigHash, err = tx.GetStandardTransaction().SigHash()
