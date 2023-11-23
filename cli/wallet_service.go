@@ -188,12 +188,16 @@ func (x *GetTransactions) Execute(args []string) error {
 	type tx struct {
 		Txid     types.HexEncodable `json:"txid"`
 		NetCoins int64              `json:"netCoins"`
+		Inputs   []interface{}      `json:"inputs"`
+		Outputs  []interface{}      `json:"outputs"`
 	}
 	txs := make([]tx, 0, len(resp.Txs))
 	for _, rtx := range resp.Txs {
 		txs = append(txs, tx{
 			Txid:     rtx.Transaction_ID,
 			NetCoins: rtx.NetCoins,
+			Inputs:   pbIOtoIO(rtx.Inputs),
+			Outputs:  pbIOtoIO(rtx.Outputs),
 		})
 	}
 	out, err := json.MarshalIndent(txs, "", "    ")
@@ -1302,4 +1306,24 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 		return transactions.WrapTransaction(stakeTx), nil
 	}
 	return nil, errors.New("tx must be either standard or stake type")
+}
+
+func pbIOtoIO(ios []*pb.WalletTransaction_IO) []interface{} {
+	ret := make([]interface{}, 0, len(ios))
+	type txIO struct {
+		Address string `json:"address"`
+		Amount  uint64 `json:"amount"`
+	}
+	for _, io := range ios {
+		if io.GetTxIo() != nil {
+			ret = append(ret, &txIO{
+				Address: io.GetTxIo().Address,
+				Amount:  io.GetTxIo().Amount,
+			})
+		}
+		if io.GetUnknown() != nil {
+			ret = append(ret, walletlib.Unknown{})
+		}
+	}
+	return ret
 }
