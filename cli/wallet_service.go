@@ -951,16 +951,16 @@ func (x *ProveRawTransaction) Execute(args []string) error {
 		}
 	}
 
-	hasUnlockingScripts := false
+	hasUnlockingParams := false
 	for _, i := range rawTx.Inputs {
 		if len(i.UnlockingParams) > 0 {
-			hasUnlockingScripts = true
+			hasUnlockingParams = true
 			break
 		}
 	}
 
 	var tx *transactions.Transaction
-	if privKeys != nil || hasUnlockingScripts {
+	if privKeys != nil || hasUnlockingParams {
 		tx, err = proveRawTransactionLocally(&rawTx, privKeys)
 		if err != nil {
 			return err

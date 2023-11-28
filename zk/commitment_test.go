@@ -5,6 +5,7 @@
 package zk
 
 import (
+	"encoding/hex"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -31,6 +32,6 @@ func TestLurkCommit(t *testing.T) {
 	for _, test := range tests {
 		h, err := LurkCommit(test.expression)
 		assert.NoError(t, err)
-		assert.Equal(t, test.expected, h.String())
+		assert.Equal(t, test.expected, hex.EncodeToString(h))
 	}
 }

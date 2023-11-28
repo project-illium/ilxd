@@ -199,16 +199,6 @@ pub extern "C" fn verify(pub_bytes: *const u8, digest_bytes: *const u8, sig_r: *
     result
 }
 
-#[no_mangle]
-pub extern "C" fn free_memory(ptr: *mut u8) {
-    // Safety: We assume that `ptr` is a valid pointer to memory
-    // allocated with `malloc` or a compatible allocator.
-    unsafe {
-        // Deallocate the memory pointed to by `ptr`
-        libc::free(ptr as *mut libc::c_void);
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct SecretKey<G: Group>(G::Scalar);
 
