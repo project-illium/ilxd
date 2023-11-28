@@ -13,5 +13,5 @@ import (
 )
 
 func LurkCommit(expr string) (types.ID, error) {
-	return hash.HashFunc([]byte(expr))
+	return hash.HashFunc([]byte(expr)), nil
 }
