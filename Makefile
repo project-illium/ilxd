@@ -25,6 +25,9 @@ rust-bindings:
 	mkdir -p lib
 	@cd crypto/rust && cargo build --release
 	@cp crypto/rust/target/release/libillium_crypto.so lib/
+	cd ../..
+	@cd zk/rust && cargo build --release
+	@cp zk/rust/target/release/libillium_zk.so lib/
 
 .PHONY: ensure-rust-installed
 ensure-rust-installed:
