@@ -61,9 +61,17 @@ func (u *UnlockingScript) lurkExpression() (string, error) {
 		}
 		if len(param) == 32 {
 			expr += fmt.Sprintf("(cons 0x%x ", param)
-		} else if len(param) == 8 {
+		} else if len(param) <= 8 && len(param) > 0 {
+			for {
+				if len(param) == 8 {
+					break
+				}
+				param = append([]byte{0x00}, param...)
+			}
 			n := binary.BigEndian.Uint64(param)
 			expr += fmt.Sprintf("(cons %d ", n)
+		} else if param == nil {
+			expr += "(cons nil "
 		} else {
 			i := new(big.Int).SetBytes(param)
 			expr += fmt.Sprintf("(cons %s ", i.String())

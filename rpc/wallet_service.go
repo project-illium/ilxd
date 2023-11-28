@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	icrypto "github.com/project-illium/ilxd/crypto"
-	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
@@ -224,18 +223,18 @@ func (s *GrpcServer) ImportAddress(ctx context.Context, req *pb.ImportAddressReq
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if len(req.UnlockingScript) < hash.HashSize {
+	if len(req.UnlockingScript) < zk.CommitmentLen {
 		return nil, status.Error(codes.InvalidArgument, "invalid unlocking script")
 	}
-	unlockingScript := types.UnlockingScript{
-		ScriptCommitment: req.UnlockingScript[:hash.HashSize],
-		ScriptParams:     [][]byte{req.UnlockingScript[hash.HashSize:]},
+	unlockingScript := new(types.UnlockingScript)
+	if err := unlockingScript.Deserialize(req.UnlockingScript); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	privKey, err := crypto.UnmarshalPrivateKey(req.ViewPrivateKey)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	err = s.wallet.ImportAddress(addr, unlockingScript, privKey, req.Rescan, req.RescanFromHeight)
+	err = s.wallet.ImportAddress(addr, *unlockingScript, privKey, req.Rescan, req.RescanFromHeight)
 	return &pb.ImportAddressResponse{}, err
 }
 
