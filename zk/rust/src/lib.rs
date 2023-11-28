@@ -7,7 +7,11 @@ use std::os::raw::{c_char, c_uchar};
 use lurk::{
     field::LurkField,
     lem::{
+        eval::evaluate_simple,
         store::Store,
+    },
+    eval::{
+        lang::Coproc
     },
     state::State,
 };
@@ -43,11 +47,22 @@ pub extern "C" fn lurk_commit(expr: *const c_char, out: *mut c_uchar) -> i32 {
     // Your original logic here...
     let store = &mut Store::<S1>::default();
     let state = State::init_lurk_state().rccell();
+
     let ptr = match store.read(state, expr_str) {
         Ok(ptr) => ptr,
         Err(_) => return -1, // Indicate error
     };
-    let comm = store.commit(ptr);
+
+    let (output, ..) = match evaluate_simple::<S1, Coproc<S1>>(None, ptr, store, 10000) {
+        Ok((out, ..)) => (out, ..), // Successfully destructure the result
+        Err(_) => return -1, // Indicate error
+    };
+
+    if output.len() < 1 {
+        return -1;
+    }
+
+    let comm = store.commit(output[0]);
     let atom_bytes = match comm.get_atom() {
         Some(atom) => atom.to_bytes(),
         None => return -1, // Indicate error
