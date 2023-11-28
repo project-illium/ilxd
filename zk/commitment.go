@@ -1,3 +1,6 @@
+//go:build !skiprusttests
+// +build !skiprusttests
+
 // Copyright (c) 2022 The illium developers
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
@@ -21,6 +24,8 @@ import (
 	"unsafe"
 )
 
+// LurkCommit returns poseidon hash of provided lurk expression. This
+// is the same exact hashing algorithm used inside lurk circuits.
 func LurkCommit(expr string) (types.ID, error) {
 	var out [32]byte
 	cExpr := C.CString(expr)
