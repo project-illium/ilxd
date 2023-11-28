@@ -54,7 +54,7 @@ pub extern "C" fn lurk_commit(expr: *const c_char, out: *mut c_uchar) -> i32 {
     };
 
     let (output, ..) = match evaluate_simple::<S1, Coproc<S1>>(None, ptr, store, 10000) {
-        Ok((out, ..)) => (out, ..), // Successfully destructure the result
+        Ok((out, ..)) => (out, ..),
         Err(_) => return -1, // Indicate error
     };
 

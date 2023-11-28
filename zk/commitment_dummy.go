@@ -7,7 +7,10 @@
 
 package zk
 
-import "github.com/project-illium/ilxd/params/hash"
+import (
+	"github.com/project-illium/ilxd/params/hash"
+	"github.com/project-illium/ilxd/types"
+)
 
 func LurkCommit(expr string) (types.ID, error) {
 	return hash.HashFunc([]byte(expr))
