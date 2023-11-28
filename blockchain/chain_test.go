@@ -51,7 +51,8 @@ func TestBlockchain(t *testing.T) {
 
 	// Test treasury withdrawal
 	unlockingScript := types.UnlockingScript{}
-	scriptHash := unlockingScript.Hash()
+	scriptHash, err := unlockingScript.Hash()
+	assert.NoError(t, err)
 	note := types.SpendNote{
 		ScriptHash: scriptHash[:],
 		Amount:     10000,

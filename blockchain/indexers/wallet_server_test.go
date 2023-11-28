@@ -49,7 +49,9 @@ func TestWalletServerIndex(t *testing.T) {
 
 	// Create a block which pays the viewkey and insert it into the index
 	note := randSpendNote()
-	note.ScriptHash = ul.Hash().Bytes()
+	scriptHash, err := ul.Hash()
+	assert.NoError(t, err)
+	note.ScriptHash = scriptHash.Bytes()
 	commitment := note.Commitment()
 	cipherText, err := viewKey.GetPublic().(*icrypto.Curve25519PublicKey).Encrypt(note.Serialize())
 	assert.NoError(t, err)

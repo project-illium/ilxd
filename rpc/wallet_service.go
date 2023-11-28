@@ -512,7 +512,10 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 			ScriptCommitment: in.ScriptCommitment,
 			ScriptParams:     in.ScriptParams,
 		}
-		scriptHash := unlockingScript.Hash()
+		scriptHash, err := unlockingScript.Hash()
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
 		note := types.SpendNote{
 			ScriptHash: scriptHash[:],
 			Amount:     types.Amount(in.Amount),
@@ -589,7 +592,10 @@ func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.Crea
 		ScriptCommitment: rawTx.PrivateInputs[0].ScriptCommitment,
 		ScriptParams:     rawTx.PrivateInputs[0].ScriptParams,
 	}
-	scriptHash := unlockingScript.Hash()
+	scriptHash, err := unlockingScript.Hash()
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	note := types.SpendNote{
 		ScriptHash: scriptHash[:],
 		Amount:     types.Amount(rawTx.PrivateInputs[0].Amount),
@@ -652,7 +658,10 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 					ScriptCommitment: in.ScriptCommitment,
 					ScriptParams:     in.ScriptParams,
 				}
-				scriptHash := unlockingScript.Hash()
+				scriptHash, err := unlockingScript.Hash()
+				if err != nil {
+					return nil, status.Error(codes.InvalidArgument, err.Error())
+				}
 
 				var privKey crypto.PrivKey
 				for k, addr := range privkeyMap {
@@ -747,7 +756,10 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 				ScriptCommitment: req.RawTx.Inputs[0].ScriptCommitment,
 				ScriptParams:     req.RawTx.Inputs[0].ScriptParams,
 			}
-			scriptHash := unlockingScript.Hash()
+			scriptHash, err := unlockingScript.Hash()
+			if err != nil {
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
 
 			var privKey crypto.PrivKey
 			for k, addr := range privkeyMap {

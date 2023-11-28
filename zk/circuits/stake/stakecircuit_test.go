@@ -45,7 +45,8 @@ func TestStakeCircuit(t *testing.T) {
 		ScriptCommitment: scriptCommitment,
 		ScriptParams:     scriptParams,
 	}
-	scriptHash := script.Hash()
+	scriptHash, err := script.Hash()
+	assert.NoError(t, err)
 
 	r := make([]byte, 32)
 	rand.Read(r)

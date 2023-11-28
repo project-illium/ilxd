@@ -31,7 +31,8 @@ func TestStandardCircuit(t *testing.T) {
 		ScriptParams:     [][]byte{raw},
 	}
 
-	usScriptHash := us.Hash()
+	usScriptHash, err := us.Hash()
+	assert.NoError(t, err)
 
 	_, pub2, err := icrypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
@@ -44,7 +45,8 @@ func TestStandardCircuit(t *testing.T) {
 		ScriptParams:     [][]byte{raw2},
 	}
 
-	us2ScriptHash := us2.Hash()
+	us2ScriptHash, err := us2.Hash()
+	assert.NoError(t, err)
 
 	r := make([]byte, 32)
 	rand.Read(r)
@@ -74,7 +76,8 @@ func TestStandardCircuit(t *testing.T) {
 		Salt:       salt2,
 	}
 
-	outputScriptHash := us2.Hash()
+	outputScriptHash, err := us2.Hash()
+	assert.NoError(t, err)
 
 	commitment2 := note2.Commitment()
 

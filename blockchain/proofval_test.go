@@ -34,7 +34,8 @@ func TestProofValidator(t *testing.T) {
 		ScriptCommitment: mockScriptCommitment,
 		ScriptParams:     [][]byte{spendPubkeyBytes},
 	}
-	inScriptHash := inUnlockingScript.Hash()
+	inScriptHash, err := inUnlockingScript.Hash()
+	assert.NoError(t, err)
 	inNote := &types.SpendNote{
 		ScriptHash: inScriptHash[:],
 		Amount:     1000000,
@@ -48,7 +49,8 @@ func TestProofValidator(t *testing.T) {
 		ScriptCommitment: mockScriptCommitment,
 		ScriptParams:     [][]byte{spendPubkeyBytes},
 	}
-	outScriptHash := outUnlockingScript.Hash()
+	outScriptHash, err := outUnlockingScript.Hash()
+	assert.NoError(t, err)
 	outNote := &types.SpendNote{
 		ScriptHash: outScriptHash[:],
 		Amount:     900000,

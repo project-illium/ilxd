@@ -85,7 +85,10 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 					ScriptCommitment: mockStandardScriptCommitment,
 					ScriptParams:     [][]byte{pubKeyBytes},
 				}
-				scriptHash := unlockingScript.Hash()
+				scriptHash, err := unlockingScript.Hash()
+				if err != nil {
+					return nil, nil, err
+				}
 				outputNote := &types.SpendNote{
 					ScriptHash: scriptHash[:],
 					Amount:     (sn.Note.Amount / types.Amount(outputsPerTx)) - types.Amount(fee),
@@ -150,7 +153,10 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				},
 			}
 			for _, outNote := range outputNotes {
-				scriptHash := outNote.UnlockingScript.Hash()
+				scriptHash, err := outNote.UnlockingScript.Hash()
+				if err != nil {
+					return nil, nil, err
+				}
 				privateParams.Outputs = append(privateParams.Outputs, standard.PrivateOutput{
 					State:      [types.StateLen]byte{},
 					Amount:     uint64(outNote.Note.Amount),
@@ -311,7 +317,10 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		ScriptCommitment: mockStandardScriptCommitment,
 		ScriptParams:     [][]byte{spendPubkeyBytes},
 	}
-	note1ScriptHash := note1UnlockingScript.Hash()
+	note1ScriptHash, err := note1UnlockingScript.Hash()
+	if err != nil {
+		return nil, nil, err
+	}
 	note1 := &types.SpendNote{
 		ScriptHash: note1ScriptHash[:],
 		Amount:     types.Amount(initialCoins) / 2,
@@ -327,7 +336,10 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		ScriptCommitment: mockStandardScriptCommitment,
 		ScriptParams:     [][]byte{spendPubkeyBytes},
 	}
-	note2ScriptHash := note2UnlockingScript.Hash()
+	note2ScriptHash, err := note2UnlockingScript.Hash()
+	if err != nil {
+		return nil, nil, err
+	}
 	note2 := &types.SpendNote{
 		ScriptHash: note2ScriptHash[:],
 		Amount:     types.Amount(initialCoins) / 2,
