@@ -51,16 +51,18 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	}
 
 	// First obtain the hash of the spendScript.
-	spendScriptPreimage := priv.ScriptCommitment
-	for _, param := range priv.ScriptParams {
-		spendScriptPreimage = append(spendScriptPreimage, param...)
+	ul := types.UnlockingScript{
+		ScriptCommitment: priv.ScriptCommitment,
+		ScriptParams:     priv.ScriptParams,
 	}
-	spendScriptHash := hash.HashFunc(spendScriptPreimage)
-
+	spendScriptHash, err := ul.Hash()
+	if err != nil {
+		return false
+	}
 	amountBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(amountBytes, pub.Amount)
 	commitmentPreimage := make([]byte, 0, hash.HashSize+8+types.AssetIDLen+types.StateLen+types.SaltLen)
-	commitmentPreimage = append(commitmentPreimage, spendScriptHash...)
+	commitmentPreimage = append(commitmentPreimage, spendScriptHash.Bytes()...)
 	commitmentPreimage = append(commitmentPreimage, amountBytes...)
 	commitmentPreimage = append(commitmentPreimage, priv.AssetID[:]...)
 	commitmentPreimage = append(commitmentPreimage, priv.State[:]...)

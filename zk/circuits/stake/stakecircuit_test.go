@@ -7,7 +7,6 @@ package stake_test
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
 	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/types"
@@ -24,22 +23,18 @@ func TestStakeCircuit(t *testing.T) {
 	binary.BigEndian.PutUint64(defaultTimeBytes, uint64(defaultTime.Unix()))
 
 	scriptCommitment := make([]byte, 32)
-	rand.Read(scriptCommitment)
 
 	_, pub1, err := icrypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
-	pub1bytes, err := crypto.MarshalPublicKey(pub1)
-	assert.NoError(t, err)
 	_, pub2, err := icrypto.GenerateNovaKey(rand.Reader)
-	assert.NoError(t, err)
-	pub2bytes, err := crypto.MarshalPublicKey(pub2)
 	assert.NoError(t, err)
 	_, pub3, err := icrypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
-	pub3bytes, err := crypto.MarshalPublicKey(pub3)
-	assert.NoError(t, err)
 
-	scriptParams := [][]byte{{0x02}, pub1bytes, pub2bytes, pub3bytes}
+	pub1x, pub1y := pub1.(*icrypto.NovaPublicKey).ToXY()
+	pub2x, pub2y := pub2.(*icrypto.NovaPublicKey).ToXY()
+	pub3x, pub3y := pub3.(*icrypto.NovaPublicKey).ToXY()
+	scriptParams := [][]byte{{0x02}, pub1x, pub1y, pub2x, pub2y, pub3x, pub3y}
 
 	script := types.UnlockingScript{
 		ScriptCommitment: scriptCommitment,

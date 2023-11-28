@@ -57,11 +57,10 @@ pub extern "C" fn secret_key_from_seed(seed: *const u8, out: *mut u8) {
     }
 }
 
-
 #[no_mangle]
 pub extern "C" fn priv_to_pub(bytes: *const u8, out: *mut u8) {
     // Ensure that the input bytes slice is valid and has the expected length
-    let len = 32;  // Assuming a constant length of 32 bytes
+    let len = 32;
 
     // Check if the provided output buffer is null
     if out.is_null() {
@@ -92,6 +91,39 @@ pub extern "C" fn priv_to_pub(bytes: *const u8, out: *mut u8) {
     // Copy the public key bytes to the provided output buffer
     unsafe {
         std::ptr::copy_nonoverlapping(pk_bytes.as_ptr(), out, len);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn compressed_to_full(bytes: *const u8, out_x: *mut u8, out_y: *mut u8) {
+    // Ensure that the input bytes slice is valid and has the expected length
+    let len = 32;
+
+    // Check if the provided output buffers is null
+    if out_x.is_null() {
+        return;
+    }
+    if out_y.is_null() {
+        return;
+    }
+
+    // Create a byte array from the input bytes
+    let mut input_bytes: [u8; 32] = [0; 32];
+    unsafe {
+        std::ptr::copy_nonoverlapping(bytes, input_bytes.as_mut_ptr(), len);
+    }
+
+    let pub_point = G2::from_bytes(&input_bytes).unwrap();
+    let pk = PublicKey::from_point(pub_point);
+
+    let xy = pk.0.to_affine().coordinates().unwrap();
+    let x_bytes = xy.x().to_repr();
+    let y_bytes = xy.y().to_repr();
+
+    // Copy the public key bytes to the provided output buffer
+    unsafe {
+        std::ptr::copy_nonoverlapping(x_bytes.as_ptr(), out_x, len);
+        std::ptr::copy_nonoverlapping(y_bytes.as_ptr(), out_y, len);
     }
 }
 

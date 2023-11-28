@@ -9,6 +9,8 @@ package crypto
 
 import (
 	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"github.com/go-test/deep"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
@@ -67,4 +69,8 @@ func TestNova(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.True(t, priv4.Equals(priv5))
+
+	x, y := pub3.(*NovaPublicKey).ToXY()
+	raw, _ := pub3.Raw()
+	fmt.Println(hex.EncodeToString(x), hex.EncodeToString(y), hex.EncodeToString(raw))
 }

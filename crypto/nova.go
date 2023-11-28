@@ -20,6 +20,7 @@ package crypto
 void generate_secret_key(uint8_t* out);
 void secret_key_from_seed(const uint8_t* seed, uint8_t* out);
 void priv_to_pub(const uint8_t* bytes, uint8_t* out);
+void compressed_to_full(const uint8_t* bytes, uint8_t* out_x, uint8_t* out_y);
 void sign(const uint8_t* privkey, const uint8_t* message_digest, uint8_t* out);
 bool verify(const uint8_t* pubkey, const uint8_t* message_digest, const uint8_t* sig_r, const uint8_t* sig_s);
 */
@@ -160,6 +161,11 @@ func (k *NovaPublicKey) Raw() ([]byte, error) {
 	return k.k[:], nil
 }
 
+func (k *NovaPublicKey) ToXY() ([]byte, []byte) {
+	x, y := compressed_to_full(*k.k)
+	return reverseBytes(x[:]), reverseBytes(y[:])
+}
+
 // Equals compares two Nova public keys.
 func (k *NovaPublicKey) Equals(o crypto.Key) bool {
 	edk, ok := o.(*NovaPublicKey)
@@ -270,6 +276,19 @@ func novaPrivToPub(sk [32]byte) [32]byte {
 	return pubkey
 }
 
+func compressed_to_full(pk [32]byte) ([32]byte, [32]byte) {
+	var x [32]byte
+	var y [32]byte
+
+	// Convert the Go byte slice to a C byte pointer
+	cBytes := (*C.uint8_t)(unsafe.Pointer(&pk[0]))
+
+	// Call the Rust function to compute the public key
+	C.compressed_to_full(cBytes, (*C.uint8_t)(unsafe.Pointer(&x[0])), (*C.uint8_t)(unsafe.Pointer(&y[0])))
+
+	return x, y
+}
+
 func novaSign(sk [32]byte, messageDigest [32]byte) [64]byte {
 	var signature [64]byte
 
@@ -300,4 +319,11 @@ func novaVerify(pk [32]byte, messageDigest [32]byte, signature [64]byte) bool {
 	valid := C.verify(cPubBytes, cDigestBytes, cSigRBytes, cSigSBytes)
 
 	return bool(valid)
+}
+
+func reverseBytes(b []byte) []byte {
+	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
+		b[i], b[j] = b[j], b[i]
+	}
+	return b
 }

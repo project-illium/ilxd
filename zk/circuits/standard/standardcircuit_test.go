@@ -20,15 +20,14 @@ func TestStandardCircuit(t *testing.T) {
 	_, pub, err := icrypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
 
-	raw, err := pub.Raw()
+	pubx, puby := pub.(*icrypto.NovaPublicKey).ToXY()
 	assert.NoError(t, err)
 
-	randScriptCommitment := make([]byte, 32)
-	rand.Read(randScriptCommitment)
+	scriptCommitment := make([]byte, 32)
 
 	us := types.UnlockingScript{
-		ScriptCommitment: randScriptCommitment,
-		ScriptParams:     [][]byte{raw},
+		ScriptCommitment: scriptCommitment,
+		ScriptParams:     [][]byte{pubx, puby},
 	}
 
 	usScriptHash, err := us.Hash()
@@ -37,12 +36,12 @@ func TestStandardCircuit(t *testing.T) {
 	_, pub2, err := icrypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
 
-	raw2, err := pub2.Raw()
+	pubx2, puby2 := pub2.(*icrypto.NovaPublicKey).ToXY()
 	assert.NoError(t, err)
 
 	us2 := types.UnlockingScript{
-		ScriptCommitment: randScriptCommitment,
-		ScriptParams:     [][]byte{raw2},
+		ScriptCommitment: scriptCommitment,
+		ScriptParams:     [][]byte{pubx2, puby2},
 	}
 
 	us2ScriptHash, err := us2.Hash()
@@ -75,9 +74,6 @@ func TestStandardCircuit(t *testing.T) {
 		State:      [types.StateLen]byte{},
 		Salt:       salt2,
 	}
-
-	outputScriptHash, err := us2.Hash()
-	assert.NoError(t, err)
 
 	commitment2 := note2.Commitment()
 
@@ -123,7 +119,7 @@ func TestStandardCircuit(t *testing.T) {
 		},
 		Outputs: []standard.PrivateOutput{
 			{
-				ScriptHash: outputScriptHash[:],
+				ScriptHash: us2ScriptHash[:],
 				Amount:     uint64(note2.Amount),
 				Salt:       note2.Salt,
 				State:      [types.StateLen]byte{},
