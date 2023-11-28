@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -36,6 +37,7 @@ const (
 type Peerstoreds struct {
 	ds     repo.Datastore
 	pstore peerstore.Peerstore
+	mtx    sync.RWMutex
 	done   chan struct{}
 }
 
@@ -44,6 +46,7 @@ func NewPeerstoreds(ds repo.Datastore, pstore peerstore.Peerstore) *Peerstoreds 
 	pds := &Peerstoreds{
 		ds:     ds,
 		pstore: pstore,
+		mtx:    sync.RWMutex{},
 		done:   make(chan struct{}),
 	}
 	go pds.run()
@@ -52,6 +55,9 @@ func NewPeerstoreds(ds repo.Datastore, pstore peerstore.Peerstore) *Peerstoreds 
 
 // AddrInfos returns a list of AddrInfos (peer, multiaddrs) from the database.
 func (pds *Peerstoreds) AddrInfos() ([]peer.AddrInfo, error) {
+	pds.mtx.RLock()
+	defer pds.mtx.RUnlock()
+
 	var addrInfos []peer.AddrInfo
 	query, err := pds.ds.Query(context.Background(), query.Query{
 		Prefix: repo.CachedAddrInfoDatastoreKey,
@@ -116,11 +122,15 @@ func (pds *Peerstoreds) run() {
 			if err := pds.garbageCollect(); err != nil {
 				log.Errorf("Error garbage collecting peerstore addrs: %s", err)
 			}
+			return
 		}
 	}
 }
 
 func (pds *Peerstoreds) cachePeerAddrs() error {
+	pds.mtx.Lock()
+	defer pds.mtx.Unlock()
+
 	batch, err := pds.ds.Batch(context.Background())
 	if err != nil {
 		return err
@@ -151,6 +161,9 @@ func (pds *Peerstoreds) cachePeerAddrs() error {
 }
 
 func (pds *Peerstoreds) garbageCollect() error {
+	pds.mtx.Lock()
+	defer pds.mtx.Unlock()
+	
 	q := query.Query{
 		Prefix: repo.CachedAddrInfoDatastoreKey,
 	}
