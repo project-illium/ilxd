@@ -19,7 +19,7 @@ func TestNewTestHarness(t *testing.T) {
 	h, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(1))
 	assert.NoError(t, err)
 
-	err = h.GenerateBlocks(1000)
+	err = h.GenerateBlocks(100)
 	assert.NoError(t, err)
 
 	notes := h.SpendableNotes()

@@ -38,8 +38,7 @@ func TestWalletServerIndex(t *testing.T) {
 		ScriptParams:     make([][]byte, 1),
 	}
 	ul.ScriptParams[0] = make([]byte, 32)
-	rand.Read(ul.ScriptCommitment)
-	rand.Read(ul.ScriptParams[0])
+	rand.Read(ul.ScriptParams[0][1:])
 
 	err = idx.RegisterViewKey(ds, viewKey, ul.Serialize())
 	assert.NoError(t, err)

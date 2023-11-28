@@ -225,11 +225,21 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 				if err != nil {
 					continue
 				}
-				if types.NewIDFromData(serializedUnlockingScript).Compare(types.NewID(note.ScriptHash)) != 0 {
+				ul := new(types.UnlockingScript)
+				if err := ul.Deserialize(serializedUnlockingScript); err != nil {
+					log.Errorf("Wallet server index error rescanning chain: %s", err)
+					return err
+				}
+				scriptHash, err := ul.Hash()
+				if err != nil {
+					log.Errorf("Wallet server index error rescanning chain: %s", err)
+					return err
+				}
+				if scriptHash.Compare(types.NewID(note.ScriptHash)) != 0 {
 					continue
 				}
 
-				nullifier := types.CalculateNullifier(commitmentIndex, note.Salt, serializedUnlockingScript)
+				nullifier := types.CalculateNullifier(commitmentIndex, note.Salt, ul.ScriptCommitment, ul.ScriptParams...)
 				dsKey = walletServerNullifierKeyPrefix + serializedViewKey + "/" + nullifier.String()
 				if err := dsPutIndexValue(dbtx, idx, dsKey, out.Commitment); err != nil {
 					continue
@@ -478,12 +488,22 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 						log.Errorf("Wallet server index error rescanning chain: %s", err)
 						return err
 					}
-					if types.NewIDFromData(serializedUnlockingScript).Compare(types.NewID(note.ScriptHash)) != 0 {
+					ul := new(types.UnlockingScript)
+					if err := ul.Deserialize(serializedUnlockingScript); err != nil {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+					scriptHash, err := ul.Hash()
+					if err != nil {
+						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						return err
+					}
+					if scriptHash.Compare(types.NewID(note.ScriptHash)) != 0 {
 						log.Errorf("Wallet server index error rescanning chain: %s", err)
 						return err
 					}
 
-					nullifier := types.CalculateNullifier(commitmentIndex, note.Salt, serializedUnlockingScript)
+					nullifier := types.CalculateNullifier(commitmentIndex, note.Salt, ul.ScriptCommitment, ul.ScriptParams...)
 					dsKey = walletServerNullifierKeyPrefix + serializedViewKey + "/" + nullifier.String()
 					if err := dsPutIndexValue(dbtx, idx, dsKey, out.Commitment); err != nil {
 						log.Errorf("Wallet server index error rescanning chain: %s", err)

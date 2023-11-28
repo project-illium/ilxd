@@ -70,20 +70,16 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				if err != nil {
 					return nil, nil, err
 				}
-				pubKeyBytes, err := crypto.MarshalPublicKey(pubKey)
-				if err != nil {
-					return nil, nil, err
-				}
+				pubx, puby := pubKey.(*icrypto.NovaPublicKey).ToXY()
 
 				mockStandardScriptCommitment := make([]byte, 32)
-				rand.Read(mockStandardScriptCommitment)
 
 				var salt [types.SaltLen]byte
 				rand.Read(salt[:])
 
 				unlockingScript := &types.UnlockingScript{
 					ScriptCommitment: mockStandardScriptCommitment,
-					ScriptParams:     [][]byte{pubKeyBytes},
+					ScriptParams:     [][]byte{pubx, puby},
 				}
 				scriptHash, err := unlockingScript.Hash()
 				if err != nil {
@@ -306,16 +302,12 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	rand.Read(salt1[:])
 
 	mockStandardScriptCommitment := make([]byte, 32)
-	rand.Read(mockStandardScriptCommitment)
 
-	spendPubkeyBytes, err := crypto.MarshalPublicKey(spendKey.GetPublic())
-	if err != nil {
-		return nil, nil, err
-	}
+	pubx, puby := spendKey.GetPublic().(*icrypto.NovaPublicKey).ToXY()
 
 	note1UnlockingScript := &types.UnlockingScript{
 		ScriptCommitment: mockStandardScriptCommitment,
-		ScriptParams:     [][]byte{spendPubkeyBytes},
+		ScriptParams:     [][]byte{pubx, puby},
 	}
 	note1ScriptHash, err := note1UnlockingScript.Hash()
 	if err != nil {
@@ -334,7 +326,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 
 	note2UnlockingScript := &types.UnlockingScript{
 		ScriptCommitment: mockStandardScriptCommitment,
-		ScriptParams:     [][]byte{spendPubkeyBytes},
+		ScriptParams:     [][]byte{pubx, puby},
 	}
 	note2ScriptHash, err := note2UnlockingScript.Hash()
 	if err != nil {
@@ -495,7 +487,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 			Accumulator: inclusionProof.Accumulator,
 		},
 		ScriptCommitment: mockStandardScriptCommitment,
-		ScriptParams:     [][]byte{spendPubkeyBytes},
+		ScriptParams:     [][]byte{pubx, puby},
 		UnlockingParams:  [][]byte{sig3},
 	}
 

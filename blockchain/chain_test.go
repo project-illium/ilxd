@@ -50,7 +50,9 @@ func TestBlockchain(t *testing.T) {
 	assert.Error(t, b.ConnectBlock(b.params.GenesisBlock, BFGenesisValidation))
 
 	// Test treasury withdrawal
-	unlockingScript := types.UnlockingScript{}
+	unlockingScript := types.UnlockingScript{
+		ScriptCommitment: make([]byte, 32),
+	}
 	scriptHash, err := unlockingScript.Hash()
 	assert.NoError(t, err)
 	note := types.SpendNote{
