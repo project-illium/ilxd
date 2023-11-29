@@ -5,8 +5,6 @@
 package gen
 
 import (
-	"crypto/rand"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/blockchain/harness"
@@ -33,8 +31,7 @@ func TestGenerator(t *testing.T) {
 		return nil
 	}
 
-	sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
-	assert.NoError(t, err)
+	sk := testHarness.ValidatorKey()
 
 	pid, err := peer.IDFromPrivateKey(sk)
 	assert.NoError(t, err)
@@ -105,7 +102,6 @@ func TestGenerator(t *testing.T) {
 	case blk := <-respChan:
 		assert.Equal(t, uint32(1), blk.TxCount)
 	case <-time.After(time.Second):
-		t.Error("Failed to receive transaction from broadcast")
+		t.Error("Failed to receive block from broadcast")
 	}
-
 }

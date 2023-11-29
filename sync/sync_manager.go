@@ -41,6 +41,7 @@ type SyncManager struct {
 	currentMtx      sync.RWMutex
 	current         bool
 	syncMtx         sync.Mutex
+	behavorFlag     blockchain.BehaviorFlags
 	callback        func()
 	quit            chan struct{}
 }
@@ -60,6 +61,7 @@ func NewSyncManager(ctx context.Context, chain *blockchain.Blockchain, network *
 		bucketMtx:       sync.RWMutex{},
 		currentMtx:      sync.RWMutex{},
 		callback:        isCurrentCallback,
+		behavorFlag:     blockchain.BFNone,
 		quit:            make(chan struct{}),
 	}
 	notifier := &inet.NotifyBundle{
@@ -134,7 +136,7 @@ syncLoop:
 			// All peers agree on the blockID at the requested height. This is good.
 			// We'll just sync up to this height.
 			for blockID, p := range blockMap {
-				err := sm.syncBlocks(p, height+1, height+lookaheadSize, bestID, blockID, blockchain.BFNone)
+				err := sm.syncBlocks(p, height+1, height+lookaheadSize, bestID, blockID, sm.behavorFlag)
 				if err != nil {
 					log.Debugf("Error syncing blocks. Peer: %s, Our Height: %d, Sync To: %d, Err: %s", p, height, height+lookaheadSize, err)
 				}
@@ -155,7 +157,7 @@ syncLoop:
 			// Step two is sync up to fork point.
 			if forkHeight > height {
 				for _, p := range blockMap {
-					err := sm.syncBlocks(p, height+1, forkHeight, bestID, forkBlock, blockchain.BFNone)
+					err := sm.syncBlocks(p, height+1, forkHeight, bestID, forkBlock, sm.behavorFlag)
 					if err != nil {
 						log.Debugf("Error syncing blocks. Peer: %s, Err: %s", p, err)
 						continue syncLoop
@@ -252,7 +254,7 @@ syncLoop:
 
 			// Finally sync to the best fork.
 			currentID, height, _ := sm.chain.BestBlock()
-			err = sm.syncBlocks(blockMap[bestID], height+1, syncTo[bestID].Header.Height, currentID, syncTo[bestID].ID(), blockchain.BFNone)
+			err = sm.syncBlocks(blockMap[bestID], height+1, syncTo[bestID].Header.Height, currentID, syncTo[bestID].ID(), sm.behavorFlag)
 			if err != nil {
 				log.Debugf("Error syncing blocks. Peer: %s, Err: %s", blockMap[bestID], err)
 				continue syncLoop
