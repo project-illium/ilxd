@@ -5,11 +5,18 @@
 package harness
 
 import (
+	"bytes"
+	"crypto/rand"
+	"embed"
+	"encoding/binary"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
+	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"google.golang.org/protobuf/proto"
 )
 
 type SpendableNote struct {
@@ -29,7 +36,11 @@ type TestHarness struct {
 	validators     map[peer.ID]*validator
 	txsPerBlock    int
 	timeSource     int64
+	cfg            *config
 }
+
+//go:embed blocks.dat
+var blocksData embed.FS
 
 func NewTestHarness(opts ...Option) (*TestHarness, error) {
 	var cfg config
@@ -48,32 +59,8 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 		spendableNotes: make(map[types.Nullifier]*SpendableNote),
 		validators:     make(map[peer.ID]*validator),
 		txsPerBlock:    cfg.nTxsPerBlock,
+		cfg:            &cfg,
 	}
-
-	genesis, spendableNote, err := createGenesisBlock(cfg.params, cfg.networkKey, cfg.spendKey, cfg.initialCoins, cfg.genesisOutputs)
-	if err != nil {
-		return nil, err
-	}
-	cfg.params.GenesisBlock = genesis
-	for _, output := range genesis.Outputs() {
-		harness.acc.Insert(output.Commitment, true)
-	}
-
-	commitment := spendableNote.Note.Commitment()
-	proof, err := harness.acc.GetProof(commitment[:])
-	if err != nil {
-		return nil, err
-	}
-
-	nullifier := types.CalculateNullifier(proof.Index, spendableNote.Note.Salt, spendableNote.UnlockingScript.ScriptCommitment, spendableNote.UnlockingScript.ScriptParams...)
-	harness.spendableNotes[nullifier] = spendableNote
-
-	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(cfg.params))
-	if err != nil {
-		return nil, err
-	}
-	harness.chain = chain
-
 	validatorID, err := peer.IDFromPrivateKey(cfg.networkKey)
 	if err != nil {
 		return nil, err
@@ -82,9 +69,134 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 		networkKey: cfg.networkKey,
 	}
 
-	harness.timeSource = genesis.Header.Timestamp
+	var genesisBlock *blocks.Block
+	if cfg.pregenerate > 0 {
+		/*execPath, err := os.Executable()
+		if err != nil {
+			panic(err)
+		}
+		baseDir := filepath.Dir(execPath)*/
+		data, err := blocksData.ReadFile("blocks.dat")
+		if err != nil {
+			return nil, err
+		}
+		file := bytes.NewReader(data)
+		harness.acc = blockchain.NewAccumulator()
+		for {
+			lenBytes := make([]byte, 4)
+			_, err := file.Read(lenBytes)
+			if err != nil {
+				return nil, err
+			}
+			l := binary.BigEndian.Uint32(lenBytes)
+			blkBytes := make([]byte, l)
+			_, err = file.Read(blkBytes)
+			if err != nil {
+				return nil, err
+			}
+
+			var blk blocks.Block
+			if err := proto.Unmarshal(blkBytes, &blk); err != nil {
+				return nil, err
+			}
+			for _, out := range blk.Outputs() {
+				harness.acc.Insert(out.Commitment, false)
+			}
+
+			if blk.Header.Height == 0 {
+				cfg.params.GenesisBlock = &blk
+				harness.chain, err = blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(cfg.params))
+				if err != nil {
+					return nil, err
+				}
+				genesisBlock = cfg.params.GenesisBlock
+				harness.timeSource = genesisBlock.Header.Timestamp
+			} else {
+				if err := harness.chain.ConnectBlock(&blk, blockchain.BFFastAdd); err != nil {
+					return nil, err
+				}
+				harness.timeSource++
+			}
+			if blk.Header.Height >= uint32(cfg.pregenerate)-1 || blk.Header.Height == 25000 {
+				idBytes, err := validatorID.Marshal()
+				if err != nil {
+					return nil, err
+				}
+				mockStandardScriptCommitment := make([]byte, 32)
+
+				pubx, puby := cfg.spendKey.GetPublic().(*icrypto.NovaPublicKey).ToXY()
+
+				note1UnlockingScript := &types.UnlockingScript{
+					ScriptCommitment: mockStandardScriptCommitment,
+					ScriptParams:     [][]byte{pubx, puby},
+				}
+				note1ScriptHash, err := note1UnlockingScript.Hash()
+				if err != nil {
+					return nil, err
+				}
+				note1 := &types.SpendNote{
+					ScriptHash: note1ScriptHash[:],
+					Amount:     100000000000,
+					AssetID:    types.IlliumCoinID,
+					State:      [types.StateLen]byte{},
+				}
+				rand.Read(note1.Salt[:])
+				sn := &SpendableNote{
+					Note:            note1,
+					UnlockingScript: note1UnlockingScript,
+					PrivateKey:      cfg.spendKey,
+				}
+				commitment := note1.Commitment()
+				val, err := harness.chain.GetValidator(validatorID)
+				if err != nil {
+					return nil, err
+				}
+				tx := &transactions.CoinbaseTransaction{
+					Validator_ID: idBytes,
+					NewCoins:     uint64(val.UnclaimedCoins),
+					Outputs: []*transactions.Output{
+						{Commitment: commitment[:]},
+					},
+				}
+				if err := harness.GenerateBlockWithTransactions([]*transactions.Transaction{transactions.WrapTransaction(tx)}, []*SpendableNote{sn}); err != nil {
+					return nil, err
+				}
+				break
+			}
+		}
+	} else {
+		genesis, spendableNote, err := createGenesisBlock(cfg.params, cfg.networkKey, cfg.spendKey, cfg.initialCoins, cfg.genesisOutputs)
+		if err != nil {
+			return nil, err
+		}
+		cfg.params.GenesisBlock = genesis
+		genesisBlock = genesis
+		for _, output := range genesis.Outputs() {
+			harness.acc.Insert(output.Commitment, true)
+		}
+
+		commitment := spendableNote.Note.Commitment()
+		proof, err := harness.acc.GetProof(commitment[:])
+		if err != nil {
+			return nil, err
+		}
+
+		nullifier := types.CalculateNullifier(proof.Index, spendableNote.Note.Salt, spendableNote.UnlockingScript.ScriptCommitment, spendableNote.UnlockingScript.ScriptParams...)
+		harness.spendableNotes[nullifier] = spendableNote
+
+		chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(cfg.params))
+		if err != nil {
+			return nil, err
+		}
+		harness.chain = chain
+		harness.timeSource = genesisBlock.Header.Timestamp
+	}
 
 	return harness, nil
+}
+
+func (h *TestHarness) ValidatorKey() crypto.PrivKey {
+	return h.cfg.networkKey
 }
 
 func (h *TestHarness) GenerateBlocks(n int) error {
@@ -93,7 +205,7 @@ func (h *TestHarness) GenerateBlocks(n int) error {
 		return err
 	}
 	for _, blk := range blks {
-		if err := h.chain.ConnectBlock(blk, blockchain.BFNone); err != nil {
+		if err := h.chain.ConnectBlock(blk, blockchain.BFFastAdd); err != nil {
 			return err
 		}
 		for _, out := range blk.Outputs() {
@@ -109,7 +221,7 @@ func (h *TestHarness) GenerateBlockWithTransactions(txs []*transactions.Transact
 	if err != nil {
 		return err
 	}
-	if err := h.chain.ConnectBlock(blk, blockchain.BFNone); err != nil {
+	if err := h.chain.ConnectBlock(blk, blockchain.BFFastAdd); err != nil {
 		return err
 	}
 	for _, out := range blk.Outputs() {

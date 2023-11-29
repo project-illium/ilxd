@@ -182,11 +182,10 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				Locktime:   time.Time{},
 			}
 
-			proof, err := zk.CreateSnark(standard.StandardCircuit, privateParams, publicPrams)
+			_, err = zk.CreateSnark(standard.StandardCircuit, privateParams, publicPrams)
 			if err != nil {
 				return nil, nil, err
 			}
-			standardTx.Proof = proof
 			txs = append(txs, transactions.WrapTransaction(standardTx))
 		}
 
@@ -418,11 +417,10 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		},
 	}
 
-	proof, err := zk.CreateSnark(standard.StandardCircuit, privateParams, publicParams)
+	_, err = zk.CreateSnark(standard.StandardCircuit, privateParams, publicParams)
 	if err != nil {
 		return nil, nil, err
 	}
-	coinbaseTx.Proof = proof
 
 	// Next we have to build the transaction staking the coins generated
 	// in the prior coinbase transaction. This is needed because if no
@@ -491,11 +489,10 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		UnlockingParams:  [][]byte{sig3},
 	}
 
-	proof2, err := zk.CreateSnark(stake.StakeCircuit, privateParams2, publicParams2)
+	_, err = zk.CreateSnark(stake.StakeCircuit, privateParams2, publicParams2)
 	if err != nil {
 		return nil, nil, err
 	}
-	stakeTx.Proof = proof2
 
 	// Now we add the transactions to the genesis block
 	genesis := params.GenesisBlock

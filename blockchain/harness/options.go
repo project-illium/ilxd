@@ -5,28 +5,41 @@
 package harness
 
 import (
-	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types/transactions"
 )
 
+const (
+	defaultNetworkKey = "080112403dc9255cbaeb93921acf3589b8314433fc7ec0238c05d8559568ddf8da90b54a8d63fe6aaff827bef5bbfddcca441750ff617c439fb9866f9329b80afe22ada6"
+	defaultSpendKey   = "080512407947fd46daa4ccf08db89e983c0d60f2571d6abdd1ffa595dc2adb8639f6490560bdce4d2baed5185bc3105e42c2af4293d5d0db329fcaf9d7cd3925ef448e83"
+)
+
 func DefaultOptions() Option {
 	return func(cfg *config) error {
-		networkPriv, _, err := repo.GenerateNetworkKeypair()
+		networkBytes, err := hex.DecodeString(defaultNetworkKey)
 		if err != nil {
 			return err
 		}
-		spendPriv, _, err := icrypto.GenerateNovaKey(rand.Reader)
+		spendBytes, err := hex.DecodeString(defaultSpendKey)
+		if err != nil {
+			return err
+		}
+		networkPriv, err := crypto.UnmarshalPrivateKey(networkBytes)
+		if err != nil {
+			return err
+		}
+		spendPriv, err := crypto.UnmarshalPrivateKey(spendBytes)
 		if err != nil {
 			return err
 		}
 		cfg.networkKey = networkPriv
 		cfg.spendKey = spendPriv
+		cfg.pregenerate = 25000
 		cfg.params = &params.RegestParams
 		cfg.datastore = mock.NewMapDatastore()
 		cfg.nTxsPerBlock = 1
@@ -66,6 +79,13 @@ func SpendKey(privKey crypto.PrivKey) Option {
 	}
 }
 
+func Pregenerate(nBlocks int) Option {
+	return func(cfg *config) error {
+		cfg.pregenerate = nBlocks
+		return nil
+	}
+}
+
 func GenesisOutputs(outputs []*transactions.Output) Option {
 	return func(cfg *config) error {
 		cfg.genesisOutputs = outputs
@@ -100,6 +120,7 @@ type config struct {
 	networkKey     crypto.PrivKey
 	spendKey       crypto.PrivKey
 	genesisOutputs []*transactions.Output
+	pregenerate    int
 	initialCoins   uint64
 	nBlocks        int
 	nTxsPerBlock   int

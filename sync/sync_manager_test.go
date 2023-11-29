@@ -38,11 +38,7 @@ type mockNode struct {
 func generateMockNetwork(numNodes, numBlocks int) (*mockNetwork, error) {
 	mn := mocknet.New()
 
-	testHarness, err := harness.NewTestHarness(harness.DefaultOptions())
-	if err != nil {
-		return nil, err
-	}
-	err = testHarness.GenerateBlocks(numBlocks)
+	testHarness, err := harness.NewTestHarness(harness.DefaultOptions(), harness.Pregenerate(numBlocks))
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +112,8 @@ func TestSyncFromChooser(t *testing.T) {
 
 	harness2, err := net.harness.Clone()
 	assert.NoError(t, err)
-	net.harness.GenerateBlocks(50)
-	harness2.GenerateBlocks(100)
+	net.harness.GenerateBlocks(1)
+	harness2.GenerateBlocks(2)
 
 	choiceID, err := harness2.Blockchain().GetBlockIDByHeight(1001)
 	assert.NoError(t, err)
@@ -144,6 +140,7 @@ func TestSyncFromChooser(t *testing.T) {
 	}
 
 	manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, chooser, nil)
+	manager.behavorFlag = blockchain.BFFastAdd
 
 	assert.NoError(t, net.mn.LinkAll())
 	assert.NoError(t, net.mn.ConnectAllButSelf())
@@ -199,6 +196,7 @@ func TestSyncWithNodesAtDifferentHeights(t *testing.T) {
 	}
 
 	manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, chooser, nil)
+	manager.behavorFlag = blockchain.BFFastAdd
 
 	assert.NoError(t, net.mn.LinkAll())
 	assert.NoError(t, net.mn.ConnectAllButSelf())
