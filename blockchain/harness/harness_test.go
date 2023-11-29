@@ -19,7 +19,7 @@ func TestNewTestHarness(t *testing.T) {
 	h, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(1))
 	assert.NoError(t, err)
 
-	err = h.GenerateBlocks(1000)
+	err = h.GenerateBlocks(100)
 	assert.NoError(t, err)
 
 	notes := h.SpendableNotes()
@@ -38,7 +38,9 @@ func TestNewTestHarness(t *testing.T) {
 		ScriptCommitment: notes[0].UnlockingScript.ScriptCommitment,
 		ScriptParams:     notes[0].UnlockingScript.ScriptParams,
 	}
-	outScriptHash := outUnlockingScript.Hash()
+	outScriptHash, err := outUnlockingScript.Hash()
+	assert.NoError(t, err)
+
 	outNote := &SpendableNote{
 		Note: &types.SpendNote{
 			ScriptHash: outScriptHash[:],

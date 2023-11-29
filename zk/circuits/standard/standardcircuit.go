@@ -95,17 +95,20 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 
 	for i, in := range priv.Inputs {
 		// First obtain the hash of the spendScript.
-		spendScriptPreimage := in.ScriptCommitment
-		for _, param := range in.ScriptParams {
-			spendScriptPreimage = append(spendScriptPreimage, param...)
+		ul := types.UnlockingScript{
+			ScriptCommitment: in.ScriptCommitment,
+			ScriptParams:     in.ScriptParams,
 		}
-		spendScriptHash := hash.HashFunc(spendScriptPreimage)
+		spendScriptHash, err := ul.Hash()
+		if err != nil {
+			return false
+		}
 
 		// Now calculate the commitmentPreimage and commitment hash.
 		amountBytes := make([]byte, 8)
 		binary.BigEndian.PutUint64(amountBytes, in.Amount)
 		commitmentPreimage := make([]byte, 0, hash.HashSize+8+types.AssetIDLen+types.StateLen+types.SaltLen)
-		commitmentPreimage = append(commitmentPreimage, spendScriptHash...)
+		commitmentPreimage = append(commitmentPreimage, spendScriptHash.Bytes()...)
 		commitmentPreimage = append(commitmentPreimage, amountBytes...)
 		commitmentPreimage = append(commitmentPreimage, in.AssetID[:]...)
 		commitmentPreimage = append(commitmentPreimage, in.State[:]...)

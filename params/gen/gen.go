@@ -100,7 +100,10 @@ func main() {
 		ScriptCommitment: walletlib.MockBasicUnlockScriptCommitment,
 		ScriptParams:     [][]byte{spendPubBytes},
 	}
-	scriptHash := unlockingScript.Hash()
+	scriptHash, err := unlockingScript.Hash()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	note0 := types.SpendNote{
 		ScriptHash: scriptHash.Bytes(),

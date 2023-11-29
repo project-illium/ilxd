@@ -67,4 +67,8 @@ func TestNova(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.True(t, priv4.Equals(priv5))
+
+	x, y := pub3.(*NovaPublicKey).ToXY()
+	assert.NotNil(t, x)
+	assert.NotNil(t, y)
 }

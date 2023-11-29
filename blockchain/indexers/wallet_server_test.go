@@ -38,8 +38,7 @@ func TestWalletServerIndex(t *testing.T) {
 		ScriptParams:     make([][]byte, 1),
 	}
 	ul.ScriptParams[0] = make([]byte, 32)
-	rand.Read(ul.ScriptCommitment)
-	rand.Read(ul.ScriptParams[0])
+	rand.Read(ul.ScriptParams[0][1:])
 
 	err = idx.RegisterViewKey(ds, viewKey, ul.Serialize())
 	assert.NoError(t, err)
@@ -49,7 +48,9 @@ func TestWalletServerIndex(t *testing.T) {
 
 	// Create a block which pays the viewkey and insert it into the index
 	note := randSpendNote()
-	note.ScriptHash = ul.Hash().Bytes()
+	scriptHash, err := ul.Hash()
+	assert.NoError(t, err)
+	note.ScriptHash = scriptHash.Bytes()
 	commitment := note.Commitment()
 	cipherText, err := viewKey.GetPublic().(*icrypto.Curve25519PublicKey).Encrypt(note.Serialize())
 	assert.NoError(t, err)

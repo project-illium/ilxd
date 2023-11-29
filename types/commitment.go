@@ -8,6 +8,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"github.com/project-illium/ilxd/zk"
+	"math/big"
 )
 
 var IlliumCoinID = NewID(bytes.Repeat([]byte{0x00}, 32))
@@ -30,16 +33,67 @@ func (u *UnlockingScript) Serialize() []byte {
 	ser := make([]byte, len(u.ScriptCommitment))
 	copy(ser, u.ScriptCommitment)
 	for _, param := range u.ScriptParams {
-		p := make([]byte, len(param))
-		copy(p, param)
+		p := make([]byte, len(param)+1)
+		copy(p[1:], param)
+		p[0] = byte(len(p) - 1)
 		ser = append(ser, p...)
 	}
 	return ser
 }
 
-func (u *UnlockingScript) Hash() ID {
-	ser := u.Serialize()
-	return NewIDFromData(ser)
+func (ul *UnlockingScript) Deserialize(ser []byte) error {
+	ul.ScriptCommitment = make([]byte, zk.CommitmentLen)
+	copy(ul.ScriptCommitment, ser[0:zk.CommitmentLen])
+
+	params, err := parseByteSlice(ser[zk.CommitmentLen:])
+	if err != nil {
+		return err
+	}
+	ul.ScriptParams = params
+	return nil
+}
+
+func (u *UnlockingScript) lurkExpression() (string, error) {
+	expr := fmt.Sprintf("(cons 0x%x ", u.ScriptCommitment)
+	for _, param := range u.ScriptParams {
+		if len(param) > 32 {
+			return "", errors.New("script param exceeds max size")
+		}
+		if len(param) == 32 {
+			expr += fmt.Sprintf("(cons 0x%x ", param)
+		} else if len(param) <= 8 && len(param) > 0 {
+			for {
+				if len(param) == 8 {
+					break
+				}
+				param = append([]byte{0x00}, param...)
+			}
+			n := binary.BigEndian.Uint64(param)
+			expr += fmt.Sprintf("(cons %d ", n)
+		} else if param == nil {
+			expr += "(cons nil "
+		} else {
+			i := new(big.Int).SetBytes(param)
+			expr += fmt.Sprintf("(cons %s ", i.String())
+		}
+	}
+	expr += "nil)"
+	for i := 0; i < len(u.ScriptParams); i++ {
+		expr += ")"
+	}
+	return expr, nil
+}
+
+func (u *UnlockingScript) Hash() (ID, error) {
+	expr, err := u.lurkExpression()
+	if err != nil {
+		return ID{}, err
+	}
+	h, err := zk.LurkCommit(expr)
+	if err != nil {
+		return ID{}, err
+	}
+	return NewID(h), nil
 }
 
 // SpendNote holds all the data that makes up an output commitment.
@@ -84,4 +138,31 @@ func (s *SpendNote) Deserialize(ser []byte) error {
 	copy(s.State[:], ser[ScriptHashLen+AmountLen+AssetIDLen:ScriptHashLen+AmountLen+AssetIDLen+StateLen])
 	copy(s.Salt[:], ser[ScriptHashLen+AmountLen+AssetIDLen+StateLen:])
 	return nil
+}
+
+func parseByteSlice(data []byte) ([][]byte, error) {
+	var result [][]byte
+	i := 0
+
+	for i < len(data) {
+		// Read the length of the current element
+		length := int(data[i])
+		i++
+
+		// Check for boundary issues
+		if i+length > len(data) {
+			// Handle error or break according to your requirement
+			return nil, errors.New("invalid element size")
+		}
+
+		// Extract the element and add it to the result
+		element := data[i : i+length]
+		e := make([]byte, len(element))
+		copy(e, element)
+
+		result = append(result, e)
+		i += length
+	}
+
+	return result, nil
 }

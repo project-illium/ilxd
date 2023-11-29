@@ -6,7 +6,6 @@ package blockchain
 
 import (
 	"crypto/rand"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -25,16 +24,15 @@ func TestProofValidator(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockScriptCommitment := make([]byte, 32)
-	rand.Read(mockScriptCommitment)
 
-	spendPubkeyBytes, err := crypto.MarshalPublicKey(spendKey.GetPublic())
-	assert.NoError(t, err)
+	pubx, puby := spendKey.GetPublic().(*icrypto.NovaPublicKey).ToXY()
 
 	inUnlockingScript := types.UnlockingScript{
 		ScriptCommitment: mockScriptCommitment,
-		ScriptParams:     [][]byte{spendPubkeyBytes},
+		ScriptParams:     [][]byte{pubx, puby},
 	}
-	inScriptHash := inUnlockingScript.Hash()
+	inScriptHash, err := inUnlockingScript.Hash()
+	assert.NoError(t, err)
 	inNote := &types.SpendNote{
 		ScriptHash: inScriptHash[:],
 		Amount:     1000000,
@@ -46,9 +44,10 @@ func TestProofValidator(t *testing.T) {
 
 	outUnlockingScript := types.UnlockingScript{
 		ScriptCommitment: mockScriptCommitment,
-		ScriptParams:     [][]byte{spendPubkeyBytes},
+		ScriptParams:     [][]byte{pubx, puby},
 	}
-	outScriptHash := outUnlockingScript.Hash()
+	outScriptHash, err := outUnlockingScript.Hash()
+	assert.NoError(t, err)
 	outNote := &types.SpendNote{
 		ScriptHash: outScriptHash[:],
 		Amount:     900000,
