@@ -9,7 +9,6 @@ import (
 	"crypto/rand"
 	"embed"
 	"encoding/binary"
-	"fmt"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
@@ -18,7 +17,6 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"google.golang.org/protobuf/proto"
-	"os"
 )
 
 type SpendableNote struct {
@@ -218,51 +216,6 @@ func (h *TestHarness) GenerateBlocks(n int) error {
 	if err != nil {
 		return err
 	}
-	file, err := os.Create("/home/chris/workspace/ilxd/blockchain/harness/blocks2.dat")
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	_, height, _ := h.chain.BestBlock()
-	tip, err := h.chain.GetBlockByHeight(height)
-	if err != nil {
-		return err
-	}
-	parent, err := h.chain.GetBlockByHeight(height - 1)
-	if err != nil {
-		return err
-	}
-
-	ser, err := proto.Marshal(parent)
-	if err != nil {
-		return err
-	}
-
-	l := make([]byte, 4)
-	binary.BigEndian.PutUint32(l, uint32(len(ser)))
-
-	if _, err := file.Write(l); err != nil {
-		return err
-	}
-	if _, err := file.Write(ser); err != nil {
-		return err
-	}
-
-	ser, err = proto.Marshal(tip)
-	if err != nil {
-		return err
-	}
-
-	l = make([]byte, 4)
-	binary.BigEndian.PutUint32(l, uint32(len(ser)))
-
-	if _, err := file.Write(l); err != nil {
-		return err
-	}
-	if _, err := file.Write(ser); err != nil {
-		return err
-	}
 
 	for _, blk := range blks {
 		if err := h.chain.ConnectBlock(blk, blockchain.BFFastAdd); err != nil {
@@ -271,21 +224,6 @@ func (h *TestHarness) GenerateBlocks(n int) error {
 		for _, out := range blk.Outputs() {
 			h.acc.Insert(out.Commitment, true)
 		}
-		ser, err := proto.Marshal(blk)
-		if err != nil {
-			return err
-		}
-
-		l := make([]byte, 4)
-		binary.BigEndian.PutUint32(l, uint32(len(ser)))
-
-		if _, err := file.Write(l); err != nil {
-			return err
-		}
-		if _, err := file.Write(ser); err != nil {
-			return err
-		}
-		fmt.Println("writing ", blk.Header.Height)
 	}
 	h.spendableNotes = notes
 	return nil
