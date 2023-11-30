@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"embed"
 	"encoding/binary"
+	"fmt"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
@@ -17,6 +18,7 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"google.golang.org/protobuf/proto"
+	"os"
 )
 
 type SpendableNote struct {
@@ -41,6 +43,9 @@ type TestHarness struct {
 
 //go:embed blocks.dat
 var blocksData embed.FS
+
+//go:embed blocks2.dat
+var blocks2Data embed.FS
 
 func NewTestHarness(opts ...Option) (*TestHarness, error) {
 	var cfg config
@@ -70,12 +75,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 	}
 
 	var genesisBlock *blocks.Block
-	if cfg.pregenerate > 0 {
-		/*execPath, err := os.Executable()
-		if err != nil {
-			panic(err)
-		}
-		baseDir := filepath.Dir(execPath)*/
+	if cfg.pregenerate > 0 || cfg.extension {
 		data, err := blocksData.ReadFile("blocks.dat")
 		if err != nil {
 			return nil, err
@@ -117,6 +117,17 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 				}
 				harness.timeSource++
 			}
+
+			if cfg.extension && blk.Header.Height == 14999 {
+				data, err := blocks2Data.ReadFile("blocks2.dat")
+				if err != nil {
+					return nil, err
+				}
+				file = bytes.NewReader(data)
+				cfg.pregenerate = 20502
+				continue
+			}
+
 			if blk.Header.Height >= uint32(cfg.pregenerate)-1 || blk.Header.Height == 25000 {
 				idBytes, err := validatorID.Marshal()
 				if err != nil {
@@ -158,9 +169,12 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 						{Commitment: commitment[:]},
 					},
 				}
-				if err := harness.GenerateBlockWithTransactions([]*transactions.Transaction{transactions.WrapTransaction(tx)}, []*SpendableNote{sn}); err != nil {
+				if err := harness.GenerateBlockWithTransactions([]*transactions.Transaction{
+					transactions.WrapTransaction(tx),
+				}, []*SpendableNote{sn}); err != nil {
 					return nil, err
 				}
+
 				break
 			}
 		}
@@ -204,6 +218,52 @@ func (h *TestHarness) GenerateBlocks(n int) error {
 	if err != nil {
 		return err
 	}
+	file, err := os.Create("/home/chris/workspace/ilxd/blockchain/harness/blocks2.dat")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, height, _ := h.chain.BestBlock()
+	tip, err := h.chain.GetBlockByHeight(height)
+	if err != nil {
+		return err
+	}
+	parent, err := h.chain.GetBlockByHeight(height - 1)
+	if err != nil {
+		return err
+	}
+
+	ser, err := proto.Marshal(parent)
+	if err != nil {
+		return err
+	}
+
+	l := make([]byte, 4)
+	binary.BigEndian.PutUint32(l, uint32(len(ser)))
+
+	if _, err := file.Write(l); err != nil {
+		return err
+	}
+	if _, err := file.Write(ser); err != nil {
+		return err
+	}
+
+	ser, err = proto.Marshal(tip)
+	if err != nil {
+		return err
+	}
+
+	l = make([]byte, 4)
+	binary.BigEndian.PutUint32(l, uint32(len(ser)))
+
+	if _, err := file.Write(l); err != nil {
+		return err
+	}
+	if _, err := file.Write(ser); err != nil {
+		return err
+	}
+
 	for _, blk := range blks {
 		if err := h.chain.ConnectBlock(blk, blockchain.BFFastAdd); err != nil {
 			return err
@@ -211,6 +271,21 @@ func (h *TestHarness) GenerateBlocks(n int) error {
 		for _, out := range blk.Outputs() {
 			h.acc.Insert(out.Commitment, true)
 		}
+		ser, err := proto.Marshal(blk)
+		if err != nil {
+			return err
+		}
+
+		l := make([]byte, 4)
+		binary.BigEndian.PutUint32(l, uint32(len(ser)))
+
+		if _, err := file.Write(l); err != nil {
+			return err
+		}
+		if _, err := file.Write(ser); err != nil {
+			return err
+		}
+		fmt.Println("writing ", blk.Header.Height)
 	}
 	h.spendableNotes = notes
 	return nil

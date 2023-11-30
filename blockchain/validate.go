@@ -297,6 +297,8 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 				return ruleError(ErrInvalidTx, "treasury tx amount exceeds treasury balance")
 			}
 			*treasuryBalance -= types.Amount(tx.TreasuryTransaction.Amount)
+		default:
+			return ruleError(ErrInvalidTx, "unknown transaction type")
 		}
 	}
 
@@ -419,6 +421,8 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 		if len(tx.TreasuryTransaction.ProposalHash) > MaxDocumentHashLen {
 			return ruleError(ErrInvalidTx, "treasury proposal hash too long")
 		}
+	default:
+		return ruleError(ErrInvalidTx, "unknown transaction type")
 	}
 	size, err := t.SerializedSize()
 	if err != nil {

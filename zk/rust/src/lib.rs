@@ -20,21 +20,6 @@ use pasta_curves::pallas;
 pub type S1 = pallas::Scalar;
 const OUT_LEN: usize = 32;
 
-/*
-fn main() {
-    let comm = lurk_commit("1");
-    println!("{:?}", comm);
-}*/
-
-/*
-pub fn lurk_commit(expr: &str, ) -> Vec<u8> {
-    let store = &mut Store::<S1>::default();
-    let state = State::init_lurk_state().rccell();
-    let ptr = store.read(state, expr).expect("could not read expression");
-    let comm = store.commit(ptr);
-    comm.get_atom().unwrap().to_bytes()
-}*/
-
 #[no_mangle]
 pub extern "C" fn lurk_commit(expr: *const c_char, out: *mut c_uchar) -> i32 {
     // Convert C string to Rust string

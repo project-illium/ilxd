@@ -218,3 +218,105 @@ func TestSyncWithNodesAtDifferentHeights(t *testing.T) {
 	assert.Equal(t, height2, height)
 	node.network.Close()
 }
+
+func TestSync(t *testing.T) {
+	net, err := generateMockNetwork(20, 25000)
+	assert.NoError(t, err)
+
+	t.Run("sync when all nodes agree", func(t *testing.T) {
+		chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(net.harness.Blockchain().Params()))
+		assert.NoError(t, err)
+
+		b100, err := net.harness.Blockchain().GetBlockByHeight(100)
+		assert.NoError(t, err)
+		b200, err := net.harness.Blockchain().GetBlockByHeight(200)
+		assert.NoError(t, err)
+		b300, err := net.harness.Blockchain().GetBlockByHeight(300)
+		assert.NoError(t, err)
+
+		chain.Params().Checkpoints = []params.Checkpoint{
+			{
+				BlockID: b100.ID(),
+				Height:  100,
+			},
+			{
+				BlockID: b200.ID(),
+				Height:  200,
+			},
+			{
+				BlockID: b300.ID(),
+				Height:  300,
+			},
+		}
+
+		node, err := makeMockNode(net.mn, chain)
+		assert.NoError(t, err)
+
+		manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, nil, nil)
+		manager.behavorFlag = blockchain.BFFastAdd
+
+		assert.NoError(t, net.mn.LinkAll())
+		assert.NoError(t, net.mn.ConnectAllButSelf())
+
+		ch := make(chan struct{})
+		go func() {
+			manager.Start()
+			close(ch)
+		}()
+		select {
+		case <-ch:
+		case <-time.After(time.Second * 30):
+			t.Fatal("sync timed out")
+		}
+
+		block, height, _ := chain.BestBlock()
+		block2, height2, _ := net.harness.Blockchain().BestBlock()
+		assert.Equal(t, block2, block)
+		assert.Equal(t, height2, height)
+		node.network.Close()
+		chain.Params().Checkpoints = nil
+	})
+
+	t.Run("sync with chain fork", func(t *testing.T) {
+		// The extension option creates a new chain that forks at block 15000 and where
+		// the fork has a worse chain score.
+		harness2, err := harness.NewTestHarness(harness.DefaultOptions(), harness.Extension(true))
+		assert.NoError(t, err)
+
+		// Add more nodes following chain 2
+		for i := 0; i < 20; i++ {
+			_, err := makeMockNode(net.mn, harness2.Blockchain())
+			assert.NoError(t, err)
+		}
+
+		chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(net.harness.Blockchain().Params()))
+		assert.NoError(t, err)
+
+		node, err := makeMockNode(net.mn, chain)
+		assert.NoError(t, err)
+
+		manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, nil, nil)
+		manager.behavorFlag = blockchain.BFFastAdd
+
+		assert.NoError(t, net.mn.LinkAll())
+		assert.NoError(t, net.mn.ConnectAllButSelf())
+
+		ch := make(chan struct{})
+		go func() {
+			manager.Start()
+			close(ch)
+		}()
+		select {
+		case <-ch:
+		case <-time.After(time.Second * 60):
+			t.Fatal("sync timed out")
+		}
+
+		// Node should sync to chain 1
+		block, height, _ := chain.BestBlock()
+		block2, height2, _ := net.harness.Blockchain().BestBlock()
+		assert.Equal(t, block2, block)
+		assert.Equal(t, height2, height)
+	})
+	net.mn.Close()
+}

@@ -16,7 +16,7 @@ import (
 
 type ChainScore float64
 
-func (b *Blockchain) CalcChainScore(blks []*blocks.Block) (ChainScore, error) {
+func (b *Blockchain) CalcChainScore(blks []*blocks.Block, flags ...BehaviorFlags) (ChainScore, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
 
@@ -95,9 +95,13 @@ func (b *Blockchain) CalcChainScore(blks []*blocks.Block) (ChainScore, error) {
 	var (
 		expectedBlocks = make(map[peer.ID]float64)
 		actualBlocks   = make(map[peer.ID]float64)
+		flag           = BFNoFlush
 	)
+	if len(flags) > 0 {
+		flag |= flags[0]
+	}
 	for _, blk := range blks {
-		if err := tempChain.ConnectBlock(blk, BFNoFlush); err != nil {
+		if err := tempChain.ConnectBlock(blk, flag); err != nil {
 			return 0, err
 		}
 

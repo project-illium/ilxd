@@ -163,7 +163,7 @@ func (pds *Peerstoreds) cachePeerAddrs() error {
 func (pds *Peerstoreds) garbageCollect() error {
 	pds.mtx.Lock()
 	defer pds.mtx.Unlock()
-	
+
 	q := query.Query{
 		Prefix: repo.CachedAddrInfoDatastoreKey,
 	}

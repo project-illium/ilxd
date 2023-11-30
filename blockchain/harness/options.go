@@ -86,6 +86,13 @@ func Pregenerate(nBlocks int) Option {
 	}
 }
 
+func Extension(extension bool) Option {
+	return func(cfg *config) error {
+		cfg.extension = true
+		return nil
+	}
+}
+
 func GenesisOutputs(outputs []*transactions.Output) Option {
 	return func(cfg *config) error {
 		cfg.genesisOutputs = outputs
@@ -121,6 +128,7 @@ type config struct {
 	spendKey       crypto.PrivKey
 	genesisOutputs []*transactions.Output
 	pregenerate    int
+	extension      bool
 	initialCoins   uint64
 	nBlocks        int
 	nTxsPerBlock   int
