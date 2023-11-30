@@ -39,10 +39,10 @@ type TestHarness struct {
 	cfg            *config
 }
 
-//go:embed blocks.dat
+//go:embed blocks/blocks.dat
 var blocksData embed.FS
 
-//go:embed blocks2.dat
+//go:embed blocks/blocks2.dat
 var blocks2Data embed.FS
 
 func NewTestHarness(opts ...Option) (*TestHarness, error) {
@@ -74,7 +74,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 
 	var genesisBlock *blocks.Block
 	if cfg.pregenerate > 0 || cfg.extension {
-		data, err := blocksData.ReadFile("blocks.dat")
+		data, err := blocksData.ReadFile("blocks/blocks.dat")
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +117,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 			}
 
 			if cfg.extension && blk.Header.Height == 14999 {
-				data, err := blocks2Data.ReadFile("blocks2.dat")
+				data, err := blocks2Data.ReadFile("blocks/blocks2.dat")
 				if err != nil {
 					return nil, err
 				}
