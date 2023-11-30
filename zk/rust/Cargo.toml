@@ -17,4 +17,4 @@ pasta_curves = { git="https://github.com/lurk-lab/pasta_curves", branch="dev" }
 pasta_curves = { git="https://github.com/lurk-lab/pasta_curves", branch="dev" }
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["staticlib"]

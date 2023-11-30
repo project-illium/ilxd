@@ -14,20 +14,20 @@ ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
 install:
 	@$(MAKE) build ARGS="-o $(GOPATH)/bin/ilxd"
-	cd cli && go build -ldflags="-r $(ROOT_DIR)lib" -o $(GOPATH)/bin/ilxcli
+	cd cli && go build -o $(GOPATH)/bin/ilxcli
 
 .PHONY: build
 build: ensure-rust-installed rust-bindings
-	go build -ldflags="-r $(ROOT_DIR)lib" $(ARGS) *.go
+	go build $(ARGS) *.go
 
 .PHONY: rust-bindings
 rust-bindings:
 	mkdir -p lib
 	@cd crypto/rust && cargo build --release
-	@cp crypto/rust/target/release/libillium_crypto.so lib/
+	@cp crypto/rust/target/release/libillium_crypto.a lib/
 	cd ../..
 	@cd zk/rust && cargo build --release
-	@cp zk/rust/target/release/libillium_zk.so lib/
+	@cp zk/rust/target/release/libillium_zk.a lib/
 
 .PHONY: ensure-rust-installed
 ensure-rust-installed:

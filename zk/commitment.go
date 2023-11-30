@@ -9,11 +9,11 @@ package zk
 
 /*
 #cgo linux CFLAGS: -Irust/target/release
-#cgo linux LDFLAGS: -Lrust/target/release -lillium_zk -ldl -lpthread -lgcc_s -lc -lm
+#cgo linux LDFLAGS: -Lrust/target/release -l:libillium_zk.a -ldl -lpthread -lgcc_s -lc -lm -lssl -lcrypto -lstdc++ -L/usr/local/cuda/lib64 -lcudart
 #cgo windows CFLAGS: -Irust/target/release
-#cgo windows LDFLAGS: -Lrust/target/release -lillium_zk
+#cgo windows LDFLAGS: -Lrust/target/release -l:libillium_zk.lib
 #cgo darwin CFLAGS: -Irust/target/release
-#cgo darwin LDFLAGS: -Lrust/target/release -lillium_zk
+#cgo darwin LDFLAGS: -Lrust/target/release -l:libillium_zk.a -lc++ -lssl -lcrypto -L/path/to/cuda/lib -lcudart
 #include <stdlib.h>
 extern int lurk_commit(const char* expr, unsigned char* out);
 */
