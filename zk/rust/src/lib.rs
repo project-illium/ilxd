@@ -29,7 +29,6 @@ pub extern "C" fn lurk_commit(expr: *const c_char, out: *mut c_uchar) -> i32 {
         Err(_) => return -1, // Indicate error
     };
 
-    // Your original logic here...
     let store = &mut Store::<S1>::default();
     let state = State::init_lurk_state().rccell();
 
@@ -46,21 +45,17 @@ pub extern "C" fn lurk_commit(expr: *const c_char, out: *mut c_uchar) -> i32 {
     if output.len() < 1 {
         return -1;
     }
-
     let comm = store.commit(output[0]);
-    let atom_bytes = match comm.get_atom() {
-        Some(atom) => atom.to_bytes(),
-        None => return -1, // Indicate error
-    };
+    let comm_bytes = store.hash_ptr(&comm).value().to_bytes();
 
     // Ensure the output size matches the expected length
-    if atom_bytes.len() != OUT_LEN {
+    if comm_bytes.len() != OUT_LEN {
         return -1; // Indicate error if length mismatch
     }
 
     // Copy the data into the output buffer
     unsafe {
-        std::ptr::copy_nonoverlapping(atom_bytes.as_ptr(), out, OUT_LEN);
+        std::ptr::copy_nonoverlapping(comm_bytes.as_ptr(), out, OUT_LEN);
     }
 
     0 // Indicate success

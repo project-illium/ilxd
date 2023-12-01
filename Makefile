@@ -20,7 +20,6 @@ build: ensure-rust-installed rust-bindings
 
 .PHONY: rust-bindings
 rust-bindings:
-	mkdir -p lib
 	@cd crypto/rust && cargo build --release
 	cd ../..
 	@cd zk/rust && cargo build --release
