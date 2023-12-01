@@ -10,8 +10,19 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.3.0-devel-ubuntu20.04
+
     steps:
       - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y curl wget build-essential pkg-config libssl-dev
+          ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime
+          dpkg-reconfigure --frontend noninteractive tzdata
 
       - name: Set up Go
         uses: actions/setup-go@v3
@@ -25,7 +36,15 @@ jobs:
           override: true
 
       - name: Build
-        run: make build
+        run: |
+          which go
+          which gcc
+          gcc --version
+          ls -l /usr/local/cuda/targets/x86_64-linux/lib/
+          export LD_LIBRARY_PATH=/usr/local/cuda/targets/x86_64-linux/lib:${LD_LIBRARY_PATH}
+          export CGO_CFLAGS="-I/usr/local/cuda/include"
+          export CGO_LDFLAGS="-L/usr/local/cuda/targets/x86_64-linux/lib -lcudart"
+          make build VERBOSE=1
 
       - name: Test
-        run: go test -ldflags="-r $GITHUB_WORKSPACE/lib" -v ./...
+        run: go test -v ./...
