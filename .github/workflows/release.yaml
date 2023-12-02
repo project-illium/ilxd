@@ -47,6 +47,10 @@ jobs:
             os: ubuntu-latest
             goarch: 'amd64'
             image: nvidia/cuda:12.3.0-devel-ubuntu20.04
+          - platform : darwin
+            os: macos-latest
+            goarch: 'amd64'
+            image: null
 
     steps:
       - name: Checkout code
@@ -77,12 +81,25 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Build Rust bindings
+      - name: Add Rust target for macOS x86_64
+        if: matrix.platform == 'darwin'
+        run: rustup target add x86_64-apple-darwin
+
+      - name: Build Rust bindings for linux
+        if: matrix.platform == 'linux'
         shell: bash
         run: |
           cd crypto/rust && cargo build --release
           cd ../..
           cd zk/rust && cargo build --release
+
+      - name: Build Rust bindings for darwin
+        if: matrix.platform == 'darwin'
+        shell: bash
+        run: |
+          cd crypto/rust && cargo build --target=x86_64-apple-darwin --release
+          cd ../..
+          cd zk/rust && cargo build --target=x86_64-apple-darwin --release
 
       - name: Compile ilxd and ilxcli for ${{ matrix.platform }} ${{ matrix.goarch }}
         shell: bash
@@ -100,15 +117,15 @@ jobs:
           elif [[ "${{ matrix.platform }}" == "darwin" ]]; then
             go env
             export CGO_ENABLED=1
-            go build -ldflags="-r ./lib" -o bin/ilxd *.go
-            cd cli && go build -ldflags="-r ../lib" -o ../bin/ilxcli
+            go build -o bin/ilxd *.go
+            cd cli && go build -o ../bin/ilxcli
           else
             echo "Unsupported platform: ${{ matrix.platform }}"
             exit 1
           fi
 
-      - name: Zip binaries for linux
-        if: matrix.platform == 'linux'
+      - name: Zip binaries for linux and mac
+        if: matrix.platform == 'linux' || matrix.platform == 'darwin'
         shell: bash
         run: |
           zip ilxd-${{ env.VERSION }}-${{ matrix.platform }}_${{ matrix.goarch }}.zip bin/ilxd bin/ilxcli
