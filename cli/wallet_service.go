@@ -407,12 +407,12 @@ func (x *CreateMultisigAddress) Execute(args []string) error {
 			return err
 		}
 
-		raw, err := pubkey.Raw()
-		if err != nil {
-			return err
+		novaKey, ok := pubkey.(*icrypto.NovaPublicKey)
+		if !ok {
+			return errors.New("pubkey is not type Nova public key")
 		}
-
-		pubkeys = append(pubkeys, raw)
+		pubX, pubY := novaKey.ToXY()
+		pubkeys = append(pubkeys, pubX, pubY)
 	}
 
 	viewKeyBytes, err := hex.DecodeString(x.ViewPubKey)
@@ -424,12 +424,16 @@ func (x *CreateMultisigAddress) Execute(args []string) error {
 		return err
 	}
 
-	mockMultisigUnlockScriptCommitment := bytes.Repeat([]byte{0xee}, 32)
+	scriptCommitment, err := zk.LurkCommit(zk.MultisigScript())
+	if err != nil {
+		return err
+	}
+
 	threshold := make([]byte, 4)
 	binary.BigEndian.PutUint32(threshold, x.Threshold)
 
 	unlockingScript := types.UnlockingScript{
-		ScriptCommitment: mockMultisigUnlockScriptCommitment,
+		ScriptCommitment: scriptCommitment,
 		ScriptParams:     [][]byte{threshold},
 	}
 	unlockingScript.ScriptParams = append(unlockingScript.ScriptParams, pubkeys...)
@@ -571,6 +575,11 @@ func (x *ProveMultisig) Execute(args []string) error {
 		return errors.New("standard tx is nil")
 	}
 
+	sighash, err := standardTx.SigHash()
+	if err != nil {
+		return err
+	}
+
 	// Create the transaction zk proof
 	privateParams := &standard.PrivateParams{
 		Inputs:  []standard.PrivateInput{},
@@ -579,6 +588,11 @@ func (x *ProveMultisig) Execute(args []string) error {
 
 	nullifiers := make([][]byte, 0, len(rawTx.Inputs))
 	for _, in := range rawTx.Inputs {
+		unlockingParams, err := zk.MakeMultisigUnlockingParams(in.ScriptParams[1:], sigs, sighash)
+		if err != nil {
+			return err
+		}
+
 		privIn := standard.PrivateInput{
 			Amount:          in.Amount,
 			CommitmentIndex: in.TxoProof.Index,
@@ -589,7 +603,7 @@ func (x *ProveMultisig) Execute(args []string) error {
 			},
 			ScriptCommitment: in.ScriptCommitment,
 			ScriptParams:     in.ScriptParams,
-			UnlockingParams:  sigs,
+			UnlockingParams:  unlockingParams,
 		}
 		copy(privIn.Salt[:], in.Salt)
 		copy(privIn.AssetID[:], in.Asset_ID)
@@ -612,10 +626,6 @@ func (x *ProveMultisig) Execute(args []string) error {
 		privateParams.Outputs = append(privateParams.Outputs, privOut)
 	}
 
-	sighash, err := standardTx.SigHash()
-	if err != nil {
-		return err
-	}
 	publicParams := &standard.PublicParams{
 		TXORoot:    standardTx.TxoRoot,
 		SigHash:    sighash,
@@ -1163,14 +1173,15 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 		}
 
 		for i, in := range rawTx.Inputs {
-			if in.UnlockingParams == nil {
+			if in.UnlockingParams == "" {
 				var privKey crypto.PrivKey
 				for _, k := range privKeys {
-					rawPub, err := k.GetPublic().Raw()
-					if err != nil {
-						return nil, err
+					novaPub, ok := k.GetPublic().(*icrypto.NovaPublicKey)
+					if !ok {
+						return nil, errors.New("key is not type Nova")
 					}
-					if len(in.ScriptParams) == 1 && bytes.Equal(in.ScriptParams[0], rawPub) {
+					x, y := novaPub.ToXY()
+					if len(in.ScriptParams) == 2 && bytes.Equal(in.ScriptParams[0], x) && bytes.Equal(in.ScriptParams[1], y) {
 						privKey = k
 						break
 					}
@@ -1184,7 +1195,7 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 					return nil, err
 				}
 
-				in.UnlockingParams = [][]byte{sig}
+				in.UnlockingParams = fmt.Sprintf("(cons 0x%x 0x%x)", sig[:32], sig[32:])
 			}
 			privIn := standard.PrivateInput{
 				Amount:          in.Amount,
@@ -1196,7 +1207,7 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 				},
 				ScriptCommitment: in.ScriptCommitment,
 				ScriptParams:     in.ScriptParams,
-				UnlockingParams:  in.UnlockingParams,
+				UnlockingParams:  []byte(in.UnlockingParams),
 			}
 			copy(privIn.Salt[:], in.Salt)
 			copy(privIn.AssetID[:], in.Asset_ID)
@@ -1250,14 +1261,15 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 			return nil, errors.New("no inputs")
 		}
 
-		if rawTx.Inputs[0].UnlockingParams == nil {
+		if rawTx.Inputs[0].UnlockingParams == "" {
 			var privKey crypto.PrivKey
 			for _, k := range privKeys {
-				rawPub, err := k.GetPublic().Raw()
-				if err != nil {
-					return nil, err
+				novaPub, ok := k.GetPublic().(*icrypto.NovaPublicKey)
+				if !ok {
+					return nil, errors.New("key is not type Nova")
 				}
-				if len(rawTx.Inputs[0].ScriptParams) == 1 && bytes.Equal(rawTx.Inputs[0].ScriptParams[0], rawPub) {
+				x, y := novaPub.ToXY()
+				if len(rawTx.Inputs[0].ScriptParams) == 2 && bytes.Equal(rawTx.Inputs[0].ScriptParams[0], x) && bytes.Equal(rawTx.Inputs[0].ScriptParams[1], y) {
 					privKey = k
 					break
 				}
@@ -1270,7 +1282,9 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 			if err != nil {
 				return nil, err
 			}
-			rawTx.Inputs[0].UnlockingParams = [][]byte{sig}
+
+			// Fixme: handle timelocked multisig stake tx
+			rawTx.Inputs[0].UnlockingParams = fmt.Sprintf("(cons 0x%x 0x%x)", sig[:32], sig[32:])
 		}
 
 		// Create the transaction zk proof
@@ -1283,7 +1297,7 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 			},
 			ScriptCommitment: rawTx.Inputs[0].ScriptCommitment,
 			ScriptParams:     rawTx.Inputs[0].ScriptParams,
-			UnlockingParams:  rawTx.Inputs[0].UnlockingParams,
+			UnlockingParams:  []byte(rawTx.Inputs[0].UnlockingParams),
 		}
 		copy(privateParams.Salt[:], rawTx.Inputs[0].Salt)
 		copy(privateParams.AssetID[:], rawTx.Inputs[0].Asset_ID)

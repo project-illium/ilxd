@@ -85,7 +85,7 @@ func TestNewTestHarness(t *testing.T) {
 				},
 				ScriptCommitment: notes[0].UnlockingScript.ScriptCommitment,
 				ScriptParams:     notes[0].UnlockingScript.ScriptParams,
-				UnlockingParams:  [][]byte{make([]byte, 64)},
+				UnlockingParams:  make([]byte, 64),
 			},
 		},
 		Outputs: []standard.PrivateOutput{

@@ -281,7 +281,8 @@ func TestWithStandardLib(t *testing.T) {
 	assert.NoError(t, err)
 	lurkProgram = strings.ReplaceAll(lurkProgram, "\n", "")
 	lurkProgram = strings.ReplaceAll(lurkProgram, "\t", "")
+	lurkProgram = strings.Join(strings.Fields(lurkProgram), " ")
 	assert.True(t, isValid(lurkProgram))
-	expected := `(letrec ((my-func (lambda (y) (        (letrec ((check-sig (lambda (signature pubkey sighash) (                (eval (cons 'check_ecc_sig (cons (car signature) (cons (car (cdr signature)) (cons (car pubkey) (cons (car (cdr pubkey)) (cons sighash nil)))))))        ))))(check-sig 10)))))))`
+	expected := `(letrec ((my-func (lambda (y) ( (letrec ((check-sig (lambda (signature pubkey sighash) ( (eval (cons 'check_ecc_sig (cons (car signature) (cons (car (cdr signature)) (cons (car pubkey) (cons (car (cdr pubkey)) (cons sighash nil))))))) ))))(check-sig 10)))))))`
 	assert.Equal(t, expected, lurkProgram)
 }

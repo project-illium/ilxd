@@ -72,3 +72,15 @@ func TestNova(t *testing.T) {
 	assert.NotNil(t, x)
 	assert.NotNil(t, y)
 }
+
+func TestPublicKeyFromXY(t *testing.T) {
+	_, key, err := GenerateNovaKey(rand.Reader)
+	assert.NoError(t, err)
+
+	x, y := key.(*NovaPublicKey).ToXY()
+
+	key2, err := PublicKeyFromXY(x, y)
+	assert.NoError(t, err)
+
+	assert.Equal(t, key.(*NovaPublicKey).k, key2.(*NovaPublicKey).k)
+}

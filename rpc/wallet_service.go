@@ -5,7 +5,6 @@
 package rpc
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/binary"
@@ -283,15 +282,31 @@ func (s *GrpcServer) CreateMultisigViewKeypair(ctx context.Context, req *pb.Crea
 // Note this address is *not* imported. You will need to call `ImportAddress` if you want to watch
 // it.
 func (s *GrpcServer) CreateMultisigAddress(ctx context.Context, req *pb.CreateMultisigAddressRequest) (*pb.CreateMultisigAddressResponse, error) {
-	mockMultisigUnlockScriptCommitment := bytes.Repeat([]byte{0xee}, 32)
 	threshold := make([]byte, 4)
 	binary.BigEndian.PutUint32(threshold, req.Threshold)
 
+	scriptCommitment, err := zk.LurkCommit(zk.MultisigScript())
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	unlockingScript := types.UnlockingScript{
-		ScriptCommitment: mockMultisigUnlockScriptCommitment,
+		ScriptCommitment: scriptCommitment,
 		ScriptParams:     [][]byte{threshold},
 	}
-	unlockingScript.ScriptParams = append(unlockingScript.ScriptParams, req.Pubkeys...)
+	for _, key := range req.Pubkeys {
+		pubkey, err := crypto.UnmarshalPublicKey(key)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		novaKey, ok := pubkey.(*icrypto.NovaPublicKey)
+		if !ok {
+			return nil, status.Error(codes.InvalidArgument, "Public key is not type Nova")
+		}
+
+		x, y := novaKey.ToXY()
+		unlockingScript.ScriptParams = append(unlockingScript.ScriptParams, x, y)
+	}
 
 	viewKey, err := crypto.UnmarshalPublicKey(req.ViewPubkey)
 	if err != nil {
@@ -352,6 +367,11 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 		return nil, status.Error(codes.InvalidArgument, "standard tx is nil")
 	}
 
+	sighash, err := standardTx.SigHash()
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the transaction zk proof
 	privateParams := &standard.PrivateParams{
 		Inputs:  []standard.PrivateInput{},
@@ -360,6 +380,11 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 
 	nullifiers := make([][]byte, 0, len(req.RawTx.Inputs))
 	for _, in := range req.RawTx.Inputs {
+		unlockingParams, err := zk.MakeMultisigUnlockingParams(in.ScriptParams[1:], req.Sigs, sighash)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+
 		privIn := standard.PrivateInput{
 			Amount:          in.Amount,
 			CommitmentIndex: in.TxoProof.Index,
@@ -370,7 +395,7 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 			},
 			ScriptCommitment: in.ScriptCommitment,
 			ScriptParams:     in.ScriptParams,
-			UnlockingParams:  req.Sigs,
+			UnlockingParams:  unlockingParams,
 		}
 		copy(privIn.Salt[:], in.Salt)
 		copy(privIn.AssetID[:], in.Asset_ID)
@@ -393,10 +418,6 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 		privateParams.Outputs = append(privateParams.Outputs, privOut)
 	}
 
-	sighash, err := standardTx.SigHash()
-	if err != nil {
-		return nil, err
-	}
 	publicParams := &standard.PublicParams{
 		TXORoot:    standardTx.TxoRoot,
 		SigHash:    sighash,
@@ -652,7 +673,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		}
 
 		for i, in := range req.RawTx.Inputs {
-			if in.UnlockingParams == nil {
+			if in.UnlockingParams == "" {
 				unlockingScript := types.UnlockingScript{
 					ScriptCommitment: in.ScriptCommitment,
 					ScriptParams:     in.ScriptParams,
@@ -677,7 +698,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 				if err != nil {
 					return nil, status.Error(codes.Internal, err.Error())
 				}
-				in.UnlockingParams = [][]byte{sig}
+				in.UnlockingParams = fmt.Sprintf("(cons 0x%x 0x%x", sig[:32], sig[32:])
 			}
 			privIn := standard.PrivateInput{
 				Amount:          in.Amount,
@@ -689,7 +710,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 				},
 				ScriptCommitment: in.ScriptCommitment,
 				ScriptParams:     in.ScriptParams,
-				UnlockingParams:  in.UnlockingParams,
+				UnlockingParams:  []byte(in.UnlockingParams),
 			}
 			copy(privIn.Salt[:], in.Salt)
 			copy(privIn.AssetID[:], in.Asset_ID)
@@ -745,7 +766,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 			return nil, status.Error(codes.InvalidArgument, "no inputs")
 		}
 
-		if req.RawTx.Inputs[0].UnlockingParams == nil {
+		if req.RawTx.Inputs[0].UnlockingParams == "" {
 			privkeyMap, err := s.wallet.PrivateKeys()
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
@@ -776,7 +797,8 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 
-			req.RawTx.Inputs[0].UnlockingParams = [][]byte{sig}
+			// Fixme: handle timelocked multisig
+			req.RawTx.Inputs[0].UnlockingParams = fmt.Sprintf("(cons 0x%x 0x%x", sig[:32], sig[32:])
 		}
 
 		// Create the transaction zk proof
@@ -789,7 +811,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 			},
 			ScriptCommitment: req.RawTx.Inputs[0].ScriptCommitment,
 			ScriptParams:     req.RawTx.Inputs[0].ScriptParams,
-			UnlockingParams:  req.RawTx.Inputs[0].UnlockingParams,
+			UnlockingParams:  []byte(req.RawTx.Inputs[0].UnlockingParams),
 		}
 		copy(privateParams.Salt[:], req.RawTx.Inputs[0].Salt)
 		copy(privateParams.AssetID[:], req.RawTx.Inputs[0].Asset_ID)

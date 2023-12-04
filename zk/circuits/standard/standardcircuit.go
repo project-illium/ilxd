@@ -35,7 +35,7 @@ type PrivateInput struct {
 	InclusionProof   InclusionProof
 	ScriptCommitment []byte
 	ScriptParams     [][]byte
-	UnlockingParams  [][]byte
+	UnlockingParams  []byte
 }
 
 type PrivateOutput struct {
@@ -267,7 +267,7 @@ func ValidateInclusionProof(outputCommitment []byte, commitmentIndex uint64, has
 
 // ValidateUnlockingScript is a placeholder. Normally this would be part of the overall circuit to validate
 // the functional commitment.
-func ValidateUnlockingScript(scriptCommitment []byte, scriptParams *UnlockingScriptInputs, unlockingParams [][]byte) (bool, error) {
+func ValidateUnlockingScript(scriptCommitment []byte, scriptParams *UnlockingScriptInputs, unlockingParams []byte) (bool, error) {
 	return true, nil
 }
 

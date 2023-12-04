@@ -7,6 +7,7 @@ package standard_test
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"fmt"
 	"github.com/project-illium/ilxd/blockchain"
 	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/types"
@@ -96,7 +97,7 @@ func TestStandardCircuit(t *testing.T) {
 
 	nullifier := types.CalculateNullifier(inclusionProof.Index, note1.Salt, us.ScriptCommitment, us.ScriptParams...)
 
-	fakeSig := make([]byte, 32)
+	fakeSig := make([]byte, 64)
 	rand.Read(fakeSig)
 
 	privateParams := &standard.PrivateParams{
@@ -114,7 +115,7 @@ func TestStandardCircuit(t *testing.T) {
 				},
 				ScriptCommitment: us.ScriptCommitment,
 				ScriptParams:     us.ScriptParams,
-				UnlockingParams:  [][]byte{fakeSig},
+				UnlockingParams:  []byte(fmt.Sprintf("(cons 0x%x 0x%x)", fakeSig[:32], fakeSig[32:])),
 			},
 		},
 		Outputs: []standard.PrivateOutput{
