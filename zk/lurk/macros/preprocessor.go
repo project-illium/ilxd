@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -96,25 +95,6 @@ var outputMap = map[string]int{
 var pubOutMap = map[string]int{
 	"commitment": 0,
 	"ciphertext": 1,
-}
-
-func loadFilesFromDirectory(directory string) ([]string, error) {
-	files, err := os.ReadDir(directory)
-	if err != nil {
-		return nil, err
-	}
-
-	var fileContents []string
-	for _, file := range files {
-		if !file.IsDir() && filepath.Ext(file.Name()) == LurkFileExtension {
-			content, err := os.ReadFile(filepath.Join(directory, file.Name()))
-			if err != nil {
-				return nil, err
-			}
-			fileContents = append(fileContents, string(content))
-		}
-	}
-	return fileContents, nil
 }
 
 func loadFilesFromFS(fileSystem fs.FS, directory string) ([]string, error) {
