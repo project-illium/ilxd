@@ -1173,24 +1173,24 @@ message RawTransaction {
 
 message PrivateInput {
     // The amount of the input
-    uint64 amount                   = 1;
+    uint64 amount                = 1;
     // Input salt
-    bytes salt                      = 2;
+    bytes salt                   = 2;
     // Input asset ID
-    bytes asset_ID                  = 3;
+    bytes asset_ID               = 3;
     // Input state
-    bytes state                     = 4;
+    bytes state                  = 4;
     // The unlocking function commitment
-    bytes script_commitment         = 5;
+    bytes script_commitment      = 5;
     // The unlocking function parameters
-    repeated bytes script_params    = 6;
+    repeated bytes script_params = 6;
     // The txo proof linking the input
     // commitment to the accumulator
-    TxoProof txo_proof              = 7;
-    // Optional parameters used as inputs
-    // to unlocking script. This is only
-    // necessary for watch-only utxos.
-    repeated bytes unlocking_params = 8;
+    TxoProof txo_proof           = 7;
+    // Optional lurk expression used as
+    // input to unlocking script. This is
+    // only necessary for watch-only utxos.
+    string unlocking_params      = 8;
 }
 
 message PrivateOutput {

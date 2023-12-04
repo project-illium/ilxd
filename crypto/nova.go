@@ -151,6 +151,26 @@ func (k *NovaPrivateKey) Sign(msg []byte) ([]byte, error) {
 	return sig[:], nil
 }
 
+func PublicKeyFromXY(x, y []byte) (crypto.PubKey, error) {
+	if len(x) != 32 || len(y) != 32 {
+		return nil, errors.New("invalid coordinate")
+	}
+	x = reverseBytes(x)
+	y = reverseBytes(y)
+
+	b := y[0] & 0x01
+	b <<= 7
+
+	x[31] |= b
+
+	var compressed [32]byte
+	copy(compressed[:], x)
+
+	return &NovaPublicKey{
+		k: &compressed,
+	}, nil
+}
+
 // Type of the public key (Nova).
 func (k *NovaPublicKey) Type() pb.KeyType {
 	return Libp2pKeyTypeNova

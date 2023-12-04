@@ -144,7 +144,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 						},
 						ScriptCommitment: sn.UnlockingScript.ScriptCommitment,
 						ScriptParams:     sn.UnlockingScript.ScriptParams,
-						UnlockingParams:  [][]byte{mockUnlockingSig},
+						UnlockingParams:  mockUnlockingSig,
 					},
 				},
 			}
@@ -486,7 +486,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		},
 		ScriptCommitment: mockStandardScriptCommitment,
 		ScriptParams:     [][]byte{pubx, puby},
-		UnlockingParams:  [][]byte{sig3},
+		UnlockingParams:  sig3,
 	}
 
 	_, err = zk.CreateSnark(stake.StakeCircuit, privateParams2, publicParams2)
