@@ -18,6 +18,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/walletlib"
 	"log"
 	"strings"
@@ -91,14 +92,16 @@ func main() {
 		viewKey = k.ViewKey()
 		break
 	}
-	spendPubBytes, err := spendKey.GetPublic().Raw()
+	x, y := spendKey.GetPublic().(*icrypto.NovaPublicKey).ToXY()
+
+	basicTransferCommitment, err := zk.LurkCommit(zk.BasicTransferScript())
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	unlockingScript := types.UnlockingScript{
-		ScriptCommitment: walletlib.MockBasicUnlockScriptCommitment,
-		ScriptParams:     [][]byte{spendPubBytes},
+		ScriptCommitment: basicTransferCommitment,
+		ScriptParams:     [][]byte{x, y},
 	}
 	scriptHash, err := unlockingScript.Hash()
 	if err != nil {

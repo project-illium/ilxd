@@ -7,6 +7,7 @@ package stake_test
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"fmt"
 	"github.com/project-illium/ilxd/blockchain"
 	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/types"
@@ -94,7 +95,7 @@ func TestStakeCircuit(t *testing.T) {
 		},
 		ScriptCommitment: scriptCommitment,
 		ScriptParams:     scriptParams,
-		UnlockingParams:  [][]byte{fakeSig1, fakeSig2},
+		UnlockingParams:  []byte(fmt.Sprintf("(cons 0x%x 0x%x)", fakeSig1, fakeSig2)),
 	}
 
 	publicParams := &stake.PublicParams{
