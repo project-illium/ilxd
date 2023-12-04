@@ -265,5 +265,23 @@ func TestCircularImports(t *testing.T) {
 
 	_, err = mp.Preprocess(lurkProgram)
 	assert.Error(t, err)
+	fmt.Println(err)
 	assert.True(t, errors.Is(err, macros.ErrCircularImports))
+}
+
+func TestWithStandardLib(t *testing.T) {
+	mp, err := macros.NewMacroPreprocessor(macros.WithStandardLib())
+	assert.NoError(t, err)
+
+	lurkProgram := `!(defun my-func (y) (
+				!(import std/crypto)
+				(check-sig 10)
+			))`
+	lurkProgram, err = mp.Preprocess(lurkProgram)
+	assert.NoError(t, err)
+	lurkProgram = strings.ReplaceAll(lurkProgram, "\n", "")
+	lurkProgram = strings.ReplaceAll(lurkProgram, "\t", "")
+	assert.True(t, isValid(lurkProgram))
+	expected := `(letrec ((my-func (lambda (y) (        (letrec ((check-sig (lambda (signature pubkey sighash) (                (eval (cons 'check_ecc_sig (cons (car signature) (cons (car (cdr signature)) (cons (car pubkey) (cons (car (cdr pubkey)) (cons sighash nil)))))))        ))))(check-sig 10)))))))`
+	assert.Equal(t, expected, lurkProgram)
 }

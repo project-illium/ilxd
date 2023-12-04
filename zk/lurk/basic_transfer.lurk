@@ -1,12 +1,12 @@
 ;; This is a basic transfer unlocking script. The public key is committed to
-;; as the 'script-params', and the signature provided is the 'unlocking-params'
-;; consists of a list of format (r s). If the signature verifies against
-;; the transaction's script-hash then the script evaluates to True.
+;; as the 'script-params' as a list of (x-coordinate, y-coordinate), and the
+;; signature provided is the 'unlocking-params' consists of a list of format
+;; (r s). If the signature verifies against the transaction's script-hash then
+;; the script evaluates to True.
 ;;
 ;; The keypair must be `Nova` keypair generated using the Vesta curve.
 (lambda (script-params unlocking-params input-index private-params public-params)
-    (letrec ((check-sig (lambda (signature pubkey-x pubkey-y sig-hash)
-                (eval (cons 'check_ecc_sig (cons (car signature) (cons (car (cdr signature)) (cons pubkey-x (cons pubkey-y (cons sig-hash nil))))))))))
-      (check-sig unlocking-params (car script-params) (car (cdr script-params)) (nth 7 public-params)))
+    !(import std/crypto)
+    (check-sig unlocking-params script-params !(param sighash))
 )
 

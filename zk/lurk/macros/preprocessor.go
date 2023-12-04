@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +19,8 @@ var ErrCircularImports = errors.New("circular imports")
 const LurkFileExtension = ".lurk"
 
 type MacroPreprocessor struct {
-	depDir string
+	depDir         *fsDirectory
+	removeComments bool
 }
 
 func NewMacroPreprocessor(opts ...Option) (*MacroPreprocessor, error) {
@@ -30,13 +32,14 @@ func NewMacroPreprocessor(opts ...Option) (*MacroPreprocessor, error) {
 	}
 
 	return &MacroPreprocessor{
-		depDir: cfg.depDir,
+		depDir:         cfg.depDir,
+		removeComments: cfg.removeComments,
 	}, nil
 }
 
 func (p *MacroPreprocessor) Preprocess(lurkProgram string) (string, error) {
 	if strings.Contains(lurkProgram, fmt.Sprintf("!(%s", Import.String())) {
-		if p.depDir == "" {
+		if p.depDir == nil {
 			return "", errors.New("dependency directory not set")
 		}
 
@@ -47,7 +50,14 @@ func (p *MacroPreprocessor) Preprocess(lurkProgram string) (string, error) {
 			return "", err
 		}
 	}
-	return preProcess(lurkProgram)
+	ret, err := preProcess(lurkProgram)
+	if err != nil {
+		return "", err
+	}
+	if p.removeComments {
+		ret = removeComments(ret)
+	}
+	return ret, nil
 }
 
 var paramMap = map[string]string{
@@ -98,6 +108,25 @@ func loadFilesFromDirectory(directory string) ([]string, error) {
 	for _, file := range files {
 		if !file.IsDir() && filepath.Ext(file.Name()) == LurkFileExtension {
 			content, err := os.ReadFile(filepath.Join(directory, file.Name()))
+			if err != nil {
+				return nil, err
+			}
+			fileContents = append(fileContents, string(content))
+		}
+	}
+	return fileContents, nil
+}
+
+func loadFilesFromFS(fileSystem fs.FS, directory string) ([]string, error) {
+	dirEntries, err := fs.ReadDir(fileSystem, directory)
+	if err != nil {
+		return nil, err
+	}
+
+	var fileContents []string
+	for _, entry := range dirEntries {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == LurkFileExtension {
+			content, err := fs.ReadFile(fileSystem, filepath.Join(directory, entry.Name()))
 			if err != nil {
 				return nil, err
 			}
@@ -161,7 +190,7 @@ func extractModule(files []string, moduleName string) (string, error) {
 	return moduleContent, nil
 }
 
-func macroExpandImport(lurkProgram string, dependencyDirectoryPath string, dependencyChain []string) (string, error) {
+func macroExpandImport(lurkProgram string, dependencyDir *fsDirectory, dependencyChain []string) (string, error) {
 	var result string
 	p := NewParser(lurkProgram)
 
@@ -194,15 +223,15 @@ func macroExpandImport(lurkProgram string, dependencyDirectoryPath string, depen
 
 			// The last split is the module name, everything else is part of the directory.
 			moduleName := splits[len(splits)-1]
-			dir := filepath.Join(append([]string{dependencyDirectoryPath}, splits[:len(splits)-1]...)...)
+			dir := filepath.Join(append([]string{dependencyDir.path}, splits[:len(splits)-1]...)...)
 
 			// If there was only the module name without any directory, use dependencyDirectoryPath as the directory.
 			if len(splits) == 1 {
-				dir = dependencyDirectoryPath
+				dir = dependencyDir.path
 			}
 
 			// Load files
-			files, err := loadFilesFromDirectory(dir)
+			files, err := loadFilesFromFS(dependencyDir.fileSystem, dir)
 			if err != nil {
 				return "", err
 			}
@@ -214,7 +243,7 @@ func macroExpandImport(lurkProgram string, dependencyDirectoryPath string, depen
 			}
 
 			// Before returning the expanded content, process imports within the moduleContent
-			expandedModuleContent, err := macroExpandImport(moduleContent, dependencyDirectoryPath, depChainCpy)
+			expandedModuleContent, err := macroExpandImport(moduleContent, dependencyDir, depChainCpy)
 			if err != nil {
 				return "", err
 			}
@@ -638,4 +667,18 @@ func preProcess(lurkProgram string) (string, error) {
 	}
 
 	return lurkProgram, nil
+}
+
+func removeComments(expression string) string {
+	var result strings.Builder
+	scanner := bufio.NewScanner(strings.NewReader(expression))
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(strings.TrimSpace(line), ";;") {
+			result.WriteString(line + "\n")
+		}
+	}
+
+	return result.String()
 }
