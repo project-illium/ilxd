@@ -270,7 +270,7 @@ func TestCircularImports(t *testing.T) {
 }
 
 func TestWithStandardLib(t *testing.T) {
-	mp, err := macros.NewMacroPreprocessor(macros.WithStandardLib())
+	mp, err := macros.NewMacroPreprocessor(macros.WithStandardLib(), macros.RemoveComments())
 	assert.NoError(t, err)
 
 	lurkProgram := `!(defun my-func (y) (
