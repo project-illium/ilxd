@@ -1283,7 +1283,6 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 				return nil, err
 			}
 
-			// Fixme: handle timelocked multisig stake tx
 			rawTx.Inputs[0].UnlockingParams = fmt.Sprintf("(cons 0x%x 0x%x)", sig[:32], sig[32:])
 		}
 

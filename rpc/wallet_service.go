@@ -797,7 +797,6 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 
-			// Fixme: handle timelocked multisig
 			req.RawTx.Inputs[0].UnlockingParams = fmt.Sprintf("(cons 0x%x 0x%x", sig[:32], sig[32:])
 		}
 
