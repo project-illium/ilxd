@@ -25,6 +25,11 @@ var passwordScriptData string
 var multisigScriptLurk embed.FS
 var multisigScriptData string
 
+//go:embed lurk/timelocked_multisig.lurk
+var timelockedMultisigScriptLurk embed.FS
+var timelockedMultisigScriptData string
+var timeLockedMultisigCommitment []byte
+
 func init() {
 	mp, err := macros.NewMacroPreprocessor(macros.WithStandardLib(), macros.RemoveComments())
 	if err != nil {
@@ -56,6 +61,19 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+	data, err = timelockedMultisigScriptLurk.ReadFile("lurk/timelocked_multisig.lurk")
+	if err != nil {
+		panic(err)
+	}
+	timelockedMultisigScriptData, err = mp.Preprocess(string(data))
+	if err != nil {
+		panic(err)
+	}
+	timeLockedMultisigCommitment, err = LurkCommit(timelockedMultisigScriptData)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // BasicTransferScript returns the basic transfer lurk script
@@ -71,6 +89,19 @@ func PasswordScript() string {
 // MultisigScript returns the multsig lurk script
 func MultisigScript() string {
 	return multisigScriptData
+}
+
+// TimelockedMultisigScript returns the timelocked multisig lurk script
+func TimelockedMultisigScript() string {
+	return timelockedMultisigScriptData
+}
+
+// TimelockedMultisigScriptCommitment returns the script commitment hash
+// for the timelocked multisig script.
+func TimelockedMultisigScriptCommitment() []byte {
+	ret := make([]byte, len(timeLockedMultisigCommitment))
+	copy(ret, timeLockedMultisigCommitment)
+	return ret
 }
 
 func MakeMultisigUnlockingParams(pubkeys [][]byte, sigs [][]byte, sigHash []byte) ([]byte, error) {

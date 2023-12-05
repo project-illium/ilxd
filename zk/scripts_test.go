@@ -6,26 +6,11 @@ package zk
 
 import (
 	"crypto/rand"
-	"encoding/hex"
-	"fmt"
 	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/stretchr/testify/assert"
 	"regexp"
 	"testing"
 )
-
-func TestBasicTransferScript(t *testing.T) {
-	lurkProgram := MultisigScript()
-
-	//lurkProgram = strings.ReplaceAll(lurkProgram, "\n", "")
-	//lurkProgram = strings.ReplaceAll(lurkProgram, "\t", "")
-	//lurkProgram = strings.Join(strings.Fields(lurkProgram), " ")
-	comm, err := LurkCommit(lurkProgram)
-	assert.NoError(t, err)
-
-	fmt.Println(lurkProgram)
-	fmt.Println(hex.EncodeToString(comm))
-}
 
 func TestMakeMultisigUnlockingParams(t *testing.T) {
 	priv1, pub1, err := icrypto.GenerateNovaKey(rand.Reader)
