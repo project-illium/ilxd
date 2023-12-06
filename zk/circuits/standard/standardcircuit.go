@@ -21,9 +21,8 @@ var (
 )
 
 type InclusionProof struct {
-	Hashes      [][]byte
-	Flags       uint64
-	Accumulator [][]byte
+	Hashes [][]byte
+	Flags  uint64
 }
 
 type PrivateInput struct {
@@ -118,7 +117,7 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 
 		// Then validate the merkle proof using the calculated commitment hash
 		// and provided inclusion proof.
-		if !ValidateInclusionProof(outputCommitment, in.CommitmentIndex, in.InclusionProof.Hashes, in.InclusionProof.Flags, in.InclusionProof.Accumulator, pub.TXORoot) {
+		if !ValidateInclusionProof(outputCommitment, in.CommitmentIndex, in.InclusionProof.Hashes, in.InclusionProof.Flags, pub.TXORoot) {
 			return false
 		}
 
@@ -233,7 +232,7 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 	return true
 }
 
-func ValidateInclusionProof(outputCommitment []byte, commitmentIndex uint64, hashes [][]byte, flags uint64, accumulator [][]byte, root []byte) bool {
+func ValidateInclusionProof(outputCommitment []byte, commitmentIndex uint64, hashes [][]byte, flags uint64, root []byte) bool {
 	// Prepend the output commitment wih the index and hash
 	h := hash.HashWithIndex(outputCommitment, commitmentIndex)
 
@@ -248,21 +247,7 @@ func ValidateInclusionProof(outputCommitment []byte, commitmentIndex uint64, has
 		}
 	}
 
-	// Make sure the calculated hash exists in the accumulator (the root preimage)
-	found := false
-	for _, a := range accumulator {
-		if bytes.Equal(a, h) {
-			found = true
-			break
-		}
-	}
-	if !found {
-		return false
-	}
-
-	// Hash the accumulator and compare to the root
-	calculatedRoot := hash.CatAndHash(accumulator)
-	return bytes.Equal(calculatedRoot, root)
+	return bytes.Equal(h, root)
 }
 
 // ValidateUnlockingScript is a placeholder. Normally this would be part of the overall circuit to validate

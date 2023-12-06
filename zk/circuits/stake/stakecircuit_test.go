@@ -89,9 +89,8 @@ func TestStakeCircuit(t *testing.T) {
 		State:           [types.StateLen]byte{},
 		CommitmentIndex: inclusionProof.Index,
 		InclusionProof: standard.InclusionProof{
-			Accumulator: inclusionProof.Accumulator,
-			Hashes:      inclusionProof.Hashes,
-			Flags:       inclusionProof.Flags,
+			Hashes: inclusionProof.Hashes,
+			Flags:  inclusionProof.Flags,
 		},
 		ScriptCommitment: scriptCommitment,
 		ScriptParams:     scriptParams,

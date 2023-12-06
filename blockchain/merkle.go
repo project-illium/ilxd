@@ -125,6 +125,10 @@ func BuildMerkleTreeStore(data []types.ID) [][]byte {
 // MerkleInclusionProof returns an inclusion proof which proves that the txid
 // in the given merkle tree store.
 func MerkleInclusionProof(merkleTreeStore [][]byte, txid types.ID) ([][]byte, uint32) {
+	if len(merkleTreeStore) == 1 {
+		return [][]byte{}, 0
+	}
+
 	nElements := (len(merkleTreeStore) + 1) / 2
 
 	hashes := make([][]byte, 0, len(merkleTreeStore))
@@ -132,24 +136,38 @@ func MerkleInclusionProof(merkleTreeStore [][]byte, txid types.ID) ([][]byte, ui
 	start := 0
 	txidClone := txid.Clone()
 	compare := txidClone[:]
+	pos := 0
 	for {
 		for i := start; i < start+nElements; i++ {
 			if bytes.Equal(merkleTreeStore[i], compare) {
 				if i%2 == 0 {
 					x := make([]byte, len(merkleTreeStore[i+1]))
 					copy(x, merkleTreeStore[i+1])
-					hashes = append(hashes, x)
-					flags <<= 1
-					flags |= 0x01
-					compare = hash.HashMerkleBranches(compare, merkleTreeStore[i+1])
+					if len(x) == 0 {
+						y := make([]byte, len(merkleTreeStore[i]))
+						copy(y, merkleTreeStore[i])
+						hashes = append(hashes, y)
+					} else {
+						hashes = append(hashes, x)
+					}
+					bit := uint32(0x01)
+					bit <<= pos
+					flags |= bit
+					if len(x) == 0 {
+						compare = hash.HashMerkleBranches(compare, compare)
+					} else {
+						compare = hash.HashMerkleBranches(compare, merkleTreeStore[i+1])
+					}
 				} else {
 					x := make([]byte, len(merkleTreeStore[i-1]))
 					copy(x, merkleTreeStore[i-1])
 					hashes = append(hashes, x)
-					flags <<= 1
-					flags |= 0x00
+					bit := uint32(0x00)
+					bit <<= pos
+					flags |= bit
 					compare = hash.HashMerkleBranches(merkleTreeStore[i-1], compare)
 				}
+				pos++
 			}
 		}
 		start += nElements
@@ -159,4 +177,14 @@ func MerkleInclusionProof(merkleTreeStore [][]byte, txid types.ID) ([][]byte, ui
 		}
 	}
 	return hashes, flags
+}
+
+func byteSliceToIDs(slice [][]byte) []types.ID {
+	ret := make([]types.ID, 0, len(slice))
+	for _, b := range slice {
+		if len(b) > 0 {
+			ret = append(ret, types.NewID(b))
+		}
+	}
+	return ret
 }

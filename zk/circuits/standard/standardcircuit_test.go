@@ -109,9 +109,8 @@ func TestStandardCircuit(t *testing.T) {
 				State:           [types.StateLen]byte{},
 				CommitmentIndex: 0,
 				InclusionProof: standard.InclusionProof{
-					Hashes:      inclusionProof.Hashes,
-					Flags:       inclusionProof.Flags,
-					Accumulator: inclusionProof.Accumulator,
+					Hashes: inclusionProof.Hashes,
+					Flags:  inclusionProof.Flags,
 				},
 				ScriptCommitment: us.ScriptCommitment,
 				ScriptParams:     us.ScriptParams,

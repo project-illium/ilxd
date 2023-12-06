@@ -7,6 +7,7 @@ package blockchain
 import (
 	"bytes"
 	"crypto/rand"
+	"fmt"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
@@ -45,33 +46,34 @@ func TestAccumulator(t *testing.T) {
 
 	acc := NewAccumulator()
 
-	acc.Insert(d1, false)
-	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h1})), acc.Root())
+	acc.Insert(d1, true)
+	assert.Equal(t, types.NewID(h1), acc.Root())
 
-	acc.Insert(d2, false)
-	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h12})), acc.Root())
+	acc.Insert(d2, true)
+	assert.Equal(t, types.NewID(h12), acc.Root())
 
-	acc.Insert(d3, false)
-	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h3, h12})), acc.Root())
+	acc.Insert(d3, true)
+	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h12, h3})), acc.Root())
 
 	acc.Insert(d4, true)
-	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h1234})), acc.Root())
+	assert.Equal(t, types.NewID(h1234), acc.Root())
 
 	acc.Insert(d5, true)
-	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h5, h1234})), acc.Root())
+	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h1234, h5})), acc.Root())
 
-	acc.Insert(d6, false)
-	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h56, h1234})), acc.Root())
+	acc.Insert(d6, true)
+	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h1234, h56})), acc.Root())
 
 	acc.Insert(d7, true)
-	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h7, h56, h1234})), acc.Root())
+	h123456 := hash.CatAndHash([][]byte{h1234, h56})
+	h77 := hash.CatAndHash([][]byte{h7, h7})
+	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h123456, h77})), acc.Root())
 
-	acc.Insert(d8, false)
-	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h12345678})), acc.Root())
+	acc.Insert(d8, true)
+	assert.Equal(t, types.NewID(h12345678), acc.Root())
 
 	proof4, err := acc.GetProof(d4)
 	assert.NoError(t, err)
-	assert.Equal(t, acc.Root(), types.NewID(hash.CatAndHash(proof4.Accumulator)))
 	assert.Equal(t, types.NewID(d4), proof4.ID)
 	assert.Equal(t, [][]byte{h3, h12, h5678}, proof4.Hashes)
 	assert.Equal(t, uint64(4), proof4.Flags)
@@ -79,7 +81,6 @@ func TestAccumulator(t *testing.T) {
 
 	proof5, err := acc.GetProof(d5)
 	assert.NoError(t, err)
-	assert.Equal(t, acc.Root(), types.NewID(hash.CatAndHash(proof5.Accumulator)))
 	assert.Equal(t, types.NewID(d5), proof5.ID)
 	assert.Equal(t, [][]byte{h6, h78, h1234}, proof5.Hashes)
 	assert.Equal(t, uint64(3), proof5.Flags)
@@ -87,7 +88,6 @@ func TestAccumulator(t *testing.T) {
 
 	proof7, err := acc.GetProof(d7)
 	assert.NoError(t, err)
-	assert.Equal(t, acc.Root(), types.NewID(hash.CatAndHash(proof7.Accumulator)))
 	assert.Equal(t, types.NewID(d7), proof7.ID)
 	assert.Equal(t, [][]byte{h8, h56, h1234}, proof7.Hashes)
 	assert.Equal(t, uint64(1), proof7.Flags)
@@ -109,10 +109,15 @@ func TestAccumulator_GetProof(t *testing.T) {
 		a.Insert(b, true)
 
 		// Test proof validity as accumulator is growing.
-		for _, c := range elements {
+		for x, c := range elements {
 			proof, err := a.GetProof(c)
 			assert.NoError(t, err)
-			assert.True(t, standard.ValidateInclusionProof(proof.ID.Bytes(), proof.Index, proof.Hashes, proof.Flags, proof.Accumulator, a.Root().Bytes()))
+			valid := standard.ValidateInclusionProof(proof.ID.Bytes(), proof.Index, proof.Hashes, proof.Flags, a.Root().Bytes())
+			assert.True(t, valid)
+			if !valid {
+				fmt.Println(i, x)
+				break
+			}
 		}
 	}
 }
@@ -137,7 +142,7 @@ func TestAccumulator_MergeProofs(t *testing.T) {
 	for _, c := range elements {
 		proof, err := a.GetProof(c)
 		assert.NoError(t, err)
-		assert.True(t, standard.ValidateInclusionProof(proof.ID.Bytes(), proof.Index, proof.Hashes, proof.Flags, proof.Accumulator, a.Root().Bytes()))
+		assert.True(t, standard.ValidateInclusionProof(proof.ID.Bytes(), proof.Index, proof.Hashes, proof.Flags, a.Root().Bytes()))
 	}
 }
 

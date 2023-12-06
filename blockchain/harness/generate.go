@@ -138,9 +138,8 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 						State:           [types.StateLen]byte{},
 						CommitmentIndex: inclusionProof.Index,
 						InclusionProof: standard.InclusionProof{
-							Hashes:      inclusionProof.Hashes,
-							Flags:       inclusionProof.Flags,
-							Accumulator: inclusionProof.Accumulator,
+							Hashes: inclusionProof.Hashes,
+							Flags:  inclusionProof.Flags,
 						},
 						ScriptCommitment: sn.UnlockingScript.ScriptCommitment,
 						ScriptParams:     sn.UnlockingScript.ScriptParams,
@@ -480,9 +479,8 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		State:           [types.StateLen]byte{},
 		CommitmentIndex: 0,
 		InclusionProof: standard.InclusionProof{
-			Hashes:      inclusionProof.Hashes,
-			Flags:       inclusionProof.Flags,
-			Accumulator: inclusionProof.Accumulator,
+			Hashes: inclusionProof.Hashes,
+			Flags:  inclusionProof.Flags,
 		},
 		ScriptCommitment: mockStandardScriptCommitment,
 		ScriptParams:     [][]byte{pubx, puby},
