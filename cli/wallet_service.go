@@ -610,7 +610,10 @@ func (x *ProveMultisig) Execute(args []string) error {
 
 		privateParams.Inputs = append(privateParams.Inputs, privIn)
 
-		nullifier := types.CalculateNullifier(in.TxoProof.Index, privIn.Salt, privIn.ScriptCommitment, privIn.ScriptParams...)
+		nullifier, err := types.CalculateNullifier(in.TxoProof.Index, privIn.Salt, privIn.ScriptCommitment, privIn.ScriptParams...)
+		if err != nil {
+			return err
+		}
 		nullifiers = append(nullifiers, nullifier.Bytes())
 	}
 	for _, out := range rawTx.Outputs {

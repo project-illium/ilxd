@@ -6,7 +6,6 @@ package harness
 
 import (
 	"bytes"
-	"crypto/rand"
 	"embed"
 	"encoding/binary"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -142,13 +141,18 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 				if err != nil {
 					return nil, err
 				}
+				salt, err := types.RandomSalt()
+				if err != nil {
+					return nil, err
+				}
 				note1 := &types.SpendNote{
 					ScriptHash: note1ScriptHash[:],
 					Amount:     100000000000,
 					AssetID:    types.IlliumCoinID,
 					State:      [types.StateLen]byte{},
+					Salt:       salt,
 				}
-				rand.Read(note1.Salt[:])
+
 				sn := &SpendableNote{
 					Note:            note1,
 					UnlockingScript: note1UnlockingScript,
@@ -192,7 +196,10 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 			return nil, err
 		}
 
-		nullifier := types.CalculateNullifier(proof.Index, spendableNote.Note.Salt, spendableNote.UnlockingScript.ScriptCommitment, spendableNote.UnlockingScript.ScriptParams...)
+		nullifier, err := types.CalculateNullifier(proof.Index, spendableNote.Note.Salt, spendableNote.UnlockingScript.ScriptCommitment, spendableNote.UnlockingScript.ScriptParams...)
+		if err != nil {
+			return nil, err
+		}
 		harness.spendableNotes[nullifier] = spendableNote
 
 		chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(cfg.params))
@@ -245,7 +252,10 @@ func (h *TestHarness) GenerateBlockWithTransactions(txs []*transactions.Transact
 		if err != nil {
 			return err
 		}
-		nullifier := types.CalculateNullifier(proof.Index, sn.Note.Salt, sn.UnlockingScript.ScriptCommitment, sn.UnlockingScript.ScriptParams...)
+		nullifier, err := types.CalculateNullifier(proof.Index, sn.Note.Salt, sn.UnlockingScript.ScriptCommitment, sn.UnlockingScript.ScriptParams...)
+		if err != nil {
+			return err
+		}
 		h.spendableNotes[nullifier] = sn
 	}
 	return nil

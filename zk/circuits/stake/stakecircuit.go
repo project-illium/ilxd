@@ -108,17 +108,11 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	}
 
 	// Validate that the nullifier is calculated correctly.
-	commitmentIndexBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(commitmentIndexBytes, priv.CommitmentIndex)
-	nullifierPreimage := make([]byte, 0, 8+32+100)
-	nullifierPreimage = append(nullifierPreimage, commitmentIndexBytes...)
-	nullifierPreimage = append(nullifierPreimage, priv.Salt[:]...)
-	nullifierPreimage = append(nullifierPreimage, priv.ScriptCommitment...)
-	for _, param := range priv.ScriptParams {
-		nullifierPreimage = append(nullifierPreimage, param...)
+	nullifier, err := types.CalculateNullifier(priv.CommitmentIndex, priv.Salt, priv.ScriptCommitment, priv.ScriptParams...)
+	if err != nil {
+		return false
 	}
-	calculatedNullifier := hash.HashFunc(nullifierPreimage)
-	return bytes.Equal(calculatedNullifier, pub.Nullifier)
+	return bytes.Equal(nullifier.Bytes(), pub.Nullifier)
 }
 
 // ValidateUnlockingScript is a placeholder. Normally this would be part of the overall circuit to validate

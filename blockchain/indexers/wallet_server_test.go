@@ -114,7 +114,9 @@ func TestWalletServerIndex(t *testing.T) {
 	sub = idx.Subscribe()
 
 	// Create a block spending the utxo and make sure the tx is recorded
-	nullifier := types.CalculateNullifier(proofs[0].Index, note.Salt, ul.ScriptCommitment, ul.ScriptParams...)
+	nullifier, err := types.CalculateNullifier(proofs[0].Index, note.Salt, ul.ScriptCommitment, ul.ScriptParams...)
+	assert.NoError(t, err)
+
 	blk2 := &blocks.Block{
 		Header: &blocks.BlockHeader{
 			Height: 2,
@@ -189,6 +191,7 @@ func randSpendNote() types.SpendNote {
 	rand.Read(note.ScriptHash)
 	rand.Read(note.AssetID[:])
 	rand.Read(note.State[:])
-	rand.Read(note.Salt[:])
+	salt, _ := types.RandomSalt()
+	note.Salt = salt
 	return note
 }

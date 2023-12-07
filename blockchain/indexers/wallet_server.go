@@ -239,7 +239,10 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 					continue
 				}
 
-				nullifier := types.CalculateNullifier(commitmentIndex, note.Salt, ul.ScriptCommitment, ul.ScriptParams...)
+				nullifier, err := types.CalculateNullifier(commitmentIndex, note.Salt, ul.ScriptCommitment, ul.ScriptParams...)
+				if err != nil {
+					return err
+				}
 				dsKey = walletServerNullifierKeyPrefix + serializedViewKey + "/" + nullifier.String()
 				if err := dsPutIndexValue(dbtx, idx, dsKey, out.Commitment); err != nil {
 					continue
@@ -503,7 +506,10 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 						return err
 					}
 
-					nullifier := types.CalculateNullifier(commitmentIndex, note.Salt, ul.ScriptCommitment, ul.ScriptParams...)
+					nullifier, err := types.CalculateNullifier(commitmentIndex, note.Salt, ul.ScriptCommitment, ul.ScriptParams...)
+					if err != nil {
+						return err
+					}
 					dsKey = walletServerNullifierKeyPrefix + serializedViewKey + "/" + nullifier.String()
 					if err := dsPutIndexValue(dbtx, idx, dsKey, out.Commitment); err != nil {
 						log.Errorf("Wallet server index error rescanning chain: %s", err)

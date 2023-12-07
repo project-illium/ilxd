@@ -35,10 +35,12 @@ func TestNewTestHarness(t *testing.T) {
 	assert.NoError(t, err)
 	root := acc.Root()
 
-	nullifer := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
+	nullifer, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
+	assert.NoError(t, err)
 
-	var salt [32]byte
-	rand.Read(salt[:])
+	salt, err := types.RandomSalt()
+	assert.NoError(t, err)
+
 	outUnlockingScript := &types.UnlockingScript{
 		ScriptCommitment: notes[0].UnlockingScript.ScriptCommitment,
 		ScriptParams:     notes[0].UnlockingScript.ScriptParams,
@@ -192,23 +194,32 @@ func generateBlocksDat() error {
 		sn = v
 		break
 	}
+	salt, err := types.RandomSalt()
+	if err != nil {
+		return err
+	}
 
 	out := &types.SpendNote{
 		ScriptHash: sn.Note.ScriptHash,
 		Amount:     sn.Note.Amount / 2,
 		AssetID:    sn.Note.AssetID,
 		State:      sn.Note.State,
+		Salt:       salt,
 	}
-	rand.Read(out.Salt[:])
 	commitment := out.Commitment()
+
+	salt2, err := types.RandomSalt()
+	if err != nil {
+		return err
+	}
 
 	out2 := &types.SpendNote{
 		ScriptHash: sn.Note.ScriptHash,
 		Amount:     sn.Note.Amount / 2,
 		AssetID:    sn.Note.AssetID,
 		State:      sn.Note.State,
+		Salt:       salt2,
 	}
-	rand.Read(out2.Salt[:])
 	commitment2 := out2.Commitment()
 
 	sn2 := &SpendableNote{
