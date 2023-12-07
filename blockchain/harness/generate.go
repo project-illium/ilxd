@@ -93,9 +93,10 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 					State:      [types.StateLen]byte{},
 				}
 				outputNotes = append(outputNotes, &SpendableNote{
-					Note:            outputNote,
-					PrivateKey:      privKey,
-					UnlockingScript: unlockingScript,
+					Note:             outputNote,
+					PrivateKey:       privKey,
+					UnlockingScript:  unlockingScript,
+					cachedScriptHash: scriptHash,
 				})
 
 				outputCommitment := outputNote.Commitment()
@@ -148,16 +149,12 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				},
 			}
 			for _, outNote := range outputNotes {
-				scriptHash, err := outNote.UnlockingScript.Hash()
-				if err != nil {
-					return nil, nil, err
-				}
 				privateParams.Outputs = append(privateParams.Outputs, standard.PrivateOutput{
 					State:      [types.StateLen]byte{},
 					Amount:     uint64(outNote.Note.Amount),
 					Salt:       outNote.Note.Salt,
 					AssetID:    outNote.Note.AssetID,
-					ScriptHash: scriptHash[:],
+					ScriptHash: outNote.cachedScriptHash[:],
 				})
 			}
 

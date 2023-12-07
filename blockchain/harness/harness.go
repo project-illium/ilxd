@@ -20,9 +20,10 @@ import (
 )
 
 type SpendableNote struct {
-	Note            *types.SpendNote
-	UnlockingScript *types.UnlockingScript
-	PrivateKey      crypto.PrivKey
+	Note             *types.SpendNote
+	UnlockingScript  *types.UnlockingScript
+	PrivateKey       crypto.PrivKey
+	cachedScriptHash types.ID
 }
 
 type validator struct {
@@ -116,7 +117,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 				harness.timeSource++
 			}
 
-			if cfg.extension && blk.Header.Height == 14999 {
+			if cfg.extension && blk.Header.Height == 15000 {
 				data, err := blocks2Data.ReadFile("blocks/blocks2.dat")
 				if err != nil {
 					return nil, err
