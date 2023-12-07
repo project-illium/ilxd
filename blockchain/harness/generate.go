@@ -49,14 +49,17 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 		txs := make([]*transactions.Transaction, 0, len(remainingNotes))
 		for i := 0; i < numTxs; i++ {
 			sn := notes[i]
-
 			commitment := sn.Note.Commitment()
 			inclusionProof, err := acc.GetProof(commitment[:])
 			if err != nil {
 				return nil, nil, err
 			}
 
-			nullifier := types.CalculateNullifier(inclusionProof.Index, sn.Note.Salt, sn.UnlockingScript.ScriptCommitment, sn.UnlockingScript.ScriptParams...)
+			nullifier, err := types.CalculateNullifier(inclusionProof.Index, sn.Note.Salt, sn.UnlockingScript.ScriptCommitment, sn.UnlockingScript.ScriptParams...)
+			if err != nil {
+				return nil, nil, err
+			}
+
 			toDelete = append(toDelete, nullifier)
 
 			var (
@@ -74,8 +77,10 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 
 				mockStandardScriptCommitment := make([]byte, 32)
 
-				var salt [types.SaltLen]byte
-				rand.Read(salt[:])
+				salt, err := types.RandomSalt()
+				if err != nil {
+					return nil, nil, err
+				}
 
 				unlockingScript := &types.UnlockingScript{
 					ScriptCommitment: mockStandardScriptCommitment,
@@ -101,7 +106,10 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 
 				outputCommitment := outputNote.Commitment()
 
-				outNullifier := types.CalculateNullifier(nCommitments-1, outputNote.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
+				outNullifier, err := types.CalculateNullifier(nCommitments-1, outputNote.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
+				if err != nil {
+					return nil, nil, err
+				}
 
 				remainingNotes[outNullifier] = &SpendableNote{
 					Note:            outputNote,
@@ -293,8 +301,10 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 
 	// First we'll create the spend note for the coinbase transaction.
 	// The initial coins will be generated to the spendKey.
-	var salt1 [32]byte
-	rand.Read(salt1[:])
+	salt1, err := types.RandomSalt()
+	if err != nil {
+		return nil, nil, err
+	}
 
 	mockStandardScriptCommitment := make([]byte, 32)
 
@@ -316,8 +326,10 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		State:      [types.StateLen]byte{},
 	}
 
-	var salt2 [32]byte
-	rand.Read(salt2[:])
+	salt2, err := types.RandomSalt()
+	if err != nil {
+		return nil, nil, err
+	}
 
 	note2UnlockingScript := &types.UnlockingScript{
 		ScriptCommitment: mockStandardScriptCommitment,
@@ -378,8 +390,14 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	// Finally we're going to create the zk-snark proof for the coinbase
 	// transaction.
 
-	nullifier1 := types.CalculateNullifier(0, salt1, note1UnlockingScript.ScriptCommitment, note1UnlockingScript.ScriptParams...)
-	nullifier2 := types.CalculateNullifier(1, salt2, note2UnlockingScript.ScriptCommitment, note2UnlockingScript.ScriptParams...)
+	nullifier1, err := types.CalculateNullifier(0, salt1, note1UnlockingScript.ScriptCommitment, note1UnlockingScript.ScriptParams...)
+	if err != nil {
+		return nil, nil, err
+	}
+	nullifier2, err := types.CalculateNullifier(1, salt2, note2UnlockingScript.ScriptCommitment, note2UnlockingScript.ScriptParams...)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	publicParams := &standard.PublicParams{
 		Outputs: []standard.PublicOutput{

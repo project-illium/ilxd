@@ -135,17 +135,11 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 		}
 
 		// Validate that the nullifier is calculated correctly.
-		commitmentIndexBytes := make([]byte, 8)
-		binary.BigEndian.PutUint64(commitmentIndexBytes, in.CommitmentIndex)
-		nullifierPreimage := make([]byte, 0, 8+32+100)
-		nullifierPreimage = append(nullifierPreimage, commitmentIndexBytes...)
-		nullifierPreimage = append(nullifierPreimage, in.Salt[:]...)
-		nullifierPreimage = append(nullifierPreimage, in.ScriptCommitment...)
-		for _, param := range in.ScriptParams {
-			nullifierPreimage = append(nullifierPreimage, param...)
+		calculatedNullifier, err := types.CalculateNullifier(in.CommitmentIndex, in.Salt, in.ScriptCommitment, in.ScriptParams...)
+		if err != nil {
+			return false
 		}
-		calculatedNullifier := hash.HashFunc(nullifierPreimage)
-		if !bytes.Equal(calculatedNullifier, pub.Nullifiers[i][:]) {
+		if !bytes.Equal(calculatedNullifier.Bytes(), pub.Nullifiers[i][:]) {
 			return false
 		}
 

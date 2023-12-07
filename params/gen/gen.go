@@ -132,7 +132,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	nullifier := types.CalculateNullifier(0, note0.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
+	nullifier, err := types.CalculateNullifier(0, note0.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	blk := &blocks.Block{
 		Header: &blocks.BlockHeader{

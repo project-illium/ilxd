@@ -17,8 +17,8 @@ func TestProofValidator(t *testing.T) {
 	proofCache := NewProofCache(10)
 	proofValidator := NewProofValidator(proofCache)
 
-	var salt1 [32]byte
-	rand.Read(salt1[:])
+	salt1, err := types.RandomSalt()
+	assert.NoError(t, err)
 
 	spendKey, _, err := icrypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
@@ -61,7 +61,8 @@ func TestProofValidator(t *testing.T) {
 	acc.Insert(inCommitment[:], true)
 	root := acc.Root()
 
-	inNullifier := types.CalculateNullifier(0, inNote.Salt, inUnlockingScript.ScriptCommitment, inUnlockingScript.ScriptParams...)
+	inNullifier, err := types.CalculateNullifier(0, inNote.Salt, inUnlockingScript.ScriptCommitment, inUnlockingScript.ScriptParams...)
+	assert.NoError(t, err)
 
 	fakeProof := make([]byte, 8000)
 	rand.Read(fakeProof)

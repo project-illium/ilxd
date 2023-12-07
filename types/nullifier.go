@@ -5,9 +5,10 @@
 package types
 
 import (
-	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"github.com/project-illium/ilxd/params/hash"
+	"github.com/project-illium/ilxd/zk"
 )
 
 const NullifierSize = hash.HashSize
@@ -66,20 +67,20 @@ func NewNullifierFromString(n string) (Nullifier, error) {
 }
 
 // CalculateNullifier calculates and returns the nullifier for the given inputs.
-func CalculateNullifier(commitmentIndex uint64, salt [32]byte, scriptCommitment []byte, scriptParams ...[]byte) Nullifier {
-	indexBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(indexBytes, commitmentIndex)
-
-	ser := make([]byte, 0, 8+32+32+(len(scriptParams)*32))
-
-	ser = append(ser, indexBytes...)
-	ser = append(ser, salt[:]...)
-	ser = append(ser, scriptCommitment...)
-	for _, params := range scriptParams {
-		ser = append(ser, params...)
+func CalculateNullifier(commitmentIndex uint64, salt [32]byte, scriptCommitment []byte, scriptParams ...[]byte) (Nullifier, error) {
+	ul := UnlockingScript{
+		ScriptCommitment: scriptCommitment,
+		ScriptParams:     scriptParams,
 	}
-	h := hash.HashFunc(ser)
-	var out [32]byte
-	copy(out[:], h)
-	return out
+	expr, err := ul.lurkExpression()
+	if err != nil {
+		return Nullifier{}, err
+	}
+
+	expr = fmt.Sprintf("(cons %d (cons 0x%x ", commitmentIndex, salt) + expr + "))"
+	h, err := zk.LurkCommit(expr)
+	if err != nil {
+		return Nullifier{}, err
+	}
+	return NewNullifier(h), nil
 }

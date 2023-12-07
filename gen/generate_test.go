@@ -60,7 +60,8 @@ func TestGenerator(t *testing.T) {
 
 	root := testHarness.Accumulator().Root()
 
-	nullifier := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
+	nullifier, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
+	assert.NoError(t, err)
 
 	stakeTx := &transactions.StakeTransaction{
 		Validator_ID: pidBytes,

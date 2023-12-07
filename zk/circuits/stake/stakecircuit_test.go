@@ -44,10 +44,8 @@ func TestStakeCircuit(t *testing.T) {
 	scriptHash, err := script.Hash()
 	assert.NoError(t, err)
 
-	r := make([]byte, 32)
-	rand.Read(r)
-	var salt [32]byte
-	copy(salt[:], r)
+	salt, err := types.RandomSalt()
+	assert.NoError(t, err)
 
 	note1 := types.SpendNote{
 		ScriptHash: scriptHash[:],
@@ -81,7 +79,8 @@ func TestStakeCircuit(t *testing.T) {
 	fakeSig2 := make([]byte, 32)
 	rand.Read(fakeSig2)
 
-	nullifier := types.CalculateNullifier(inclusionProof.Index, note1.Salt, scriptCommitment, scriptParams...)
+	nullifier, err := types.CalculateNullifier(inclusionProof.Index, note1.Salt, scriptCommitment, scriptParams...)
+	assert.NoError(t, err)
 
 	privateParams := &stake.PrivateParams{
 		AssetID:         note1.AssetID,

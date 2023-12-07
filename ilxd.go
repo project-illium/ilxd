@@ -29,8 +29,8 @@ func main() {
 
 	// Load the config file. There are three steps to this:
 	// 1. Start with a config populated with default values.
-	// 2. Override the default values with any provided command line options.
-	// 3. Override the first two with any provided config file options.
+	// 2. Override the default values with any provided config file options.
+	// 3. Override the first two with any provided command line options.
 	cfg, err := repo.LoadConfig()
 	if err != nil {
 		log.Fatal(err)

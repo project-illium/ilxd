@@ -13,6 +13,8 @@ import (
 
 const MockProofSize = 9000
 
+const LurkMaxFieldElement = "40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001"
+
 type CircuitFunc func(privateParams, publicParams interface{}) bool
 
 // CreateSnark is a placeholder for a function call to the rust lurk library. Right now

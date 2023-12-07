@@ -48,15 +48,11 @@ func TestStandardCircuit(t *testing.T) {
 	us2ScriptHash, err := us2.Hash()
 	assert.NoError(t, err)
 
-	r := make([]byte, 32)
-	rand.Read(r)
-	var salt [32]byte
-	copy(salt[:], r)
+	salt, err := types.RandomSalt()
+	assert.NoError(t, err)
 
-	r2 := make([]byte, 32)
-	rand.Read(r2)
-	var salt2 [32]byte
-	copy(salt2[:], r2)
+	salt2, err := types.RandomSalt()
+	assert.NoError(t, err)
 
 	note1 := types.SpendNote{
 		ScriptHash: usScriptHash[:],
@@ -95,7 +91,8 @@ func TestStandardCircuit(t *testing.T) {
 	sigHash := make([]byte, 32)
 	rand.Read(sigHash)
 
-	nullifier := types.CalculateNullifier(inclusionProof.Index, note1.Salt, us.ScriptCommitment, us.ScriptParams...)
+	nullifier, err := types.CalculateNullifier(inclusionProof.Index, note1.Salt, us.ScriptCommitment, us.ScriptParams...)
+	assert.NoError(t, err)
 
 	fakeSig := make([]byte, 64)
 	rand.Read(fakeSig)

@@ -1,6 +1,8 @@
 package types
 
 import (
+	"encoding/hex"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -29,4 +31,20 @@ func TestNullifierUnmarshalJson(t *testing.T) {
 	if n.String() != testSerializedNullifier {
 		t.Errorf("Expected %s, got %s", testSerializedNullifier, n.String())
 	}
+}
+
+func TestCalculateNullifier(t *testing.T) {
+	commitment, err := hex.DecodeString("0530365c951beb58cbd53df8441097165b5666853dc5a3610fbf605f6aa8ba52")
+	assert.NoError(t, err)
+
+	param1, err := hex.DecodeString("0890f5f7ed82055dad922130d72ef4b8764d7ff16a42d718ee4f60e974842932")
+	assert.NoError(t, err)
+
+	param2, err := hex.DecodeString("15741f17bbfa9513db079602cb53e05f3467da7633ac3852307cd341830558ca")
+	assert.NoError(t, err)
+
+	n, err := CalculateNullifier(123, [32]byte{}, commitment, param1, param2)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "0d2b8e884921b8aec0e4c24f824115e0308050dc06c3055c07ced2dff4edf0e7", n.String())
 }
