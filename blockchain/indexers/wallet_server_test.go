@@ -191,6 +191,7 @@ func randSpendNote() types.SpendNote {
 	rand.Read(note.ScriptHash)
 	rand.Read(note.AssetID[:])
 	rand.Read(note.State[:])
-	rand.Read(note.Salt[:])
+	salt, _ := types.RandomSalt()
+	note.Salt = salt
 	return note
 }
