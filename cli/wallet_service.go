@@ -597,9 +597,8 @@ func (x *ProveMultisig) Execute(args []string) error {
 			Amount:          in.Amount,
 			CommitmentIndex: in.TxoProof.Index,
 			InclusionProof: standard.InclusionProof{
-				Hashes:      in.TxoProof.Hashes,
-				Flags:       in.TxoProof.Flags,
-				Accumulator: in.TxoProof.Accumulator,
+				Hashes: in.TxoProof.Hashes,
+				Flags:  in.TxoProof.Flags,
 			},
 			ScriptCommitment: in.ScriptCommitment,
 			ScriptParams:     in.ScriptParams,
@@ -1201,9 +1200,8 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 				Amount:          in.Amount,
 				CommitmentIndex: in.TxoProof.Index,
 				InclusionProof: standard.InclusionProof{
-					Hashes:      in.TxoProof.Hashes,
-					Flags:       in.TxoProof.Flags,
-					Accumulator: in.TxoProof.Accumulator,
+					Hashes: in.TxoProof.Hashes,
+					Flags:  in.TxoProof.Flags,
 				},
 				ScriptCommitment: in.ScriptCommitment,
 				ScriptParams:     in.ScriptParams,
@@ -1290,9 +1288,8 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 		privateParams := &stake.PrivateParams{
 			CommitmentIndex: rawTx.Inputs[0].TxoProof.Index,
 			InclusionProof: standard.InclusionProof{
-				Hashes:      rawTx.Inputs[0].TxoProof.Hashes,
-				Flags:       rawTx.Inputs[0].TxoProof.Flags,
-				Accumulator: rawTx.Inputs[0].TxoProof.Accumulator,
+				Hashes: rawTx.Inputs[0].TxoProof.Hashes,
+				Flags:  rawTx.Inputs[0].TxoProof.Flags,
 			},
 			ScriptCommitment: rawTx.Inputs[0].ScriptCommitment,
 			ScriptParams:     rawTx.Inputs[0].ScriptParams,

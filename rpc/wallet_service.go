@@ -389,9 +389,8 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 			Amount:          in.Amount,
 			CommitmentIndex: in.TxoProof.Index,
 			InclusionProof: standard.InclusionProof{
-				Hashes:      in.TxoProof.Hashes,
-				Flags:       in.TxoProof.Flags,
-				Accumulator: in.TxoProof.Accumulator,
+				Hashes: in.TxoProof.Hashes,
+				Flags:  in.TxoProof.Flags,
 			},
 			ScriptCommitment: in.ScriptCommitment,
 			ScriptParams:     in.ScriptParams,
@@ -553,11 +552,10 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 			ScriptCommitment: in.ScriptCommitment[:],
 			ScriptParams:     in.ScriptParams[:],
 			TxoProof: &pb.TxoProof{
-				Commitment:  commitment[:],
-				Accumulator: in.InclusionProof.Accumulator,
-				Hashes:      in.InclusionProof.Hashes,
-				Flags:       in.InclusionProof.Flags,
-				Index:       in.CommitmentIndex,
+				Commitment: commitment[:],
+				Hashes:     in.InclusionProof.Hashes,
+				Flags:      in.InclusionProof.Flags,
+				Index:      in.CommitmentIndex,
 			},
 		})
 	}
@@ -633,11 +631,10 @@ func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.Crea
 		ScriptCommitment: rawTx.PrivateInputs[0].ScriptCommitment[:],
 		ScriptParams:     rawTx.PrivateInputs[0].ScriptParams[:],
 		TxoProof: &pb.TxoProof{
-			Commitment:  commitment[:],
-			Accumulator: rawTx.PrivateInputs[0].InclusionProof.Accumulator,
-			Hashes:      rawTx.PrivateInputs[0].InclusionProof.Hashes,
-			Flags:       rawTx.PrivateInputs[0].InclusionProof.Flags,
-			Index:       rawTx.PrivateInputs[0].CommitmentIndex,
+			Commitment: commitment[:],
+			Hashes:     rawTx.PrivateInputs[0].InclusionProof.Hashes,
+			Flags:      rawTx.PrivateInputs[0].InclusionProof.Flags,
+			Index:      rawTx.PrivateInputs[0].CommitmentIndex,
 		},
 	})
 
@@ -704,9 +701,8 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 				Amount:          in.Amount,
 				CommitmentIndex: in.TxoProof.Index,
 				InclusionProof: standard.InclusionProof{
-					Hashes:      in.TxoProof.Hashes,
-					Flags:       in.TxoProof.Flags,
-					Accumulator: in.TxoProof.Accumulator,
+					Hashes: in.TxoProof.Hashes,
+					Flags:  in.TxoProof.Flags,
 				},
 				ScriptCommitment: in.ScriptCommitment,
 				ScriptParams:     in.ScriptParams,
@@ -804,9 +800,8 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		privateParams := &stake.PrivateParams{
 			CommitmentIndex: req.RawTx.Inputs[0].TxoProof.Index,
 			InclusionProof: standard.InclusionProof{
-				Hashes:      req.RawTx.Inputs[0].TxoProof.Hashes,
-				Flags:       req.RawTx.Inputs[0].TxoProof.Flags,
-				Accumulator: req.RawTx.Inputs[0].TxoProof.Accumulator,
+				Hashes: req.RawTx.Inputs[0].TxoProof.Hashes,
+				Flags:  req.RawTx.Inputs[0].TxoProof.Flags,
 			},
 			ScriptCommitment: req.RawTx.Inputs[0].ScriptCommitment,
 			ScriptParams:     req.RawTx.Inputs[0].ScriptParams,

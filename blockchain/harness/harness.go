@@ -114,20 +114,18 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 				if err := harness.chain.ConnectBlock(&blk, blockchain.BFFastAdd); err != nil {
 					return nil, err
 				}
-				harness.timeSource++
+				harness.timeSource = blk.Header.Timestamp + 1
 			}
-
 			if cfg.extension && blk.Header.Height == 15000 {
 				data, err := blocks2Data.ReadFile("blocks/blocks2.dat")
 				if err != nil {
 					return nil, err
 				}
 				file = bytes.NewReader(data)
-				cfg.pregenerate = 20502
-				continue
+				cfg.pregenerate = 25000
 			}
 
-			if blk.Header.Height >= uint32(cfg.pregenerate)-1 || blk.Header.Height == 25000 {
+			if blk.Header.Height == uint32(cfg.pregenerate)-1 {
 				idBytes, err := validatorID.Marshal()
 				if err != nil {
 					return nil, err

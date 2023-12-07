@@ -1208,18 +1208,16 @@ message PrivateOutput {
 
 message TxoProof {
     // The commitment this inclusion proof is for
-    bytes commitment           = 1;
+    bytes commitment      = 1;
     // The hashes that form the root preimage
-    repeated bytes accumulator = 2;
-    // The merkle hashes linking the commitment to the accumulator
-    repeated bytes hashes      = 3;
+    repeated bytes hashes = 2;
     // Flags indicate whether a hash in the hash list is left or right.
     // 0 == left, 1 == right.
-    uint64 flags               = 4;
+    uint64 flags          = 3;
     // The index of this commitment in the tree
-    uint64 index               = 5;
+    uint64 index          = 4;
     // The txoRoot this proof links to. This is found in the block header.
-    bytes txoRoot              = 6;
+    bytes txoRoot         = 5;
 }
 
 message Peer {

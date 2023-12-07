@@ -96,7 +96,7 @@ func TestWalletServerIndex(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, proofs, 1)
 
-	valid := standard.ValidateInclusionProof(commitment.Bytes(), proofs[0].Index, proofs[0].Hashes, proofs[0].Flags, proofs[0].Accumulator, merkleRoot[:])
+	valid := standard.ValidateInclusionProof(commitment.Bytes(), proofs[0].Index, proofs[0].Hashes, proofs[0].Flags, merkleRoot[:])
 	assert.True(t, valid)
 
 	// Close the index, then repo and make sure it loads state correctly

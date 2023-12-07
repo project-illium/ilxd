@@ -236,6 +236,28 @@ func generateBlocksDat() error {
 		Nullifiers: [][]byte{nullifier.Bytes()},
 		TxoRoot:    h.acc.Root().Bytes(),
 	}
+
+	blks, _, err = h.generateBlocks(10000)
+	if err != nil {
+		return err
+	}
+
+	for _, blk := range blks {
+		ser, err := proto.Marshal(blk)
+		if err != nil {
+			return err
+		}
+		lenBytes := make([]byte, 4)
+		binary.BigEndian.PutUint32(lenBytes, uint32(len(ser)))
+
+		if _, err := f.Write(lenBytes); err != nil {
+			return err
+		}
+		if _, err := f.Write(ser); err != nil {
+			return err
+		}
+	}
+
 	if err := h.GenerateBlockWithTransactions([]*transactions.Transaction{transactions.WrapTransaction(tx)}, []*SpendableNote{sn2, sn3}); err != nil {
 		return err
 	}
@@ -274,16 +296,54 @@ func generateBlocksDat() error {
 		return err
 	}
 
-	blks, _, err = h.generateBlocks(9998)
-	if err != nil {
-		return err
-	}
-
 	f2, err := os.Create("blocks/blocks2.dat")
 	if err != nil {
 		return err
 	}
 	defer f.Close()
+
+	blk, err := h.chain.GetBlockByHeight(15001)
+	if err != nil {
+		return err
+	}
+
+	ser, err = proto.Marshal(blk)
+	if err != nil {
+		return err
+	}
+	lenBytes = make([]byte, 4)
+	binary.BigEndian.PutUint32(lenBytes, uint32(len(ser)))
+
+	if _, err := f2.Write(lenBytes); err != nil {
+		return err
+	}
+	if _, err := f2.Write(ser); err != nil {
+		return err
+	}
+
+	blk, err = h.chain.GetBlockByHeight(15002)
+	if err != nil {
+		return err
+	}
+
+	ser, err = proto.Marshal(blk)
+	if err != nil {
+		return err
+	}
+	lenBytes = make([]byte, 4)
+	binary.BigEndian.PutUint32(lenBytes, uint32(len(ser)))
+
+	if _, err := f2.Write(lenBytes); err != nil {
+		return err
+	}
+	if _, err := f2.Write(ser); err != nil {
+		return err
+	}
+
+	blks, _, err = h.generateBlocks(9998)
+	if err != nil {
+		return err
+	}
 
 	for _, blk := range blks {
 		ser, err := proto.Marshal(blk)
@@ -303,3 +363,8 @@ func generateBlocksDat() error {
 
 	return nil
 }
+
+/*func TestBuildBlockData(t *testing.T) {
+	err := generateBlocksDat()
+	assert.NoError(t, err)
+}*/
