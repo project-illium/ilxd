@@ -70,7 +70,7 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	outputCommitment := hash.HashFunc(commitmentPreimage)
 
 	// Then validate the merkle proof
-	if !standard.ValidateInclusionProof(outputCommitment, priv.CommitmentIndex, priv.InclusionProof.Hashes, priv.InclusionProof.Flags, priv.InclusionProof.Accumulator, pub.TXORoot) {
+	if !standard.ValidateInclusionProof(outputCommitment, priv.CommitmentIndex, priv.InclusionProof.Hashes, priv.InclusionProof.Flags, pub.TXORoot) {
 		return false
 	}
 

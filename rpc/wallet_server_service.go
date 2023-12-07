@@ -171,12 +171,11 @@ func (s *GrpcServer) GetTxoProof(ctx context.Context, req *pb.GetTxoProofRequest
 	ret := make([]*pb.TxoProof, 0, len(proofs))
 	for i, proof := range proofs {
 		ret = append(ret, &pb.TxoProof{
-			Commitment:  commitments[i].Bytes(),
-			Accumulator: proof.Accumulator,
-			Hashes:      proof.Hashes,
-			Flags:       proof.Flags,
-			Index:       proof.Index,
-			TxoRoot:     root.Bytes(),
+			Commitment: commitments[i].Bytes(),
+			Hashes:     proof.Hashes,
+			Flags:      proof.Flags,
+			Index:      proof.Index,
+			TxoRoot:    root.Bytes(),
 		})
 	}
 	return &pb.GetTxoProofResponse{

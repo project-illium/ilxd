@@ -128,28 +128,22 @@ func (o *PrivateOutput) UnmarshalJSON(data []byte) error {
 }
 
 type txoProofJSON struct {
-	Commitment  types.HexEncodable   `json:"commitment"`
-	Accumulator []types.HexEncodable `json:"accumulator"`
-	Hashes      []types.HexEncodable `json:"hashes"`
-	Flags       uint64               `json:"flags"`
-	Index       uint64               `json:"index"`
+	Commitment types.HexEncodable   `json:"commitment"`
+	Hashes     []types.HexEncodable `json:"hashes"`
+	Flags      uint64               `json:"flags"`
+	Index      uint64               `json:"index"`
 }
 
 func (t *TxoProof) MarshalJSON() ([]byte, error) {
-	accumulator := make([]types.HexEncodable, 0, len(t.Accumulator))
-	for _, a := range t.Accumulator {
-		accumulator = append(accumulator, a)
-	}
 	hashes := make([]types.HexEncodable, 0, len(t.Hashes))
 	for _, h := range t.Hashes {
 		hashes = append(hashes, h)
 	}
 	s := &txoProofJSON{
-		Commitment:  t.Commitment,
-		Accumulator: accumulator,
-		Hashes:      hashes,
-		Flags:       t.Flags,
-		Index:       t.Index,
+		Commitment: t.Commitment,
+		Hashes:     hashes,
+		Flags:      t.Flags,
+		Index:      t.Index,
 	}
 	return json.Marshal(s)
 }
@@ -160,21 +154,16 @@ func (t *TxoProof) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	accumulator := make([][]byte, 0, len(input.Accumulator))
-	for _, a := range input.Accumulator {
-		accumulator = append(accumulator, a)
-	}
 	hashes := make([][]byte, 0, len(input.Hashes))
 	for _, h := range input.Hashes {
 		hashes = append(hashes, h)
 	}
 
 	*t = TxoProof{
-		Commitment:  input.Commitment,
-		Accumulator: accumulator,
-		Hashes:      hashes,
-		Flags:       input.Flags,
-		Index:       input.Index,
+		Commitment: input.Commitment,
+		Hashes:     hashes,
+		Flags:      input.Flags,
+		Index:      input.Index,
 	}
 	return nil
 }

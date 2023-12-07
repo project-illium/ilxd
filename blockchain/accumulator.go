@@ -14,12 +14,11 @@ import (
 // InclusionProof is a merkle inclusion proof which proves that
 // a given element is in the set with the given accumulator root.
 type InclusionProof struct {
-	ID          types.ID
-	Accumulator [][]byte
-	Hashes      [][]byte
-	Flags       uint64
-	Index       uint64
-	last        []byte
+	ID     types.ID
+	Hashes [][]byte
+	Flags  uint64
+	Index  uint64
+	last   []byte
 }
 
 // Accumulator is a hashed-based cryptographic data structure similar to a
@@ -175,7 +174,8 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 // Root returns the root hash of the accumulator. This is not cached
 // and a new hash is calculated each time this method is called.
 func (a *Accumulator) Root() types.ID {
-	return types.NewID(hash.CatAndHash(a.acc))
+	merkles := BuildMerkleTreeStore(reverseIDs(byteSliceToIDs(a.acc)))
+	return types.NewID(merkles[len(merkles)-1])
 }
 
 // NumElements returns the current number of elements in the accumulator.
@@ -196,24 +196,33 @@ func (a *Accumulator) GetProof(data []byte) (*InclusionProof, error) {
 	if !ok {
 		return nil, errors.New("not found")
 	}
-	acc := make([][]byte, 0, len(a.acc))
-	for _, peak := range a.acc {
-		if peak != nil {
-			peakCopy := make([]byte, len(peak))
-			copy(peakCopy, peak)
-			acc = append(acc, peakCopy)
+
+	for i := 0; i < len(proof.Hashes); i++ {
+		eval := proof.Flags & (1 << i)
+		if eval > 0 {
+			n = hash.HashMerkleBranches(n, proof.Hashes[i])
+		} else {
+			n = hash.HashMerkleBranches(proof.Hashes[i], n)
 		}
 	}
+
+	merkles := BuildMerkleTreeStore(reverseIDs(byteSliceToIDs(a.acc)))
+	extraHashes, extraBits := MerkleInclusionProof(merkles, types.NewID(n))
+	flags := proof.Flags | (uint64(extraBits) << len(proof.Hashes))
+
 	newProof := &InclusionProof{
-		ID:          types.NewID(data),
-		Accumulator: acc,
-		Flags:       proof.Flags,
-		Hashes:      make([][]byte, len(proof.Hashes)),
-		Index:       proof.Index,
+		ID:     types.NewID(data),
+		Flags:  flags,
+		Hashes: make([][]byte, len(proof.Hashes)+len(extraHashes)),
+		Index:  proof.Index,
 	}
 	for i := range proof.Hashes {
 		newProof.Hashes[i] = make([]byte, len(proof.Hashes[i]))
 		copy(newProof.Hashes[i], proof.Hashes[i])
+	}
+	for i := range extraHashes {
+		newProof.Hashes[i+len(proof.Hashes)] = make([]byte, len(extraHashes[i]))
+		copy(newProof.Hashes[i+len(proof.Hashes)], extraHashes[i])
 	}
 
 	return newProof, nil
@@ -286,16 +295,11 @@ func (a *Accumulator) Clone() *Accumulator {
 	proofs := make(map[types.ID]*InclusionProof)
 	for key, proof := range a.proofs {
 		i := InclusionProof{
-			ID:          proof.ID,
-			Flags:       proof.Flags,
-			Index:       proof.Index,
-			Accumulator: make([][]byte, len(proof.Accumulator)),
-			Hashes:      make([][]byte, len(proof.Hashes)),
-			last:        make([]byte, len(proof.last)),
-		}
-		for x := range proof.Accumulator {
-			i.Accumulator[x] = make([]byte, len(proof.Accumulator[x]))
-			copy(i.Accumulator[x], proof.Accumulator[x])
+			ID:     proof.ID,
+			Flags:  proof.Flags,
+			Index:  proof.Index,
+			Hashes: make([][]byte, len(proof.Hashes)),
+			last:   make([]byte, len(proof.last)),
 		}
 		for x := range proof.Hashes {
 			i.Hashes[x] = make([]byte, len(proof.Hashes[x]))
@@ -338,4 +342,11 @@ func (a *Accumulator) len() int {
 		}
 	}
 	return l
+}
+
+func reverseIDs(s []types.ID) []types.ID {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+	return s
 }

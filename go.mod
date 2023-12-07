@@ -22,7 +22,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.11.0
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/nixberg/chacha-rng-go v0.1.0
-	github.com/project-illium/walletlib v0.0.0-20231205012843-4a1e77e22f7c
+	github.com/project-illium/walletlib v0.0.0-20231207015627-16aabd1be343
 	github.com/project-illium/weightedrand/v2 v2.1.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/sjson v1.2.5

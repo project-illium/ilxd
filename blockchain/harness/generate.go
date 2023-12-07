@@ -93,9 +93,10 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 					State:      [types.StateLen]byte{},
 				}
 				outputNotes = append(outputNotes, &SpendableNote{
-					Note:            outputNote,
-					PrivateKey:      privKey,
-					UnlockingScript: unlockingScript,
+					Note:             outputNote,
+					PrivateKey:       privKey,
+					UnlockingScript:  unlockingScript,
+					cachedScriptHash: scriptHash,
 				})
 
 				outputCommitment := outputNote.Commitment()
@@ -138,9 +139,8 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 						State:           [types.StateLen]byte{},
 						CommitmentIndex: inclusionProof.Index,
 						InclusionProof: standard.InclusionProof{
-							Hashes:      inclusionProof.Hashes,
-							Flags:       inclusionProof.Flags,
-							Accumulator: inclusionProof.Accumulator,
+							Hashes: inclusionProof.Hashes,
+							Flags:  inclusionProof.Flags,
 						},
 						ScriptCommitment: sn.UnlockingScript.ScriptCommitment,
 						ScriptParams:     sn.UnlockingScript.ScriptParams,
@@ -149,16 +149,12 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				},
 			}
 			for _, outNote := range outputNotes {
-				scriptHash, err := outNote.UnlockingScript.Hash()
-				if err != nil {
-					return nil, nil, err
-				}
 				privateParams.Outputs = append(privateParams.Outputs, standard.PrivateOutput{
 					State:      [types.StateLen]byte{},
 					Amount:     uint64(outNote.Note.Amount),
 					Salt:       outNote.Note.Salt,
 					AssetID:    outNote.Note.AssetID,
-					ScriptHash: scriptHash[:],
+					ScriptHash: outNote.cachedScriptHash[:],
 				})
 			}
 
@@ -480,9 +476,8 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		State:           [types.StateLen]byte{},
 		CommitmentIndex: 0,
 		InclusionProof: standard.InclusionProof{
-			Hashes:      inclusionProof.Hashes,
-			Flags:       inclusionProof.Flags,
-			Accumulator: inclusionProof.Accumulator,
+			Hashes: inclusionProof.Hashes,
+			Flags:  inclusionProof.Flags,
 		},
 		ScriptCommitment: mockStandardScriptCommitment,
 		ScriptParams:     [][]byte{pubx, puby},

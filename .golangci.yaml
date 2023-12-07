@@ -25,3 +25,4 @@ issues:
     - "Error return value of `ms.lk.Lock` is not checked"
     - "type `printNode` is unused"
     - ".print` is unused"
+    - "func `generateBlocksDat` is unused"
