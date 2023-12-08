@@ -49,7 +49,10 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 		txs := make([]*transactions.Transaction, 0, len(remainingNotes))
 		for i := 0; i < numTxs; i++ {
 			sn := notes[i]
-			commitment := sn.Note.Commitment()
+			commitment, err := sn.Note.Commitment()
+			if err != nil {
+				return nil, nil, err
+			}
 			inclusionProof, err := acc.GetProof(commitment[:])
 			if err != nil {
 				return nil, nil, err
@@ -95,7 +98,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 					Amount:     (sn.Note.Amount / types.Amount(outputsPerTx)) - types.Amount(fee),
 					AssetID:    types.IlliumCoinID,
 					Salt:       salt,
-					State:      [types.StateLen]byte{},
+					State:      types.State{},
 				}
 				outputNotes = append(outputNotes, &SpendableNote{
 					Note:             outputNote,
@@ -104,7 +107,10 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 					cachedScriptHash: scriptHash,
 				})
 
-				outputCommitment := outputNote.Commitment()
+				outputCommitment, err := outputNote.Commitment()
+				if err != nil {
+					return nil, nil, err
+				}
 
 				outNullifier, err := types.CalculateNullifier(nCommitments-1, outputNote.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
 				if err != nil {
@@ -141,10 +147,12 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 			privateParams := &standard.PrivateParams{
 				Inputs: []standard.PrivateInput{
 					{
-						Amount:          uint64(sn.Note.Amount),
-						Salt:            sn.Note.Salt,
-						AssetID:         sn.Note.AssetID,
-						State:           [types.StateLen]byte{},
+						SpendNote: types.SpendNote{
+							Amount:  sn.Note.Amount,
+							Salt:    sn.Note.Salt,
+							AssetID: sn.Note.AssetID,
+							State:   types.State{},
+						},
 						CommitmentIndex: inclusionProof.Index,
 						InclusionProof: standard.InclusionProof{
 							Hashes: inclusionProof.Hashes,
@@ -158,11 +166,13 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 			}
 			for _, outNote := range outputNotes {
 				privateParams.Outputs = append(privateParams.Outputs, standard.PrivateOutput{
-					State:      [types.StateLen]byte{},
-					Amount:     uint64(outNote.Note.Amount),
-					Salt:       outNote.Note.Salt,
-					AssetID:    outNote.Note.AssetID,
-					ScriptHash: outNote.cachedScriptHash[:],
+					SpendNote: types.SpendNote{
+						State:      types.State{},
+						Amount:     outNote.Note.Amount,
+						Salt:       outNote.Note.Salt,
+						AssetID:    outNote.Note.AssetID,
+						ScriptHash: outNote.cachedScriptHash[:],
+					},
 				})
 			}
 
@@ -323,7 +333,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		Amount:     types.Amount(initialCoins) / 2,
 		AssetID:    types.IlliumCoinID,
 		Salt:       salt1,
-		State:      [types.StateLen]byte{},
+		State:      types.State{},
 	}
 
 	salt2, err := types.RandomSalt()
@@ -344,12 +354,18 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		Amount:     types.Amount(initialCoins) / 2,
 		AssetID:    types.IlliumCoinID,
 		Salt:       salt2,
-		State:      [types.StateLen]byte{},
+		State:      types.State{},
 	}
 
 	// Next we're going to start building the coinbase transaction
-	commitment1 := note1.Commitment()
-	commitment2 := note2.Commitment()
+	commitment1, err := note1.Commitment()
+	if err != nil {
+		return nil, nil, err
+	}
+	commitment2, err := note2.Commitment()
+	if err != nil {
+		return nil, nil, err
+	}
 	validatorID, err := peer.IDFromPublicKey(networkKey.GetPublic())
 	if err != nil {
 		return nil, nil, err
@@ -415,18 +431,22 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	privateParams := &standard.PrivateParams{
 		Outputs: []standard.PrivateOutput{
 			{
-				ScriptHash: note1ScriptHash[:],
-				Amount:     initialCoins / 2,
-				Salt:       note1.Salt,
-				AssetID:    note1.AssetID,
-				State:      note1.State,
+				SpendNote: types.SpendNote{
+					ScriptHash: note1ScriptHash[:],
+					Amount:     types.Amount(initialCoins / 2),
+					Salt:       note1.Salt,
+					AssetID:    note1.AssetID,
+					State:      note1.State,
+				},
 			},
 			{
-				ScriptHash: note2ScriptHash[:],
-				Amount:     initialCoins / 2,
-				Salt:       note2.Salt,
-				AssetID:    note2.AssetID,
-				State:      note2.State,
+				SpendNote: types.SpendNote{
+					ScriptHash: note2ScriptHash[:],
+					Amount:     types.Amount(initialCoins / 2),
+					Salt:       note2.Salt,
+					AssetID:    note2.AssetID,
+					State:      note2.State,
+				},
 			},
 		},
 	}
@@ -489,9 +509,11 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		Nullifier: nullifier1.Bytes(),
 	}
 	privateParams2 := &stake.PrivateParams{
-		AssetID:         types.IlliumCoinID,
-		Salt:            salt1,
-		State:           [types.StateLen]byte{},
+		SpendNote: types.SpendNote{
+			AssetID: types.IlliumCoinID,
+			Salt:    salt1,
+			State:   types.State{},
+		},
 		CommitmentIndex: 0,
 		InclusionProof: standard.InclusionProof{
 			Hashes: inclusionProof.Hashes,

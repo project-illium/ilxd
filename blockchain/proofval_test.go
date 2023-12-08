@@ -38,9 +38,10 @@ func TestProofValidator(t *testing.T) {
 		Amount:     1000000,
 		AssetID:    types.IlliumCoinID,
 		Salt:       salt1,
-		State:      [types.StateLen]byte{},
+		State:      types.State{},
 	}
-	inCommitment := inNote.Commitment()
+	inCommitment, err := inNote.Commitment()
+	assert.NoError(t, err)
 
 	outUnlockingScript := types.UnlockingScript{
 		ScriptCommitment: mockScriptCommitment,
@@ -53,9 +54,10 @@ func TestProofValidator(t *testing.T) {
 		Amount:     900000,
 		AssetID:    types.IlliumCoinID,
 		Salt:       salt1,
-		State:      [types.StateLen]byte{},
+		State:      types.State{},
 	}
-	outCommitment := outNote.Commitment()
+	outCommitment, err := outNote.Commitment()
+	assert.NoError(t, err)
 
 	acc := NewAccumulator()
 	acc.Insert(inCommitment[:], true)

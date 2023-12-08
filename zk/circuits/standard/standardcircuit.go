@@ -6,7 +6,6 @@ package standard
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
@@ -26,10 +25,7 @@ type InclusionProof struct {
 }
 
 type PrivateInput struct {
-	Amount           uint64
-	Salt             [types.SaltLen]byte
-	AssetID          [types.AssetIDLen]byte
-	State            [types.StateLen]byte
+	types.SpendNote
 	CommitmentIndex  uint64
 	InclusionProof   InclusionProof
 	ScriptCommitment []byte
@@ -38,11 +34,7 @@ type PrivateInput struct {
 }
 
 type PrivateOutput struct {
-	ScriptHash []byte
-	Amount     uint64
-	Salt       [types.SaltLen]byte
-	AssetID    [types.AssetIDLen]byte
-	State      [types.StateLen]byte
+	types.SpendNote
 }
 
 type PublicOutput struct {
@@ -104,20 +96,15 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 		}
 
 		// Now calculate the commitmentPreimage and commitment hash.
-		amountBytes := make([]byte, 8)
-		binary.BigEndian.PutUint64(amountBytes, in.Amount)
-		commitmentPreimage := make([]byte, 0, hash.HashSize+8+types.AssetIDLen+types.StateLen+types.SaltLen)
-		commitmentPreimage = append(commitmentPreimage, spendScriptHash.Bytes()...)
-		commitmentPreimage = append(commitmentPreimage, amountBytes...)
-		commitmentPreimage = append(commitmentPreimage, in.AssetID[:]...)
-		commitmentPreimage = append(commitmentPreimage, in.State[:]...)
-		commitmentPreimage = append(commitmentPreimage, in.Salt[:]...)
-
-		outputCommitment := hash.HashFunc(commitmentPreimage)
+		in.ScriptHash = spendScriptHash.Bytes()
+		outputCommitment, err := in.Commitment()
+		if err != nil {
+			return false
+		}
 
 		// Then validate the merkle proof using the calculated commitment hash
 		// and provided inclusion proof.
-		if !ValidateInclusionProof(outputCommitment, in.CommitmentIndex, in.InclusionProof.Hashes, in.InclusionProof.Flags, pub.TXORoot) {
+		if !ValidateInclusionProof(outputCommitment.Bytes(), in.CommitmentIndex, in.InclusionProof.Hashes, in.InclusionProof.Flags, pub.TXORoot) {
 			return false
 		}
 
@@ -145,12 +132,12 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 
 		// Total up the input amounts
 		if in.AssetID == defaultAssetID {
-			inVal, err = AddUint64(inVal, in.Amount)
+			inVal, err = AddUint64(inVal, uint64(in.Amount))
 			if err != nil {
 				return false
 			}
 		} else {
-			assetIns[in.AssetID], err = AddUint64(assetIns[in.AssetID], in.Amount)
+			assetIns[in.AssetID], err = AddUint64(assetIns[in.AssetID], uint64(in.Amount))
 			if err != nil {
 				return false
 			}
@@ -167,28 +154,22 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 		// actually matches the calculated output commitment. This prevents
 		// someone from putting a different output hash containing a
 		// different amount in the transactions.
-		commitmentPreimage := make([]byte, 0, hash.HashSize+8+types.AssetIDLen+types.StateLen+types.SaltLen)
-		amountBytes := make([]byte, 8)
-		binary.BigEndian.PutUint64(amountBytes, out.Amount)
+		outputCommitment, err := out.Commitment()
+		if err != nil {
+			return false
+		}
 
-		commitmentPreimage = append(commitmentPreimage, out.ScriptHash...)
-		commitmentPreimage = append(commitmentPreimage, amountBytes...)
-		commitmentPreimage = append(commitmentPreimage, out.AssetID[:]...)
-		commitmentPreimage = append(commitmentPreimage, out.State[:]...)
-		commitmentPreimage = append(commitmentPreimage, out.Salt[:]...)
-		outputCommitment := hash.HashFunc(commitmentPreimage)
-
-		if !bytes.Equal(outputCommitment, pub.Outputs[i].Commitment) {
+		if !bytes.Equal(outputCommitment.Bytes(), pub.Outputs[i].Commitment) {
 			return false
 		}
 
 		if out.AssetID == defaultAssetID {
-			outVal, err = AddUint64(outVal, out.Amount)
+			outVal, err = AddUint64(outVal, uint64(out.Amount))
 			if err != nil {
 				return false
 			}
 		} else {
-			assetOuts[out.AssetID], err = AddUint64(assetOuts[out.AssetID], out.Amount)
+			assetOuts[out.AssetID], err = AddUint64(assetOuts[out.AssetID], uint64(out.Amount))
 			if err != nil {
 				return false
 			}

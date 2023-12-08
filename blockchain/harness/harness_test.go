@@ -28,7 +28,8 @@ func TestNewTestHarness(t *testing.T) {
 	assert.NoError(t, err)
 
 	notes := h.SpendableNotes()
-	inCommitment := notes[0].Note.Commitment()
+	inCommitment, err := notes[0].Note.Commitment()
+	assert.NoError(t, err)
 
 	acc := h.Accumulator()
 	proof, err := acc.GetProof(inCommitment[:])
@@ -60,7 +61,8 @@ func TestNewTestHarness(t *testing.T) {
 		PrivateKey:      notes[0].PrivateKey,
 	}
 
-	outCommitment := outNote.Note.Commitment()
+	outCommitment, err := outNote.Note.Commitment()
+	assert.NoError(t, err)
 
 	tx := transactions.StandardTransaction{
 		Outputs: []*transactions.Output{
@@ -80,10 +82,12 @@ func TestNewTestHarness(t *testing.T) {
 	privateParams := standard.PrivateParams{
 		Inputs: []standard.PrivateInput{
 			{
-				Amount:          uint64(notes[0].Note.Amount),
-				Salt:            notes[0].Note.Salt,
-				AssetID:         notes[0].Note.AssetID,
-				State:           notes[0].Note.State,
+				SpendNote: types.SpendNote{
+					Amount:  notes[0].Note.Amount,
+					Salt:    notes[0].Note.Salt,
+					AssetID: notes[0].Note.AssetID,
+					State:   notes[0].Note.State,
+				},
 				CommitmentIndex: proof.Index,
 				InclusionProof: standard.InclusionProof{
 					Hashes: proof.Hashes,
@@ -96,11 +100,13 @@ func TestNewTestHarness(t *testing.T) {
 		},
 		Outputs: []standard.PrivateOutput{
 			{
-				ScriptHash: outScriptHash[:],
-				Amount:     uint64(outNote.Note.Amount),
-				Salt:       outNote.Note.Salt,
-				State:      outNote.Note.State,
-				AssetID:    outNote.Note.AssetID,
+				SpendNote: types.SpendNote{
+					ScriptHash: outScriptHash[:],
+					Amount:     outNote.Note.Amount,
+					Salt:       outNote.Note.Salt,
+					State:      outNote.Note.State,
+					AssetID:    outNote.Note.AssetID,
+				},
 			},
 		},
 	}
@@ -206,7 +212,10 @@ func generateBlocksDat() error {
 		State:      sn.Note.State,
 		Salt:       salt,
 	}
-	commitment := out.Commitment()
+	commitment, err := out.Commitment()
+	if err != nil {
+		return err
+	}
 
 	salt2, err := types.RandomSalt()
 	if err != nil {
@@ -220,7 +229,10 @@ func generateBlocksDat() error {
 		State:      sn.Note.State,
 		Salt:       salt2,
 	}
-	commitment2 := out2.Commitment()
+	commitment2, err := out2.Commitment()
+	if err != nil {
+		return err
+	}
 
 	sn2 := &SpendableNote{
 		Note:            out,

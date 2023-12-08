@@ -53,7 +53,8 @@ func TestGenerator(t *testing.T) {
 	notes := testHarness.SpendableNotes()
 	assert.NotZero(t, len(notes))
 
-	commitment := notes[0].Note.Commitment()
+	commitment, err := notes[0].Note.Commitment()
+	assert.NoError(t, err)
 
 	proof, err := testHarness.Accumulator().GetProof(commitment[:])
 	assert.NoError(t, err)

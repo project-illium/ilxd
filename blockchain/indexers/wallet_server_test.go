@@ -51,8 +51,11 @@ func TestWalletServerIndex(t *testing.T) {
 	scriptHash, err := ul.Hash()
 	assert.NoError(t, err)
 	note.ScriptHash = scriptHash.Bytes()
-	commitment := note.Commitment()
-	cipherText, err := viewKey.GetPublic().(*icrypto.Curve25519PublicKey).Encrypt(note.Serialize())
+	commitment, err := note.Commitment()
+	assert.NoError(t, err)
+	ser, err := note.Serialize()
+	assert.NoError(t, err)
+	cipherText, err := viewKey.GetPublic().(*icrypto.Curve25519PublicKey).Encrypt(ser)
 	assert.NoError(t, err)
 
 	sub := idx.Subscribe()
@@ -185,12 +188,13 @@ func randSpendNote() types.SpendNote {
 		ScriptHash: make([]byte, 32),
 		Amount:     20000,
 		AssetID:    types.ID{},
-		State:      [128]byte{},
+		State:      types.State{},
 		Salt:       [32]byte{},
 	}
-	rand.Read(note.ScriptHash)
-	rand.Read(note.AssetID[:])
-	rand.Read(note.State[:])
+	scriptHash, _ := types.RandomSalt()
+	copy(note.ScriptHash[:], scriptHash[:])
+	assetID, _ := types.RandomSalt()
+	copy(note.AssetID[:], assetID[:])
 	salt, _ := types.RandomSalt()
 	note.Salt = salt
 	return note

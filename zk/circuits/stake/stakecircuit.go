@@ -7,7 +7,6 @@ package stake
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/project-illium/ilxd/zk/scripts/timelockedmultisig"
@@ -15,9 +14,7 @@ import (
 )
 
 type PrivateParams struct {
-	AssetID          [types.AssetIDLen]byte
-	Salt             [types.SaltLen]byte
-	State            [types.StateLen]byte
+	types.SpendNote
 	CommitmentIndex  uint64
 	InclusionProof   standard.InclusionProof
 	ScriptCommitment []byte
@@ -59,18 +56,16 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	if err != nil {
 		return false
 	}
-	amountBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(amountBytes, pub.Amount)
-	commitmentPreimage := make([]byte, 0, hash.HashSize+8+types.AssetIDLen+types.StateLen+types.SaltLen)
-	commitmentPreimage = append(commitmentPreimage, spendScriptHash.Bytes()...)
-	commitmentPreimage = append(commitmentPreimage, amountBytes...)
-	commitmentPreimage = append(commitmentPreimage, priv.AssetID[:]...)
-	commitmentPreimage = append(commitmentPreimage, priv.State[:]...)
-	commitmentPreimage = append(commitmentPreimage, priv.Salt[:]...)
-	outputCommitment := hash.HashFunc(commitmentPreimage)
+	priv.ScriptHash = spendScriptHash.Bytes()
+	priv.Amount = types.Amount(pub.Amount)
+
+	outputCommitment, err := priv.Commitment()
+	if err != nil {
+		return false
+	}
 
 	// Then validate the merkle proof
-	if !standard.ValidateInclusionProof(outputCommitment, priv.CommitmentIndex, priv.InclusionProof.Hashes, priv.InclusionProof.Flags, pub.TXORoot) {
+	if !standard.ValidateInclusionProof(outputCommitment.Bytes(), priv.CommitmentIndex, priv.InclusionProof.Hashes, priv.InclusionProof.Flags, pub.TXORoot) {
 		return false
 	}
 

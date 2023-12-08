@@ -58,21 +58,23 @@ func TestStandardCircuit(t *testing.T) {
 		ScriptHash: usScriptHash[:],
 		AssetID:    [types.AssetIDLen]byte{},
 		Amount:     1000000,
-		State:      [types.StateLen]byte{},
+		State:      types.State{},
 		Salt:       salt,
 	}
 
-	commitment := note1.Commitment()
+	commitment, err := note1.Commitment()
+	assert.NoError(t, err)
 
 	note2 := types.SpendNote{
 		ScriptHash: us2ScriptHash[:],
 		AssetID:    [types.AssetIDLen]byte{},
 		Amount:     990000,
-		State:      [types.StateLen]byte{},
+		State:      types.State{},
 		Salt:       salt2,
 	}
 
-	commitment2 := note2.Commitment()
+	commitment2, err := note2.Commitment()
+	assert.NoError(t, err)
 
 	acc := blockchain.NewAccumulator()
 	acc.Insert(commitment[:], true)
@@ -100,10 +102,12 @@ func TestStandardCircuit(t *testing.T) {
 	privateParams := &standard.PrivateParams{
 		Inputs: []standard.PrivateInput{
 			{
-				Amount:          uint64(note1.Amount),
-				Salt:            note1.Salt,
-				AssetID:         [types.AssetIDLen]byte{},
-				State:           [types.StateLen]byte{},
+				SpendNote: types.SpendNote{
+					Amount:  note1.Amount,
+					Salt:    note1.Salt,
+					AssetID: [types.AssetIDLen]byte{},
+					State:   types.State{},
+				},
 				CommitmentIndex: 0,
 				InclusionProof: standard.InclusionProof{
 					Hashes: inclusionProof.Hashes,
@@ -116,11 +120,13 @@ func TestStandardCircuit(t *testing.T) {
 		},
 		Outputs: []standard.PrivateOutput{
 			{
-				ScriptHash: us2ScriptHash[:],
-				Amount:     uint64(note2.Amount),
-				Salt:       note2.Salt,
-				State:      [types.StateLen]byte{},
-				AssetID:    [types.AssetIDLen]byte{},
+				SpendNote: types.SpendNote{
+					ScriptHash: us2ScriptHash[:],
+					Amount:     note2.Amount,
+					Salt:       note2.Salt,
+					State:      types.State{},
+					AssetID:    [types.AssetIDLen]byte{},
+				},
 			},
 		},
 	}

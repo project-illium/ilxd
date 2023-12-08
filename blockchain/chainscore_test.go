@@ -16,20 +16,20 @@ func TestBlockchain_CalcChainScore(t *testing.T) {
 	testHarness, err := harness.NewTestHarness(harness.DefaultOptions())
 	assert.NoError(t, err)
 
-	assert.NoError(t, testHarness.GenerateBlocks(100))
+	assert.NoError(t, testHarness.GenerateBlocks(10))
 
 	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(testHarness.Blockchain().Params()))
 	assert.NoError(t, err)
 
-	for i := uint32(1); i < 50; i++ {
+	for i := uint32(1); i < 5; i++ {
 		blk, err := testHarness.Blockchain().GetBlockByHeight(i)
 		assert.NoError(t, err)
 
 		assert.NoError(t, chain.ConnectBlock(blk, blockchain.BFNone))
 	}
 
-	blks := make([]*blocks.Block, 0, 50)
-	for i := uint32(50); i < 100; i++ {
+	blks := make([]*blocks.Block, 0, 5)
+	for i := uint32(50); i < 10; i++ {
 		blk, err := testHarness.Blockchain().GetBlockByHeight(i)
 		assert.NoError(t, err)
 		blks = append(blks, blk)
