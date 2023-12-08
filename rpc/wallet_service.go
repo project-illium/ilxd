@@ -386,7 +386,9 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 		}
 
 		privIn := standard.PrivateInput{
-			Amount:          in.Amount,
+			SpendNote: types.SpendNote{
+				Amount: types.Amount(in.Amount),
+			},
 			CommitmentIndex: in.TxoProof.Index,
 			InclusionProof: standard.InclusionProof{
 				Hashes: in.TxoProof.Hashes,
@@ -398,7 +400,12 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 		}
 		copy(privIn.Salt[:], in.Salt)
 		copy(privIn.AssetID[:], in.Asset_ID)
-		copy(privIn.State[:], in.State)
+
+		state := new(types.State)
+		if err := state.Deserialize(in.State); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		privIn.State = *state
 
 		privateParams.Inputs = append(privateParams.Inputs, privIn)
 
@@ -410,12 +417,18 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 	}
 	for _, out := range req.RawTx.Outputs {
 		privOut := standard.PrivateOutput{
-			ScriptHash: out.ScriptHash,
-			Amount:     out.Amount,
+			SpendNote: types.SpendNote{
+				ScriptHash: out.ScriptHash,
+				Amount:     types.Amount(out.Amount),
+			},
 		}
 		copy(privOut.Salt[:], out.Salt)
 		copy(privOut.AssetID[:], out.Asset_ID)
-		copy(privOut.State[:], out.State)
+		state := new(types.State)
+		if err := state.Deserialize(out.State); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		privOut.State = *state
 
 		privateParams.Outputs = append(privateParams.Outputs, privOut)
 	}
@@ -491,14 +504,20 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 			rawInput.Commitment = in.GetCommitment()
 		} else if in.GetInput() != nil {
 			rawInput.PrivateInput = &standard.PrivateInput{
-				Amount:           in.GetInput().Amount,
+				SpendNote: types.SpendNote{
+					Amount: types.Amount(in.GetInput().Amount),
+				},
 				ScriptCommitment: in.GetInput().ScriptCommitment,
 				ScriptParams:     in.GetInput().ScriptParams,
 				UnlockingParams:  nil,
 			}
 			copy(rawInput.PrivateInput.Salt[:], in.GetInput().Salt)
 			copy(rawInput.PrivateInput.AssetID[:], in.GetInput().Asset_ID)
-			copy(rawInput.PrivateInput.State[:], in.GetInput().State)
+			state := new(types.State)
+			if err := state.Deserialize(in.GetInput().State); err != nil {
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
+			rawInput.PrivateInput.State = *state
 		} else {
 			return nil, status.Error(codes.InvalidArgument, "input must have commitment or private input")
 		}
@@ -515,7 +534,11 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 			Addr:   addr,
 			Amount: types.Amount(out.Amount),
 		}
-		copy(rawOut.State[:], out.State)
+		state := new(types.State)
+		if err := state.Deserialize(out.State); err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		rawOut.State = *state
 		outputs = append(outputs, rawOut)
 	}
 	rawTx, err := s.wallet.CreateRawTransaction(inputs, outputs, req.AppendChangeOutput, types.Amount(req.FeePerKilobyte))
@@ -545,13 +568,15 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 			State:      in.State,
 			Salt:       in.Salt,
 		}
-		commitment := note.Commitment()
+		commitment, err := note.Commitment()
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
 
-		resp.RawTx.Inputs = append(resp.RawTx.Inputs, &pb.PrivateInput{
-			Amount:           in.Amount,
+		rawIn := &pb.PrivateInput{
+			Amount:           uint64(in.Amount),
 			Salt:             in.Salt[:],
 			Asset_ID:         in.AssetID[:],
-			State:            in.State[:],
 			ScriptCommitment: in.ScriptCommitment[:],
 			ScriptParams:     in.ScriptParams[:],
 			TxoProof: &pb.TxoProof{
@@ -560,11 +585,17 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 				Flags:      in.InclusionProof.Flags,
 				Index:      in.CommitmentIndex,
 			},
-		})
+		}
+		ser, err := in.State.Serialize(true)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		rawIn.State = ser
+		resp.RawTx.Inputs = append(resp.RawTx.Inputs, rawIn)
 	}
 	for _, out := range rawTx.PrivateOutputs {
 		po := &pb.PrivateOutput{
-			Amount:     out.Amount,
+			Amount:     uint64(out.Amount),
 			Salt:       make([]byte, len(out.Salt)),
 			Asset_ID:   make([]byte, len(out.AssetID)),
 			State:      make([]byte, len(out.State)),
@@ -573,7 +604,11 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 		copy(po.Salt, out.Salt[:])
 		copy(po.ScriptHash, out.ScriptHash)
 		copy(po.Asset_ID, out.AssetID[:])
-		copy(po.State, out.State[:])
+		ser, err := out.State.Serialize(true)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		po.State = ser
 		resp.RawTx.Outputs = append(resp.RawTx.Outputs, po)
 	}
 
@@ -587,14 +622,21 @@ func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.Crea
 		rawInput.Commitment = req.Input.GetCommitment()
 	} else if req.Input.GetInput() != nil {
 		rawInput.PrivateInput = &standard.PrivateInput{
-			Amount:           req.Input.GetInput().Amount,
+			SpendNote: types.SpendNote{
+				Amount: types.Amount(req.Input.GetInput().Amount),
+			},
 			ScriptCommitment: req.Input.GetInput().ScriptCommitment,
 			ScriptParams:     req.Input.GetInput().ScriptParams,
 			UnlockingParams:  nil,
 		}
 		copy(rawInput.PrivateInput.Salt[:], req.Input.GetInput().Salt)
 		copy(rawInput.PrivateInput.AssetID[:], req.Input.GetInput().Asset_ID)
-		copy(rawInput.PrivateInput.State[:], req.Input.GetInput().State)
+		state := new(types.State)
+		if err := state.Deserialize(req.Input.GetInput().State); err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		rawInput.PrivateInput.State = *state
+
 	} else {
 		return nil, status.Error(codes.InvalidArgument, "input must have commitment or private input")
 	}
@@ -624,13 +666,14 @@ func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.Crea
 		State:      rawTx.PrivateInputs[0].State,
 		Salt:       rawTx.PrivateInputs[0].Salt,
 	}
-	commitment := note.Commitment()
-
-	resp.RawTx.Inputs = append(resp.RawTx.Inputs, &pb.PrivateInput{
-		Amount:           rawTx.PrivateInputs[0].Amount,
+	commitment, err := note.Commitment()
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	in := &pb.PrivateInput{
+		Amount:           uint64(rawTx.PrivateInputs[0].Amount),
 		Salt:             rawTx.PrivateInputs[0].Salt[:],
 		Asset_ID:         rawTx.PrivateInputs[0].AssetID[:],
-		State:            rawTx.PrivateInputs[0].State[:],
 		ScriptCommitment: rawTx.PrivateInputs[0].ScriptCommitment[:],
 		ScriptParams:     rawTx.PrivateInputs[0].ScriptParams[:],
 		TxoProof: &pb.TxoProof{
@@ -639,7 +682,13 @@ func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.Crea
 			Flags:      rawTx.PrivateInputs[0].InclusionProof.Flags,
 			Index:      rawTx.PrivateInputs[0].CommitmentIndex,
 		},
-	})
+	}
+	ser, err := rawTx.PrivateInputs[0].State.Serialize(true)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	in.State = ser
+	resp.RawTx.Inputs = append(resp.RawTx.Inputs, in)
 
 	return resp, nil
 }
@@ -701,7 +750,9 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 				in.UnlockingParams = fmt.Sprintf("(cons 0x%x 0x%x", sig[:32], sig[32:])
 			}
 			privIn := standard.PrivateInput{
-				Amount:          in.Amount,
+				SpendNote: types.SpendNote{
+					Amount: types.Amount(in.Amount),
+				},
 				CommitmentIndex: in.TxoProof.Index,
 				InclusionProof: standard.InclusionProof{
 					Hashes: in.TxoProof.Hashes,
@@ -713,20 +764,30 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 			}
 			copy(privIn.Salt[:], in.Salt)
 			copy(privIn.AssetID[:], in.Asset_ID)
-			copy(privIn.State[:], in.State)
+			state := new(types.State)
+			if err := state.Deserialize(in.State); err != nil {
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
+			privIn.State = *state
 
 			privateParams.Inputs = append(privateParams.Inputs, privIn)
 		}
 
 		for _, out := range req.RawTx.Outputs {
 			privOut := standard.PrivateOutput{
-				ScriptHash: make([]byte, len(out.ScriptHash)),
-				Amount:     out.Amount,
+				SpendNote: types.SpendNote{
+					ScriptHash: make([]byte, len(out.ScriptHash)),
+					Amount:     types.Amount(out.Amount),
+				},
 			}
 			copy(privOut.ScriptHash, out.ScriptHash)
 			copy(privOut.Salt[:], out.Salt)
 			copy(privOut.AssetID[:], out.Asset_ID)
-			copy(privOut.State[:], out.State)
+			state := new(types.State)
+			if err := state.Deserialize(out.State); err != nil {
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
+			privOut.State = *state
 			privateParams.Outputs = append(privateParams.Outputs, privOut)
 		}
 
@@ -812,7 +873,11 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		}
 		copy(privateParams.Salt[:], req.RawTx.Inputs[0].Salt)
 		copy(privateParams.AssetID[:], req.RawTx.Inputs[0].Asset_ID)
-		copy(privateParams.State[:], req.RawTx.Inputs[0].State)
+		state := new(types.State)
+		if err := state.Deserialize(req.RawTx.Inputs[0].State); err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		privateParams.State = *state
 
 		publicParams := &stake.PublicParams{
 			TXORoot:   stakeTx.TxoRoot,

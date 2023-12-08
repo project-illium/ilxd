@@ -594,7 +594,9 @@ func (x *ProveMultisig) Execute(args []string) error {
 		}
 
 		privIn := standard.PrivateInput{
-			Amount:          in.Amount,
+			SpendNote: types.SpendNote{
+				Amount: types.Amount(in.Amount),
+			},
 			CommitmentIndex: in.TxoProof.Index,
 			InclusionProof: standard.InclusionProof{
 				Hashes: in.TxoProof.Hashes,
@@ -606,7 +608,12 @@ func (x *ProveMultisig) Execute(args []string) error {
 		}
 		copy(privIn.Salt[:], in.Salt)
 		copy(privIn.AssetID[:], in.Asset_ID)
-		copy(privIn.State[:], in.State)
+
+		state := new(types.State)
+		if err := state.Deserialize(in.State); err != nil {
+			return err
+		}
+		privIn.State = *state
 
 		privateParams.Inputs = append(privateParams.Inputs, privIn)
 
@@ -618,12 +625,18 @@ func (x *ProveMultisig) Execute(args []string) error {
 	}
 	for _, out := range rawTx.Outputs {
 		privOut := standard.PrivateOutput{
-			ScriptHash: out.ScriptHash,
-			Amount:     out.Amount,
+			SpendNote: types.SpendNote{
+				ScriptHash: out.ScriptHash,
+				Amount:     types.Amount(out.Amount),
+			},
 		}
 		copy(privOut.Salt[:], out.Salt)
 		copy(privOut.AssetID[:], out.Asset_ID)
-		copy(privOut.State[:], out.State)
+		state := new(types.State)
+		if err := state.Deserialize(out.State); err != nil {
+			return err
+		}
+		privOut.State = *state
 
 		privateParams.Outputs = append(privateParams.Outputs, privOut)
 	}
@@ -1200,7 +1213,9 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 				in.UnlockingParams = fmt.Sprintf("(cons 0x%x 0x%x)", sig[:32], sig[32:])
 			}
 			privIn := standard.PrivateInput{
-				Amount:          in.Amount,
+				SpendNote: types.SpendNote{
+					Amount: types.Amount(in.Amount),
+				},
 				CommitmentIndex: in.TxoProof.Index,
 				InclusionProof: standard.InclusionProof{
 					Hashes: in.TxoProof.Hashes,
@@ -1212,20 +1227,30 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 			}
 			copy(privIn.Salt[:], in.Salt)
 			copy(privIn.AssetID[:], in.Asset_ID)
-			copy(privIn.State[:], in.State)
+			state := new(types.State)
+			if err := state.Deserialize(in.State); err != nil {
+				return nil, err
+			}
+			privIn.State = *state
 
 			privateParams.Inputs = append(privateParams.Inputs, privIn)
 		}
 
 		for _, out := range rawTx.Outputs {
 			privOut := standard.PrivateOutput{
-				ScriptHash: make([]byte, len(out.ScriptHash)),
-				Amount:     out.Amount,
+				SpendNote: types.SpendNote{
+					ScriptHash: make([]byte, len(out.ScriptHash)),
+					Amount:     types.Amount(out.Amount),
+				},
 			}
 			copy(privOut.ScriptHash, out.ScriptHash)
 			copy(privOut.Salt[:], out.Salt)
 			copy(privOut.AssetID[:], out.Asset_ID)
-			copy(privOut.State[:], out.State)
+			state := new(types.State)
+			if err := state.Deserialize(out.State); err != nil {
+				return nil, err
+			}
+			privOut.State = *state
 			privateParams.Outputs = append(privateParams.Outputs, privOut)
 		}
 
@@ -1300,7 +1325,11 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 		}
 		copy(privateParams.Salt[:], rawTx.Inputs[0].Salt)
 		copy(privateParams.AssetID[:], rawTx.Inputs[0].Asset_ID)
-		copy(privateParams.State[:], rawTx.Inputs[0].State)
+		state := new(types.State)
+		if err := state.Deserialize(rawTx.Inputs[0].State); err != nil {
+			return nil, err
+		}
+		privateParams.State = *state
 
 		publicParams := &stake.PublicParams{
 			TXORoot:   stakeTx.TxoRoot,

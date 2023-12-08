@@ -122,17 +122,34 @@ func main() {
 	}
 	rand.Read(note1.Salt[:])
 
-	ciphertext0, err := viewKey.GetPublic().(*icrypto.Curve25519PublicKey).Encrypt(note0.Serialize())
+	ser, err := note0.Serialize()
+	if err != nil {
+		log.Fatal(err)
+	}
+	ciphertext0, err := viewKey.GetPublic().(*icrypto.Curve25519PublicKey).Encrypt(ser)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ciphertext1, err := viewKey.GetPublic().(*icrypto.Curve25519PublicKey).Encrypt(note1.Serialize())
+	ser, err = note1.Serialize()
+	if err != nil {
+		log.Fatal(err)
+	}
+	ciphertext1, err := viewKey.GetPublic().(*icrypto.Curve25519PublicKey).Encrypt(ser)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	nullifier, err := types.CalculateNullifier(0, note0.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	commitment0, err := note0.Commitment()
+	if err != nil {
+		log.Fatal(err)
+	}
+	commitment1, err := note1.Commitment()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -153,11 +170,11 @@ func main() {
 				NewCoins:     params.InitialCoins,
 				Outputs: []*transactions.Output{
 					{
-						Commitment: note0.Commitment().Bytes(),
+						Commitment: commitment0.Bytes(),
 						Ciphertext: ciphertext0,
 					},
 					{
-						Commitment: note1.Commitment().Bytes(),
+						Commitment: commitment1.Bytes(),
 						Ciphertext: ciphertext1,
 					},
 				},
