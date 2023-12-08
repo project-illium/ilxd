@@ -149,7 +149,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 					ScriptHash: note1ScriptHash[:],
 					Amount:     100000000000,
 					AssetID:    types.IlliumCoinID,
-					State:      [types.StateLen]byte{},
+					State:      types.State{},
 					Salt:       salt,
 				}
 
@@ -158,7 +158,10 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 					UnlockingScript: note1UnlockingScript,
 					PrivateKey:      cfg.spendKey,
 				}
-				commitment := note1.Commitment()
+				commitment, err := note1.Commitment()
+				if err != nil {
+					return nil, err
+				}
 				val, err := harness.chain.GetValidator(validatorID)
 				if err != nil {
 					return nil, err
@@ -190,7 +193,10 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 			harness.acc.Insert(output.Commitment, true)
 		}
 
-		commitment := spendableNote.Note.Commitment()
+		commitment, err := spendableNote.Note.Commitment()
+		if err != nil {
+			return nil, err
+		}
 		proof, err := harness.acc.GetProof(commitment[:])
 		if err != nil {
 			return nil, err
@@ -247,7 +253,10 @@ func (h *TestHarness) GenerateBlockWithTransactions(txs []*transactions.Transact
 		h.acc.Insert(out.Commitment, true)
 	}
 	for _, sn := range createdNotes {
-		commitment := sn.Note.Commitment()
+		commitment, err := sn.Note.Commitment()
+		if err != nil {
+			return err
+		}
 		proof, err := h.acc.GetProof(commitment[:])
 		if err != nil {
 			return err

@@ -60,13 +60,16 @@ func TestBlockchain(t *testing.T) {
 		Amount:     10000,
 	}
 
-	commitment := note.Commitment()
+	commitment, err := note.Commitment()
+	assert.NoError(t, err)
 	proof, err := zk.CreateSnark(standard.StandardCircuit,
 		&standard.PrivateParams{
 			Outputs: []standard.PrivateOutput{
 				{
-					ScriptHash: scriptHash[:],
-					Amount:     10000,
+					SpendNote: types.SpendNote{
+						ScriptHash: scriptHash[:],
+						Amount:     10000,
+					},
 				},
 			},
 		}, &standard.PublicParams{
