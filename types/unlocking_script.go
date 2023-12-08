@@ -121,9 +121,9 @@ func buildLurkExpression[T any](elems []T) (string, error) {
 				expr += fmt.Sprintf("(cons 0x%x ", e)
 			} else if len(e) == 1 {
 				if e[0] == 0x00 {
-					expr += fmt.Sprintf("(cons nil ")
+					expr += "(cons nil "
 				} else {
-					expr += fmt.Sprintf("(cons t ")
+					expr += "(cons t "
 				}
 			} else if len(e) <= 8 && len(e) > 1 {
 				for i := len(e); i < 8; i++ {
