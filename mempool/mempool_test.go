@@ -11,7 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
-	"github.com/project-illium/ilxd/params/hash"
+	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/stretchr/testify/assert"
@@ -50,8 +50,6 @@ func TestMempool(t *testing.T) {
 	assert.NoError(t, err)
 	sk2, pk2, err := crypto.GenerateEd25519Key(rand.Reader)
 	assert.NoError(t, err)
-	pkBytes, err := crypto.MarshalPublicKey(pk)
-	assert.NoError(t, err)
 	validatorID, err := peer.IDFromPublicKey(pk)
 	assert.NoError(t, err)
 	valBytes, err := validatorID.Marshal()
@@ -63,6 +61,13 @@ func TestMempool(t *testing.T) {
 
 	nullifier3 := types.NewNullifier(randomBytes())
 	nullifier4 := types.NewNullifier(randomBytes())
+
+	mintPriv, mintPub, err := icrypto.GenerateNovaKey(rand.Reader)
+	assert.NoError(t, err)
+	mintKeyBytes, err := crypto.MarshalPublicKey(mintPub)
+	assert.NoError(t, err)
+	mintRawPubkey, err := mintPub.Raw()
+	assert.NoError(t, err)
 
 	view.validators[validatorID] = &blockchain.Validator{
 		UnclaimedCoins: 10000,
@@ -186,9 +191,9 @@ func TestMempool(t *testing.T) {
 		{
 			name: "valid mint tx",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Asset_ID: hash.HashFunc(pkBytes),
+				Asset_ID: mintRawPubkey,
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
-				MintKey:  pkBytes,
+				MintKey:  mintKeyBytes,
 				Outputs: []*transactions.Output{
 					{
 						Commitment: make([]byte, types.CommitmentLen),
@@ -205,7 +210,7 @@ func TestMempool(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				sig, err := sk.Sign(h)
+				sig, err := mintPriv.Sign(h)
 				if err != nil {
 					return err
 				}
@@ -217,9 +222,9 @@ func TestMempool(t *testing.T) {
 		{
 			name: "mint tx fee too low",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Asset_ID: hash.HashFunc(pkBytes),
+				Asset_ID: mintRawPubkey,
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
-				MintKey:  pkBytes,
+				MintKey:  mintKeyBytes,
 				Outputs: []*transactions.Output{
 					{
 						Commitment: make([]byte, types.CommitmentLen),
@@ -236,7 +241,7 @@ func TestMempool(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				sig, err := sk.Sign(h)
+				sig, err := mintPriv.Sign(h)
 				if err != nil {
 					return err
 				}
@@ -248,9 +253,9 @@ func TestMempool(t *testing.T) {
 		{
 			name: "mint nullifier already in pool",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Asset_ID: hash.HashFunc(pkBytes),
+				Asset_ID: mintRawPubkey,
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
-				MintKey:  pkBytes,
+				MintKey:  mintKeyBytes,
 				Outputs: []*transactions.Output{
 					{
 						Commitment: make([]byte, types.CommitmentLen),
@@ -267,7 +272,7 @@ func TestMempool(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				sig, err := sk.Sign(h)
+				sig, err := mintPriv.Sign(h)
 				if err != nil {
 					return err
 				}
@@ -279,9 +284,9 @@ func TestMempool(t *testing.T) {
 		{
 			name: "mint nullifier already in set",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Asset_ID: hash.HashFunc(pkBytes),
+				Asset_ID: mintRawPubkey,
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
-				MintKey:  pkBytes,
+				MintKey:  mintKeyBytes,
 				Outputs: []*transactions.Output{
 					{
 						Commitment: make([]byte, types.CommitmentLen),
@@ -298,7 +303,7 @@ func TestMempool(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				sig, err := sk.Sign(h)
+				sig, err := mintPriv.Sign(h)
 				if err != nil {
 					return err
 				}
@@ -310,9 +315,9 @@ func TestMempool(t *testing.T) {
 		{
 			name: "mint txo root not in set",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Asset_ID: hash.HashFunc(pkBytes),
+				Asset_ID: mintRawPubkey,
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
-				MintKey:  pkBytes,
+				MintKey:  mintKeyBytes,
 				Outputs: []*transactions.Output{
 					{
 						Commitment: make([]byte, types.CommitmentLen),
@@ -329,7 +334,7 @@ func TestMempool(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				sig, err := sk.Sign(h)
+				sig, err := mintPriv.Sign(h)
 				if err != nil {
 					return err
 				}

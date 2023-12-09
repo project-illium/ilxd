@@ -271,6 +271,13 @@ func TestValidateBlock(t *testing.T) {
 		return ret
 	}
 
+	mintKeyBytes, err := hex.DecodeString("08041220e6d43b2e08f25c25d179d711f430cd891ccc3bab505d87f2078c32f610ca4609")
+	assert.NoError(t, err)
+	mintPub, err := crypto.UnmarshalPublicKey(mintKeyBytes)
+	assert.NoError(t, err)
+	mintRawPubkey, err := mintPub.Raw()
+	assert.NoError(t, err)
+
 	// Hardcoded instead of random to preserve block sort order
 	var (
 		txoRoot      = hexToBytes("6d509adaffb1d910a13c88383bd39552673ec34d3b12043bac04ad1bde2c7bb5")
@@ -727,11 +734,10 @@ func TestValidateBlock(t *testing.T) {
 						},
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
-						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
+						MintKey:    mintKeyBytes,
 					}),
 				}
-				keyHash := hash.HashFunc(blk.Transactions[0].GetMintTransaction().MintKey)
-				blk.Transactions[0].GetMintTransaction().Asset_ID = keyHash
+				blk.Transactions[0].GetMintTransaction().Asset_ID = mintRawPubkey
 
 				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
 				header.TxRoot = merkleRoot[:]
@@ -760,11 +766,10 @@ func TestValidateBlock(t *testing.T) {
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
 						Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
-						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
+						MintKey:    mintKeyBytes,
 					}),
 				}
-				keyHash := hash.HashFunc(blk.Transactions[0].GetMintTransaction().MintKey)
-				blk.Transactions[0].GetMintTransaction().Asset_ID = keyHash
+				blk.Transactions[0].GetMintTransaction().Asset_ID = mintRawPubkey
 
 				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
 				header.TxRoot = merkleRoot[:]
@@ -792,27 +797,23 @@ func TestValidateBlock(t *testing.T) {
 						},
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
-						Asset_ID:   bytes.Repeat([]byte{0x12}, types.AssetIDLen),
-						MintKey:    bytes.Repeat([]byte{0x12}, PubkeyLen),
+						Asset_ID:   mintRawPubkey,
+						MintKey:    mintKeyBytes,
 					}),
 					transactions.WrapTransaction(&transactions.MintTransaction{
 						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
-								Ciphertext: make([]byte, CiphertextLen),
+								Ciphertext: bytes.Repeat([]byte{0x01}, CiphertextLen),
 							},
 						},
-						Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
-						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
+						Asset_ID:   mintRawPubkey,
+						MintKey:    mintKeyBytes,
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
 					}),
 				}
-				keyHash := hash.HashFunc(blk.Transactions[0].GetMintTransaction().MintKey)
-				blk.Transactions[0].GetMintTransaction().Asset_ID = keyHash
-				keyHash2 := hash.HashFunc(blk.Transactions[1].GetMintTransaction().MintKey)
-				blk.Transactions[1].GetMintTransaction().Asset_ID = keyHash2
 
 				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
 				header.TxRoot = merkleRoot[:]
@@ -839,13 +840,12 @@ func TestValidateBlock(t *testing.T) {
 							},
 						},
 						Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
-						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
+						MintKey:    mintKeyBytes,
 						Nullifiers: [][]byte{nullifier2[:]},
 						TxoRoot:    txoRoot[:],
 					}),
 				}
-				keyHash := hash.HashFunc(blk.Transactions[0].GetMintTransaction().MintKey)
-				blk.Transactions[0].GetMintTransaction().Asset_ID = keyHash
+				blk.Transactions[0].GetMintTransaction().Asset_ID = mintRawPubkey
 
 				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
 				header.TxRoot = merkleRoot[:]
@@ -872,7 +872,7 @@ func TestValidateBlock(t *testing.T) {
 							},
 						},
 						Asset_ID:   bytes.Repeat([]byte{0x11}, types.AssetIDLen),
-						MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
+						MintKey:    mintKeyBytes,
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot2[:],
 					}),
@@ -1351,6 +1351,13 @@ func TestCheckTransactionSanity(t *testing.T) {
 	n := randomID()
 	nullifier := types.NewNullifier(n[:])
 
+	mintKeyBytes, err := hex.DecodeString("08041220e6d43b2e08f25c25d179d711f430cd891ccc3bab505d87f2078c32f610ca4609")
+	assert.NoError(t, err)
+	mintPub, err := crypto.UnmarshalPublicKey(mintKeyBytes)
+	assert.NoError(t, err)
+	mintRawPubkey, err := mintPub.Raw()
+	assert.NoError(t, err)
+
 	tests := []struct {
 		name        string
 		tx          *transactions.Transaction
@@ -1548,7 +1555,7 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "mint valid variable supply",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
-				Asset_ID: hash.HashFunc(bytes.Repeat([]byte{0x11}, PubkeyLen)),
+				Asset_ID: mintRawPubkey,
 				Outputs: []*transactions.Output{
 					{
 						Commitment: make([]byte, types.CommitmentLen),
@@ -1556,7 +1563,7 @@ func TestCheckTransactionSanity(t *testing.T) {
 					},
 				},
 				Nullifiers: [][]byte{nullifier.Bytes()},
-				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
+				MintKey:    mintKeyBytes,
 			}),
 			timestamp:   time.Now(),
 			expectedErr: nil,

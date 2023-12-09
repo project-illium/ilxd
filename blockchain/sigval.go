@@ -7,6 +7,7 @@ package blockchain
 import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
+	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"runtime"
@@ -131,8 +132,8 @@ func (s *sigValidator) validateHandler() {
 					s.resultChan <- ruleError(ErrInvalidTx, "mint tx pubkey invalid")
 					break
 				}
-				if mintKey.Type() != crypto.Ed25519 {
-					s.resultChan <- ruleError(ErrInvalidTx, "mint tx pubkey not ed25519")
+				if mintKey.Type() != icrypto.Libp2pKeyTypeNova {
+					s.resultChan <- ruleError(ErrInvalidTx, "mint tx pubkey not type nova")
 					break
 				}
 
