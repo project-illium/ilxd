@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
+	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -18,9 +19,6 @@ func TestSigValidator(t *testing.T) {
 	sigValidator := NewSigValidator(sigCache)
 
 	sk, pk, err := crypto.GenerateEd25519Key(rand.Reader)
-	assert.NoError(t, err)
-
-	pkBytes, err := crypto.MarshalPublicKey(pk)
 	assert.NoError(t, err)
 
 	validatorID, err := peer.IDFromPublicKey(pk)
@@ -46,12 +44,18 @@ func TestSigValidator(t *testing.T) {
 	assert.NoError(t, err)
 	stakeTx.Signature = sig
 
+	sk2, pk2, err := icrypto.GenerateNovaKey(rand.Reader)
+	assert.NoError(t, err)
+
+	pkBytes2, err := crypto.MarshalPublicKey(pk2)
+	assert.NoError(t, err)
+
 	mintTx := &transactions.MintTransaction{
-		MintKey: pkBytes,
+		MintKey: pkBytes2,
 	}
 	sigHash, err = mintTx.SigHash()
 	assert.NoError(t, err)
-	sig, err = sk.Sign(sigHash)
+	sig, err = sk2.Sign(sigHash)
 	assert.NoError(t, err)
 	mintTx.Signature = sig
 
