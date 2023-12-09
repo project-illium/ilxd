@@ -256,7 +256,7 @@ func (tx *StandardTransaction) SigHash() ([]byte, error) {
 		return nil, err
 	}
 
-	return hash.HashFunc(b), nil
+	return hash.Blake2slurk(b), nil
 }
 
 func (tx *StandardTransaction) ID() types.ID {
@@ -345,7 +345,7 @@ func (tx *CoinbaseTransaction) SigHash() ([]byte, error) {
 		return nil, err
 	}
 
-	return hash.HashFunc(b), nil
+	return hash.Blake2slurk(b), nil
 }
 
 func (tx *CoinbaseTransaction) ID() types.ID {
@@ -418,7 +418,7 @@ func (tx *StakeTransaction) SigHash() ([]byte, error) {
 		return nil, err
 	}
 
-	return hash.HashFunc(b), nil
+	return hash.Blake2slurk(b), nil
 }
 
 func (tx *StakeTransaction) ID() types.ID {
@@ -488,7 +488,7 @@ func (tx *TreasuryTransaction) SigHash() ([]byte, error) {
 		return nil, err
 	}
 
-	return hash.HashFunc(b), nil
+	return hash.Blake2slurk(b), nil
 }
 
 func (tx *TreasuryTransaction) ID() types.ID {
@@ -568,7 +568,7 @@ func (tx *MintTransaction) SigHash() ([]byte, error) {
 		return nil, err
 	}
 
-	return hash.HashFunc(b), nil
+	return hash.Blake2slurk(b), nil
 }
 
 func (tx *MintTransaction) ID() types.ID {

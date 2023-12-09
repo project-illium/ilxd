@@ -1539,7 +1539,7 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "mint valid fixed supply",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
-				Asset_ID:   hash.HashFunc(nullifier.Bytes()),
+				Asset_ID:   nullifier.Bytes(),
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{

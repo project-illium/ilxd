@@ -53,21 +53,21 @@ func TestAccumulator(t *testing.T) {
 	assert.Equal(t, types.NewID(h12), acc.Root())
 
 	acc.Insert(d3, true)
-	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h12, h3})), acc.Root())
+	assert.Equal(t, types.NewID(hash.HashMerkleBranches(h12, h3)), acc.Root())
 
 	acc.Insert(d4, true)
 	assert.Equal(t, types.NewID(h1234), acc.Root())
 
 	acc.Insert(d5, true)
-	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h1234, h5})), acc.Root())
+	assert.Equal(t, types.NewID(hash.HashMerkleBranches(h1234, h5)), acc.Root())
 
 	acc.Insert(d6, true)
-	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h1234, h56})), acc.Root())
+	assert.Equal(t, types.NewID(hash.HashMerkleBranches(h1234, h56)), acc.Root())
 
 	acc.Insert(d7, true)
-	h123456 := hash.CatAndHash([][]byte{h1234, h56})
-	h77 := hash.CatAndHash([][]byte{h7, h7})
-	assert.Equal(t, types.NewID(hash.CatAndHash([][]byte{h123456, h77})), acc.Root())
+	h123456 := hash.HashMerkleBranches(h1234, h56)
+	h77 := hash.HashMerkleBranches(h7, h7)
+	assert.Equal(t, types.NewID(hash.HashMerkleBranches(h123456, h77)), acc.Root())
 
 	acc.Insert(d8, true)
 	assert.Equal(t, types.NewID(h12345678), acc.Root())
