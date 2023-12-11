@@ -4,7 +4,9 @@
 
 package hash
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+)
 
 // HashMerkleBranches takes two hashes, treated as the left and right tree
 // nodes, and returns the hash of their concatenation.  This is a helper
@@ -20,22 +22,10 @@ func HashMerkleBranches(left []byte, right []byte) []byte {
 
 // HashWithIndex prepends the index to data before hashing.
 func HashWithIndex(data []byte, index uint64) []byte {
-	d := make([]byte, len(data)+8)
-	copy(d[:8], nElementsToBytes(index))
-	copy(d[8:], data)
+	d := make([]byte, len(data)+32)
+	copy(d[24:32], nElementsToBytes(index))
+	copy(d[32:], data)
 	return HashFunc(d)
-}
-
-// CatAndHash concatenates all the elements in the slice together
-// and then hashes.
-func CatAndHash(data [][]byte) []byte {
-	combined := make([]byte, 0, HashSize*len(data))
-	for _, peak := range data {
-		peakCopy := make([]byte, len(peak))
-		copy(peakCopy, peak)
-		combined = append(combined, peakCopy...)
-	}
-	return HashFunc(combined)
 }
 
 // nElementsToBytes converts a uint64 to bytes.

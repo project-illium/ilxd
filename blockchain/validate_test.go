@@ -691,11 +691,6 @@ func TestValidateBlock(t *testing.T) {
 			name: "staked nullifier spent in same block",
 			block: func(blk *blocks.Block) (*blocks.Block, error) {
 				blk.Transactions = []*transactions.Transaction{
-					transactions.WrapTransaction(&transactions.StakeTransaction{
-						Validator_ID: validatorIDBytes,
-						Nullifier:    nullifier,
-						TxoRoot:      txoRoot[:],
-					}),
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
@@ -705,6 +700,11 @@ func TestValidateBlock(t *testing.T) {
 						},
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
+					}),
+					transactions.WrapTransaction(&transactions.StakeTransaction{
+						Validator_ID: validatorIDBytes,
+						Nullifier:    nullifier,
+						TxoRoot:      txoRoot[:],
 					}),
 				}
 
@@ -1539,7 +1539,7 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "mint valid fixed supply",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Nullifiers: [][]byte{nullifier.Bytes()},
-				Asset_ID:   hash.HashFunc(nullifier.Bytes()),
+				Asset_ID:   nullifier.Bytes(),
 				MintKey:    bytes.Repeat([]byte{0x11}, PubkeyLen),
 				Outputs: []*transactions.Output{
 					{

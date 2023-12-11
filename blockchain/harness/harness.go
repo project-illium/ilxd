@@ -110,7 +110,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 				genesisBlock = cfg.params.GenesisBlock
 				harness.timeSource = genesisBlock.Header.Timestamp
 			} else {
-				if err := harness.chain.ConnectBlock(&blk, blockchain.BFFastAdd); err != nil {
+				if err := harness.chain.ConnectBlock(&blk, blockchain.BFFastAdd|blockchain.BFNoValidation); err != nil {
 					return nil, err
 				}
 				harness.timeSource = blk.Header.Timestamp + 1
@@ -121,7 +121,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 					return nil, err
 				}
 				file = bytes.NewReader(data)
-				cfg.pregenerate = 25000
+				cfg.pregenerate = 20500
 			}
 
 			if blk.Header.Height == uint32(cfg.pregenerate)-1 {

@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -397,8 +396,7 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 		}
 		switch tx.MintTransaction.Type {
 		case transactions.MintTransaction_FIXED_SUPPLY:
-			expectedAssetID := hash.HashFunc(tx.MintTransaction.Nullifiers[0])
-			if !bytes.Equal(tx.MintTransaction.Asset_ID, expectedAssetID) {
+			if !bytes.Equal(tx.MintTransaction.Asset_ID, tx.MintTransaction.Nullifiers[0]) {
 				return ruleError(ErrInvalidTx, "fixed supply mint transaction invalid assetID")
 			}
 		case transactions.MintTransaction_VARIABLE_SUPPLY:

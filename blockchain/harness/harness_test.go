@@ -224,7 +224,7 @@ func generateBlocksDat() error {
 
 	out2 := &types.SpendNote{
 		ScriptHash: sn.Note.ScriptHash,
-		Amount:     sn.Note.Amount / 2,
+		Amount:     10000,
 		AssetID:    sn.Note.AssetID,
 		State:      sn.Note.State,
 		Salt:       salt2,
@@ -290,9 +290,11 @@ func generateBlocksDat() error {
 		sn4            *SpendableNote
 	)
 	for k, v := range h.spendableNotes {
-		stakeNullifier = k
-		sn4 = v
-		break
+		if v.Note.Amount == 10000 {
+			stakeNullifier = k
+			sn4 = v
+			break
+		}
 	}
 
 	priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
@@ -318,6 +320,8 @@ func generateBlocksDat() error {
 	if err := h.GenerateBlockWithTransactions([]*transactions.Transaction{transactions.WrapTransaction(stx)}, []*SpendableNote{}); err != nil {
 		return err
 	}
+
+	delete(h.spendableNotes, stakeNullifier)
 
 	f2, err := os.Create("blocks/blocks2.dat")
 	if err != nil {
@@ -363,7 +367,7 @@ func generateBlocksDat() error {
 		return err
 	}
 
-	blks, _, err = h.generateBlocks(9998)
+	blks, _, err = h.generateBlocks(6000)
 	if err != nil {
 		return err
 	}
