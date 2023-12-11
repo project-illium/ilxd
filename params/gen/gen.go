@@ -5,7 +5,6 @@
 package main
 
 import (
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"github.com/jessevdk/go-flags"
@@ -113,14 +112,22 @@ func main() {
 		Amount:     types.Amount(stakeAmt),
 		AssetID:    types.IlliumCoinID,
 	}
-	rand.Read(note0.Salt[:])
+	salt, err := types.RandomSalt()
+	if err != nil {
+		log.Fatal(err)
+	}
+	note0.Salt = salt
 
 	note1 := types.SpendNote{
 		ScriptHash: scriptHash.Bytes(),
 		Amount:     types.Amount(secondOutAmt),
 		AssetID:    types.IlliumCoinID,
 	}
-	rand.Read(note1.Salt[:])
+	salt1, err := types.RandomSalt()
+	if err != nil {
+		log.Fatal(err)
+	}
+	note1.Salt = salt1
 
 	ser, err := note0.Serialize()
 	if err != nil {

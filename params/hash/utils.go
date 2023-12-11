@@ -17,7 +17,7 @@ func HashMerkleBranches(left []byte, right []byte) []byte {
 	copy(h[:HashSize], left[:])
 	copy(h[HashSize:], right[:])
 
-	return Blake2slurk(h[:])
+	return HashFunc(h[:])
 }
 
 // HashWithIndex prepends the index to data before hashing.
@@ -25,7 +25,7 @@ func HashWithIndex(data []byte, index uint64) []byte {
 	d := make([]byte, len(data)+32)
 	copy(d[24:32], nElementsToBytes(index))
 	copy(d[32:], data)
-	return Blake2slurk(d)
+	return HashFunc(d)
 }
 
 // nElementsToBytes converts a uint64 to bytes.

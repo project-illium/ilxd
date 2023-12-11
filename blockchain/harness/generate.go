@@ -41,14 +41,17 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 		}
 
 		notes := make([]*SpendableNote, 0, len(remainingNotes))
-		for _, note := range remainingNotes {
+		nullifiers := make([]types.Nullifier, 0, len(remainingNotes))
+		for nullifier, note := range remainingNotes {
 			notes = append(notes, note)
+			nullifiers = append(nullifiers, nullifier)
 		}
 
 		toDelete := make([]types.Nullifier, 0, len(remainingNotes))
 		txs := make([]*transactions.Transaction, 0, len(remainingNotes))
 		for i := 0; i < numTxs; i++ {
 			sn := notes[i]
+			inNullifier := nullifiers[i]
 			commitment, err := sn.Note.Commitment()
 			if err != nil {
 				return nil, nil, err
@@ -58,12 +61,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				return nil, nil, err
 			}
 
-			nullifier, err := types.CalculateNullifier(inclusionProof.Index, sn.Note.Salt, sn.UnlockingScript.ScriptCommitment, sn.UnlockingScript.ScriptParams...)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			toDelete = append(toDelete, nullifier)
+			toDelete = append(toDelete, inNullifier)
 
 			var (
 				outputs     = make([]*transactions.Output, 0, outputsPerTx)
@@ -131,7 +129,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 			standardTx := &transactions.StandardTransaction{
 				Outputs:    outputs,
 				Fee:        1,
-				Nullifiers: [][]byte{nullifier.Bytes()},
+				Nullifiers: [][]byte{inNullifier.Bytes()},
 				TxoRoot:    acc.Root().Bytes(),
 				Proof:      nil,
 			}
@@ -188,7 +186,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				TXORoot:    acc.Root().Bytes(),
 				SigHash:    sigHash,
 				Outputs:    publicOutputs,
-				Nullifiers: [][]byte{nullifier.Bytes()},
+				Nullifiers: [][]byte{inNullifier.Bytes()},
 				Fee:        fee,
 				Coinbase:   0,
 				MintID:     nil,
@@ -254,6 +252,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 		for _, del := range toDelete {
 			delete(remainingNotes, del)
 		}
+		//fmt.Println(blk.Header.Height)
 	}
 	return newBlocks, remainingNotes, nil
 }

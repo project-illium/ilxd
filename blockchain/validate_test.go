@@ -691,11 +691,6 @@ func TestValidateBlock(t *testing.T) {
 			name: "staked nullifier spent in same block",
 			block: func(blk *blocks.Block) (*blocks.Block, error) {
 				blk.Transactions = []*transactions.Transaction{
-					transactions.WrapTransaction(&transactions.StakeTransaction{
-						Validator_ID: validatorIDBytes,
-						Nullifier:    nullifier,
-						TxoRoot:      txoRoot[:],
-					}),
 					transactions.WrapTransaction(&transactions.StandardTransaction{
 						Outputs: []*transactions.Output{
 							{
@@ -705,6 +700,11 @@ func TestValidateBlock(t *testing.T) {
 						},
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
+					}),
+					transactions.WrapTransaction(&transactions.StakeTransaction{
+						Validator_ID: validatorIDBytes,
+						Nullifier:    nullifier,
+						TxoRoot:      txoRoot[:],
 					}),
 				}
 
