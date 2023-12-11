@@ -58,7 +58,7 @@ func (s *State) Deserialize(ser []byte) error {
 // with 0x. Lurk interprets this the same as Num.
 func (s *State) ToLurkExpression() (string, error) {
 	if s == nil || len(*s) == 0 {
-		return "", nil
+		return "nil", nil
 	}
 	return buildLurkExpression(*s)
 }

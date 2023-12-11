@@ -34,6 +34,32 @@ func TestSpendNote_Hash(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "033936349e765fed388a814e2678533427fda4b9c785ff2383fced933128e418", commitment.String())
+
+	s2, err := RandomSalt()
+	assert.NoError(t, err)
+	note2 := &SpendNote{
+		ScriptHash: sh,
+		Amount:     12345,
+		AssetID:    ID{},
+		Salt:       s2,
+		State:      State{},
+	}
+	commitment2, err := note2.Commitment()
+	assert.NoError(t, err)
+
+	s3, err := RandomSalt()
+	assert.NoError(t, err)
+	note3 := &SpendNote{
+		ScriptHash: sh,
+		Amount:     12345,
+		AssetID:    ID{},
+		Salt:       s3,
+		State:      State{},
+	}
+	commitment3, err := note3.Commitment()
+	assert.NoError(t, err)
+
+	assert.NotEqual(t, commitment2, commitment3)
 }
 
 func TestSpendNote_SerializeDeserialize(t *testing.T) {
