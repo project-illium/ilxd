@@ -16,6 +16,7 @@ import (
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
+	"github.com/project-illium/ilxd/types/transactions"
 	"math"
 	"math/rand"
 	"sync"
@@ -29,6 +30,8 @@ const (
 	evaluationWindow    = 5000
 )
 
+// SyncManager is responsible for trustlessly syncing the blockchain
+// to the tip of the chain.
 type SyncManager struct {
 	ctx             context.Context
 	params          *params.NetworkParams
@@ -42,25 +45,45 @@ type SyncManager struct {
 	current         bool
 	syncMtx         sync.Mutex
 	behavorFlag     blockchain.BehaviorFlags
+	proofCache      *blockchain.ProofCache
+	sigCache        *blockchain.SigCache
 	callback        func()
 	quit            chan struct{}
 }
 
+// ConsensusChooser is an interface function which polls the consensus engine
+// to determine the best block at the height.
 type ConsensusChooser func([]*blocks.Block) (types.ID, error)
 
-func NewSyncManager(ctx context.Context, chain *blockchain.Blockchain, network *net.Network, params *params.NetworkParams, cs *ChainService, chooser ConsensusChooser, isCurrentCallback func()) *SyncManager {
+// SyncManagerConfig holds the configuration options for the SyncManager
+type SyncManagerConfig struct {
+	Ctx               context.Context
+	Chain             *blockchain.Blockchain
+	Network           *net.Network
+	Params            *params.NetworkParams
+	CS                *ChainService
+	Chooser           ConsensusChooser
+	ProofCache        *blockchain.ProofCache
+	SigCache          *blockchain.SigCache
+	IsCurrentCallback func()
+}
+
+// NewSyncManager returns a new initialized SyncManager
+func NewSyncManager(cfg *SyncManagerConfig) *SyncManager {
 	sm := &SyncManager{
-		ctx:             ctx,
-		params:          params,
-		network:         network,
-		chainService:    cs,
-		chain:           chain,
-		consensuChooser: chooser,
+		ctx:             cfg.Ctx,
+		params:          cfg.Params,
+		network:         cfg.Network,
+		chainService:    cfg.CS,
+		chain:           cfg.Chain,
+		consensuChooser: cfg.Chooser,
+		proofCache:      cfg.ProofCache,
+		sigCache:        cfg.SigCache,
 		buckets:         make(map[types.ID][]peer.ID),
 		syncMtx:         sync.Mutex{},
 		bucketMtx:       sync.RWMutex{},
 		currentMtx:      sync.RWMutex{},
-		callback:        isCurrentCallback,
+		callback:        cfg.IsCurrentCallback,
 		behavorFlag:     blockchain.BFNone,
 		quit:            make(chan struct{}),
 	}
@@ -73,6 +96,7 @@ func NewSyncManager(ctx context.Context, chain *blockchain.Blockchain, network *
 	return sm
 }
 
+// Start begins the process of syncing to the tip of the chain
 func (sm *SyncManager) Start() {
 	sm.syncMtx.Lock()
 	defer sm.syncMtx.Unlock()
@@ -263,6 +287,8 @@ syncLoop:
 	}
 }
 
+// Close stops the sync and resets the SyncManager.
+// It can be restarted after this point.
 func (sm *SyncManager) Close() {
 	sm.currentMtx.RLock()
 	defer sm.currentMtx.RUnlock()
@@ -273,6 +299,8 @@ func (sm *SyncManager) Close() {
 	defer sm.syncMtx.Unlock()
 }
 
+// IsCurrent returns whether the SyncManager believes it is synced
+// to the tip of the chain.
 func (sm *SyncManager) IsCurrent() bool {
 	sm.currentMtx.RLock()
 	defer sm.currentMtx.RUnlock()
@@ -280,6 +308,7 @@ func (sm *SyncManager) IsCurrent() bool {
 	return sm.current
 }
 
+// SetCurrent sets the sync manager to current. This will stop the sync.
 func (sm *SyncManager) SetCurrent() {
 	sm.currentMtx.Lock()
 	defer sm.currentMtx.Unlock()
@@ -575,6 +604,41 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 			x++
 		}
 		headerIdx += len(txs)
+
+		// Here we are going to extracts all the transactions for the entire batch
+		// and validate the proofs and signatures for the whole batch concurrently.
+		// This will be faster than validating the proofs and signatures when we
+		// serially process the blocks.
+		//
+		// The proofs and signatures are added to the proof and sig caches so the
+		// blockchain will not double validate them.
+		if !sm.behavorFlag.HasFlag(blockchain.BFNoValidation) && !sm.behavorFlag.HasFlag(blockchain.BFFastAdd) {
+			toValidate := make([]*transactions.Transaction, 0, len(blks))
+			for _, blk := range blks {
+				toValidate = append(toValidate, blk.Transactions...)
+			}
+			var (
+				proofChan = make(chan error)
+				sigChan   = make(chan error)
+			)
+			defer close(proofChan)
+			defer close(sigChan)
+
+			go func() {
+				proofChan <- blockchain.NewProofValidator(sm.proofCache).Validate(toValidate)
+			}()
+			go func() {
+				sigChan <- blockchain.NewSigValidator(sm.sigCache).Validate(toValidate)
+			}()
+			err = <-proofChan
+			if err != nil {
+				return fmt.Errorf("error committing block from peer %s: invalid proof in batch", p)
+			}
+			err = <-sigChan
+			if err != nil {
+				return fmt.Errorf("error committing block from peer %s: invalid signature in batch", p)
+			}
+		}
 		for _, blk := range blks {
 			if err := sm.chain.ConnectBlock(blk, flags); err != nil {
 				return fmt.Errorf("error committing block from peer %s. Height: %d, Err: %s", p, blk.Header.Height, err)

@@ -139,7 +139,17 @@ func TestSyncFromChooser(t *testing.T) {
 		return types.ID{}, errors.New("choice not found")
 	}
 
-	manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, chooser, nil)
+	manager := NewSyncManager(&SyncManagerConfig{
+		Ctx:               context.Background(),
+		Chain:             chain,
+		Network:           node.network,
+		Params:            chain.Params(),
+		CS:                node.service,
+		Chooser:           chooser,
+		IsCurrentCallback: nil,
+		ProofCache:        blockchain.NewProofCache(100000),
+		SigCache:          blockchain.NewSigCache(1000000),
+	})
 	manager.behavorFlag = blockchain.BFFastAdd
 
 	assert.NoError(t, net.mn.LinkAll())
@@ -195,7 +205,17 @@ func TestSyncWithNodesAtDifferentHeights(t *testing.T) {
 		return types.ID{}, errors.New("choice not found")
 	}
 
-	manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, chooser, nil)
+	manager := NewSyncManager(&SyncManagerConfig{
+		Ctx:               context.Background(),
+		Chain:             chain,
+		Network:           node.network,
+		Params:            chain.Params(),
+		CS:                node.service,
+		Chooser:           chooser,
+		IsCurrentCallback: nil,
+		ProofCache:        blockchain.NewProofCache(100000),
+		SigCache:          blockchain.NewSigCache(1000000),
+	})
 	manager.behavorFlag = blockchain.BFFastAdd
 
 	assert.NoError(t, net.mn.LinkAll())
@@ -252,7 +272,17 @@ func TestSync(t *testing.T) {
 		node, err := makeMockNode(net.mn, chain)
 		assert.NoError(t, err)
 
-		manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, nil, nil)
+		manager := NewSyncManager(&SyncManagerConfig{
+			Ctx:               context.Background(),
+			Chain:             chain,
+			Network:           node.network,
+			Params:            chain.Params(),
+			CS:                node.service,
+			Chooser:           nil,
+			IsCurrentCallback: nil,
+			ProofCache:        blockchain.NewProofCache(100000),
+			SigCache:          blockchain.NewSigCache(1000000),
+		})
 		manager.behavorFlag = blockchain.BFFastAdd
 
 		assert.NoError(t, net.mn.LinkAll())
@@ -295,7 +325,17 @@ func TestSync(t *testing.T) {
 		node, err := makeMockNode(net.mn, chain)
 		assert.NoError(t, err)
 
-		manager := NewSyncManager(context.Background(), chain, node.network, chain.Params(), node.service, nil, nil)
+		manager := NewSyncManager(&SyncManagerConfig{
+			Ctx:               context.Background(),
+			Chain:             chain,
+			Network:           node.network,
+			Params:            chain.Params(),
+			CS:                node.service,
+			Chooser:           nil,
+			IsCurrentCallback: nil,
+			ProofCache:        blockchain.NewProofCache(100000),
+			SigCache:          blockchain.NewSigCache(1000000),
+		})
 		manager.behavorFlag = blockchain.BFFastAdd
 
 		assert.NoError(t, net.mn.LinkAll())
