@@ -397,7 +397,17 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	s.mempool = mpool
 	s.blockchain = chain
 	s.engine = engine
-	s.syncManager = sync.NewSyncManager(ctx, chain, network, netParams, s.chainService, s.consensusChoose, s.handleCurrentStatusChange)
+	s.syncManager = sync.NewSyncManager(&sync.SyncManagerConfig{
+		Ctx:               ctx,
+		Chain:             chain,
+		Network:           network,
+		Params:            netParams,
+		CS:                s.chainService,
+		Chooser:           s.consensusChoose,
+		IsCurrentCallback: s.handleCurrentStatusChange,
+		ProofCache:        proofCache,
+		SigCache:          sigCache,
+	})
 	s.orphanBlocks = make(map[types.ID]*orphanBlock)
 	s.activeInventory = make(map[types.ID]*blocks.Block)
 	s.submittedTxs = make(map[types.ID]struct{})
