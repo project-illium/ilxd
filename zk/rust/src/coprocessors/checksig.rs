@@ -2,7 +2,6 @@ use bellpepper_core::{
     boolean::AllocatedBit, ConstraintSystem, SynthesisError,
 };
 use core::ops::{AddAssign, MulAssign};
-use std::hash::Hash;
 use std::marker::PhantomData;
 use bellpepper_core::boolean::Boolean;
 use bellpepper_core::num::AllocatedNum;
@@ -47,32 +46,17 @@ fn synthesize_checksig<F: LurkField, CS: ConstraintSystem<F>>(
         .to_bits_le_strict(&mut cs.namespace(|| "sig_s_bits"))?;
     let pk_x = ptrs[3].hash();
     let pk_y = ptrs[4].hash();
-    let mut c_bits = ptrs[5]
+    let c_bits = ptrs[5]
         .hash()
         .to_bits_le_strict(&mut cs.namespace(|| "c_bits"))?;
-
-    /*let mut c_bits_rev = Vec::new();
-    let chunks = c_bits.chunks(8);
-
-    for chunk in chunks.rev() {
-        c_bits_rev.extend_from_slice(chunk);
-    }*/
-
-    /*let mut s_bits_rev = Vec::new();
-    let chunks = sig_s_bits.chunks(8);
-
-    for chunk in chunks.rev() {
-        s_bits_rev.extend_from_slice(chunk);
-    }*/
 
     let r = AllocatedPoint::<F>::alloc_from_nums(cs.namespace(|| "r"), Some((sig_r_x, sig_r_y, false)))?;
     let pk = AllocatedPoint::<F>::alloc_from_nums(cs.namespace(|| "pk"), Some((pk_x, pk_y, false)))?;
     let s = synthesize_bits(&mut cs.namespace(|| "s bits"), sig_s_bits)?;
     let c = synthesize_bits(&mut cs.namespace(|| "c bits"), c_bits)?;
 
-    verify_signature(cs, &pk, &r, &s, &c);
+    let _ = verify_signature(cs, &pk, &r, &s, &c);
 
-    println!("syn result true");
     let hex_str = "5698a149855d3a8b3ac99e32b65ce146f00163130070c245a2262b46c5dbc804";
     let t = AllocatedNum::alloc(cs.namespace(|| "t"), || {
         let t_bytes = hex::decode(hex_str).unwrap();
@@ -88,20 +72,16 @@ fn synthesize_checksig<F: LurkField, CS: ConstraintSystem<F>>(
 fn compute_checksig<F: LurkField, T: Tag>(s: &Store<F>, z_ptrs: &[ZPtr<T, F>]) -> Ptr {
     let r_x = z_ptrs[0].value().to_bytes();
     let r_y = z_ptrs[1].value().to_bytes();
-    let mut s_bytes = z_ptrs[2].value().to_bytes();
+    let s_bytes = z_ptrs[2].value().to_bytes();
     let pk_x = z_ptrs[3].value().to_bytes();
     let pk_y = z_ptrs[4].value().to_bytes();
-    let mut m_bytes = z_ptrs[5].value().to_bytes();
+    let m_bytes = z_ptrs[5].value().to_bytes();
 
     let pk_xy = from_xy(pk_x, pk_y);
     let pk = PublicKey::<G2>::from_point(pk_xy);
 
-    let hex_string: String = pk.0.to_bytes().iter().map(|byte| format!("{:02x}", byte)).collect();
-    println!("pk {}", hex_string);
-
     let sig_r = from_xy(r_x, r_y);
 
-    //m_bytes.reverse();
     let mut u64_m_array: [u64; 4] = [0; 4];
     for i in 0..4 {
         for j in 0..8 {
@@ -110,7 +90,6 @@ fn compute_checksig<F: LurkField, T: Tag>(s: &Store<F>, z_ptrs: &[ZPtr<T, F>]) -
     }
     let m = <G2 as Group>::Scalar::from_raw(u64_m_array);
 
-    //s_bytes.reverse();
     let mut u64_s_array: [u64; 4] = [0; 4];
     for i in 0..4 {
         for j in 0..8 {
@@ -119,22 +98,11 @@ fn compute_checksig<F: LurkField, T: Tag>(s: &Store<F>, z_ptrs: &[ZPtr<T, F>]) -
     }
     let sig_s = <G2 as Group>::Scalar::from_raw(u64_s_array);
 
-    let hex_string: String = sig_r.to_bytes().iter().map(|byte| format!("{:02x}", byte)).collect();
-    println!("sigR {}", hex_string);
-    let hex_string: String = sig_s.to_bytes().iter().map(|byte| format!("{:02x}", byte)).collect();
-    println!("sigS {}", hex_string);
-    let hex_string: String = m.to_bytes().iter().map(|byte| format!("{:02x}", byte)).collect();
-    println!("m {}", hex_string);
     let sig = Signature{r: sig_r, s: sig_s};
 
     let result = pk.verify(m, &sig);
-    println!("result {:?}", result);
     if result {
-        let t = s.intern_lurk_symbol("t");
-        let tb = s.hash_ptr(&t).value().to_bytes();
-        let hex_string: String = tb.iter().map(|byte| format!("{:02x}", byte)).collect();
-        println!("t {}", hex_string);
-        return t;
+        return s.intern_lurk_symbol("t");
     }
     s.intern_nil()
 }
@@ -209,7 +177,7 @@ impl<G> SecretKey<G>
     }
 }
 
-pub fn from_xy(mut x: Vec<u8>, mut y: Vec<u8>) -> G2 {
+pub fn from_xy(mut x: Vec<u8>, y: Vec<u8>) -> G2 {
     // Ensure that x has 32 bytes, you might want to handle this differently
     if x.len() != 32 || y.len() != 32 {
         panic!("Input vectors must be exactly 32 bytes long");
@@ -378,16 +346,16 @@ impl<F: AsRef<[u64]>> Iterator for BitIterator<F> {
 
 // Synthesize a bit representation into circuit gadgets.
 pub fn synthesize_bits<F: PrimeField, CS: ConstraintSystem<F>>(
-    cs: &mut CS,
+    _cs: &mut CS,
     bits: Vec<Boolean>,
 ) -> Result<Vec<AllocatedBit>, SynthesisError> {
     bits.iter().map(|bit| {
         match bit {
             Boolean::Is(allocated_bit) => Ok(allocated_bit.clone()),
-            Boolean::Not(allocated_bit) => {
+            Boolean::Not(_allocated_bit) => {
                 Err(SynthesisError::AssignmentMissing)
             },
-            Boolean::Constant(value) => {
+            Boolean::Constant(_value) => {
                 Err(SynthesisError::AssignmentMissing)
             }
         }
