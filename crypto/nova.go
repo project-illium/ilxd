@@ -137,7 +137,9 @@ func (k *NovaPrivateKey) GetPublic() crypto.PubKey {
 	return &NovaPublicKey{k: &pubkey}
 }
 
-// Sign returns a signature from an input message.
+// Sign returns a signature from an input message. Note that this
+// method expects a 32 byte digest of the raw data to sign and not
+// the raw data itself. The passed in digest will not be hashed.
 func (k *NovaPrivateKey) Sign(digest []byte) ([]byte, error) {
 	var m [32]byte
 	copy(m[:], digest)
@@ -150,6 +152,7 @@ func (k *NovaPrivateKey) Sign(digest []byte) ([]byte, error) {
 	return sig[:], nil
 }
 
+// PublicKeyFromXY builds a PublicKey from the x and y coordinates
 func PublicKeyFromXY(x, y []byte) (crypto.PubKey, error) {
 	if len(x) != 32 || len(y) != 32 {
 		return nil, errors.New("invalid coordinate")
@@ -180,6 +183,7 @@ func (k *NovaPublicKey) Raw() ([]byte, error) {
 	return k.k[:], nil
 }
 
+// ToXY returns the x and y coordinates of the PublicKey
 func (k *NovaPublicKey) ToXY() ([]byte, []byte) {
 	x, y := compressed_to_full(*k.k)
 	return reverseBytes(x[:]), reverseBytes(y[:])
@@ -259,6 +263,8 @@ func UnmarshalNovaPrivateKey(data []byte) (crypto.PrivKey, error) {
 	}, nil
 }
 
+// UnmarshalSignature unmarshals a compressed signature into an uncompressed
+// signature consisting of the x and y coordinates for the r value along with s.
 func UnmarshalSignature(sig []byte) (sigRx, sigRy, sigS []byte) {
 	r, s := [32]byte{}, [32]byte{}
 	copy(r[:], sig[:32])
