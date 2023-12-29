@@ -32,7 +32,6 @@ import (
 	"fmt"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto/pb"
-	"github.com/project-illium/ilxd/params/hash"
 	"io"
 	"unsafe"
 )
@@ -139,15 +138,15 @@ func (k *NovaPrivateKey) GetPublic() crypto.PubKey {
 }
 
 // Sign returns a signature from an input message.
-func (k *NovaPrivateKey) Sign(msg []byte) ([]byte, error) {
-	h := hash.HashFunc(msg)
-
+func (k *NovaPrivateKey) Sign(digest []byte) ([]byte, error) {
 	var m [32]byte
-	copy(m[:], h)
+	copy(m[:], digest)
+	var mReversed [32]byte
+	copy(mReversed[:], reverseBytes(m[:]))
 
 	var sk [32]byte
 	copy(sk[:], k.k[:NovaPrivateKeySize])
-	sig := novaSign(sk, m)
+	sig := novaSign(sk, mReversed)
 	return sig[:], nil
 }
 
@@ -197,16 +196,17 @@ func (k *NovaPublicKey) Equals(o crypto.Key) bool {
 }
 
 // Verify checks a signature agains the input data.
-func (k *NovaPublicKey) Verify(data []byte, sig []byte) (bool, error) {
-	h := hash.HashFunc(data)
-
+func (k *NovaPublicKey) Verify(digest []byte, sig []byte) (bool, error) {
 	var m [32]byte
-	copy(m[:], h)
+	copy(m[:], digest)
+
+	var mReversed [32]byte
+	copy(mReversed[:], reverseBytes(m[:]))
 
 	var signature [64]byte
 	copy(signature[:], sig)
 
-	valid := novaVerify(*k.k, m, signature)
+	valid := novaVerify(*k.k, mReversed, signature)
 	return valid, nil
 }
 
@@ -257,6 +257,14 @@ func UnmarshalNovaPrivateKey(data []byte) (crypto.PrivKey, error) {
 	return &NovaPrivateKey{
 		k: &privKey,
 	}, nil
+}
+
+func UnmarshalSignature(sig []byte) (sigRx, sigRy, sigS []byte) {
+	r, s := [32]byte{}, [32]byte{}
+	copy(r[:], sig[:32])
+	copy(s[:], sig[32:])
+	rx, ry := compressed_to_full(r)
+	return reverseBytes(rx[:]), reverseBytes(ry[:]), reverseBytes(s[:])
 }
 
 func novaGenerateSecretKey() [32]byte {

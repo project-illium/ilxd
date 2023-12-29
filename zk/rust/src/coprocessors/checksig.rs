@@ -72,10 +72,10 @@ fn synthesize_checksig<F: LurkField, CS: ConstraintSystem<F>>(
 fn compute_checksig<F: LurkField, T: Tag>(s: &Store<F>, z_ptrs: &[ZPtr<T, F>]) -> Ptr {
     let r_x = z_ptrs[0].value().to_bytes();
     let r_y = z_ptrs[1].value().to_bytes();
-    let s_bytes = z_ptrs[2].value().to_bytes();
+    let mut s_bytes = z_ptrs[2].value().to_bytes();
     let pk_x = z_ptrs[3].value().to_bytes();
     let pk_y = z_ptrs[4].value().to_bytes();
-    let m_bytes = z_ptrs[5].value().to_bytes();
+    let mut m_bytes = z_ptrs[5].value().to_bytes();
 
     let pk_xy = from_xy(pk_x, pk_y);
     let pk = PublicKey::<G2>::from_point(pk_xy);
@@ -99,7 +99,6 @@ fn compute_checksig<F: LurkField, T: Tag>(s: &Store<F>, z_ptrs: &[ZPtr<T, F>]) -
     let sig_s = <G2 as Group>::Scalar::from_raw(u64_s_array);
 
     let sig = Signature{r: sig_r, s: sig_s};
-
     let result = pk.verify(m, &sig);
     if result {
         return s.intern_lurk_symbol("t");
@@ -465,6 +464,9 @@ mod tests {
         //let pk = PublicKey::from_secret_key(&sk2);
         let pk = PublicKey::from_secret_key(&sk);
 
+        let hex_string: String = pk.0.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        println!("pk {}", hex_string);
+
         // generate a random message to sign
         let c = <G2 as Group>::Scalar::random(&mut OsRng);
 
@@ -496,6 +498,8 @@ mod tests {
             println!("ry {}", hex_string);
             AllocatedPoint::alloc(cs.namespace(|| "r"), Some((*rxy.x(), *rxy.y(), false))).unwrap()
         };
+        let hex_string: String = signature.r.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        println!("r {}", hex_string);
         let hex_string: String = signature.s.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("s {}", hex_string);
         let hex_string: String = c.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
