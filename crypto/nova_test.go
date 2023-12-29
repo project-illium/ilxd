@@ -11,6 +11,7 @@ import (
 	"crypto/rand"
 	"github.com/go-test/deep"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/project-illium/ilxd/params/hash"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -36,7 +37,7 @@ func TestNova(t *testing.T) {
 	assert.Empty(t, deep.Equal(priv, priv2))
 	assert.Empty(t, deep.Equal(pub, pub2))
 
-	message := []byte("message")
+	message := hash.HashFunc([]byte("message"))
 	sig, err := priv.Sign(message)
 	assert.NoError(t, err)
 
