@@ -37,5 +37,9 @@ func TestState(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, state, *state2)
+}
 
+func TestSpendNote_Commitment(t *testing.T) {
+	_, err := RandomSalt()
+	assert.NoError(t, err)
 }
