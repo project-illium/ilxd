@@ -13,7 +13,7 @@ import (
 
 const MockProofSize = 9000
 
-const LurkMaxFieldElement = "40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001"
+const LurkMaxFieldElement = "40000000000000000000000000000000224698fc0994a8dd8c46eb2100000000"
 
 type CircuitFunc func(privateParams, publicParams interface{}) bool
 
