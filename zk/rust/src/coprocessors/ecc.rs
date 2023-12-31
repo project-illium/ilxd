@@ -1,6 +1,6 @@
 //! This module implements various elliptic curve gadgets
 #![allow(non_snake_case)]
-use crate::coprocessor::utils::{
+use super::utils::{
         alloc_num_equals, alloc_one, alloc_zero, conditionally_select, conditionally_select2,
         select_num_or_one, select_num_or_zero, select_num_or_zero2, select_one_or_diff2,
         select_one_or_num2, select_zero_or_num2};
@@ -13,7 +13,7 @@ use bellpepper_core::{
 use ff::PrimeField;
 use pasta_curves::pallas;
 use nova::traits::Group;
-use crate::field::LurkField;
+use lurk::field::LurkField;
 
 /// `AllocatedPoint` provides an elliptic curve abstraction inside a circuit.
 #[derive(Clone)]
@@ -55,6 +55,37 @@ impl<F> AllocatedPoint<F>
 
         Ok(AllocatedPoint { x, y, is_infinity })
     }
+
+    pub fn alloc_from_nums<CS: ConstraintSystem<F>>(
+            mut cs: CS,
+            coords: Option<(&AllocatedNum<F>, &AllocatedNum<F>, bool)>,
+        ) -> Result<Self, SynthesisError> {
+            let x = match coords {
+                Some((x, _, _)) => x.clone(),
+                None => return Err(SynthesisError::AssignmentMissing),
+            };
+
+            let y = match coords {
+                Some((_, y, _)) => y.clone(),
+                None => return Err(SynthesisError::AssignmentMissing),
+            };
+
+            let is_infinity = AllocatedNum::alloc(cs.namespace(|| "is_infinity"), || {
+                Ok(if coords.map_or(true, |c| c.2) {
+                    F::ONE
+                } else {
+                    F::ZERO
+                })
+            })?;
+            cs.enforce(
+                || "is_infinity is bit",
+                |lc| lc + is_infinity.get_variable(),
+                |lc| lc + CS::one() - is_infinity.get_variable(),
+                |lc| lc,
+            );
+
+            Ok(AllocatedPoint { x, y, is_infinity })
+        }
 
     /// checks if `self` is on the curve or if it is infinity
     pub fn check_on_curve<CS>(&self, mut cs: CS) -> Result<(), SynthesisError>

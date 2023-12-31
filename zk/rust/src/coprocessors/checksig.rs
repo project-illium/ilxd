@@ -9,22 +9,23 @@ use ff::{
     derive::byteorder::{ByteOrder, LittleEndian},
     Field, PrimeField, PrimeFieldBits,
 };
-use crate::coprocessor::ecc::AllocatedPoint;
+use super::ecc::AllocatedPoint;
 use num_bigint::BigUint;
 use pasta_curves::group::Group;
 use rand::{RngCore};
 use serde::{Deserialize, Serialize, Serializer};
 use sha3::{Digest, Sha3_512};
 use lurk_macros::Coproc;
-use crate::circuit::gadgets::pointer::AllocatedPtr;
-use crate::coprocessor::{CoCircuit, Coprocessor};
-use crate::field::LurkField;
-use crate::lem::pointers::Ptr;
-use crate::lem::store::Store;
-use crate::lem::multiframe::MultiFrame;
-use crate::tag::{ExprTag, Tag};
-use crate::z_ptr::ZPtr;
-use crate::{self as lurk};
+use lurk::{
+    circuit::gadgets::pointer::AllocatedPtr,
+    coprocessor::{CoCircuit, Coprocessor},
+    field::LurkField,
+    lem::pointers::Ptr,
+    lem::store::Store,
+    lem::multiframe::MultiFrame,
+    z_ptr::ZPtr,
+};
+
 use pasta_curves::group::GroupEncoding;
 
 type G2 = pasta_curves::vesta::Point;
@@ -64,12 +65,14 @@ fn synthesize_checksig<F: LurkField, CS: ConstraintSystem<F>>(
     })?;
     AllocatedPtr::alloc_tag(
         &mut cs.namespace(|| "output_expr"),
-        ExprTag::Sym.to_field(),
+        F::from(4),
         t,
     )
 }
 
-fn compute_checksig<F: LurkField, T: Tag>(s: &Store<F>, z_ptrs: &[ZPtr<T, F>]) -> Ptr {
+fn compute_checksig<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
+    let z_ptrs = ptrs.iter().map(|ptr| s.hash_ptr(ptr)).collect::<Vec<_>>();
+
     let r_x = z_ptrs[0].value().to_bytes();
     let r_y = z_ptrs[1].value().to_bytes();
     let mut s_bytes = z_ptrs[2].value().to_bytes();
@@ -115,8 +118,8 @@ impl<F: LurkField> CoCircuit<F> for ChecksigCoprocessor<F> {
     fn synthesize_simple<CS: ConstraintSystem<F>>(
         &self,
         cs: &mut CS,
-        _g: &crate::lem::circuit::GlobalAllocator<F>,
-        _s: &crate::lem::store::Store<F>,
+        _g: &lurk::lem::circuit::GlobalAllocator<F>,
+        _s: &lurk::lem::store::Store<F>,
         _not_dummy: &Boolean,
         args: &[AllocatedPtr<F>],
     ) -> Result<AllocatedPtr<F>, SynthesisError> {
@@ -134,8 +137,7 @@ impl<F: LurkField> Coprocessor<F> for ChecksigCoprocessor<F> {
     }
 
     fn evaluate_simple(&self, s: &Store<F>, args: &[Ptr]) -> Ptr {
-        let z_ptrs = args.iter().map(|ptr| s.hash_ptr(ptr)).collect::<Vec<_>>();
-        compute_checksig(s, &z_ptrs)
+        compute_checksig(s, &args)
     }
 }
 
@@ -151,16 +153,6 @@ impl<F: LurkField> ChecksigCoprocessor<F> {
 #[derive(Clone, Debug, Coproc, Serialize, Deserialize)]
 pub enum ChecksigCoproc<F: LurkField> {
     SC(ChecksigCoprocessor<F>),
-}
-
-impl<'a, Fq> Serialize for MultiFrame<'a, Fq, ChecksigCoproc<Fq>> where Fq: Serialize + LurkField {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-    {
-        // This is a dummy implementation that does nothing
-        serializer.serialize_unit()
-    }
 }
 
 #[derive(Debug, Clone, Copy)]

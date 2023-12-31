@@ -5,24 +5,42 @@
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
 use std::error::Error;
+use std::{sync::Arc, time::Instant};
+use serde::{Deserialize, Serialize, Serializer};
 use lurk::{
+    coprocessor::Coprocessor,
+    eval::lang::{Lang, Coproc},
     field::LurkField,
     lem::{
-        eval::evaluate_simple,
+        eval::{evaluate, evaluate_simple, make_eval_step_from_config, EvalConfig},
+        multiframe::MultiFrame,
+        pointers::Ptr,
         store::Store,
     },
-    eval::{
-        lang::Coproc
+    proof::{supernova::SuperNovaProver, Prover, RecursiveSNARKTrait},
+    public_parameters::{
+        instance::{Instance, Kind},
+        supernova_public_params,
     },
-    state::State,
+    state::{State, user_sym},
 };
 use rand::{rngs::OsRng};
 use pasta_curves::{
     pallas::Scalar as Fr,
     group::ff::Field
 };
+use flate2::{write::ZlibEncoder, Compression};
+
+mod coprocessors;
+use coprocessors::{
+    xor::MultiCoproc,
+    xor::XorCoprocessor,
+    blake2s::Blake2sCoprocessor,
+    checksig::ChecksigCoprocessor
+};
 
 const OUT_LEN: usize = 32;
+const REDUCTION_COUNT: usize = 10;
 
 #[no_mangle]
 pub extern "C" fn lurk_commit(expr: *const c_char, out: *mut c_uchar) -> i32 {
@@ -71,10 +89,69 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     let secret = Fr::random(OsRng);
     let commitment_ptr = store.hide(secret, store.read_with_default_state(private_params.as_str())?);
     let commitment_zpr = store.hash_ptr(&commitment_ptr);
-    let commitment: String = commitment_zpr.value().to_bytes().iter().map(|byte| format!("{:02x}", byte)).collect();
+    let commitment: String = commitment_zpr.value().to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
 
-    let expr = format!(r#"(letrec ((func {lurk_program}))
-        (func (open 0x{commitment}) {public_params}))"#);
+    let expr = format!(r#"(letrec ((f {lurk_program}))(f (open 0x{commitment}) {public_params}))"#);
+    println!("{:?}", expr);
+
+    let cproc_sym_xor = user_sym(".lurk.xor");
+    let cproc_sym_checksig = user_sym(".lurk.checksig");
+    let cproc_sym_blake2s = user_sym(".lurk.blake2s");
+
+    let call = store.read_with_default_state(expr.as_str())?;
+
+    let mut lang = Lang::<Fr, MultiCoproc<Fr>>::new();
+    lang.add_coprocessor(cproc_sym_xor, XorCoprocessor::new());
+    lang.add_coprocessor(cproc_sym_checksig, ChecksigCoprocessor::new());
+    lang.add_coprocessor(cproc_sym_blake2s, Blake2sCoprocessor::new());
+    let lang_rc = Arc::new(lang.clone());
+
+    let lurk_step = make_eval_step_from_config(&EvalConfig::new_nivc(&lang));
+    let frames = evaluate(Some((&lurk_step, &lang)), call, store, 1000).unwrap();
+
+    let supernova_prover = SuperNovaProver::<Fr, MultiCoproc<Fr>, MultiFrame<'_, _, _>>::new(
+        REDUCTION_COUNT,
+        lang_rc.clone(),
+    );
+
+    println!("Setting up running claim parameters (rc = {REDUCTION_COUNT})...");
+    let pp_start = Instant::now();
+
+    let instance_primary = Instance::new(REDUCTION_COUNT, lang_rc, true, Kind::SuperNovaAuxParams);
+    let pp = supernova_public_params::<_, _, MultiFrame<'_, _, _>>(&instance_primary).unwrap();
+
+    let pp_end = pp_start.elapsed();
+    println!("Running claim parameters took {:?}", pp_end);
+
+    println!("Beginning proof step...");
+    let proof_start = Instant::now();
+    let (proof, z0, zi, _num_steps) = supernova_prover.prove(&pp, &frames, store)?;
+    let proof_end = proof_start.elapsed();
+
+    println!("Proofs took {:?}", proof_end);
+
+    println!("Verifying proof...");
+
+    let verify_start = Instant::now();
+    assert!(proof.verify(&pp, &z0, &zi).unwrap());
+    let verify_end = verify_start.elapsed();
+    println!("{:?}", z0);
+    println!("{:?}", zi);
+
+    println!("Verify took {:?}", verify_end);
+
+    println!("Compressing proof..");
+    let compress_start = Instant::now();
+    let compressed_proof = proof.compress(&pp).unwrap();
+    let compress_end = compress_start.elapsed();
+
+    println!("Compression took {:?}", compress_end);
+
+    /*let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+    bincode::serialize_into(&mut encoder, &compressed_proof)?;
+    let compressed_snark_encoded = encoder.finish()?;
+    //let buf = bincode::serialize(&compressed_proof).unwrap();
+    println!("{:?}", compressed_snark_encoded.len());*/
 
     println!("{:?}", expr);
     let proof:Vec<u8> = vec![];
@@ -87,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_prove() {
-        let proof = create_proof("(lambda (priv pub) (= (car priv) (car pub)))".to_string(), "(cons 4 5)".to_string(), "(cons 4 8)".to_string());
+        let proof = create_proof("(lambda (priv pub) (car (cdr (cdr priv))))".to_string(), "(cons 7 5)".to_string(), "(cons 4 8)".to_string());
         println!("{:?}", proof);
     }
 }

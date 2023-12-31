@@ -4,18 +4,19 @@ use bellpepper_core::{boolean::Boolean, ConstraintSystem, SynthesisError};
 use lurk_macros::Coproc;
 use serde::{Deserialize, Serialize, Serializer};
 use std::marker::PhantomData;
-use bellpepper_core::num::AllocatedNum;
 
-use crate::{
-    self as lurk,
+use lurk::{
     circuit::gadgets::pointer::AllocatedPtr,
+    coprocessor::{CoCircuit, Coprocessor},
     field::LurkField,
     lem::{pointers::Ptr, store::Store, multiframe::MultiFrame},
-    tag::{ExprTag, Tag},
     z_ptr::ZPtr,
 };
 
-use super::{CoCircuit, Coprocessor, gadgets};
+use super::{
+    blake2s::Blake2sCoprocessor,
+    checksig::ChecksigCoprocessor
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct XorCoprocessor<F: LurkField> {
@@ -54,12 +55,14 @@ fn synthesize_xor<F: LurkField, CS: ConstraintSystem<F>>(
     let x_scalar = pack_bits(cs.namespace(|| "x_scalar"), &xor_result)?;
     AllocatedPtr::alloc_tag(
         &mut cs.namespace(|| "output_expr"),
-        ExprTag::Num.to_field(),
+        F::from(4),
         x_scalar,
     )
 }
 
-fn compute_xor<F: LurkField, T: Tag>(s: &Store<F>, z_ptrs: &[ZPtr<T, F>]) -> Ptr {
+fn compute_xor<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
+
+    let z_ptrs = ptrs.iter().map(|ptr| s.hash_ptr(ptr)).collect::<Vec<_>>();
 
     let hash_a = z_ptrs[0].value().to_bytes();
     let hash_b = z_ptrs[1].value().to_bytes();
@@ -103,8 +106,7 @@ impl<F: LurkField> Coprocessor<F> for XorCoprocessor<F> {
     }
 
     fn evaluate_simple(&self, s: &Store<F>, args: &[Ptr]) -> Ptr {
-        let z_ptrs = args.iter().map(|ptr| s.hash_ptr(ptr)).collect::<Vec<_>>();
-        compute_xor(s, &z_ptrs)
+        compute_xor(s, &args)
     }
 }
 
@@ -122,32 +124,9 @@ pub enum XorCoproc<F: LurkField> {
     SC(XorCoprocessor<F>),
 }
 
-/// Retrieves the `Ptr` that corresponds to `a_ptr` by using the `Store` as the
-/// hint provider
-#[allow(dead_code)]
-fn get_ptr<F: LurkField>(a_ptr: &AllocatedPtr<F>, store: &Store<F>) -> Result<Ptr, SynthesisError> {
-    let z_ptr = crate::lem::pointers::ZPtr::from_parts(
-        Tag::from_field(
-            &a_ptr
-                .tag()
-                .get_value()
-                .ok_or_else(|| SynthesisError::AssignmentMissing)?,
-        )
-            .ok_or_else(|| SynthesisError::Unsatisfiable)?,
-        a_ptr
-            .hash()
-            .get_value()
-            .ok_or_else(|| SynthesisError::AssignmentMissing)?,
-    );
-    Ok(store.to_ptr(&z_ptr))
-}
-
-impl<'a, Fq> Serialize for MultiFrame<'a, Fq, XorCoproc<Fq>> where Fq: Serialize + LurkField {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-    {
-        // This is a dummy implementation that does nothing
-        serializer.serialize_unit()
-    }
+#[derive(Clone, Debug, Coproc, Serialize, Deserialize)]
+pub enum MultiCoproc<F: LurkField> {
+    Xor(XorCoprocessor<F>),
+    Blake2s(Blake2sCoprocessor<F>),
+    Checksig(ChecksigCoprocessor<F>)
 }
