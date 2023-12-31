@@ -9,7 +9,8 @@ repository = "https://github.com/project-illium/ilxd/crypto/rust"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lurk = { git = "https://github.com/lurk-lab/lurk-rs.git", branch = "main" }
+lurk = "0.3.1"
+rand = "0.8.5"
 pasta_curves = { git="https://github.com/lurk-lab/pasta_curves", branch="dev" }
 
 [patch.crates-io]

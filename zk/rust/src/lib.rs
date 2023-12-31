@@ -4,6 +4,7 @@
 
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
+use std::error::Error;
 use lurk::{
     field::LurkField,
     lem::{
@@ -15,9 +16,12 @@ use lurk::{
     },
     state::State,
 };
-use pasta_curves::pallas;
+use rand::{rngs::OsRng};
+use pasta_curves::{
+    pallas::Scalar as Fr,
+    group::ff::Field
+};
 
-pub type S1 = pallas::Scalar;
 const OUT_LEN: usize = 32;
 
 #[no_mangle]
@@ -29,7 +33,7 @@ pub extern "C" fn lurk_commit(expr: *const c_char, out: *mut c_uchar) -> i32 {
         Err(_) => return -1, // Indicate error
     };
 
-    let store = &mut Store::<S1>::default();
+    let store = &mut Store::<Fr>::default();
     let state = State::init_lurk_state().rccell();
 
     let ptr = match store.read(state, expr_str) {
@@ -37,7 +41,7 @@ pub extern "C" fn lurk_commit(expr: *const c_char, out: *mut c_uchar) -> i32 {
         Err(_) => return -1, // Indicate error
     };
 
-    let (output, ..) = match evaluate_simple::<S1, Coproc<S1>>(None, ptr, store, 10000) {
+    let (output, ..) = match evaluate_simple::<Fr, Coproc<Fr>>(None, ptr, store, 10000) {
         Ok((out, ..)) => (out, ..),
         Err(_) => return -1, // Indicate error
     };
@@ -59,4 +63,31 @@ pub extern "C" fn lurk_commit(expr: *const c_char, out: *mut c_uchar) -> i32 {
     }
 
     0 // Indicate success
+}
+
+fn create_proof(lurk_program: String, private_params: String, public_params: String) -> Result<Vec<u8>, Box<dyn Error>> {
+    let store = &Store::<Fr>::default();
+
+    let secret = Fr::random(OsRng);
+    let commitment_ptr = store.hide(secret, store.read_with_default_state(private_params.as_str())?);
+    let commitment_zpr = store.hash_ptr(&commitment_ptr);
+    let commitment: String = commitment_zpr.value().to_bytes().iter().map(|byte| format!("{:02x}", byte)).collect();
+
+    let expr = format!(r#"(letrec ((func {lurk_program}))
+        (func (open 0x{commitment}) {public_params}))"#);
+
+    println!("{:?}", expr);
+    let proof:Vec<u8> = vec![];
+    Ok(proof)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::create_proof;
+
+    #[test]
+    fn test_prove() {
+        let proof = create_proof("(lambda (priv pub) (= (car priv) (car pub)))".to_string(), "(cons 4 5)".to_string(), "(cons 4 8)".to_string());
+        println!("{:?}", proof);
+    }
 }
