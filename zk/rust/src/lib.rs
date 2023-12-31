@@ -87,8 +87,10 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     let store = &Store::<Fr>::default();
 
     let secret = Fr::random(OsRng);
-    let commitment_ptr = store.hide(secret, store.read_with_default_state(private_params.as_str())?);
-    let commitment_zpr = store.hash_ptr(&commitment_ptr);
+    let priv_expr = store.read_with_default_state(private_params.as_str())?;
+    let (output, ..) = evaluate_simple::<Fr, MultiCoproc<Fr>>(None, priv_expr, store, 10000)?;
+    let comm = store.hide(secret, output[0]);
+    let commitment_zpr = store.hash_ptr(&comm);
     let commitment: String = commitment_zpr.value().to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
 
     let expr = format!(r#"(letrec ((f {lurk_program}))(f (open 0x{commitment}) {public_params}))"#);
@@ -164,7 +166,7 @@ mod tests {
 
     #[test]
     fn test_prove() {
-        let proof = create_proof("(lambda (priv pub) (car (cdr (cdr priv))))".to_string(), "(cons 7 5)".to_string(), "(cons 4 8)".to_string());
+        let proof = create_proof("(lambda (priv pub) (= (car priv) (car pub)))".to_string(), "(cons 7 5)".to_string(), "(cons 7 8)".to_string());
         println!("{:?}", proof);
     }
 }
