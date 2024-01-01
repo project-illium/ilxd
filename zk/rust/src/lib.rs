@@ -5,8 +5,12 @@
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
 use std::error::Error;
-use std::{sync::Arc, time::Instant};
+use std::sync::Arc;
+use std::time::Instant;
+use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize, Serializer};
+use lazy_static::lazy_static;
+use std::sync::{Mutex, RwLock};
 use lurk::{
     coprocessor::Coprocessor,
     eval::lang::{Lang, Coproc},
@@ -17,7 +21,7 @@ use lurk::{
         pointers::Ptr,
         store::Store,
     },
-    proof::{supernova::SuperNovaProver, Prover, RecursiveSNARKTrait},
+    proof::{supernova::{SuperNovaProver, PublicParams}, Prover, RecursiveSNARKTrait},
     public_parameters::{
         instance::{Instance, Kind},
         supernova_public_params,
@@ -83,6 +87,35 @@ pub extern "C" fn lurk_commit(expr: *const c_char, out: *mut c_uchar) -> i32 {
     0 // Indicate success
 }
 
+static PUBLIC_PARAMS: OnceCell<Arc<PublicParams<Fr, MultiFrame<'static, Fr, MultiCoproc<Fr>>>>> = OnceCell::new();
+
+fn get_public_params() -> Arc<PublicParams<Fr, MultiFrame<'static, Fr, MultiCoproc<Fr>>>> {
+    PUBLIC_PARAMS.get_or_init(|| Arc::new(create_public_params())).clone()
+}
+
+fn create_public_params() -> PublicParams<Fr, MultiFrame<'static, Fr, MultiCoproc<Fr>>> {
+    println!("Setting up running claim parameters (rc = {REDUCTION_COUNT})...");
+    let pp_start = Instant::now();
+
+    let cproc_sym_xor = user_sym(".lurk.xor");
+    let cproc_sym_checksig = user_sym(".lurk.checksig");
+    let cproc_sym_blake2s = user_sym(".lurk.blake2s");
+
+    let mut lang = Lang::<Fr, MultiCoproc<Fr>>::new();
+    lang.add_coprocessor(cproc_sym_xor, XorCoprocessor::new());
+    lang.add_coprocessor(cproc_sym_checksig, ChecksigCoprocessor::new());
+    lang.add_coprocessor(cproc_sym_blake2s, Blake2sCoprocessor::new());
+    let lang_rc = Arc::new(lang.clone());
+
+    let instance_primary = Instance::new(REDUCTION_COUNT, lang_rc, true, Kind::SuperNovaAuxParams);
+    let pp = supernova_public_params::<_, _, MultiFrame<'_, _, _>>(&instance_primary).unwrap();
+
+    let pp_end = pp_start.elapsed();
+    println!("Running claim parameters took {:?}", pp_end);
+
+    pp
+}
+
 fn create_proof(lurk_program: String, private_params: String, public_params: String) -> Result<Vec<u8>, Box<dyn Error>> {
     let store = &Store::<Fr>::default();
 
@@ -119,8 +152,7 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     println!("Setting up running claim parameters (rc = {REDUCTION_COUNT})...");
     let pp_start = Instant::now();
 
-    let instance_primary = Instance::new(REDUCTION_COUNT, lang_rc, true, Kind::SuperNovaAuxParams);
-    let pp = supernova_public_params::<_, _, MultiFrame<'_, _, _>>(&instance_primary).unwrap();
+    let pp = get_public_params();
 
     let pp_end = pp_start.elapsed();
     println!("Running claim parameters took {:?}", pp_end);
@@ -162,10 +194,11 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
 
 #[cfg(test)]
 mod tests {
-    use crate::create_proof;
+    use crate::{create_proof, get_public_params};
 
     #[test]
     fn test_prove() {
+        get_public_params();
         let proof = create_proof("(lambda (priv pub) (= (car priv) (car pub)))".to_string(), "(cons 7 5)".to_string(), "(cons 7 8)".to_string());
         println!("{:?}", proof);
     }
