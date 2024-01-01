@@ -17,7 +17,6 @@ ff = "0.13"
 flate2 = "1.0.26"
 hex = "0.4.3"
 itertools = "0.11"
-lazy_static = "1.4"
 lurk = { git = "https://github.com/lurk-lab/lurk-rs.git", branch = "main" }
 lurk-macros = "0.2.0"
 nova = { git = "https://github.com/lurk-lab/arecibo", branch = "dev", package = "arecibo" }
@@ -28,6 +27,9 @@ rand = "0.8.5"
 rand_core = { version = "0.6", default-features = false }
 sha3 = "0.10"
 serde = "1.0"
+
+[dev-dependencies]
+threadpool = "1.8.1"
 
 [patch.crates-io]
 # This is needed to ensure halo2curves, which imports pasta-curves, uses the *same* traits in bn256_grumpkin

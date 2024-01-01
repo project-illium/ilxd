@@ -2,23 +2,20 @@
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
 
-use std::ffi::CStr;
-use std::os::raw::{c_char, c_uchar};
-use std::error::Error;
-use std::sync::Arc;
-use std::time::Instant;
+use std::{
+    os::raw::{c_char, c_uchar},
+    ffi::CStr,
+    error::Error,
+    sync::Arc,
+    time::Instant,
+};
 use once_cell::sync::OnceCell;
-use serde::{Deserialize, Serialize, Serializer};
-use lazy_static::lazy_static;
-use std::sync::{Mutex, RwLock};
 use lurk::{
-    coprocessor::Coprocessor,
     eval::lang::{Lang, Coproc},
     field::LurkField,
     lem::{
         eval::{evaluate, evaluate_simple, make_eval_step_from_config, EvalConfig},
         multiframe::MultiFrame,
-        pointers::Ptr,
         store::Store,
     },
     proof::{supernova::{SuperNovaProver, PublicParams}, Prover, RecursiveSNARKTrait},
@@ -119,9 +116,11 @@ fn create_public_params() -> PublicParams<Fr, MultiFrame<'static, Fr, MultiCopro
 fn create_proof(lurk_program: String, private_params: String, public_params: String) -> Result<Vec<u8>, Box<dyn Error>> {
     let store = &Store::<Fr>::default();
 
+    let max_steps = 100000000;
+
     let secret = Fr::random(OsRng);
     let priv_expr = store.read_with_default_state(private_params.as_str())?;
-    let (output, ..) = evaluate_simple::<Fr, MultiCoproc<Fr>>(None, priv_expr, store, 10000)?;
+    let (output, ..) = evaluate_simple::<Fr, MultiCoproc<Fr>>(None, priv_expr, store, max_steps)?;
     let comm = store.hide(secret, output[0]);
     let commitment_zpr = store.hash_ptr(&comm);
     let commitment: String = commitment_zpr.value().to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
@@ -142,44 +141,21 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     let lang_rc = Arc::new(lang.clone());
 
     let lurk_step = make_eval_step_from_config(&EvalConfig::new_nivc(&lang));
-    let frames = evaluate(Some((&lurk_step, &lang)), call, store, 1000).unwrap();
+    let frames = evaluate(Some((&lurk_step, &lang)), call, store, max_steps).unwrap();
 
     let supernova_prover = SuperNovaProver::<Fr, MultiCoproc<Fr>, MultiFrame<'_, _, _>>::new(
         REDUCTION_COUNT,
         lang_rc.clone(),
     );
 
-    println!("Setting up running claim parameters (rc = {REDUCTION_COUNT})...");
-    let pp_start = Instant::now();
-
     let pp = get_public_params();
 
-    let pp_end = pp_start.elapsed();
-    println!("Running claim parameters took {:?}", pp_end);
-
-    println!("Beginning proof step...");
-    let proof_start = Instant::now();
     let (proof, z0, zi, _num_steps) = supernova_prover.prove(&pp, &frames, store)?;
-    let proof_end = proof_start.elapsed();
+    let compressed_proof = proof.compress(&pp).unwrap();
+    assert!(compressed_proof.verify(&pp, &z0, &zi).unwrap());
 
-    println!("Proofs took {:?}", proof_end);
-
-    println!("Verifying proof...");
-
-    let verify_start = Instant::now();
-    assert!(proof.verify(&pp, &z0, &zi).unwrap());
-    let verify_end = verify_start.elapsed();
     println!("{:?}", z0);
     println!("{:?}", zi);
-
-    println!("Verify took {:?}", verify_end);
-
-    println!("Compressing proof..");
-    let compress_start = Instant::now();
-    let compressed_proof = proof.compress(&pp).unwrap();
-    let compress_end = compress_start.elapsed();
-
-    println!("Compression took {:?}", compress_end);
 
     /*let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
     bincode::serialize_into(&mut encoder, &compressed_proof)?;
@@ -199,7 +175,6 @@ mod tests {
     #[test]
     fn test_prove() {
         get_public_params();
-        let proof = create_proof("(lambda (priv pub) (= (car priv) (car pub)))".to_string(), "(cons 7 5)".to_string(), "(cons 7 8)".to_string());
-        println!("{:?}", proof);
+        let _ = create_proof("(lambda (priv pub) (= (car priv) (car pub)))".to_string(), "(cons 7 5)".to_string(), "(cons 7 8)".to_string());
     }
 }

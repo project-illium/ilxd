@@ -1,16 +1,14 @@
-use std::hash::Hash;
 use bellpepper::gadgets::{multipack::pack_bits};
 use bellpepper_core::{boolean::Boolean, ConstraintSystem, SynthesisError};
 use lurk_macros::Coproc;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
 use lurk::{
     circuit::gadgets::pointer::AllocatedPtr,
     coprocessor::{CoCircuit, Coprocessor},
     field::LurkField,
-    lem::{pointers::Ptr, store::Store, multiframe::MultiFrame},
-    z_ptr::ZPtr,
+    lem::{pointers::Ptr, store::Store},
 };
 
 use super::{
@@ -26,8 +24,8 @@ pub struct XorCoprocessor<F: LurkField> {
 
 fn synthesize_xor<F: LurkField, CS: ConstraintSystem<F>>(
     cs: &mut CS,
-    g: &lurk::lem::circuit::GlobalAllocator<F>,
-    s: &lurk::lem::store::Store<F>,
+    _: &lurk::lem::circuit::GlobalAllocator<F>,
+    _: &lurk::lem::store::Store<F>,
     ptrs: &[AllocatedPtr<F>],
 ) -> Result<AllocatedPtr<F>, SynthesisError> {
     let zero = Boolean::constant(false);

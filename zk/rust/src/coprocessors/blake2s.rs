@@ -1,16 +1,14 @@
 use bellpepper::gadgets::{multipack::pack_bits, blake2s::blake2s};
 use bellpepper_core::{boolean::Boolean, ConstraintSystem, SynthesisError};
 use lurk_macros::Coproc;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use blake2s_simd::Params as Blake2sParams;
 use std::marker::PhantomData;
-use itertools::Itertools;
 
 use lurk::{
     circuit::gadgets::pointer::AllocatedPtr,
     field::LurkField,
-    lem::{pointers::Ptr, store::Store, multiframe::MultiFrame},
-    z_ptr::ZPtr,
+    lem::{pointers::Ptr, store::Store},
     coprocessor::{CoCircuit, Coprocessor},
 };
 
@@ -36,7 +34,7 @@ fn synthesize_blake2s<F: LurkField, CS: ConstraintSystem<F>>(
     let mut bits = vec![];
 
     for ptr in ptrs.iter().rev() {
-        let mut hash_bits = ptr
+        let hash_bits = ptr
             .hash()
             .to_bits_le_strict(&mut cs.namespace(|| "preimage_hash_bits"))?;
 
@@ -52,7 +50,7 @@ fn synthesize_blake2s<F: LurkField, CS: ConstraintSystem<F>>(
         little_endian_bits.extend_from_slice(chunk);
     }
 
-    let mut digest_bits = blake2s(cs.namespace(|| "digest_bits"), &little_endian_bits, &personalization)?;
+    let digest_bits = blake2s(cs.namespace(|| "digest_bits"), &little_endian_bits, &personalization)?;
 
     let mut little_endian_digest_bits = Vec::new();
     let chunks = digest_bits.chunks(8);

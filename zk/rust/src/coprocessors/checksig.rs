@@ -13,7 +13,7 @@ use super::ecc::AllocatedPoint;
 use num_bigint::BigUint;
 use pasta_curves::group::Group;
 use rand::{RngCore};
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_512};
 use lurk_macros::Coproc;
 use lurk::{
@@ -22,8 +22,6 @@ use lurk::{
     field::LurkField,
     lem::pointers::Ptr,
     lem::store::Store,
-    lem::multiframe::MultiFrame,
-    z_ptr::ZPtr,
 };
 
 use pasta_curves::group::GroupEncoding;
@@ -75,10 +73,10 @@ fn compute_checksig<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
 
     let r_x = z_ptrs[0].value().to_bytes();
     let r_y = z_ptrs[1].value().to_bytes();
-    let mut s_bytes = z_ptrs[2].value().to_bytes();
+    let s_bytes = z_ptrs[2].value().to_bytes();
     let pk_x = z_ptrs[3].value().to_bytes();
     let pk_y = z_ptrs[4].value().to_bytes();
-    let mut m_bytes = z_ptrs[5].value().to_bytes();
+    let m_bytes = z_ptrs[5].value().to_bytes();
 
     let pk_xy = from_xy(pk_x, pk_y);
     let pk = PublicKey::<G2>::from_point(pk_xy);
@@ -464,7 +462,7 @@ mod tests {
 
         // sign and verify
         let signature = sk.sign(c, &mut OsRng);
-        let result = pk.verify(c, &signature);
+        let _result = pk.verify(c, &signature);
         //assert!(result);
 
         // prepare inputs to the circuit gadget
