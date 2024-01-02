@@ -13,6 +13,7 @@ import (
 	"github.com/project-illium/ilxd/gen"
 	"github.com/project-illium/ilxd/mempool"
 	"github.com/project-illium/ilxd/sync"
+	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/walletlib"
 	"path"
 	"strings"
@@ -135,5 +136,6 @@ func setupLogging(logDir, level string, testnet bool) (*zap.AtomicLevel, error) 
 	mempool.UpdateLogger()
 	walletlib.UpdateLogger()
 	indexers.UpdateLogger()
+	zk.UpdateLogger()
 	return &cfg.Level, nil
 }

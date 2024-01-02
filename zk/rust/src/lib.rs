@@ -23,7 +23,7 @@ use lurk::{
         instance::{Instance, Kind},
         supernova_public_params,
     },
-    state::{State, user_sym},
+    state::{user_sym},
 };
 use rand::{rngs::OsRng};
 use pasta_curves::{
@@ -44,6 +44,11 @@ const OUT_LEN: usize = 32;
 const REDUCTION_COUNT: usize = 10;
 
 #[no_mangle]
+pub extern "C" fn load_public_params() {
+    let _ = get_public_params();
+}
+
+#[no_mangle]
 pub extern "C" fn lurk_commit(expr: *const c_char, out: *mut c_uchar) -> i32 {
     // Convert C string to Rust string
     let c_str = unsafe { CStr::from_ptr(expr) };
@@ -53,9 +58,7 @@ pub extern "C" fn lurk_commit(expr: *const c_char, out: *mut c_uchar) -> i32 {
     };
 
     let store = &mut Store::<Fr>::default();
-    let state = State::init_lurk_state().rccell();
-
-    let ptr = match store.read(state, expr_str) {
+    let ptr = match store.read_with_default_state(expr_str) {
         Ok(ptr) => ptr,
         Err(_) => return -1, // Indicate error
     };
@@ -91,9 +94,6 @@ fn get_public_params() -> Arc<PublicParams<Fr, MultiFrame<'static, Fr, MultiCopr
 }
 
 fn create_public_params() -> PublicParams<Fr, MultiFrame<'static, Fr, MultiCoproc<Fr>>> {
-    println!("Setting up running claim parameters (rc = {REDUCTION_COUNT})...");
-    let pp_start = Instant::now();
-
     let cproc_sym_xor = user_sym(".lurk.xor");
     let cproc_sym_checksig = user_sym(".lurk.checksig");
     let cproc_sym_blake2s = user_sym(".lurk.blake2s");
@@ -106,10 +106,6 @@ fn create_public_params() -> PublicParams<Fr, MultiFrame<'static, Fr, MultiCopro
 
     let instance_primary = Instance::new(REDUCTION_COUNT, lang_rc, true, Kind::SuperNovaAuxParams);
     let pp = supernova_public_params::<_, _, MultiFrame<'_, _, _>>(&instance_primary).unwrap();
-
-    let pp_end = pp_start.elapsed();
-    println!("Running claim parameters took {:?}", pp_end);
-
     pp
 }
 
@@ -150,10 +146,17 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
 
     let pp = get_public_params();
 
+    let pp_start = Instant::now();
     let (proof, z0, zi, _num_steps) = supernova_prover.prove(&pp, &frames, store)?;
     let compressed_proof = proof.compress(&pp).unwrap();
-    assert!(compressed_proof.verify(&pp, &z0, &zi).unwrap());
 
+    let pp_end = pp_start.elapsed();
+    println!("Proof took {:?}", pp_end);
+
+    let ver_start = Instant::now();
+    assert!(compressed_proof.verify(&pp, &z0, &zi).unwrap());
+    let ver_end = ver_start.elapsed();
+    println!("Verify took {:?}", ver_end);
     println!("{:?}", z0);
     println!("{:?}", zi);
 

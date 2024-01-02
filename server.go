@@ -29,6 +29,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/walletlib"
 	"github.com/project-illium/walletlib/client"
 	"go.uber.org/zap"
@@ -93,6 +94,7 @@ type Server struct {
 // BuildServer is the constructor for the server. We pass in the config file here
 // and use it to configure all the various parts of the Server.
 func BuildServer(config *repo.Config) (*Server, error) {
+	printSplashScreen()
 	ctx, cancel := context.WithCancel(context.Background()) //nolint:govet
 
 	s := Server{ready: make(chan struct{})}
@@ -107,6 +109,9 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	if config.EnableDebugLogging {
 		golog.SetDebugLogging()
 	}
+
+	// Load public parameters
+	zk.LoadZKPublicParameters()
 
 	// Policy
 	policy := policy2.NewPolicy(
@@ -969,7 +974,7 @@ func (s *Server) limitOrphans() {
 	}
 }
 
-func (s *Server) printListenAddrs() {
+func printSplashScreen() {
 	colors := []string{
 		"\033[35m", // Magenta
 		"\033[95m", // Light Magenta
@@ -984,7 +989,9 @@ func (s *Server) printListenAddrs() {
 	fmt.Println(colors[2] + "|  |  |_|  |_|  |  |  /  Y Y  \\" + "\033[0m")
 	fmt.Println(colors[3] + "|__|____/____/__|____/|__|_|  /" + "\033[0m")
 	fmt.Println(colors[2] + "                            \\/" + "\033[0m")
+}
 
+func (s *Server) printListenAddrs() {
 	log.Infof("PeerID: %s", s.network.Host().ID().String())
 	var lisAddrs []string
 	ifaceAddrs := s.network.Host().Addrs()
