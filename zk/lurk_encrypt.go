@@ -17,6 +17,10 @@ import (
 // There is a small probability that the ciphertext chunk may exceed the maximum
 // field element resulting in a loss of one bit precision. To avoid this we brute
 // force the nonce key to make sure no precision is lost.
+//
+// NOTE: for most transactions you want to use crypto/Encrypt which uses curve25519.
+// This is only if you have a script where you need to verify ciphertext inside
+// the script.
 func LurkEncrypt(plaintext [][32]byte, key [32]byte) ([][32]byte, error) {
 	ciphertext := make([][32]byte, len(plaintext)+1)
 loop:
