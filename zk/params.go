@@ -10,22 +10,8 @@ type Parameters interface {
 	ToExpr() string
 }
 
-type StandardPrivateParameters struct {
-}
+type Expr string
 
-func (priv *StandardPrivateParameters) ToExpr() string {
-	return ""
-}
-
-type StandardPublicParameters struct {
-}
-
-func (pub *StandardPublicParameters) ToExpr() string {
-	return ""
-}
-
-type ExprParams string
-
-func (p ExprParams) ToExpr() string {
+func (p Expr) ToExpr() string {
 	return string(p)
 }

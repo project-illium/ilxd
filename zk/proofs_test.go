@@ -22,7 +22,8 @@ func TestProve(t *testing.T) {
 
 	program := "(lambda (priv pub) (= (num (commit priv)) pub))"
 	start := time.Now()
-	_, err = Prove(program, ExprParams(fmt.Sprintf("0x%x", r[:])), ExprParams(fmt.Sprintf("0x%x", h[:])))
+	proof, err := Prove(program, Expr(fmt.Sprintf("0x%x", r[:])), Expr(fmt.Sprintf("0x%x", h[:])))
 	assert.NoError(t, err)
+	fmt.Println(len(proof))
 	fmt.Println(time.Since(start))
 }

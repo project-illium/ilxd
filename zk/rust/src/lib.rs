@@ -165,7 +165,8 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     let (output, ..) = evaluate_simple::<Fr, MultiCoproc<Fr>>(None, priv_expr, store, max_steps)?;
     let comm = store.hide(secret, output[0]);
     let commitment_zpr = store.hash_ptr(&comm);
-    let commitment: String = commitment_zpr.value().to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+    let commitment_bytes = commitment_zpr.value().to_bytes();
+    let commitment: String = commitment_bytes.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
 
     let expr = format!(r#"(letrec ((f {lurk_program}))(f (open 0x{commitment}) {public_params}))"#);
 
@@ -201,14 +202,15 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     ret_tag.reverse();
     ret_val.reverse();
 
-    /*let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
     bincode::serialize_into(&mut encoder, &compressed_proof)?;
     let compressed_snark_encoded = encoder.finish()?;
-    //let buf = bincode::serialize(&compressed_proof).unwrap();
-    println!("{:?}", compressed_snark_encoded.len());*/
 
-    let proof:Vec<u8> = vec![];
-    Ok((proof, ret_tag, ret_val))
+    let mut combined_proof = Vec::new();
+    combined_proof.extend(commitment_bytes);
+    combined_proof.extend(compressed_snark_encoded);
+
+    Ok((combined_proof, ret_tag, ret_val))
 }
 
 #[cfg(test)]

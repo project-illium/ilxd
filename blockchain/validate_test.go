@@ -1834,4 +1834,7 @@ func TestValidateLocktime(t *testing.T) {
 
 	blocktime = time.Now().Add(-time.Second*60*21 + 1)
 	assert.False(t, ValidateLocktime(blocktime, locktime))
+
+	locktime.Precision = -1200
+	assert.False(t, ValidateLocktime(time.Now().Add(time.Second), locktime))
 }
