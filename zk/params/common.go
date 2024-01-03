@@ -7,16 +7,16 @@ package params
 import "github.com/project-illium/ilxd/types"
 
 type PrivateInput struct {
-	ScriptHash       types.ID
-	Amount           types.Amount
-	AssetID          types.ID
-	State            types.State
-	Salt             types.ID
-	CommitmentIndex  uint64
-	InclusionProof   InclusionProof
-	ScriptCommitment types.ID
-	ScriptParams     [][]byte
-	UnlockingParams  string
+	ScriptHash      types.ID
+	Amount          types.Amount
+	AssetID         types.ID
+	State           types.State
+	Salt            types.ID
+	CommitmentIndex uint64
+	InclusionProof  InclusionProof
+	UnlockingScript string
+	ScriptParams    [][]byte
+	UnlockingParams string
 }
 
 type PrivateOutput struct {

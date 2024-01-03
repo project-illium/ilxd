@@ -14,7 +14,7 @@ use lurk::{
 
 /*
 (letrec ((cat-and-hash (lambda (a b)
-            (eval (cons 'sha256_nivc_{n} (cons a (cons b nil)))))))
+            (eval (cons '.lurk.blake2s (cons a (cons b nil)))))))
   (cat-and-hash 0x18b1a7da2e8bc9c7633224d4df95f5730e521bbc6d57c8db9ab51a2f963d703b 500))
  */
 

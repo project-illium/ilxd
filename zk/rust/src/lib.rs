@@ -4,10 +4,9 @@
 
 use std::{
     os::raw::{c_char, c_uchar},
-    ffi::{CStr, CString},
+    ffi::{CStr},
     error::Error,
     sync::Arc,
-    time::Instant,
     ptr,
 };
 use once_cell::sync::OnceCell;
@@ -19,7 +18,7 @@ use lurk::{
         multiframe::MultiFrame,
         store::Store,
     },
-    proof::{supernova::{SuperNovaProver, PublicParams}, Prover, RecursiveSNARKTrait},
+    proof::{supernova::{SuperNovaProver, PublicParams, Proof}, Prover, RecursiveSNARKTrait},
     public_parameters::{
         instance::{Instance, Kind},
         supernova_public_params,
@@ -31,7 +30,7 @@ use pasta_curves::{
     pallas::Scalar as Fr,
     group::ff::Field
 };
-use flate2::{write::ZlibEncoder, Compression};
+use flate2::{write::ZlibEncoder, read::ZlibDecoder, Compression};
 
 mod coprocessors;
 use coprocessors::{
@@ -195,8 +194,6 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     let (proof, z0, zi, _num_steps) = supernova_prover.prove(&pp, &frames, store)?;
     let compressed_proof = proof.compress(&pp).unwrap();
 
-    //assert!(compressed_proof.verify(&pp, &z0, &zi).unwrap());
-
     let mut ret_tag = zi[0].to_bytes();
     let mut ret_val = zi[1].to_bytes();
     ret_tag.reverse();
@@ -205,6 +202,10 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
     bincode::serialize_into(&mut encoder, &compressed_proof)?;
     let compressed_snark_encoded = encoder.finish()?;
+
+    //let decoder = ZlibDecoder::new(&compressed_snark_encoded[..]);
+    //let decompressed_proof: Proof<Fr, MultiCoproc<Fr>, MultiFrame<Fr, MultiCoproc<Fr>>> = bincode::deserialize_from(decoder)?;
+    //assert!(decompressed_proof.verify(&pp, &z0, &zi).unwrap());
 
     let mut combined_proof = Vec::new();
     combined_proof.extend(commitment_bytes);
