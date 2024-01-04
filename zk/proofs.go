@@ -25,6 +25,11 @@ int create_proof_ffi(
     size_t* proof_len,
     uint8_t* output_tag,
     uint8_t* output_val);
+int verify_proof_ffi(
+    const char* lurk_program,
+    const char* public_params,
+    const uint8_t* proof,
+    size_t proof_size);
 */
 import "C"
 import (
@@ -57,6 +62,10 @@ func Prove(lurkProgram string, privateParams Parameters, publicParams Parameters
 	}
 
 	return proof, nil
+}
+
+func Verify(lurkProgram string, publicParams Parameters, proof []byte) (bool, error) {
+	return verifyProof(lurkProgram, publicParams.ToExpr(), proof)
 }
 
 func createProof(lurkProgram, privateParams, publicParams string) ([]byte, Tag, []byte, error) {
@@ -105,4 +114,31 @@ func createProof(lurkProgram, privateParams, publicParams string) ([]byte, Tag, 
 	}
 
 	return proofOut, tag, valOut, nil
+}
+
+func verifyProof(lurkProgram, publicParams string, proof []byte) (bool, error) {
+	clurkProgram := C.CString(lurkProgram)
+	cpublicParams := C.CString(publicParams)
+
+	defer C.free(unsafe.Pointer(clurkProgram))
+	defer C.free(unsafe.Pointer(cpublicParams))
+
+	proofCopy := make([]byte, len(proof))
+	copy(proofCopy[:], proof[:])
+
+	// Convert the Go byte slice to a C byte pointer
+	cBytes := (*C.uint8_t)(unsafe.Pointer(&proofCopy[0]))
+	proofSize := C.size_t(len(proofCopy))
+
+	result := C.verify_proof_ffi(
+		clurkProgram,
+		cpublicParams,
+		cBytes,
+		proofSize,
+	)
+
+	if result < 0 {
+		return false, errors.New("proof verification errored")
+	}
+	return result == 0, nil
 }

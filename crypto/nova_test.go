@@ -9,8 +9,6 @@ package crypto
 
 import (
 	"crypto/rand"
-	"encoding/hex"
-	"fmt"
 	"github.com/go-test/deep"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/params/hash"
@@ -86,11 +84,4 @@ func TestPublicKeyFromXY(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, key.(*NovaPublicKey).k, key2.(*NovaPublicKey).k)
-}
-
-func TestUnmarshalNovaPrivateKey(t *testing.T) {
-	s, err := hex.DecodeString("2ce70d73dc1a84a3d84a7301652c680b226b8e8da51fa9e518d436578c5e3427")
-	assert.NoError(t, err)
-
-	fmt.Println(hex.EncodeToString(reverseBytes(s)))
 }

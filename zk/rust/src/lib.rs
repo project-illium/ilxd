@@ -8,6 +8,7 @@ use std::{
     error::Error,
     sync::Arc,
     ptr,
+    slice,
 };
 use once_cell::sync::OnceCell;
 use lurk::{
@@ -147,6 +148,48 @@ pub extern "C" fn create_proof_ffi(
     }
 }
 
+#[no_mangle]
+pub extern "C" fn verify_proof_ffi(
+    lurk_program: *const c_char,
+    public_params: *const c_char,
+    packed_proof: *const u8,
+    proof_size: usize
+) -> i32 {
+    let c_str1 = unsafe { CStr::from_ptr(lurk_program) };
+    let program_str = match c_str1.to_str() {
+        Ok(str) => str,
+        Err(_) => return -1, // Indicate error
+    };
+    let c_str2 = unsafe { CStr::from_ptr(public_params) };
+    let pub_params_str = match c_str2.to_str() {
+        Ok(str) => str,
+        Err(_) => return -1, // Indicate error
+    };
+
+    let proof_slice = unsafe {
+        slice::from_raw_parts(packed_proof, proof_size)
+    };
+
+    let (commitment, proof) = proof_slice.split_at(32);
+    let mut commitment_vec = commitment.to_vec();
+    commitment_vec.reverse();
+
+    let res = match verify_proof(
+        program_str.to_string(),
+        commitment_vec,
+        pub_params_str.to_string(),
+        proof.to_vec()) {
+        Ok(res) => res,
+        Err(err) => {
+            return -1
+        }
+    };
+    if res {
+        return 0
+    }
+    1
+}
+
 static PUBLIC_PARAMS: OnceCell<Arc<PublicParams<Fr, MultiFrame<'static, Fr, MultiCoproc<Fr>>>>> = OnceCell::new();
 
 fn get_public_params() -> Arc<PublicParams<Fr, MultiFrame<'static, Fr, MultiCoproc<Fr>>>> {
@@ -209,9 +252,6 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     let (proof, z0, zi, _num_steps) = supernova_prover.prove(&pp, &frames, store)?;
     let compressed_proof = proof.compress(&pp).unwrap();
 
-    println!("{:?}", z0);
-    println!("{:?}", zi);
-
     let mut ret_tag = zi[0].to_bytes();
     let mut ret_val = zi[1].to_bytes();
     ret_tag.reverse();
@@ -232,11 +272,9 @@ fn verify_proof(lurk_program: String, commitment_bytes: Vec<u8>, public_params: 
     let commitment: String = commitment_bytes.iter().map(|byte| format!("{:02x}", byte)).collect();
 
     let expr = format!(r#"(letrec ((f {lurk_program}))(f (open 0x{commitment}) {public_params}))"#);
-    println!("{:?}", expr);
 
     let store = &Store::<Fr>::default();
     let call = store.read_with_default_state(expr.as_str())?;
-    println!("here");
     let call_zptr = store.hash_ptr(&call);
 
     let mut z0: Vec<Fr> = Vec::with_capacity(6);
@@ -254,9 +292,6 @@ fn verify_proof(lurk_program: String, commitment_bytes: Vec<u8>, public_params: 
     zi.push(IO_ENV_HASH.clone());
     zi.push(IO_OUT_CONT_TAG.clone());
     zi.push(IO_CONT_HASH.clone());
-
-    println!("{:?}", z0);
-    println!("{:?}", zi);
 
     let pp = get_public_params();
     let decoder = ZlibDecoder::new(&proof[..]);
