@@ -23,10 +23,14 @@ use lurk::{
     lem::pointers::Ptr,
     lem::store::Store,
 };
-
+use lazy_static::lazy_static;
 use pasta_curves::group::GroupEncoding;
 
 type G2 = pasta_curves::vesta::Point;
+
+lazy_static! {
+    static ref IO_TRUE_HASH: Vec<u8> = hex::decode("5698a149855d3a8b3ac99e32b65ce146f00163130070c245a2262b46c5dbc804").unwrap();
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChecksigCoprocessor<F: LurkField> {
@@ -56,14 +60,12 @@ fn synthesize_checksig<F: LurkField, CS: ConstraintSystem<F>>(
 
     let _ = verify_signature(cs, &pk, &r, &s, &c);
 
-    let hex_str = "5698a149855d3a8b3ac99e32b65ce146f00163130070c245a2262b46c5dbc804";
     let t = AllocatedNum::alloc(cs.namespace(|| "t"), || {
-        let t_bytes = hex::decode(hex_str).unwrap();
-        Ok(F::from_bytes(&t_bytes).unwrap())
+        Ok(F::from_bytes(&IO_TRUE_HASH).unwrap())
     })?;
     AllocatedPtr::alloc_tag(
         &mut cs.namespace(|| "output_expr"),
-        F::from(4),
+        F::from_u64(2),
         t,
     )
 }
@@ -450,6 +452,8 @@ mod tests {
         assert_eq!(cs.num_constraints(), 0);
 
         let sk = SecretKey::<G2>::random(&mut OsRng);
+        let hex_string: String = sk.0.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        println!("sk {}", hex_string);
         //let sk2 = SecretKey::<G2>::random(&mut OsRng);
         //let pk = PublicKey::from_secret_key(&sk2);
         let pk = PublicKey::from_secret_key(&sk);
@@ -462,8 +466,16 @@ mod tests {
 
         // sign and verify
         let signature = sk.sign(c, &mut OsRng);
-        let _result = pk.verify(c, &signature);
-        //assert!(result);
+        let hex_string: String = signature.r.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        println!("*sig_r {}", hex_string);
+        let hex_string: String = signature.s.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        println!("*sig_s {}", hex_string);
+        let hex_string: String = pk.0.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        println!("*pk {}", hex_string);
+        let hex_string: String = c.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        println!("*m {}", hex_string);
+        let result = pk.verify(c, &signature);
+        assert!(result);
 
         // prepare inputs to the circuit gadget
         let pk = {
@@ -509,6 +521,8 @@ mod tests {
 
             synthesize_bits2(&mut cs.namespace(|| "c bits"), &Some(c_bits)).unwrap()
         };
+
+
 
         // Check the signature was signed by the correct sk using the pk
         verify_signature(&mut cs, &pk, &r, &s, &c).unwrap();

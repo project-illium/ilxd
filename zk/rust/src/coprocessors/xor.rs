@@ -59,7 +59,6 @@ fn synthesize_xor<F: LurkField, CS: ConstraintSystem<F>>(
 }
 
 fn compute_xor<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
-
     let z_ptrs = ptrs.iter().map(|ptr| s.hash_ptr(ptr)).collect::<Vec<_>>();
 
     let hash_a = z_ptrs[0].value().to_bytes();

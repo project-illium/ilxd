@@ -157,16 +157,20 @@ func PublicKeyFromXY(x, y []byte) (crypto.PubKey, error) {
 	if len(x) != 32 || len(y) != 32 {
 		return nil, errors.New("invalid coordinate")
 	}
-	x = reverseBytes(x)
-	y = reverseBytes(y)
+	x2 := make([]byte, len(x))
+	y2 := make([]byte, len(y))
+	copy(x2, x)
+	copy(y2, y)
+	reverseBytes(x2)
+	reverseBytes(y2)
 
-	b := y[0] & 0x01
+	b := y2[0] & 0x01
 	b <<= 7
 
-	x[31] |= b
+	x2[31] |= b
 
 	var compressed [32]byte
-	copy(compressed[:], x)
+	copy(compressed[:], reverseBytes(x2))
 
 	return &NovaPublicKey{
 		k: &compressed,
@@ -185,7 +189,11 @@ func (k *NovaPublicKey) Raw() ([]byte, error) {
 
 // ToXY returns the x and y coordinates of the PublicKey
 func (k *NovaPublicKey) ToXY() ([]byte, []byte) {
-	x, y := compressed_to_full(*k.k)
+	var pk [32]byte
+	copy(pk[:], k.k[:])
+	var pkReversed [32]byte
+	copy(pkReversed[:], reverseBytes(pk[:]))
+	x, y := compressed_to_full(pkReversed)
 	return reverseBytes(x[:]), reverseBytes(y[:])
 }
 
@@ -210,7 +218,13 @@ func (k *NovaPublicKey) Verify(digest []byte, sig []byte) (bool, error) {
 	var signature [64]byte
 	copy(signature[:], sig)
 
-	valid := novaVerify(*k.k, mReversed, signature)
+	var pk [32]byte
+	copy(pk[:], k.k[:])
+
+	var pkReversed [32]byte
+	copy(pkReversed[:], reverseBytes(pk[:]))
+
+	valid := novaVerify(pk, mReversed, signature)
 	return valid, nil
 }
 
@@ -270,7 +284,7 @@ func UnmarshalSignature(sig []byte) (sigRx, sigRy, sigS []byte) {
 	copy(r[:], sig[:32])
 	copy(s[:], sig[32:])
 	rx, ry := compressed_to_full(r)
-	return reverseBytes(rx[:]), reverseBytes(ry[:]), reverseBytes(s[:])
+	return reverseBytes(rx[:]), reverseBytes(ry[:]), s[:]
 }
 
 func novaGenerateSecretKey() [32]byte {
@@ -307,7 +321,10 @@ func novaPrivToPub(sk [32]byte) [32]byte {
 	// Call the Rust function to compute the public key
 	C.priv_to_pub(cBytes, (*C.uint8_t)(unsafe.Pointer(&pubkey[0])))
 
-	return pubkey
+	var reversed [32]byte
+	copy(reversed[:], reverseBytes(pubkey[:]))
+
+	return reversed
 }
 
 func compressed_to_full(pk [32]byte) ([32]byte, [32]byte) {

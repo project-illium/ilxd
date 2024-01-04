@@ -197,9 +197,9 @@ fn get_public_params() -> Arc<PublicParams<Fr, MultiFrame<'static, Fr, MultiCopr
 }
 
 fn create_public_params() -> PublicParams<Fr, MultiFrame<'static, Fr, MultiCoproc<Fr>>> {
-    let cproc_sym_xor = user_sym(".lurk.xor");
-    let cproc_sym_checksig = user_sym(".lurk.checksig");
-    let cproc_sym_blake2s = user_sym(".lurk.blake2s");
+    let cproc_sym_xor = user_sym("coproc_xor");
+    let cproc_sym_checksig = user_sym("coproc_checksig");
+    let cproc_sym_blake2s = user_sym("coproc_blake2s");
 
     let mut lang = Lang::<Fr, MultiCoproc<Fr>>::new();
     lang.add_coprocessor(cproc_sym_xor, XorCoprocessor::new());
@@ -214,7 +214,6 @@ fn create_public_params() -> PublicParams<Fr, MultiFrame<'static, Fr, MultiCopro
 
 fn create_proof(lurk_program: String, private_params: String, public_params: String) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Box<dyn Error>> {
     let store = &Store::<Fr>::default();
-
     let max_steps = 100000000;
 
     let secret = Fr::random(OsRng);
@@ -227,11 +226,12 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
 
     let expr = format!(r#"(letrec ((f {lurk_program}))(f (open 0x{commitment}) {public_params}))"#);
 
-    let cproc_sym_xor = user_sym(".lurk.xor");
-    let cproc_sym_checksig = user_sym(".lurk.checksig");
-    let cproc_sym_blake2s = user_sym(".lurk.blake2s");
+    let cproc_sym_xor = user_sym("coproc_xor");
+    let cproc_sym_checksig = user_sym("coproc_checksig");
+    let cproc_sym_blake2s = user_sym("coproc_blake2s");
 
     let call = store.read_with_default_state(expr.as_str())?;
+
 
     let mut lang = Lang::<Fr, MultiCoproc<Fr>>::new();
     lang.add_coprocessor(cproc_sym_xor, XorCoprocessor::new());
@@ -307,8 +307,11 @@ mod tests {
     #[test]
     fn test_prove() {
         get_public_params();
+        let program = r#"(lambda (priv pub) (letrec ((checksig (lambda (sig pubkey sighash)
+                                                             (eval (cons 'coproc_checksig (cons 0x28612321339c8491c3952f39733447571c33c873c974963b0c2d96e1d4efc704 (cons 0x1f2235884a48ddfd4319d629af56926233a0341377da70e41f6c4012b16587a6 (cons 0x2e03bb5e9693aa5fd00d2c853b45567c9c965a471e2d9912d27f15ba6b61d62b (cons 0x3262b1ec1081c7e405143911e2085fcf1914c122ce8cfc742427d075982350c0 (cons 0x33331e146b646b79ab5c21b1a7074a028aadd3246624273e7429dc4f33afed7a (cons 0x1aec6806794561107e594b1f6a8a6b0c92a0cba9acf5e5e93cca06f781813b0b nil)))))))))))
+                                                     (checksig 1 2 3)))"#;
         let (packed_proof, tag, output) = create_proof(
-            "(lambda (priv pub) (eq (cdr priv) (cdr pub)))".to_string(),
+            program.to_string(),
             "(cons 7 8)".to_string(),
             "(cons 7 8)".to_string()
         ).expect("create_proof failed");
@@ -316,7 +319,7 @@ mod tests {
         commitment.reverse();
         let proof = &packed_proof[32..];
         let res = verify_proof(
-            "(lambda (priv pub) (eq (cdr priv) (cdr pub)))".to_string(),
+            program.to_string(),
             commitment,
             "(cons 7 8)".to_string(),
             proof.to_vec()
