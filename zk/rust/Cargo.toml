@@ -17,6 +17,7 @@ ff = "0.13"
 flate2 = "1.0.26"
 hex = "0.4.3"
 itertools = "0.11"
+lazy_static = "1.4.0"
 lurk = { git = "https://github.com/lurk-lab/lurk-rs.git", branch = "main" }
 lurk-macros = "0.2.0"
 nova = { git = "https://github.com/lurk-lab/arecibo", branch = "dev", package = "arecibo" }

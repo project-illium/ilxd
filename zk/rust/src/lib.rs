@@ -31,17 +31,32 @@ use pasta_curves::{
     group::ff::Field
 };
 use flate2::{write::ZlibEncoder, read::ZlibDecoder, Compression};
+use nova::supernova::error::SuperNovaError;
 
-mod coprocessors;
 use coprocessors::{
     xor::MultiCoproc,
     xor::XorCoprocessor,
     blake2s::Blake2sCoprocessor,
     checksig::ChecksigCoprocessor
 };
+mod coprocessors;
+
+use lazy_static::lazy_static;
 
 const OUT_LEN: usize = 32;
 const REDUCTION_COUNT: usize = 10;
+
+lazy_static! {
+    static ref IO_ZERO: Fr = Fr::zero();
+    static ref IO_ONE: Fr = Fr::one();
+    static ref IO_ENV_HASH: Fr = Fr::from_bytes(&hex::decode("27345e8c5736d418e5a91fa58d8e6b220b682c6501734ad8a3841adc730de72c").unwrap()).unwrap();
+    static ref IO_TWO: Fr = Fr::from_u64(2);
+    static ref IO_TRUE_HASH: Fr = Fr::from_bytes(&hex::decode("5698a149855d3a8b3ac99e32b65ce146f00163130070c245a2262b46c5dbc804").unwrap()).unwrap();
+    static ref IO_CONT_HASH: Fr = Fr::from_bytes(&hex::decode("1c6b873ac13018a8332a6c340d61b4834698bb84fe5680523ce546705217f40e").unwrap()).unwrap();
+    static ref IO_IN_CONT_TAG: Fr = Fr::from_u64(4096);
+    static ref IO_OUT_CONT_TAG: Fr = Fr::from_u64(4110);
+}
+
 
 #[no_mangle]
 pub extern "C" fn load_public_params() {
@@ -194,6 +209,9 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     let (proof, z0, zi, _num_steps) = supernova_prover.prove(&pp, &frames, store)?;
     let compressed_proof = proof.compress(&pp).unwrap();
 
+    println!("{:?}", z0);
+    println!("{:?}", zi);
+
     let mut ret_tag = zi[0].to_bytes();
     let mut ret_val = zi[1].to_bytes();
     ret_tag.reverse();
@@ -203,10 +221,6 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     bincode::serialize_into(&mut encoder, &compressed_proof)?;
     let compressed_snark_encoded = encoder.finish()?;
 
-    //let decoder = ZlibDecoder::new(&compressed_snark_encoded[..]);
-    //let decompressed_proof: Proof<Fr, MultiCoproc<Fr>, MultiFrame<Fr, MultiCoproc<Fr>>> = bincode::deserialize_from(decoder)?;
-    //assert!(decompressed_proof.verify(&pp, &z0, &zi).unwrap());
-
     let mut combined_proof = Vec::new();
     combined_proof.extend(commitment_bytes);
     combined_proof.extend(compressed_snark_encoded);
@@ -214,13 +228,65 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     Ok((combined_proof, ret_tag, ret_val))
 }
 
+fn verify_proof(lurk_program: String, commitment_bytes: Vec<u8>, public_params: String, proof: Vec<u8>) -> Result<bool, Box<dyn Error>> {
+    let commitment: String = commitment_bytes.iter().map(|byte| format!("{:02x}", byte)).collect();
+
+    let expr = format!(r#"(letrec ((f {lurk_program}))(f (open 0x{commitment}) {public_params}))"#);
+    println!("{:?}", expr);
+
+    let store = &Store::<Fr>::default();
+    let call = store.read_with_default_state(expr.as_str())?;
+    println!("here");
+    let call_zptr = store.hash_ptr(&call);
+
+    let mut z0: Vec<Fr> = Vec::with_capacity(6);
+    z0.push(IO_ONE.clone());
+    z0.push(*call_zptr.value());
+    z0.push(IO_ZERO.clone());
+    z0.push(IO_ENV_HASH.clone());
+    z0.push(IO_IN_CONT_TAG.clone());
+    z0.push(IO_CONT_HASH.clone());
+
+    let mut zi: Vec<Fr> = Vec::with_capacity(6);
+    zi.push(IO_TWO.clone());
+    zi.push(IO_TRUE_HASH.clone());
+    zi.push(IO_ZERO.clone());
+    zi.push(IO_ENV_HASH.clone());
+    zi.push(IO_OUT_CONT_TAG.clone());
+    zi.push(IO_CONT_HASH.clone());
+
+    println!("{:?}", z0);
+    println!("{:?}", zi);
+
+    let pp = get_public_params();
+    let decoder = ZlibDecoder::new(&proof[..]);
+    let decompressed_proof: Proof<Fr, MultiCoproc<Fr>, MultiFrame<Fr, MultiCoproc<Fr>>> = bincode::deserialize_from(decoder)?;
+    let res = decompressed_proof.verify(&pp, &z0, &zi)?;
+    Ok(res)
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{create_proof, get_public_params};
+    use crate::{create_proof, verify_proof, get_public_params};
 
     #[test]
     fn test_prove() {
         get_public_params();
-        let _ = create_proof("(lambda (priv pub) (eq (cdr priv) (cdr pub)))".to_string(), "(cons 7 8)".to_string(), "(cons 7 8)".to_string());
+        let (packed_proof, tag, output) = create_proof(
+            "(lambda (priv pub) (eq (cdr priv) (cdr pub)))".to_string(),
+            "(cons 7 8)".to_string(),
+            "(cons 7 8)".to_string()
+        ).expect("create_proof failed");
+        let mut commitment = packed_proof[..32].to_vec();
+        commitment.reverse();
+        let proof = &packed_proof[32..];
+        let res = verify_proof(
+            "(lambda (priv pub) (eq (cdr priv) (cdr pub)))".to_string(),
+            commitment,
+            "(cons 7 8)".to_string(),
+            proof.to_vec()
+        ).expect("verify_proof failed");
+        println!("{:?}", res);
+        assert!(res, "Verification failed");
     }
 }
