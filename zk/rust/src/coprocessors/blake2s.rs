@@ -1,25 +1,20 @@
 use bellpepper::gadgets::{multipack::pack_bits, blake2s::blake2s};
 use bellpepper_core::{boolean::Boolean, ConstraintSystem, SynthesisError};
 use lurk_macros::Coproc;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use blake2s_simd::Params as Blake2sParams;
 use std::marker::PhantomData;
-use itertools::Itertools;
 
-use crate::{
-    self as lurk,
+use lurk::{
     circuit::gadgets::pointer::AllocatedPtr,
     field::LurkField,
-    lem::{pointers::Ptr, store::Store, multiframe::MultiFrame},
-    tag::{ExprTag, Tag},
-    z_ptr::ZPtr,
+    lem::{pointers::Ptr, store::Store},
+    coprocessor::{CoCircuit, Coprocessor},
 };
-
-use super::{CoCircuit, Coprocessor};
 
 /*
 (letrec ((cat-and-hash (lambda (a b)
-            (eval (cons 'sha256_nivc_{n} (cons a (cons b nil)))))))
+            (eval (cons '.lurk.blake2s (cons a (cons b nil)))))))
   (cat-and-hash 0x18b1a7da2e8bc9c7633224d4df95f5730e521bbc6d57c8db9ab51a2f963d703b 500))
  */
 
@@ -39,7 +34,7 @@ fn synthesize_blake2s<F: LurkField, CS: ConstraintSystem<F>>(
     let mut bits = vec![];
 
     for ptr in ptrs.iter().rev() {
-        let mut hash_bits = ptr
+        let hash_bits = ptr
             .hash()
             .to_bits_le_strict(&mut cs.namespace(|| "preimage_hash_bits"))?;
 
@@ -55,7 +50,7 @@ fn synthesize_blake2s<F: LurkField, CS: ConstraintSystem<F>>(
         little_endian_bits.extend_from_slice(chunk);
     }
 
-    let mut digest_bits = blake2s(cs.namespace(|| "digest_bits"), &little_endian_bits, &personalization)?;
+    let digest_bits = blake2s(cs.namespace(|| "digest_bits"), &little_endian_bits, &personalization)?;
 
     let mut little_endian_digest_bits = Vec::new();
     let chunks = digest_bits.chunks(8);
@@ -70,19 +65,21 @@ fn synthesize_blake2s<F: LurkField, CS: ConstraintSystem<F>>(
 
     AllocatedPtr::alloc_tag(
         &mut cs.namespace(|| "output_expr"),
-        ExprTag::Num.to_field(),
+        F::from(4),
         digest_scalar,
     )
 }
 
-fn compute_blake2s<F: LurkField, T: Tag>(n: usize, z_ptrs: &[ZPtr<T, F>]) -> F {
+fn compute_blake2s<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> F {
+    let z_ptrs = ptrs.iter().map(|ptr| s.hash_ptr(ptr)).collect::<Vec<_>>();
+
     let personalization: [u8; 8] = [0; 8];
     let mut hasher = Blake2sParams::new()
         .hash_length(32)
         .personal(&personalization)
         .to_state();
 
-    let mut input = vec![0u8; 32 * n];
+    let mut input = vec![0u8; 64];
 
     for (i, z_ptr) in z_ptrs.iter().rev().enumerate() {
         let hash_zptr = z_ptr.value();
@@ -133,8 +130,7 @@ impl<F: LurkField> Coprocessor<F> for Blake2sCoprocessor<F> {
     }
 
     fn evaluate_simple(&self, s: &Store<F>, args: &[Ptr]) -> Ptr {
-        let z_ptrs = args.iter().map(|ptr| s.hash_ptr(ptr)).collect::<Vec<_>>();
-        s.num(compute_blake2s(self.n, &z_ptrs))
+        s.num(compute_blake2s(s, &args))
     }
 }
 
@@ -150,14 +146,4 @@ impl<F: LurkField> Blake2sCoprocessor<F> {
 #[derive(Clone, Debug, Coproc, Serialize, Deserialize)]
 pub enum Blake2sCoproc<F: LurkField> {
     SC(Blake2sCoprocessor<F>),
-}
-
-impl<'a, Fq> Serialize for MultiFrame<'a, Fq, Blake2sCoproc<Fq>> where Fq: Serialize + LurkField {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-    {
-        // This is a dummy implementation that does nothing
-        serializer.serialize_unit()
-    }
 }

@@ -9,25 +9,28 @@ use ff::{
     derive::byteorder::{ByteOrder, LittleEndian},
     Field, PrimeField, PrimeFieldBits,
 };
-use crate::coprocessor::ecc::AllocatedPoint;
+use super::ecc::AllocatedPoint;
 use num_bigint::BigUint;
 use pasta_curves::group::Group;
 use rand::{RngCore};
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_512};
 use lurk_macros::Coproc;
-use crate::circuit::gadgets::pointer::AllocatedPtr;
-use crate::coprocessor::{CoCircuit, Coprocessor};
-use crate::field::LurkField;
-use crate::lem::pointers::Ptr;
-use crate::lem::store::Store;
-use crate::lem::multiframe::MultiFrame;
-use crate::tag::{ExprTag, Tag};
-use crate::z_ptr::ZPtr;
-use crate::{self as lurk};
+use lurk::{
+    circuit::gadgets::pointer::AllocatedPtr,
+    coprocessor::{CoCircuit, Coprocessor},
+    field::LurkField,
+    lem::pointers::Ptr,
+    lem::store::Store,
+};
+use lazy_static::lazy_static;
 use pasta_curves::group::GroupEncoding;
 
 type G2 = pasta_curves::vesta::Point;
+
+lazy_static! {
+    static ref IO_TRUE_HASH: Vec<u8> = hex::decode("5698a149855d3a8b3ac99e32b65ce146f00163130070c245a2262b46c5dbc804").unwrap();
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChecksigCoprocessor<F: LurkField> {
@@ -57,25 +60,25 @@ fn synthesize_checksig<F: LurkField, CS: ConstraintSystem<F>>(
 
     let _ = verify_signature(cs, &pk, &r, &s, &c);
 
-    let hex_str = "5698a149855d3a8b3ac99e32b65ce146f00163130070c245a2262b46c5dbc804";
     let t = AllocatedNum::alloc(cs.namespace(|| "t"), || {
-        let t_bytes = hex::decode(hex_str).unwrap();
-        Ok(F::from_bytes(&t_bytes).unwrap())
+        Ok(F::from_bytes(&IO_TRUE_HASH).unwrap())
     })?;
     AllocatedPtr::alloc_tag(
         &mut cs.namespace(|| "output_expr"),
-        ExprTag::Sym.to_field(),
+        F::from_u64(2),
         t,
     )
 }
 
-fn compute_checksig<F: LurkField, T: Tag>(s: &Store<F>, z_ptrs: &[ZPtr<T, F>]) -> Ptr {
+fn compute_checksig<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
+    let z_ptrs = ptrs.iter().map(|ptr| s.hash_ptr(ptr)).collect::<Vec<_>>();
+
     let r_x = z_ptrs[0].value().to_bytes();
     let r_y = z_ptrs[1].value().to_bytes();
-    let mut s_bytes = z_ptrs[2].value().to_bytes();
+    let s_bytes = z_ptrs[2].value().to_bytes();
     let pk_x = z_ptrs[3].value().to_bytes();
     let pk_y = z_ptrs[4].value().to_bytes();
-    let mut m_bytes = z_ptrs[5].value().to_bytes();
+    let m_bytes = z_ptrs[5].value().to_bytes();
 
     let pk_xy = from_xy(pk_x, pk_y);
     let pk = PublicKey::<G2>::from_point(pk_xy);
@@ -115,8 +118,8 @@ impl<F: LurkField> CoCircuit<F> for ChecksigCoprocessor<F> {
     fn synthesize_simple<CS: ConstraintSystem<F>>(
         &self,
         cs: &mut CS,
-        _g: &crate::lem::circuit::GlobalAllocator<F>,
-        _s: &crate::lem::store::Store<F>,
+        _g: &lurk::lem::circuit::GlobalAllocator<F>,
+        _s: &lurk::lem::store::Store<F>,
         _not_dummy: &Boolean,
         args: &[AllocatedPtr<F>],
     ) -> Result<AllocatedPtr<F>, SynthesisError> {
@@ -134,8 +137,7 @@ impl<F: LurkField> Coprocessor<F> for ChecksigCoprocessor<F> {
     }
 
     fn evaluate_simple(&self, s: &Store<F>, args: &[Ptr]) -> Ptr {
-        let z_ptrs = args.iter().map(|ptr| s.hash_ptr(ptr)).collect::<Vec<_>>();
-        compute_checksig(s, &z_ptrs)
+        compute_checksig(s, &args)
     }
 }
 
@@ -151,16 +153,6 @@ impl<F: LurkField> ChecksigCoprocessor<F> {
 #[derive(Clone, Debug, Coproc, Serialize, Deserialize)]
 pub enum ChecksigCoproc<F: LurkField> {
     SC(ChecksigCoprocessor<F>),
-}
-
-impl<'a, Fq> Serialize for MultiFrame<'a, Fq, ChecksigCoproc<Fq>> where Fq: Serialize + LurkField {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-    {
-        // This is a dummy implementation that does nothing
-        serializer.serialize_unit()
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -460,6 +452,8 @@ mod tests {
         assert_eq!(cs.num_constraints(), 0);
 
         let sk = SecretKey::<G2>::random(&mut OsRng);
+        let hex_string: String = sk.0.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        println!("sk {}", hex_string);
         //let sk2 = SecretKey::<G2>::random(&mut OsRng);
         //let pk = PublicKey::from_secret_key(&sk2);
         let pk = PublicKey::from_secret_key(&sk);
@@ -472,8 +466,16 @@ mod tests {
 
         // sign and verify
         let signature = sk.sign(c, &mut OsRng);
+        let hex_string: String = signature.r.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        println!("*sig_r {}", hex_string);
+        let hex_string: String = signature.s.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        println!("*sig_s {}", hex_string);
+        let hex_string: String = pk.0.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        println!("*pk {}", hex_string);
+        let hex_string: String = c.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        println!("*m {}", hex_string);
         let result = pk.verify(c, &signature);
-        //assert!(result);
+        assert!(result);
 
         // prepare inputs to the circuit gadget
         let pk = {
@@ -519,6 +521,8 @@ mod tests {
 
             synthesize_bits2(&mut cs.namespace(|| "c bits"), &Some(c_bits)).unwrap()
         };
+
+
 
         // Check the signature was signed by the correct sk using the pk
         verify_signature(&mut cs, &pk, &r, &s, &c).unwrap();

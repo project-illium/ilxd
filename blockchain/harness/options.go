@@ -16,7 +16,7 @@ import (
 
 const (
 	defaultNetworkKey = "080112403dc9255cbaeb93921acf3589b8314433fc7ec0238c05d8559568ddf8da90b54a8d63fe6aaff827bef5bbfddcca441750ff617c439fb9866f9329b80afe22ada6"
-	defaultSpendKey   = "080512407947fd46daa4ccf08db89e983c0d60f2571d6abdd1ffa595dc2adb8639f6490560bdce4d2baed5185bc3105e42c2af4293d5d0db329fcaf9d7cd3925ef448e83"
+	defaultSpendKey   = "080512407947fd46daa4ccf08db89e983c0d60f2571d6abdd1ffa595dc2adb8639f64905838e44ef2539cdd7f9ca9f32dbd0d59342afc2425e10c35b18d5ae2b4dcebd60"
 )
 
 func DefaultOptions() Option {

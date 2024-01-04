@@ -26,7 +26,8 @@ pub extern "C" fn generate_secret_key(out: *mut u8) {
     }
 
     let sk = SecretKey::<G2>::random(&mut OsRng);
-    let sk_bytes = sk.0.to_repr();
+    let mut sk_bytes = sk.0.to_repr();
+    sk_bytes.reverse();
 
     // Copy the secret key bytes to the provided output buffer
     unsafe {
@@ -49,7 +50,8 @@ pub extern "C" fn secret_key_from_seed(seed: *const u8, out: *mut u8) {
     let mut rng = ChaChaRng::from_seed(seed_array);
 
     let sk = SecretKey::<G2>::random(&mut rng);
-    let sk_bytes = sk.0.to_repr();
+    let mut sk_bytes = sk.0.to_repr();
+    sk_bytes.reverse();
 
     // Copy the secret key bytes to the provided output buffer
     unsafe {
@@ -166,7 +168,8 @@ pub extern "C" fn sign(privkey: *const u8, message_digest: *const u8, out: *mut 
 
     // Serialize the signature into the provided output buffer
     let r = signature.r.to_bytes();
-    let s = signature.s.to_repr();
+    let mut s = signature.s.to_repr();
+    s.reverse();
 
     let mut serialized_data = Vec::new();
     serialized_data.extend_from_slice(&r);
@@ -215,6 +218,7 @@ pub extern "C" fn verify(pub_bytes: *const u8, digest_bytes: *const u8, sig_r: *
 
     let r = G2::from_bytes(&sig_r_bytes).unwrap();
 
+    sig_s_bytes.reverse();
     let mut u64_s_array: [u64; 4] = [0; 4];
     for i in 0..4 {
         for j in 0..8 {

@@ -45,7 +45,7 @@ func TestNova(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, valid)
 
-	valid, err = pub.Verify([]byte("fake message"), sig)
+	valid, err = pub.Verify(hash.HashFunc([]byte("fake message")), sig)
 	assert.NoError(t, err)
 	assert.False(t, valid)
 
