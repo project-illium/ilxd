@@ -52,7 +52,6 @@ func TestCoprocessors(t *testing.T) {
 	})
 
 	t.Run("blake2s", func(t *testing.T) {
-
 		left, err := randomFieldElement()
 		assert.NoError(t, err)
 		right, err := randomFieldElement()
@@ -99,11 +98,4 @@ func TestCoprocessors(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, valid)
 	})
-}
-
-func reverseBytes(b []byte) []byte {
-	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
-		b[i], b[j] = b[j], b[i]
-	}
-	return b
 }
