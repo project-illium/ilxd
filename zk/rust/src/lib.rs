@@ -15,7 +15,7 @@ use lurk::{
     eval::lang::{Lang, Coproc},
     field::LurkField,
     lem::{
-        eval::{evaluate, evaluate_simple, make_eval_step_from_config, EvalConfig},
+        eval::{evaluate, evaluate_simple, make_cprocs_funcs_from_lang, make_eval_step_from_config, EvalConfig},
         multiframe::MultiFrame,
         store::Store,
     },
@@ -232,7 +232,6 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
 
     let call = store.read_with_default_state(expr.as_str())?;
 
-
     let mut lang = Lang::<Fr, MultiCoproc<Fr>>::new();
     lang.add_coprocessor(cproc_sym_xor, XorCoprocessor::new());
     lang.add_coprocessor(cproc_sym_checksig, ChecksigCoprocessor::new());
@@ -240,7 +239,8 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     let lang_rc = Arc::new(lang.clone());
 
     let lurk_step = make_eval_step_from_config(&EvalConfig::new_nivc(&lang));
-    let frames = evaluate(Some((&lurk_step, &lang)), call, store, max_steps).unwrap();
+    let cprocs = make_cprocs_funcs_from_lang(&lang);
+    let frames = evaluate(Some((&lurk_step, &cprocs, &lang)), call, store, max_steps).unwrap();
 
     let supernova_prover = SuperNovaProver::<Fr, MultiCoproc<Fr>, MultiFrame<'_, _, _>>::new(
         REDUCTION_COUNT,
