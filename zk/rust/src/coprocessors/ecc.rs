@@ -88,6 +88,7 @@ impl<F> AllocatedPoint<F>
         }
 
     /// checks if `self` is on the curve or if it is infinity
+    #[allow(dead_code)]
     pub fn check_on_curve<CS>(&self, mut cs: CS) -> Result<(), SynthesisError>
         where
             CS: ConstraintSystem<F>,
@@ -634,11 +635,13 @@ impl<F> AllocatedPointNonInfinity<F>
         F: PrimeField,
 {
     /// Creates a new `AllocatedPointNonInfinity` from the specified coordinates
+    #[allow(dead_code)]
     pub const fn new(x: AllocatedNum<F>, y: AllocatedNum<F>) -> Self {
         Self { x, y }
     }
 
     /// Allocates a new point on the curve using coordinates provided by `coords`.
+    #[allow(dead_code)]
     pub fn alloc<CS: ConstraintSystem<F>>(
         mut cs: CS,
         coords: Option<(F, F)>,
@@ -674,6 +677,7 @@ impl<F> AllocatedPointNonInfinity<F>
     }
 
     /// Returns coordinates associated with the point.
+    #[allow(dead_code)]
     pub const fn get_coordinates(&self) -> (&AllocatedNum<F>, &AllocatedNum<F>) {
         (&self.x, &self.y)
     }

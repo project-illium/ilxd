@@ -1,12 +1,18 @@
 !(module crypto (
-        ;; check-sig verifies the signature covering the sig-hash against
+        ;; checksig verifies the signature covering the sighash against
         ;; the provided public key. This function uses the Nova signature
         ;; algorithm with the Vesta Curve.
         ;;
-        ;; signature - (cons sig-r sig-s)
-        ;; pubkey    - (cons pubkey-x-coordinate pubkey-y-coordinate)
-        ;; sighash   - blake2slurk hash
-        !(defun check-sig (signature pubkey sighash) (
-                (eval (cons 'check_ecc_sig (cons (car signature) (cons (car (cdr signature)) (cons (car pubkey) (cons (car (cdr pubkey)) (cons sighash nil)))))))
+        ;; sig       - (cons sig-rx (cons sig-ry (cons sig-s nil)))
+        ;; pubkey    - (cons pubkey-x pubkey-y)
+        ;; sighash   - blake2s-hash
+        ;;
+        ;; return t or nil
+        ;;
+        ;; Note: nil will only be returned if the signature if properly
+        ;; formatted but invalid. Proving will fail if the signature is
+        ;; malformatted.
+        !(defun checksig (sig pubkey sighash) (
+                (eval (cons 'coproc_checksig (cons (car sig) (cons (car (cdr sig)) (cons (car (cdr (cdr sig))) (cons (car pubkey) (cons (car (cdr pubkey)) (cons sighash nil))))))))
         ))
 ))

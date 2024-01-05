@@ -9,6 +9,7 @@ use ff::{PrimeField, PrimeFieldBits};
 use itertools::Itertools as _;
 
 /// Gets as input the little indian representation of a number and spits out the number
+#[allow(dead_code)]
 pub fn le_bits_to_num<Scalar, CS>(
     mut cs: CS,
     bits: &[AllocatedBit],
@@ -138,6 +139,7 @@ pub fn conditionally_select<F: PrimeField, CS: ConstraintSystem<F>>(
 }
 
 /// If condition return a otherwise b
+#[allow(dead_code)]
 pub fn conditionally_select_vec<F: PrimeField, CS: ConstraintSystem<F>>(
     mut cs: CS,
     a: &[AllocatedNum<F>],
@@ -320,6 +322,66 @@ pub fn select_num_or_one<F: PrimeField, CS: ConstraintSystem<F>>(
         |lc| lc + a.get_variable() - CS::one(),
         |_| condition.lc(CS::one(), F::ONE),
         |lc| lc + c.get_variable() - CS::one(),
+    );
+
+    Ok(c)
+}
+
+/// Takes two allocated numbers (`a`, `b`) and returns `a` if the condition is true, and `b` otherwise.
+pub fn pick<F: PrimeField, CS: ConstraintSystem<F>>(
+    mut cs: CS,
+    condition: &Boolean,
+    a: &AllocatedNum<F>,
+    b: &AllocatedNum<F>,
+) -> Result<AllocatedNum<F>, SynthesisError> {
+    let c = AllocatedNum::alloc(cs.namespace(|| "pick result"), || {
+        if condition
+            .get_value()
+            .ok_or(SynthesisError::AssignmentMissing)?
+        {
+            Ok(a.get_value().ok_or(SynthesisError::AssignmentMissing)?)
+        } else {
+            Ok(b.get_value().ok_or(SynthesisError::AssignmentMissing)?)
+        }
+    })?;
+
+    // Constrain (b - a) * condition = (b - c), ensuring c = a iff
+    // condition is true, otherwise c = b.
+    cs.enforce(
+        || "pick",
+        |lc| lc + b.get_variable() - a.get_variable(),
+        |_| condition.lc(CS::one(), F::ONE),
+        |lc| lc + b.get_variable() - c.get_variable(),
+    );
+
+    Ok(c)
+}
+
+/// Takes two numbers (`a`, `b`) and returns `a` if the condition is true, and `b` otherwise.
+pub fn pick_const<F: PrimeField, CS: ConstraintSystem<F>>(
+    mut cs: CS,
+    condition: &Boolean,
+    a: F,
+    b: F,
+) -> Result<AllocatedNum<F>, SynthesisError> {
+    let c = AllocatedNum::alloc(cs.namespace(|| "pick result"), || {
+        if condition
+            .get_value()
+            .ok_or(SynthesisError::AssignmentMissing)?
+        {
+            Ok(a)
+        } else {
+            Ok(b)
+        }
+    })?;
+
+    // Constrain (b - a) * condition = (b - c), ensuring c = a iff
+    // condition is true, otherwise c = b.
+    cs.enforce(
+        || "pick",
+        |lc| lc + (b, CS::one()) - (a, CS::one()),
+        |_| condition.lc(CS::one(), F::ONE),
+        |lc| lc + (b, CS::one()) - c.get_variable(),
     );
 
     Ok(c)

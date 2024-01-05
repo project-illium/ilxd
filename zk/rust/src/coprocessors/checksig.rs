@@ -17,7 +17,10 @@ use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_512};
 use lurk_macros::Coproc;
 use lurk::{
-    circuit::gadgets::pointer::AllocatedPtr,
+    circuit::gadgets::{
+        pointer::AllocatedPtr,
+        constraints::alloc_equal,
+    },
     coprocessor::{CoCircuit, Coprocessor},
     field::LurkField,
     lem::pointers::Ptr,
@@ -25,11 +28,13 @@ use lurk::{
 };
 use lazy_static::lazy_static;
 use pasta_curves::group::GroupEncoding;
+use super::utils::{pick, pick_const};
 
 type G2 = pasta_curves::vesta::Point;
 
 lazy_static! {
     static ref IO_TRUE_HASH: Vec<u8> = hex::decode("5698a149855d3a8b3ac99e32b65ce146f00163130070c245a2262b46c5dbc804").unwrap();
+    static ref IO_FALSE_HASH: Vec<u8> = hex::decode("27345e8c5736d418e5a91fa58d8e6b220b682c6501734ad8a3841adc730de72c").unwrap();
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -58,15 +63,28 @@ fn synthesize_checksig<F: LurkField, CS: ConstraintSystem<F>>(
     let s = synthesize_bits(&mut cs.namespace(|| "s bits"), sig_s_bits)?;
     let c = synthesize_bits(&mut cs.namespace(|| "c bits"), c_bits)?;
 
-    let _ = verify_signature(cs, &pk, &r, &s, &c);
+    let valid = verify_signature(cs, &pk, &r, &s, &c)?;
 
     let t = AllocatedNum::alloc(cs.namespace(|| "t"), || {
         Ok(F::from_bytes(&IO_TRUE_HASH).unwrap())
     })?;
+    let f = AllocatedNum::alloc(cs.namespace(|| "f"), || {
+            Ok(F::from_bytes(&IO_FALSE_HASH).unwrap())
+    })?;
+
+    let resp = pick(cs.namespace(|| "pick"), &valid, &t, &f)?;
+
+    let t_tag = F::from_u64(2);
+    let f_tag = F::from_u64(0);
+
+    let tag = pick_const(cs.namespace(|| "pick_tag"), &valid, t_tag, f_tag)?;
+
+    let tag_type = tag.get_value().unwrap_or(t_tag);
+
     AllocatedPtr::alloc_tag(
         &mut cs.namespace(|| "output_expr"),
-        F::from_u64(2),
-        t,
+        tag_type,
+        resp,
     )
 }
 
@@ -249,7 +267,7 @@ impl<G> SecretKey<G>
         LittleEndian::read_u64_into(digest, &mut bits);
         Self::mul_bits(&G::Scalar::ONE, BitIterator::new(bits))
     }
-
+    #[allow(dead_code)]
     pub fn to_uniform_32(digest: &[u8]) -> G::Scalar {
         assert_eq!(digest.len(), 32);
         let mut bits: [u64; 4] = [0; 4];
@@ -374,7 +392,7 @@ pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
     r: &AllocatedPoint<F>,
     s_bits: &[AllocatedBit],
     c_bits: &[AllocatedBit],
-) -> Result<(), SynthesisError> {
+) -> Result<Boolean, SynthesisError> {
     let g = AllocatedPoint::<F>::alloc(
         cs.namespace(|| "g"),
         Some((
@@ -387,27 +405,24 @@ pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
         )),
     )?;
 
-    cs.enforce(
-        || "gx is vesta curve",
-        |lc| lc + g.get_coordinates().0.get_variable(),
-        |lc| lc + CS::one(),
-        |lc| {
-            lc + (
-                F::from_str_vartime(
-                    "28948022309329048855892746252171976963363056481941647379679742748393362948096",
-                )
-                    .unwrap(),
-                CS::one(),
-            )
-        },
-    );
+    // g is vesta curve
+    let (gx, gy, _) = g.get_coordinates();
+    let ex = AllocatedNum::alloc(
+        &mut cs.namespace(|| "gx coordinate"),
+        || { Ok(F::from_str_vartime("28948022309329048855892746252171976963363056481941647379679742748393362948096").unwrap())}
+    )?;
+    let ey = AllocatedNum::alloc(
+        &mut cs.namespace(|| "gy coordinate"),
+        || { Ok(F::from_str_vartime("2").unwrap())}
+    )?;
 
-    cs.enforce(
-        || "gy is vesta curve",
-        |lc| lc + g.get_coordinates().1.get_variable(),
-        |lc| lc + CS::one(),
-        |lc| lc + (F::from_str_vartime("2").unwrap(), CS::one()),
-    );
+    let gx_equal_bit = alloc_equal(&mut cs.namespace(|| "gx is on curve"), gx, &ex);
+    let gy_equal_bit = alloc_equal(&mut cs.namespace(|| "gy is on curve"), gy, &ey);
+    let g_bool: Boolean = Boolean::and(
+        &mut cs.namespace(|| "g_and"),
+        &gx_equal_bit.unwrap(),
+        &gy_equal_bit.unwrap(),
+    )?;
 
     let sg = g.scalar_mul(cs.namespace(|| "[s]G"), s_bits)?;
     let cpk = pk.scalar_mul(&mut cs.namespace(|| "[c]PK"), c_bits)?;
@@ -416,21 +431,20 @@ pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
     let (rcpk_x, rcpk_y, _) = rcpk.get_coordinates();
     let (sg_x, sg_y, _) = sg.get_coordinates();
 
-    cs.enforce(
-        || "sg_x == rcpk_x",
-        |lc| lc + sg_x.get_variable(),
-        |lc| lc + CS::one(),
-        |lc| lc + rcpk_x.get_variable(),
-    );
+    let sgx_equal_bit = alloc_equal(&mut cs.namespace(|| "sg_x == rcpk_x"), sg_x, rcpk_x);
+    let sgy_equal_bit = alloc_equal(&mut cs.namespace(|| "sg_y == rcpk_y"), sg_y, rcpk_y);
 
-    cs.enforce(
-        || "sg_y == rcpk_y",
-        |lc| lc + sg_y.get_variable(),
-        |lc| lc + CS::one(),
-        |lc| lc + rcpk_y.get_variable(),
-    );
+    let sg_bool: Boolean = Boolean::and(
+        &mut cs.namespace(|| "sg_and"),
+        &sgx_equal_bit.unwrap(),
+        &sgy_equal_bit.unwrap(),
+    )?;
 
-    Ok(())
+    Boolean::and(
+        &mut cs.namespace(|| "sig_is_valid"),
+        &g_bool,
+        &sg_bool,
+    )
 }
 
 #[cfg(test)]
