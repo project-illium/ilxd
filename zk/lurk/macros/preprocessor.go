@@ -693,8 +693,20 @@ func macroExpandDefun(lurkProgram string) string {
 				p.pos += 8 // Skip over "!(defun"
 				name := strings.TrimSpace(p.ReadUntil('('))
 				params := p.ParseSExpr()
-				p.ReadUntil('(')
+
+				p.Consume()
 				body := p.ParseSExpr()
+				if len(body) >= 2 {
+					b := removeComments(body)
+					b = strings.ReplaceAll(b, " ", "")
+					b = strings.ReplaceAll(b, "\n", "")
+					b = strings.ReplaceAll(b, "\t", "")
+					b = removeComments(b)
+					if b[1] == '!' || b[1] == '(' {
+						body = strings.TrimPrefix(body, "(")
+						body = strings.TrimSuffix(body, ")")
+					}
+				}
 
 				result += fmt.Sprintf("(letrec ((%s (lambda %s %s)))", name, params, body)
 				p.ReadUntil(')')
