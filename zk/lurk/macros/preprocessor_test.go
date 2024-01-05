@@ -102,6 +102,7 @@ func TestPreProcessValidParentheses(t *testing.T) {
 		{"!(defrec x (car y))", "(letrec ((x (car y))))"},
 		{"!(defrec x 3) t", "(letrec ((x 3)) t)"},
 		{"!(defrec x (car y)) t", "(letrec ((x (car y))) t)"},
+		{"!(defun f (x) 3)", "(letrec ((f (lambda (x) 3))))"},
 		{"!(defun f (x) (+ x 3))", "(letrec ((f (lambda (x) (+ x 3)))))"},
 		{"!(defun f (x) (+ x 3)) t", "(letrec ((f (lambda (x) (+ x 3)))) t)"},
 		{"!(assert t)", "(if (eq t nil) nil)"},
@@ -109,7 +110,7 @@ func TestPreProcessValidParentheses(t *testing.T) {
 		{"!(assert t) nil", "(if (eq t nil) nil nil)"},
 		{"!(assert-eq x 3)", "(if (eq (eq x 3 ) nil) nil)"},
 		{"!(assert-eq x 3) t", "(if (eq (eq x 3 ) nil) nil t)"},
-		{"!(defun f (x) (!(assert t) 3))", "(letrec ((f (lambda (x) ((if (eq t nil) nil 3))))))"},
+		{"!(defun f (x) (!(assert t) 3))", "(letrec ((f (lambda (x) (if (eq t nil) nil 3)))))"},
 		{"(lambda (script-params unlocking-params input-index private-params public-params) !(assert-eq (+ x 5) 4) !(def z 5) !(assert t) t)", "(lambda (script-params unlocking-params input-index private-params public-params) (if (eq (eq (+ x 5) 4) nil) nil (let ((z 5)) (if (eq t nil) nil t))))"},
 		{"!(list 1 2 3 4)", "(cons 1 (cons 2 (cons 3 (cons 4 nil))))"},
 		{"!(list 1 (car x) 3 4)", "(cons 1 (cons (car x) (cons 3 (cons 4 nil))))"},
@@ -174,6 +175,7 @@ func TestMacroImports(t *testing.T) {
 	mod1 := `!(module math (
 			!(defun plus-two (x) (+ x 2))
 			!(defun plus-three (x) (+ x 3))
+			!(def some-const 1234)
 		))
 
 		!(module time (
@@ -188,7 +190,7 @@ func TestMacroImports(t *testing.T) {
 				(plus-two 10)
 			))`,
 			modules:  []module{{path: filepath.Join(tempDir, "mod.lurk"), file: mod1}},
-			expected: "(letrec ((my-func (lambda (y) ((letrec ((plus-two (lambda (x) (+ x 2))))(letrec ((plus-three (lambda (x) (+ x 3))))(plus-two 10))))))))",
+			expected: "(letrec ((my-func (lambda (y) (letrec ((plus-two (lambda (x) (+ x 2))))(letrec ((plus-three (lambda (x) (+ x 3))))(let ((some-const 1234))(plus-two 10))))))))",
 		},
 		{
 			input: `!(defun my-func (y) (
@@ -196,7 +198,7 @@ func TestMacroImports(t *testing.T) {
 				(plus-two 10)
 			))`,
 			modules:  []module{{path: filepath.Join(tempDir, "mod.lurk"), file: mod1}},
-			expected: "(letrec ((my-func (lambda (y) ((if (eq (<= (nth 9 public-params) 30) nil) nil(plus-two 10)))))))",
+			expected: "(letrec ((my-func (lambda (y) (if (eq (<= (nth 9 public-params) 30) nil) nil(plus-two 10))))))",
 		},
 		{
 			input: `!(defun my-func (y) (
@@ -204,7 +206,23 @@ func TestMacroImports(t *testing.T) {
 				(plus-two 10)
 			))`,
 			modules:  []module{{path: filepath.Join(tempDir, "std", "mod.lurk"), file: mod1}},
-			expected: "(letrec ((my-func (lambda (y) ((letrec ((plus-two (lambda (x) (+ x 2))))(letrec ((plus-three (lambda (x) (+ x 3))))(plus-two 10))))))))",
+			expected: "(letrec ((my-func (lambda (y) (letrec ((plus-two (lambda (x) (+ x 2))))(letrec ((plus-three (lambda (x) (+ x 3))))(let ((some-const 1234))(plus-two 10))))))))",
+		},
+		{
+			input: `!(defun my-func (y) (
+				!(import math/plus-two)
+				(plus-two 10)
+			))`,
+			modules:  []module{{path: filepath.Join(tempDir, "mod.lurk"), file: mod1}},
+			expected: "(letrec ((my-func (lambda (y) (letrec ((plus-two (lambda (x) (+ x 2))))(plus-two 10))))))",
+		},
+		{
+			input: `!(defun my-func (y) (
+				!(import math/some-const)
+				(+ some-const 21)
+			))`,
+			modules:  []module{{path: filepath.Join(tempDir, "mod.lurk"), file: mod1}},
+			expected: "(letrec ((my-func (lambda (y) (let ((some-const 1234))(+ some-const 21))))))",
 		},
 	}
 
@@ -283,6 +301,6 @@ func TestWithStandardLib(t *testing.T) {
 	lurkProgram = strings.ReplaceAll(lurkProgram, "\t", "")
 	lurkProgram = strings.Join(strings.Fields(lurkProgram), " ")
 	assert.True(t, isValid(lurkProgram))
-	expected := `(letrec ((my-func (lambda (y) ( (letrec ((check-sig (lambda (signature pubkey sighash) ( (eval (cons 'check_ecc_sig (cons (car signature) (cons (car (cdr signature)) (cons (car pubkey) (cons (car (cdr pubkey)) (cons sighash nil))))))) ))))(check-sig 10)))))))`
+	expected := `(letrec ((my-func (lambda (y) (letrec ((check-sig (lambda (signature pubkey sighash) (eval (cons 'check_ecc_sig (cons (car signature) (cons (car (cdr signature)) (cons (car pubkey) (cons (car (cdr pubkey)) (cons sighash nil))))))) )))(check-sig 10))))))`
 	assert.Equal(t, expected, lurkProgram)
 }
