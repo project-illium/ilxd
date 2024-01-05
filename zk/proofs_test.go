@@ -60,8 +60,8 @@ func TestCoprocessors(t *testing.T) {
 		h := hash.HashMerkleBranches(left[:], right[:])
 
 		program := fmt.Sprintf(`(lambda (priv pub) (letrec ((cat-and-hash (lambda (a b)
-                                    (eval (cons 'coproc_blake2s (cons a (cons b nil)))))))
-                            (= (cat-and-hash priv pub) 0x%x)))`, h)
+                                    			(eval (cons 'coproc_blake2s (cons a (cons b nil)))))))
+											(= (cat-and-hash priv pub) 0x%x)))`, h)
 
 		proof, err := Prove(program, Expr(fmt.Sprintf("0x%x", left)), Expr(fmt.Sprintf("0x%x", right)))
 		assert.NoError(t, err)
