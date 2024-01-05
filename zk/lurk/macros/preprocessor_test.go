@@ -206,6 +206,14 @@ func TestMacroImports(t *testing.T) {
 			modules:  []module{{path: filepath.Join(tempDir, "std", "mod.lurk"), file: mod1}},
 			expected: "(letrec ((my-func (lambda (y) ((letrec ((plus-two (lambda (x) (+ x 2))))(letrec ((plus-three (lambda (x) (+ x 3))))(plus-two 10))))))))",
 		},
+		{
+			input: `!(defun my-func (y) (
+				!(import math/plus-two)
+				(plus-two 10)
+			))`,
+			modules:  []module{{path: filepath.Join(tempDir, "mod.lurk"), file: mod1}},
+			expected: "(letrec ((my-func (lambda (y) ((letrec ((plus-two (lambda (x) (+ x 2))))(plus-two 10)))))))",
+		},
 	}
 
 	mp, err := macros.NewMacroPreprocessor(macros.DependencyDir(tempDir))

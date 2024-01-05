@@ -170,6 +170,97 @@ func extractModule(files []string, moduleName string) (string, error) {
 	return moduleContent, nil
 }
 
+func extractModuleExpression(moduleContent, exprName string) (string, error) {
+	expression := ""
+
+	p := NewParser(moduleContent)
+	for p.Peek() != 0 {
+		if strings.HasPrefix(p.input[p.pos:], "!(defun") {
+			startPos := p.pos
+			p.pos += 8 // Skip over "!(defun"
+			nameStart := p.pos
+
+			for p.Peek() != ' ' && p.Peek() != 0 {
+				p.Consume()
+			}
+
+			name := p.input[nameStart:p.pos]
+			if name == exprName {
+				depth := 1
+				for depth > 0 && p.Peek() != 0 {
+					if p.Peek() == '(' {
+						depth++
+					} else if p.Peek() == ')' {
+						depth--
+					}
+					if depth > 0 {
+						p.Consume()
+					}
+				}
+				p.Consume()
+				p.Consume()
+				expression += p.input[startPos:p.pos-1] + "\n" // Exclude the closing parenthesis
+			}
+		} else if strings.HasPrefix(p.input[p.pos:], "!(def") {
+			startPos := p.pos
+			p.pos += 6 // Skip over "!(def"
+			nameStart := p.pos
+
+			for p.Peek() != ' ' && p.Peek() != 0 {
+				p.Consume()
+			}
+
+			name := p.input[nameStart:p.pos]
+			if name == exprName {
+				depth := 1
+				for depth > 0 && p.Peek() != 0 {
+					if p.Peek() == '(' {
+						depth++
+					} else if p.Peek() == ')' {
+						depth--
+					}
+					if depth > 0 {
+						p.Consume()
+					}
+				}
+				p.Consume()
+				p.Consume()
+				expression += p.input[startPos:p.pos-1] + "\n" // Exclude the closing parenthesis
+			}
+		} else if strings.HasPrefix(p.input[p.pos:], "!(defrec") {
+			startPos := p.pos
+			p.pos += 9 // Skip over "!(defrec"
+			nameStart := p.pos
+
+			for p.Peek() != ' ' && p.Peek() != 0 {
+				p.Consume()
+			}
+
+			name := p.input[nameStart:p.pos]
+			if name == exprName {
+				depth := 1
+				for depth > 0 && p.Peek() != 0 {
+					if p.Peek() == '(' {
+						depth++
+					} else if p.Peek() == ')' {
+						depth--
+					}
+					if depth > 0 {
+						p.Consume()
+					}
+				}
+				p.Consume()
+				p.Consume()
+				expression += p.input[startPos:p.pos-1] + "\n" // Exclude the closing parenthesis
+			}
+		} else {
+			p.Consume()
+		}
+	}
+
+	return expression, nil
+}
+
 func macroExpandImport(lurkProgram string, dependencyDir *fsDirectory, dependencyChain []string) (string, error) {
 	var result string
 	p := NewParser(lurkProgram)
@@ -202,24 +293,50 @@ func macroExpandImport(lurkProgram string, dependencyDir *fsDirectory, dependenc
 			}
 
 			// The last split is the module name, everything else is part of the directory.
-			moduleName := splits[len(splits)-1]
-			dir := filepath.Join(append([]string{dependencyDir.path}, splits[:len(splits)-1]...)...)
+			var moduleContent string
+			secondPass := false
+			for {
+				moduleName := splits[len(splits)-1]
+				exprName := ""
+				dir := filepath.Join(append([]string{dependencyDir.path}, splits[:len(splits)-1]...)...)
+				if secondPass {
+					if len(splits) < 2 {
+						return "", errors.New("dependency file not found")
+					}
+					moduleName = splits[len(splits)-2]
+					exprName = splits[len(splits)-1]
+					dir = filepath.Join(append([]string{dependencyDir.path}, splits[:len(splits)-2]...)...)
+				}
 
-			// If there was only the module name without any directory, use dependencyDirectoryPath as the directory.
-			if len(splits) == 1 {
-				dir = dependencyDir.path
-			}
+				// If there was only the module name without any directory, use dependencyDirectoryPath as the directory.
+				if (!secondPass && len(splits) == 1) || (secondPass && len(splits) == 2) {
+					dir = dependencyDir.path
+				}
 
-			// Load files
-			files, err := loadFilesFromFS(dependencyDir.fileSystem, dir)
-			if err != nil {
-				return "", err
-			}
+				// Load files
+				files, err := loadFilesFromFS(dependencyDir.fileSystem, dir)
+				if err != nil {
+					if secondPass {
+						return "", err
+					} else {
+						secondPass = true
+						continue
+					}
+				}
+				// Extract module content
+				moduleContent, err = extractModule(files, moduleName)
+				if err != nil {
+					return "", err
+				}
 
-			// Extract module content
-			moduleContent, err := extractModule(files, moduleName)
-			if err != nil {
-				return "", err
+				if secondPass {
+					moduleContent, err = extractModuleExpression(moduleContent, exprName)
+					if err != nil {
+						return "", err
+					}
+				}
+
+				break
 			}
 
 			// Before returning the expanded content, process imports within the moduleContent
