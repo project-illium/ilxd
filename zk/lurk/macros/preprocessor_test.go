@@ -175,6 +175,7 @@ func TestMacroImports(t *testing.T) {
 	mod1 := `!(module math (
 			!(defun plus-two (x) (+ x 2))
 			!(defun plus-three (x) (+ x 3))
+			!(def some-const 1234)
 		))
 
 		!(module time (
@@ -189,7 +190,7 @@ func TestMacroImports(t *testing.T) {
 				(plus-two 10)
 			))`,
 			modules:  []module{{path: filepath.Join(tempDir, "mod.lurk"), file: mod1}},
-			expected: "(letrec ((my-func (lambda (y) (letrec ((plus-two (lambda (x) (+ x 2))))(letrec ((plus-three (lambda (x) (+ x 3))))(plus-two 10)))))))",
+			expected: "(letrec ((my-func (lambda (y) (letrec ((plus-two (lambda (x) (+ x 2))))(letrec ((plus-three (lambda (x) (+ x 3))))(let ((some-const 1234))(plus-two 10))))))))",
 		},
 		{
 			input: `!(defun my-func (y) (
@@ -205,7 +206,7 @@ func TestMacroImports(t *testing.T) {
 				(plus-two 10)
 			))`,
 			modules:  []module{{path: filepath.Join(tempDir, "std", "mod.lurk"), file: mod1}},
-			expected: "(letrec ((my-func (lambda (y) (letrec ((plus-two (lambda (x) (+ x 2))))(letrec ((plus-three (lambda (x) (+ x 3))))(plus-two 10)))))))",
+			expected: "(letrec ((my-func (lambda (y) (letrec ((plus-two (lambda (x) (+ x 2))))(letrec ((plus-three (lambda (x) (+ x 3))))(let ((some-const 1234))(plus-two 10))))))))",
 		},
 		{
 			input: `!(defun my-func (y) (
@@ -214,6 +215,14 @@ func TestMacroImports(t *testing.T) {
 			))`,
 			modules:  []module{{path: filepath.Join(tempDir, "mod.lurk"), file: mod1}},
 			expected: "(letrec ((my-func (lambda (y) (letrec ((plus-two (lambda (x) (+ x 2))))(plus-two 10))))))",
+		},
+		{
+			input: `!(defun my-func (y) (
+				!(import math/some-const)
+				(+ some-const 21)
+			))`,
+			modules:  []module{{path: filepath.Join(tempDir, "mod.lurk"), file: mod1}},
+			expected: "(letrec ((my-func (lambda (y) (let ((some-const 1234))(+ some-const 21))))))",
 		},
 	}
 
