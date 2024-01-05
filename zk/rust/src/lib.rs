@@ -153,7 +153,9 @@ pub extern "C" fn verify_proof_ffi(
     lurk_program: *const c_char,
     public_params: *const c_char,
     packed_proof: *const u8,
-    proof_size: usize
+    proof_size: usize,
+    expected_tag: *const u8,
+    expected_output: *const u8,
 ) -> i32 {
     let c_str1 = unsafe { CStr::from_ptr(lurk_program) };
     let program_str = match c_str1.to_str() {
@@ -174,11 +176,26 @@ pub extern "C" fn verify_proof_ffi(
     let mut commitment_vec = commitment.to_vec();
     commitment_vec.reverse();
 
+    let mut tag_array: [u8; 32] = [0; 32];
+    unsafe {
+        std::ptr::copy_nonoverlapping(expected_tag, tag_array.as_mut_ptr(), 32);
+    }
+    tag_array.reverse();
+
+    let mut output_array: [u8; 32] = [0; 32];
+    unsafe {
+        std::ptr::copy_nonoverlapping(expected_output, output_array.as_mut_ptr(), 32);
+    }
+    output_array.reverse();
+
     let res = match verify_proof(
         program_str.to_string(),
         commitment_vec,
         pub_params_str.to_string(),
-        proof.to_vec()) {
+        proof.to_vec(),
+        tag_array.to_vec(),
+        output_array.to_vec(),
+    ) {
         Ok(res) => res,
         Err(err) => {
             return -1
@@ -268,7 +285,14 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     Ok((combined_proof, ret_tag, ret_val))
 }
 
-fn verify_proof(lurk_program: String, commitment_bytes: Vec<u8>, public_params: String, proof: Vec<u8>) -> Result<bool, Box<dyn Error>> {
+fn verify_proof(
+    lurk_program: String,
+    commitment_bytes: Vec<u8>,
+    public_params: String,
+    proof: Vec<u8>,
+    expected_tag: Vec<u8>,
+    expected_output: Vec<u8>
+) -> Result<bool, Box<dyn Error>> {
     let commitment: String = commitment_bytes.iter().map(|byte| format!("{:02x}", byte)).collect();
 
     let expr = format!(r#"(letrec ((f {lurk_program}))(f (open 0x{commitment}) {public_params}))"#);
@@ -286,8 +310,8 @@ fn verify_proof(lurk_program: String, commitment_bytes: Vec<u8>, public_params: 
     z0.push(IO_CONT_HASH.clone());
 
     let mut zi: Vec<Fr> = Vec::with_capacity(6);
-    zi.push(IO_TWO.clone());
-    zi.push(IO_TRUE_HASH.clone());
+    zi.push(Fr::from_bytes(&expected_tag).unwrap());
+    zi.push(Fr::from_bytes(&expected_output).unwrap());
     zi.push(IO_ZERO.clone());
     zi.push(IO_ENV_HASH.clone());
     zi.push(IO_OUT_CONT_TAG.clone());
