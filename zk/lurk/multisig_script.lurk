@@ -3,7 +3,7 @@
 ;; of those keys. Each key must be a `Nova` public key and the signatures must
 ;; cover the transaction's sighash.
 ;;
-;; script-params must take the format:
+;; locking-params must take the format:
 ;; <threshold> <pubkey1-x> <pubkey1-y> <pubkey2-x> <pubkey-2y> ....
 ;;
 ;; unlocking-params must take the format:
@@ -14,12 +14,12 @@
 ;; against the public key at that index.
 ;;
 ;; Where each sig is a cons cell of (sig-r sig-s).
-(lambda (script-params unlocking-params input-index private-params public-params)
+(lambda (locking-params unlocking-params input-index private-params public-params)
         !(import std/crypto)
 
-        !(def threshold (car script-params))
+        !(def threshold (car locking-params))
         !(def key-selector (car unlocking-params))
-        !(def pubkeys (cdr script-params))
+        !(def pubkeys (cdr locking-params))
         !(def sigs (cdr unlocking-params))
         !(def sighash !(param sighash))
 

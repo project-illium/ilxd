@@ -1,7 +1,7 @@
 ;; The timelocked multisig script is the same as the normal multisig script except
 ;; the coins can only be spent after the timelock expires.
 ;;
-;; script-params must take the format:
+;; locking-params must take the format:
 ;; <lock-until> <threshold> <pubkey1-x> <pubkey1-y> <pubkey2-x> <pubkey-2y> ....
 ;;
 ;; unlocking-params must take the format:
@@ -16,13 +16,13 @@
 ;; The timelock precision is hardcoded to 600 seconds (10 minutes) this means a transaction
 ;; will only be valid for 10 minutes after it is signed. Feel free to adjust this value
 ;; for your use case.
-(lambda (script-params unlocking-params input-index private-params public-params)
+(lambda (locking-params unlocking-params input-index private-params public-params)
         !(import std/crypto)
 
-        !(def lock-until (car script-params))
-        !(def threshold (car (cdr script-params)))
+        !(def lock-until (car locking-params))
+        !(def threshold (car (cdr locking-params)))
         !(def key-selector (car unlocking-params))
-        !(def pubkeys (cdr (cdr script-params)))
+        !(def pubkeys (cdr (cdr locking-params)))
         !(def sigs (cdr unlocking-params))
         !(def sighash !(param sighash))
 

@@ -26,6 +26,13 @@ const (
 
 type LockingParams [][]byte
 
+func (lp *LockingParams) ToExpr() (string, error) {
+	if lp == nil || len(*lp) == 0 {
+		return "nil", nil
+	}
+	return buildLurkExpression(*lp)
+}
+
 // LockingScript represents a utxo script in which coins are locked.
 type LockingScript struct {
 	ScriptCommitment ID

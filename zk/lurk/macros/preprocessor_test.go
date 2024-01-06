@@ -5,7 +5,6 @@
 package macros_test
 
 import (
-	"container/list"
 	"errors"
 	"fmt"
 	"github.com/project-illium/ilxd/zk/lurk/macros"
@@ -16,76 +15,6 @@ import (
 	"strings"
 	"testing"
 )
-
-type customStack struct {
-	stack *list.List
-}
-
-func (c *customStack) Push(value string) {
-	c.stack.PushFront(value)
-}
-
-func (c *customStack) Pop() error {
-	if c.stack.Len() > 0 {
-		ele := c.stack.Front()
-		c.stack.Remove(ele)
-	}
-	return fmt.Errorf("Pop Error: Stack is empty")
-}
-
-func (c *customStack) Front() (string, error) {
-	if c.stack.Len() > 0 {
-		if val, ok := c.stack.Front().Value.(string); ok {
-			return val, nil
-		}
-		return "", fmt.Errorf("Peep Error: Stack Datatype is incorrect")
-	}
-	return "", fmt.Errorf("Peep Error: Stack is empty")
-}
-
-func (c *customStack) Size() int {
-	return c.stack.Len()
-}
-
-func (c *customStack) Empty() bool {
-	return c.stack.Len() == 0
-}
-
-func isValid(s string) bool {
-	customStack := &customStack{
-		stack: list.New(),
-	}
-
-	for _, val := range s {
-
-		if val == '(' || val == '[' || val == '{' {
-			customStack.Push(string(val))
-		} else if val == ')' {
-			poppedValue, _ := customStack.Front()
-			if poppedValue != "(" {
-				return false
-			}
-			customStack.Pop()
-		} else if val == ']' {
-			poppedValue, _ := customStack.Front()
-			if poppedValue != "[" {
-				return false
-			}
-			customStack.Pop()
-
-		} else if val == '}' {
-			poppedValue, _ := customStack.Front()
-			if poppedValue != "{" {
-				return false
-			}
-			customStack.Pop()
-
-		}
-
-	}
-
-	return customStack.Size() == 0
-}
 
 func TestPreProcessValidParentheses(t *testing.T) {
 	type testVector struct {
@@ -153,7 +82,7 @@ func TestPreProcessValidParentheses(t *testing.T) {
 		lurkProgram = strings.ReplaceAll(lurkProgram, "\n", "")
 		lurkProgram = strings.ReplaceAll(lurkProgram, "\t", "")
 		assert.NoError(t, err)
-		assert.Truef(t, isValid(lurkProgram), "Test %d should be valid", i)
+		assert.Truef(t, macros.IsValidLurk(lurkProgram), "Test %d should be valid", i)
 		assert.Equalf(t, test.expected, lurkProgram, "Test %d not as expected", i)
 	}
 }
@@ -241,7 +170,7 @@ func TestMacroImports(t *testing.T) {
 		lurkProgram = strings.ReplaceAll(lurkProgram, "\n", "")
 		lurkProgram = strings.ReplaceAll(lurkProgram, "\t", "")
 		assert.NoError(t, err)
-		assert.Truef(t, isValid(lurkProgram), "Test %d should be valid", i)
+		assert.Truef(t, macros.IsValidLurk(lurkProgram), "Test %d should be valid", i)
 		assert.Equalf(t, test.expected, lurkProgram, "Test %d not as expected", i)
 	}
 }
@@ -300,7 +229,7 @@ func TestWithStandardLib(t *testing.T) {
 	lurkProgram = strings.ReplaceAll(lurkProgram, "\n", "")
 	lurkProgram = strings.ReplaceAll(lurkProgram, "\t", "")
 	lurkProgram = strings.Join(strings.Fields(lurkProgram), " ")
-	assert.True(t, isValid(lurkProgram))
+	assert.True(t, macros.IsValidLurk(lurkProgram))
 	expected := `(letrec ((my-func (lambda (y) (letrec ((checksig (lambda (sig pubkey sighash) (eval (cons 'coproc_checksig (cons (car sig) (cons (car (cdr sig)) (cons (car (cdr (cdr sig))) (cons (car pubkey) (cons (car (cdr pubkey)) (cons sighash nil)))))))) )))(check-sig 10))))))`
 	assert.Equal(t, expected, lurkProgram)
 }

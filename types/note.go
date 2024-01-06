@@ -28,7 +28,7 @@ func (s *SpendNote) Commitment() (ID, error) {
 		s.AssetID.Bytes(),
 		s.Salt[:],
 	}
-	stateExpr, err := s.State.ToLurkExpression()
+	stateExpr, err := s.State.ToExpr()
 	if err != nil {
 		return ID{}, err
 	}

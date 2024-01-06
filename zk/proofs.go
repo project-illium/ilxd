@@ -48,13 +48,13 @@ var trueVal = []byte{4, 200, 219, 197, 70, 43, 38, 162, 69, 194, 112, 0, 19, 99,
 type Parameters interface {
 	// ToExpr marshals the Parameters to a string
 	// expression used by lurk.
-	ToExpr() string
+	ToExpr() (string, error)
 }
 
 type Expr string
 
-func (p Expr) ToExpr() string {
-	return string(p)
+func (p Expr) ToExpr() (string, error) {
+	return string(p), nil
 }
 
 // LoadZKPublicParameters loads the lurk public parameters from disk
@@ -67,7 +67,15 @@ func LoadZKPublicParameters() {
 }
 
 func Prove(lurkProgram string, privateParams Parameters, publicParams Parameters) ([]byte, error) {
-	proof, tag, output, err := createProof(lurkProgram, privateParams.ToExpr(), publicParams.ToExpr())
+	priv, err := privateParams.ToExpr()
+	if err != nil {
+		return nil, err
+	}
+	pub, err := publicParams.ToExpr()
+	if err != nil {
+		return nil, err
+	}
+	proof, tag, output, err := createProof(lurkProgram, priv, pub)
 	if err != nil {
 		return nil, err
 	}
@@ -79,9 +87,13 @@ func Prove(lurkProgram string, privateParams Parameters, publicParams Parameters
 }
 
 func Verify(lurkProgram string, publicParams Parameters, proof []byte) (bool, error) {
+	pub, err := publicParams.ToExpr()
+	if err != nil {
+		return false, err
+	}
 	tagBytes := make([]byte, 32)
 	tagBytes[len(tagBytes)-1] = byte(TagSym)
-	return verifyProof(lurkProgram, publicParams.ToExpr(), proof, tagBytes, trueVal)
+	return verifyProof(lurkProgram, pub, proof, tagBytes, trueVal)
 }
 
 func createProof(lurkProgram, privateParams, publicParams string) ([]byte, Tag, []byte, error) {

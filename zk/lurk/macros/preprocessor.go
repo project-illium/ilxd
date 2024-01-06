@@ -56,6 +56,9 @@ func (p *MacroPreprocessor) Preprocess(lurkProgram string) (string, error) {
 	if p.removeComments {
 		ret = removeComments(ret)
 	}
+	if !IsValidLurk(ret) {
+		return "", errors.New("error preprocessing: mismatch parenthesis")
+	}
 	return ret, nil
 }
 

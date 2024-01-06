@@ -17,7 +17,7 @@ func TestState(t *testing.T) {
 
 	state := State{param1, param2}
 
-	expr, err := state.ToLurkExpression()
+	expr, err := state.ToExpr()
 	assert.NoError(t, err)
 
 	assert.Equal(t, "(cons 1 (cons 0x0cef7dd85c04c505d55c063824a5bad62170db0d37e2068fc6c749ada2cb8293 nil))", expr)
