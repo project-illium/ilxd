@@ -13,6 +13,7 @@ use lurk::{
 
 use super::{
     blake2s::Blake2sCoprocessor,
+    sha256::Sha256Coprocessor,
     checksig::ChecksigCoprocessor
 };
 
@@ -125,5 +126,6 @@ pub enum XorCoproc<F: LurkField> {
 pub enum MultiCoproc<F: LurkField> {
     Xor(XorCoprocessor<F>),
     Blake2s(Blake2sCoprocessor<F>),
+    Sha256(Sha256Coprocessor<F>),
     Checksig(ChecksigCoprocessor<F>)
 }

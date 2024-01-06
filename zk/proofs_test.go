@@ -6,6 +6,7 @@ package zk
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"fmt"
 	"github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params/hash"
@@ -47,6 +48,28 @@ func TestCoprocessors(t *testing.T) {
 		assert.NoError(t, err)
 
 		valid, err := Verify(program, Expr("5"), proof)
+		assert.NoError(t, err)
+		assert.True(t, valid)
+	})
+
+	t.Run("sha256", func(t *testing.T) {
+		r, err := randomFieldElement()
+		assert.NoError(t, err)
+
+		// Lurk variables must fit within the finite field.
+		// As such the hash output has the two most significant
+		// bits set to zero.
+		h := sha256.Sum256(r[:])
+		h[0] &= 0b00111111
+
+		program := `(lambda (priv pub) (letrec ((sha256 (lambda (preimage)
+                                    (eval (cons 'coproc_sha256 (cons preimage nil))))))
+                            (= (sha256 priv) pub)))`
+
+		proof, err := Prove(program, Expr(fmt.Sprintf("0x%x", r)), Expr(fmt.Sprintf("0x%x", h)))
+		assert.NoError(t, err)
+
+		valid, err := Verify(program, Expr(fmt.Sprintf("0x%x", h)), proof)
 		assert.NoError(t, err)
 		assert.True(t, valid)
 	})

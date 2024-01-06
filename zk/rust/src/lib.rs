@@ -38,6 +38,7 @@ use coprocessors::{
     xor::MultiCoproc,
     xor::XorCoprocessor,
     blake2s::Blake2sCoprocessor,
+    sha256::Sha256Coprocessor,
     checksig::ChecksigCoprocessor
 };
 mod coprocessors;
@@ -217,11 +218,13 @@ fn create_public_params() -> PublicParams<Fr, MultiFrame<'static, Fr, MultiCopro
     let cproc_sym_xor = user_sym("coproc_xor");
     let cproc_sym_checksig = user_sym("coproc_checksig");
     let cproc_sym_blake2s = user_sym("coproc_blake2s");
+    let cproc_sym_sha256 = user_sym("coproc_sha256");
 
     let mut lang = Lang::<Fr, MultiCoproc<Fr>>::new();
     lang.add_coprocessor(cproc_sym_xor, XorCoprocessor::new());
     lang.add_coprocessor(cproc_sym_checksig, ChecksigCoprocessor::new());
     lang.add_coprocessor(cproc_sym_blake2s, Blake2sCoprocessor::new());
+    lang.add_coprocessor(cproc_sym_sha256, Sha256Coprocessor::new());
     let lang_rc = Arc::new(lang.clone());
 
     let instance_primary = Instance::new(REDUCTION_COUNT, lang_rc, true, Kind::SuperNovaAuxParams);
@@ -246,6 +249,7 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     let cproc_sym_xor = user_sym("coproc_xor");
     let cproc_sym_checksig = user_sym("coproc_checksig");
     let cproc_sym_blake2s = user_sym("coproc_blake2s");
+    let cproc_sym_sha256 = user_sym("coproc_sha256");
 
     let call = store.read_with_default_state(expr.as_str())?;
 
@@ -253,6 +257,7 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     lang.add_coprocessor(cproc_sym_xor, XorCoprocessor::new());
     lang.add_coprocessor(cproc_sym_checksig, ChecksigCoprocessor::new());
     lang.add_coprocessor(cproc_sym_blake2s, Blake2sCoprocessor::new());
+    lang.add_coprocessor(cproc_sym_sha256, Sha256Coprocessor::new());
     let lang_rc = Arc::new(lang.clone());
 
     let lurk_step = make_eval_step_from_config(&EvalConfig::new_nivc(&lang));
