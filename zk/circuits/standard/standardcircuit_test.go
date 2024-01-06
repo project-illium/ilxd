@@ -26,9 +26,9 @@ func TestStandardCircuit(t *testing.T) {
 
 	scriptCommitment := make([]byte, 32)
 
-	us := types.UnlockingScript{
-		ScriptCommitment: scriptCommitment,
-		ScriptParams:     [][]byte{pubx, puby},
+	us := types.LockingScript{
+		ScriptCommitment: types.NewID(scriptCommitment),
+		LockingParams:    [][]byte{pubx, puby},
 	}
 
 	usScriptHash, err := us.Hash()
@@ -40,9 +40,9 @@ func TestStandardCircuit(t *testing.T) {
 	pubx2, puby2 := pub2.(*icrypto.NovaPublicKey).ToXY()
 	assert.NoError(t, err)
 
-	us2 := types.UnlockingScript{
-		ScriptCommitment: scriptCommitment,
-		ScriptParams:     [][]byte{pubx2, puby2},
+	us2 := types.LockingScript{
+		ScriptCommitment: types.NewID(scriptCommitment),
+		LockingParams:    [][]byte{pubx2, puby2},
 	}
 
 	us2ScriptHash, err := us2.Hash()
@@ -93,7 +93,7 @@ func TestStandardCircuit(t *testing.T) {
 	sigHash := make([]byte, 32)
 	rand.Read(sigHash)
 
-	nullifier, err := types.CalculateNullifier(inclusionProof.Index, note1.Salt, us.ScriptCommitment, us.ScriptParams...)
+	nullifier, err := types.CalculateNullifier(inclusionProof.Index, note1.Salt, us.ScriptCommitment.Bytes(), us.LockingParams...)
 	assert.NoError(t, err)
 
 	fakeSig := make([]byte, 64)
@@ -113,8 +113,8 @@ func TestStandardCircuit(t *testing.T) {
 					Hashes: inclusionProof.Hashes,
 					Flags:  inclusionProof.Flags,
 				},
-				ScriptCommitment: us.ScriptCommitment,
-				ScriptParams:     us.ScriptParams,
+				ScriptCommitment: us.ScriptCommitment.Bytes(),
+				ScriptParams:     us.LockingParams,
 				UnlockingParams:  []byte(fmt.Sprintf("(cons 0x%x 0x%x)", fakeSig[:32], fakeSig[32:])),
 			},
 		},
