@@ -3,3 +3,4 @@ pub(crate) mod ecc;
 pub(crate) mod utils;
 pub mod blake2s;
 pub mod xor;
+pub mod sha256;
