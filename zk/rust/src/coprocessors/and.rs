@@ -11,21 +11,13 @@ use lurk::{
     lem::{pointers::Ptr, store::Store},
 };
 
-use super::{
-    and::AndCoprocessor,
-    or::OrCoprocessor,
-    blake2s::Blake2sCoprocessor,
-    sha256::Sha256Coprocessor,
-    checksig::ChecksigCoprocessor
-};
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct XorCoprocessor<F: LurkField> {
+pub struct AndCoprocessor<F: LurkField> {
     n: usize,
     pub(crate) _p: PhantomData<F>,
 }
 
-fn synthesize_xor<F: LurkField, CS: ConstraintSystem<F>>(
+fn synthesize_and<F: LurkField, CS: ConstraintSystem<F>>(
     cs: &mut CS,
     _: &lurk::lem::circuit::GlobalAllocator<F>,
     _: &lurk::lem::store::Store<F>,
@@ -43,17 +35,17 @@ fn synthesize_xor<F: LurkField, CS: ConstraintSystem<F>>(
         .to_bits_le_strict(&mut cs.namespace(|| "hash_b_bits"))?;
     hash_b.push(zero.clone()); // need 256 bits (or some multiple of 8).
 
-    let mut xor_result = Vec::new();
+    let mut and_result = Vec::new();
     for i in 0..hash_a.len() {
-        let xor_element: Boolean = Boolean::xor(
-            &mut cs.namespace(|| format!("xor_{}", i)),
+        let and_element: Boolean = Boolean::and(
+            &mut cs.namespace(|| format!("and_{}", i)),
             hash_a.get(i).unwrap(),
             hash_b.get(i).unwrap(),
         )?;
-        xor_result.push(xor_element);
+        and_result.push(and_element);
     }
 
-    let x_scalar = pack_bits(cs.namespace(|| "x_scalar"), &xor_result)?;
+    let x_scalar = pack_bits(cs.namespace(|| "a_scalar"), &and_result)?;
     AllocatedPtr::alloc_tag(
         &mut cs.namespace(|| "output_expr"),
         F::from(4),
@@ -61,24 +53,24 @@ fn synthesize_xor<F: LurkField, CS: ConstraintSystem<F>>(
     )
 }
 
-fn compute_xor<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
+fn compute_and<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
     let z_ptrs = ptrs.iter().map(|ptr| s.hash_ptr(ptr)).collect::<Vec<_>>();
 
     let hash_a = z_ptrs[0].value().to_bytes();
     let hash_b = z_ptrs[1].value().to_bytes();
 
-    let mut xor_result: Vec<u8> = hash_a.iter()
+    let mut and_result: Vec<u8> = hash_a.iter()
         .zip(hash_b.iter())
-        .map(|(&x, &y)| x ^ y)
+        .map(|(&x, &y)| x & y)
         .collect();
 
-    let l = xor_result.len();
+    let l = and_result.len();
 
-    xor_result[l - 1] &= 0b00111111;
-    s.num(F::from_bytes(&xor_result).unwrap())
+    and_result[l - 1] &= 0b00111111;
+    s.num(F::from_bytes(&and_result).unwrap())
 }
 
-impl<F: LurkField> CoCircuit<F> for XorCoprocessor<F> {
+impl<F: LurkField> CoCircuit<F> for AndCoprocessor<F> {
     fn arity(&self) -> usize {
         self.n
     }
@@ -92,11 +84,11 @@ impl<F: LurkField> CoCircuit<F> for XorCoprocessor<F> {
         _not_dummy: &Boolean,
         args: &[AllocatedPtr<F>],
     ) -> Result<AllocatedPtr<F>, SynthesisError> {
-        synthesize_xor(cs, g, s, args)
+        synthesize_and(cs, g, s, args)
     }
 }
 
-impl<F: LurkField> Coprocessor<F> for XorCoprocessor<F> {
+impl<F: LurkField> Coprocessor<F> for AndCoprocessor<F> {
     fn eval_arity(&self) -> usize {
         self.n
     }
@@ -106,11 +98,11 @@ impl<F: LurkField> Coprocessor<F> for XorCoprocessor<F> {
     }
 
     fn evaluate_simple(&self, s: &Store<F>, args: &[Ptr]) -> Ptr {
-        compute_xor(s, &args)
+        compute_and(s, &args)
     }
 }
 
-impl<F: LurkField> XorCoprocessor<F> {
+impl<F: LurkField> AndCoprocessor<F> {
     pub fn new() -> Self {
         Self {
             n: 2,
@@ -120,16 +112,6 @@ impl<F: LurkField> XorCoprocessor<F> {
 }
 
 #[derive(Clone, Debug, Coproc, Serialize, Deserialize)]
-pub enum XorCoproc<F: LurkField> {
-    SC(XorCoprocessor<F>),
-}
-
-#[derive(Clone, Debug, Coproc, Serialize, Deserialize)]
-pub enum MultiCoproc<F: LurkField> {
-    And(AndCoprocessor<F>),
-    Or(OrCoprocessor<F>),
-    Xor(XorCoprocessor<F>),
-    Blake2s(Blake2sCoprocessor<F>),
-    Sha256(Sha256Coprocessor<F>),
-    Checksig(ChecksigCoprocessor<F>)
+pub enum AndCoproc<F: LurkField> {
+    SC(AndCoprocessor<F>),
 }
