@@ -36,11 +36,11 @@ func (in *PrivateInput) ToExpr() (string, error) {
 		return "", err
 	}
 
-	expr := fmt.Sprintf("(cons 0x%x ", in.ScriptHash) +
+	expr := fmt.Sprintf("(cons 0x%x ", in.ScriptHash.Bytes()) +
 		fmt.Sprintf("(cons %d ", in.Amount) +
-		fmt.Sprintf("(cons 0x%x ", in.AssetID) +
+		fmt.Sprintf("(cons 0x%x ", in.AssetID.Bytes()) +
 		fmt.Sprintf("(cons %s ", state) +
-		fmt.Sprintf("(cons 0x%x ", in.Salt) +
+		fmt.Sprintf("(cons 0x%x ", in.Salt.Bytes()) +
 		fmt.Sprintf("(cons %d ", in.CommitmentIndex) +
 		fmt.Sprintf("(cons %s ", ip) +
 		fmt.Sprintf("(cons %s ", in.LockingFunction) +
@@ -67,9 +67,10 @@ func (ip *InclusionProof) ToExpr() (string, error) {
 
 	flags := ""
 	for i := 0; i < len(ip.Hashes); i++ {
-		bit := (ip.Flags >> i) & 1
+		mask := uint64(1) << i
+		bit := ip.Flags & mask
 
-		if bit == 1 {
+		if bit > 0 {
 			flags += "(cons t "
 		} else {
 			flags += "(cons nil "
@@ -96,11 +97,11 @@ func (out *PrivateOutput) ToExpr() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	expr := fmt.Sprintf("(cons 0x%x ", out.ScriptHash) +
+	expr := fmt.Sprintf("(cons 0x%x ", out.ScriptHash.Bytes()) +
 		fmt.Sprintf("(cons %d ", out.Amount) +
-		fmt.Sprintf("(cons 0x%x ", out.AssetID) +
+		fmt.Sprintf("(cons 0x%x ", out.AssetID.Bytes()) +
 		fmt.Sprintf("(cons %s ", state) +
-		fmt.Sprintf("(cons 0x%x ", out.Salt) +
+		fmt.Sprintf("(cons 0x%x ", out.Salt.Bytes()) +
 		"nil)))))"
 	return expr, nil
 }

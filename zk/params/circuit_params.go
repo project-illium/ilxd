@@ -37,7 +37,7 @@ func (priv *PrivateParams) ToExpr() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		output += "(cons " + output + " "
+		outputs += "(cons " + output + " "
 	}
 	outputs += "nil)"
 	for i := 0; i < len(priv.Outputs)-1; i++ {
