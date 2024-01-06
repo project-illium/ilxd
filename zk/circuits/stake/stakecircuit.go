@@ -48,9 +48,9 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	}
 
 	// First obtain the hash of the spendScript.
-	ul := types.UnlockingScript{
-		ScriptCommitment: priv.ScriptCommitment,
-		ScriptParams:     priv.ScriptParams,
+	ul := types.LockingScript{
+		ScriptCommitment: types.NewID(priv.ScriptCommitment),
+		LockingParams:    priv.ScriptParams,
 	}
 	spendScriptHash, err := ul.Hash()
 	if err != nil {

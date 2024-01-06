@@ -34,7 +34,7 @@ func (s *GrpcServer) RegisterViewKey(ctx context.Context, req *pb.RegisterViewKe
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	if err := s.wsIndex.RegisterViewKey(s.ds, viewKey, req.SerializedUnlockingScript); err != nil {
+	if err := s.wsIndex.RegisterViewKey(s.ds, viewKey, req.SerializedLockingScript); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 

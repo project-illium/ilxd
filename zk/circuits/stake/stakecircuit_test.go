@@ -37,9 +37,9 @@ func TestStakeCircuit(t *testing.T) {
 	pub3x, pub3y := pub3.(*icrypto.NovaPublicKey).ToXY()
 	scriptParams := [][]byte{{0x02}, pub1x, pub1y, pub2x, pub2y, pub3x, pub3y}
 
-	script := types.UnlockingScript{
-		ScriptCommitment: scriptCommitment,
-		ScriptParams:     scriptParams,
+	script := types.LockingScript{
+		ScriptCommitment: types.NewID(scriptCommitment),
+		LockingParams:    scriptParams,
 	}
 	scriptHash, err := script.Hash()
 	assert.NoError(t, err)

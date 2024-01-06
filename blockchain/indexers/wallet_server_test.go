@@ -33,12 +33,12 @@ func TestWalletServerIndex(t *testing.T) {
 	privKeyBytes, err := crypto.MarshalPrivateKey(viewKey)
 	assert.NoError(t, err)
 
-	ul := types.UnlockingScript{
-		ScriptCommitment: make([]byte, 32),
-		ScriptParams:     make([][]byte, 1),
+	ul := types.LockingScript{
+		ScriptCommitment: types.ID{},
+		LockingParams:    make([][]byte, 1),
 	}
-	ul.ScriptParams[0] = make([]byte, 32)
-	rand.Read(ul.ScriptParams[0][1:])
+	ul.LockingParams[0] = make([]byte, 32)
+	rand.Read(ul.LockingParams[0][1:])
 
 	err = idx.RegisterViewKey(ds, viewKey, ul.Serialize())
 	assert.NoError(t, err)
@@ -117,7 +117,7 @@ func TestWalletServerIndex(t *testing.T) {
 	sub = idx.Subscribe()
 
 	// Create a block spending the utxo and make sure the tx is recorded
-	nullifier, err := types.CalculateNullifier(proofs[0].Index, note.Salt, ul.ScriptCommitment, ul.ScriptParams...)
+	nullifier, err := types.CalculateNullifier(proofs[0].Index, note.Salt, ul.ScriptCommitment.Bytes(), ul.LockingParams...)
 	assert.NoError(t, err)
 
 	blk2 := &blocks.Block{

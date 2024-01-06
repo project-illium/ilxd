@@ -86,9 +86,9 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 
 	for i, in := range priv.Inputs {
 		// First obtain the hash of the spendScript.
-		ul := types.UnlockingScript{
-			ScriptCommitment: in.ScriptCommitment,
-			ScriptParams:     in.ScriptParams,
+		ul := types.LockingScript{
+			ScriptCommitment: types.NewID(in.ScriptCommitment),
+			LockingParams:    types.LockingParams(in.ScriptParams),
 		}
 		spendScriptHash, err := ul.Hash()
 		if err != nil {

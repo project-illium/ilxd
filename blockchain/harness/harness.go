@@ -20,7 +20,7 @@ import (
 
 type SpendableNote struct {
 	Note             *types.SpendNote
-	UnlockingScript  *types.UnlockingScript
+	LockingScript    *types.LockingScript
 	PrivateKey       crypto.PrivKey
 	cachedScriptHash types.ID
 }
@@ -133,11 +133,11 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 
 				pubx, puby := cfg.spendKey.GetPublic().(*icrypto.NovaPublicKey).ToXY()
 
-				note1UnlockingScript := &types.UnlockingScript{
-					ScriptCommitment: mockStandardScriptCommitment,
-					ScriptParams:     [][]byte{pubx, puby},
+				note1LockingScript := &types.LockingScript{
+					ScriptCommitment: types.NewID(mockStandardScriptCommitment),
+					LockingParams:    [][]byte{pubx, puby},
 				}
-				note1ScriptHash, err := note1UnlockingScript.Hash()
+				note1ScriptHash, err := note1LockingScript.Hash()
 				if err != nil {
 					return nil, err
 				}
@@ -154,9 +154,9 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 				}
 
 				sn := &SpendableNote{
-					Note:            note1,
-					UnlockingScript: note1UnlockingScript,
-					PrivateKey:      cfg.spendKey,
+					Note:          note1,
+					LockingScript: note1LockingScript,
+					PrivateKey:    cfg.spendKey,
 				}
 				commitment, err := note1.Commitment()
 				if err != nil {
@@ -202,7 +202,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 			return nil, err
 		}
 
-		nullifier, err := types.CalculateNullifier(proof.Index, spendableNote.Note.Salt, spendableNote.UnlockingScript.ScriptCommitment, spendableNote.UnlockingScript.ScriptParams...)
+		nullifier, err := types.CalculateNullifier(proof.Index, spendableNote.Note.Salt, spendableNote.LockingScript.ScriptCommitment.Bytes(), spendableNote.LockingScript.LockingParams...)
 		if err != nil {
 			return nil, err
 		}
@@ -261,7 +261,7 @@ func (h *TestHarness) GenerateBlockWithTransactions(txs []*transactions.Transact
 		if err != nil {
 			return err
 		}
-		nullifier, err := types.CalculateNullifier(proof.Index, sn.Note.Salt, sn.UnlockingScript.ScriptCommitment, sn.UnlockingScript.ScriptParams...)
+		nullifier, err := types.CalculateNullifier(proof.Index, sn.Note.Salt, sn.LockingScript.ScriptCommitment.Bytes(), sn.LockingScript.LockingParams...)
 		if err != nil {
 			return err
 		}

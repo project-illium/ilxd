@@ -24,35 +24,36 @@ const (
 	SaltLen       = 32
 )
 
-// UnlockingScript represents a utxo script in which coins are locked.
-type UnlockingScript struct {
-	ScriptCommitment []byte
-	ScriptParams     [][]byte
+type LockingParams [][]byte
+
+// LockingScript represents a utxo script in which coins are locked.
+type LockingScript struct {
+	ScriptCommitment ID
+	LockingParams    [][]byte
 }
 
-// Serialize returns the unlocking script serialized as a byte slice
-func (u *UnlockingScript) Serialize() []byte {
+// Serialize returns the locking script serialized as a byte slice
+func (u *LockingScript) Serialize() []byte {
 	ser := make([]byte, len(u.ScriptCommitment))
-	copy(ser, u.ScriptCommitment)
-	ser = append(ser, serializeData(u.ScriptParams)...)
+	copy(ser, u.ScriptCommitment[:])
+	ser = append(ser, serializeData(u.LockingParams)...)
 	return ser
 }
 
-// Deserialize turns a serialized byte slice back into an UnlockingScript
-func (ul *UnlockingScript) Deserialize(ser []byte) error {
-	ul.ScriptCommitment = make([]byte, zk.CommitmentLen)
-	copy(ul.ScriptCommitment, ser[0:zk.CommitmentLen])
+// Deserialize turns a serialized byte slice back into an LockingScript
+func (ul *LockingScript) Deserialize(ser []byte) error {
+	copy(ul.ScriptCommitment[:], ser[0:zk.CommitmentLen])
 
 	params, err := deserializeData(ser[zk.CommitmentLen:])
 	if err != nil {
 		return err
 	}
-	ul.ScriptParams = params
+	ul.LockingParams = params
 	return nil
 }
 
-// Hash returns the Lurk Commitment hash of the unlocking script
-func (u *UnlockingScript) Hash() (ID, error) {
+// Hash returns the Lurk Commitment hash of the locking script
+func (u *LockingScript) Hash() (ID, error) {
 	expr, err := u.lurkExpression()
 	if err != nil {
 		return ID{}, err
@@ -64,8 +65,8 @@ func (u *UnlockingScript) Hash() (ID, error) {
 	return NewID(h), nil
 }
 
-func (u *UnlockingScript) lurkExpression() (string, error) {
-	return buildLurkExpression(append([][]byte{u.ScriptCommitment}, u.ScriptParams...))
+func (u *LockingScript) lurkExpression() (string, error) {
+	return buildLurkExpression(append([][]byte{u.ScriptCommitment[:]}, u.LockingParams...))
 }
 
 func serializeData(data [][]byte) []byte {

@@ -45,6 +45,18 @@ var once sync.Once
 
 var trueVal = []byte{4, 200, 219, 197, 70, 43, 38, 162, 69, 194, 112, 0, 19, 99, 1, 240, 70, 225, 92, 182, 50, 158, 201, 58, 139, 58, 93, 133, 73, 161, 152, 86}
 
+type Parameters interface {
+	// ToExpr marshals the Parameters to a string
+	// expression used by lurk.
+	ToExpr() string
+}
+
+type Expr string
+
+func (p Expr) ToExpr() string {
+	return string(p)
+}
+
 // LoadZKPublicParameters loads the lurk public parameters from disk
 // into memory or generates them if this is the first startup.
 func LoadZKPublicParameters() {

@@ -10,16 +10,16 @@ import (
 	"testing"
 )
 
-func TestUnlockingScript_Hash(t *testing.T) {
+func TestLockingScript_Hash(t *testing.T) {
 	sh, err := hex.DecodeString("13e0143cceae5e7e44d8025c57f4759cfb6384e4a2d3d1106e6c098603845900")
 	assert.NoError(t, err)
 	param2, err := hex.DecodeString("0cef7dd85c04c505d55c063824a5bad62170db0d37e2068fc6c749ada2cb8293")
 	assert.NoError(t, err)
 	param1 := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
 
-	ul := UnlockingScript{
-		ScriptCommitment: sh,
-		ScriptParams:     [][]byte{param1, param2},
+	ul := LockingScript{
+		ScriptCommitment: NewID(sh),
+		LockingParams:    [][]byte{param1, param2},
 	}
 
 	expr, err := ul.lurkExpression()
@@ -30,25 +30,25 @@ func TestUnlockingScript_Hash(t *testing.T) {
 	assert.Equal(t, "0e259200938dd2eb040d998ebbbbac8c14dc631125d8105cd996d2f1d0d24301", h.String())
 }
 
-func TestUnlockingScript_SerializeDeserialize(t *testing.T) {
+func TestLockingScript_SerializeDeserialize(t *testing.T) {
 	sh, err := hex.DecodeString("13e0143cceae5e7e44d8025c57f4759cfb6384e4a2d3d1106e6c098603845900")
 	assert.NoError(t, err)
 	param2, err := hex.DecodeString("0cef7dd85c04c505d55c063824a5bad62170db0d37e2068fc6c749ada2cb8293")
 	assert.NoError(t, err)
 	param1 := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
 
-	ul := UnlockingScript{
-		ScriptCommitment: sh,
-		ScriptParams:     [][]byte{param1, param2},
+	ul := LockingScript{
+		ScriptCommitment: NewID(sh),
+		LockingParams:    [][]byte{param1, param2},
 	}
 
 	ser := ul.Serialize()
 	assert.Len(t, ser, 32+33+9)
 
-	ul2 := new(UnlockingScript)
+	ul2 := new(LockingScript)
 	err = ul2.Deserialize(ser)
 	assert.NoError(t, err)
 
 	assert.Equal(t, ul.ScriptCommitment, ul2.ScriptCommitment)
-	assert.Equal(t, ul.ScriptParams, ul2.ScriptParams)
+	assert.Equal(t, ul.LockingParams, ul2.LockingParams)
 }

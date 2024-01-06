@@ -524,12 +524,12 @@ message RegisterViewKeyRequest {
     // A view key to register with the server.
     bytes view_key                  = 1;
 
-    // The unlocking script associated with the address belonging
+    // The locking script associated with the address belonging
     // to the view key serialized as <scriptCommitment><scriptParams...>
     //
     // The server needs this in order to compute the nullifier and detect
     // spend transactions.
-    bytes serializedUnlockingScript = 2;
+    bytes serializedLockingScript = 2;
 
     // The date the address was created. The server will scan historical blocks
     // for matching transactions from the birthday forward. Please don't use an
@@ -628,9 +628,9 @@ message GetAddressInfoResponse {
     // The address to import
     string address          = 1;
 
-    // This is the serialized unlocking script
+    // This is the serialized locking script
     // <scriptCommitment><scriptParams>
-    bytes unlockingScript   = 2;
+    bytes lockingScript   = 2;
 
     //  The private view key for the address
     bytes viewPrivateKey     = 3;
@@ -672,9 +672,9 @@ message ImportAddressRequest {
     // need what's behind the hash in order to
     // import an address and detect spends.
     //
-    // This is the serialized unlocking script
+    // This is the serialized locking script
     // <scriptCommitment><scriptParams>
-    bytes unlockingScript   = 2;
+    bytes lockingScript   = 2;
 
     // The view private key needed to decrypt and
     // detect transactions.
@@ -1180,15 +1180,15 @@ message PrivateInput {
     bytes asset_ID               = 3;
     // Input state
     bytes state                  = 4;
-    // The unlocking function commitment
+    // The locking function commitment
     bytes script_commitment      = 5;
-    // The unlocking function parameters
+    // The locking function parameters
     repeated bytes script_params = 6;
     // The txo proof linking the input
     // commitment to the accumulator
     TxoProof txo_proof           = 7;
     // Optional lurk expression used as
-    // input to unlocking script. This is
+    // input to locking script. This is
     // only necessary for watch-only utxos.
     string unlocking_params      = 8;
 }

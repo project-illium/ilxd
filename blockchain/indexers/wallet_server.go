@@ -44,14 +44,14 @@ type Subscription struct {
 }
 
 const (
-	walletServerAccumulatorKey        = "accumulator"
-	walletServerBestBlockKey          = "bestblockid"
-	walletServerViewKeyPrefix         = "viewkey/"
-	walletServerUnlockingScriptPrefix = "unlockingscript/"
-	walletServerNullifierKeyPrefix    = "nullifier/"
-	walletServerTxKeyPrefix           = "tx/"
-	walletServerIndexKey              = "walletserverindex"
-	WalletServerIndexName             = "wallet server index"
+	walletServerAccumulatorKey      = "accumulator"
+	walletServerBestBlockKey        = "bestblockid"
+	walletServerViewKeyPrefix       = "viewkey/"
+	walletServerLockingScriptPrefix = "lockingscript/"
+	walletServerNullifierKeyPrefix  = "nullifier/"
+	walletServerTxKeyPrefix         = "tx/"
+	walletServerIndexKey            = "walletserverindex"
+	WalletServerIndexName           = "wallet server index"
 )
 
 type commitmentWithKey struct {
@@ -221,12 +221,12 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 					continue
 				}
 
-				serializedUnlockingScript, err := dsFetchIndexValueWithTx(dbtx, idx, walletServerUnlockingScriptPrefix+hex.EncodeToString(viewKey))
+				serializedLockingScript, err := dsFetchIndexValueWithTx(dbtx, idx, walletServerLockingScriptPrefix+hex.EncodeToString(viewKey))
 				if err != nil {
 					continue
 				}
-				ul := new(types.UnlockingScript)
-				if err := ul.Deserialize(serializedUnlockingScript); err != nil {
+				ul := new(types.LockingScript)
+				if err := ul.Deserialize(serializedLockingScript); err != nil {
 					log.Errorf("Wallet server index error rescanning chain: %s", err)
 					return err
 				}
@@ -239,7 +239,7 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 					continue
 				}
 
-				nullifier, err := types.CalculateNullifier(commitmentIndex, note.Salt, ul.ScriptCommitment, ul.ScriptParams...)
+				nullifier, err := types.CalculateNullifier(commitmentIndex, note.Salt, ul.ScriptCommitment.Bytes(), ul.LockingParams...)
 				if err != nil {
 					return err
 				}
@@ -385,7 +385,7 @@ func (idx *WalletServerIndex) Close(ds repo.Datastore) error {
 }
 
 // RegisterViewKey registers a new user with the index. It will track transactions for this user.
-func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey crypto.PrivKey, serializedUnlockingScript []byte) error {
+func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey crypto.PrivKey, serializedLockingScript []byte) error {
 	if _, ok := viewKey.(*icrypto.Curve25519PrivateKey); !ok {
 		return errors.New("viewKey is not curve25519 private key")
 	}
@@ -410,7 +410,7 @@ func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey crypto.
 		return err
 	}
 
-	if err := dsPutIndexValue(dbtx, idx, walletServerUnlockingScriptPrefix+hex.EncodeToString(ser), serializedUnlockingScript); err != nil {
+	if err := dsPutIndexValue(dbtx, idx, walletServerLockingScriptPrefix+hex.EncodeToString(ser), serializedLockingScript); err != nil {
 		return err
 	}
 
@@ -486,13 +486,13 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 						return err
 					}
 
-					serializedUnlockingScript, err := dsFetchIndexValueWithTx(dbtx, idx, walletServerUnlockingScriptPrefix+hex.EncodeToString(viewKey))
+					serializedLockingScript, err := dsFetchIndexValueWithTx(dbtx, idx, walletServerLockingScriptPrefix+hex.EncodeToString(viewKey))
 					if err != nil {
 						log.Errorf("Wallet server index error rescanning chain: %s", err)
 						return err
 					}
-					ul := new(types.UnlockingScript)
-					if err := ul.Deserialize(serializedUnlockingScript); err != nil {
+					ul := new(types.LockingScript)
+					if err := ul.Deserialize(serializedLockingScript); err != nil {
 						log.Errorf("Wallet server index error rescanning chain: %s", err)
 						return err
 					}
@@ -506,7 +506,7 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 						return err
 					}
 
-					nullifier, err := types.CalculateNullifier(commitmentIndex, note.Salt, ul.ScriptCommitment, ul.ScriptParams...)
+					nullifier, err := types.CalculateNullifier(commitmentIndex, note.Salt, ul.ScriptCommitment.Bytes(), ul.LockingParams...)
 					if err != nil {
 						return err
 					}
@@ -649,7 +649,7 @@ func (idx *WalletServerIndex) run(ds repo.Datastore) {
 						continue
 					}
 
-					dsKey := walletServerUnlockingScriptPrefix + keyStr
+					dsKey := walletServerLockingScriptPrefix + keyStr
 					if err := dsDeleteIndexValue(dbtx, idx, dsKey); err != nil {
 						log.Errorf("Error deleting stale users %s", err)
 						continue

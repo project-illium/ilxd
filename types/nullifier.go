@@ -68,9 +68,9 @@ func NewNullifierFromString(n string) (Nullifier, error) {
 
 // CalculateNullifier calculates and returns the nullifier for the given inputs.
 func CalculateNullifier(commitmentIndex uint64, salt [32]byte, scriptCommitment []byte, scriptParams ...[]byte) (Nullifier, error) {
-	ul := UnlockingScript{
-		ScriptCommitment: scriptCommitment,
-		ScriptParams:     scriptParams,
+	ul := LockingScript{
+		ScriptCommitment: NewID(scriptCommitment),
+		LockingParams:    scriptParams,
 	}
 	expr, err := ul.lurkExpression()
 	if err != nil {

@@ -98,11 +98,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	unlockingScript := types.UnlockingScript{
-		ScriptCommitment: basicTransferCommitment,
-		ScriptParams:     [][]byte{x, y},
+	lockingScript := types.LockingScript{
+		ScriptCommitment: types.NewID(basicTransferCommitment),
+		LockingParams:    [][]byte{x, y},
 	}
-	scriptHash, err := unlockingScript.Hash()
+	scriptHash, err := lockingScript.Hash()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	nullifier, err := types.CalculateNullifier(0, note0.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
+	nullifier, err := types.CalculateNullifier(0, note0.Salt, lockingScript.ScriptCommitment.Bytes(), lockingScript.LockingParams...)
 	if err != nil {
 		log.Fatal(err)
 	}
