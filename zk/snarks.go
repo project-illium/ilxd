@@ -37,9 +37,9 @@ func ValidateSnark(circuit CircuitFunc, publicParams interface{}, proof []byte) 
 	return true, nil
 }
 
-// SignatureToLurkExpression converts a 64 byte signature to a lurk cons expression
+// SignatureToExpression converts a 64 byte signature to a lurk cons expression
 // containing the signature's R and S values.
-func SignatureToLurkExpression(sig []byte) string {
+func SignatureToExpression(sig []byte) string {
 	if len(sig) != 64 {
 		return ""
 	}

@@ -41,7 +41,7 @@ func (s *State) Deserialize(ser []byte) error {
 	return nil
 }
 
-// ToLurkExpression converts the state to a lurk expression for use
+// ToExpr converts the state to a lurk expression for use
 // inside the lurk program.
 //
 // Boolean:
@@ -56,7 +56,7 @@ func (s *State) Deserialize(ser []byte) error {
 // Hash:
 // If the element is len 32 it will be treated as a hex string prefixed
 // with 0x. Lurk interprets this the same as Num.
-func (s *State) ToLurkExpression() (string, error) {
+func (s *State) ToExpr() (string, error) {
 	if s == nil || len(*s) == 0 {
 		return "nil", nil
 	}
