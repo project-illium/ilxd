@@ -37,6 +37,8 @@ use nova::supernova::error::SuperNovaError;
 use coprocessors::{
     xor::MultiCoproc,
     xor::XorCoprocessor,
+    and::AndCoprocessor,
+    or::OrCoprocessor,
     blake2s::Blake2sCoprocessor,
     sha256::Sha256Coprocessor,
     checksig::ChecksigCoprocessor
@@ -215,12 +217,16 @@ fn get_public_params() -> Arc<PublicParams<Fr, MultiFrame<'static, Fr, MultiCopr
 }
 
 fn create_public_params() -> PublicParams<Fr, MultiFrame<'static, Fr, MultiCoproc<Fr>>> {
+    let cproc_sym_and = user_sym("coproc_and");
+    let cproc_sym_or = user_sym("coproc_or");
     let cproc_sym_xor = user_sym("coproc_xor");
     let cproc_sym_checksig = user_sym("coproc_checksig");
     let cproc_sym_blake2s = user_sym("coproc_blake2s");
     let cproc_sym_sha256 = user_sym("coproc_sha256");
 
     let mut lang = Lang::<Fr, MultiCoproc<Fr>>::new();
+    lang.add_coprocessor(cproc_sym_and, AndCoprocessor::new());
+    lang.add_coprocessor(cproc_sym_or, OrCoprocessor::new());
     lang.add_coprocessor(cproc_sym_xor, XorCoprocessor::new());
     lang.add_coprocessor(cproc_sym_checksig, ChecksigCoprocessor::new());
     lang.add_coprocessor(cproc_sym_blake2s, Blake2sCoprocessor::new());
@@ -246,6 +252,8 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
 
     let expr = format!(r#"(letrec ((f {lurk_program}))(f (open 0x{commitment}) {public_params}))"#);
 
+    let cproc_sym_and = user_sym("coproc_and");
+    let cproc_sym_or = user_sym("coproc_or");
     let cproc_sym_xor = user_sym("coproc_xor");
     let cproc_sym_checksig = user_sym("coproc_checksig");
     let cproc_sym_blake2s = user_sym("coproc_blake2s");
@@ -254,6 +262,8 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     let call = store.read_with_default_state(expr.as_str())?;
 
     let mut lang = Lang::<Fr, MultiCoproc<Fr>>::new();
+    lang.add_coprocessor(cproc_sym_and, AndCoprocessor::new());
+    lang.add_coprocessor(cproc_sym_or, OrCoprocessor::new());
     lang.add_coprocessor(cproc_sym_xor, XorCoprocessor::new());
     lang.add_coprocessor(cproc_sym_checksig, ChecksigCoprocessor::new());
     lang.add_coprocessor(cproc_sym_blake2s, Blake2sCoprocessor::new());
@@ -331,14 +341,15 @@ fn verify_proof(
 
 #[cfg(test)]
 mod tests {
-    use crate::{create_proof, verify_proof, get_public_params};
+    use crate::{IO_TWO, IO_TRUE_HASH, create_proof, verify_proof, get_public_params};
+    use lurk::field::LurkField;
 
     #[test]
     fn test_prove() {
         get_public_params();
-        let program = r#"(lambda (priv pub) (letrec ((checksig (lambda (sig pubkey sighash)
-                                                             (eval (cons 'coproc_checksig (cons 0x28612321339c8491c3952f39733447571c33c873c974963b0c2d96e1d4efc704 (cons 0x1f2235884a48ddfd4319d629af56926233a0341377da70e41f6c4012b16587a6 (cons 0x2e03bb5e9693aa5fd00d2c853b45567c9c965a471e2d9912d27f15ba6b61d62b (cons 0x3262b1ec1081c7e405143911e2085fcf1914c122ce8cfc742427d075982350c0 (cons 0x33331e146b646b79ab5c21b1a7074a028aadd3246624273e7429dc4f33afed7a (cons 0x1aec6806794561107e594b1f6a8a6b0c92a0cba9acf5e5e93cca06f781813b0b nil)))))))))))
-                                                     (checksig 1 2 3)))"#;
+        let program = r#"(lambda (priv pub) (letrec ((or (lambda (a b)
+                                                             (eval (cons 'coproc_or (cons a (cons b nil)))))))
+                                                     (= (or 19 15) 31)))"#;
         let (packed_proof, tag, output) = create_proof(
             program.to_string(),
             "(cons 7 8)".to_string(),
@@ -351,7 +362,9 @@ mod tests {
             program.to_string(),
             commitment,
             "(cons 7 8)".to_string(),
-            proof.to_vec()
+            proof.to_vec(),
+            IO_TWO.clone().to_bytes(),
+            IO_TRUE_HASH.clone().to_bytes(),
         ).expect("verify_proof failed");
         println!("{:?}", res);
         assert!(res, "Verification failed");

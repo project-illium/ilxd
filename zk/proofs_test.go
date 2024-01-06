@@ -39,6 +39,32 @@ func TestProve(t *testing.T) {
 func TestCoprocessors(t *testing.T) {
 	LoadZKPublicParameters()
 
+	t.Run("and", func(t *testing.T) {
+		program := `(lambda (priv pub) (letrec ((and (lambda (a b)
+                                    (eval (cons 'coproc_and (cons a (cons b nil)))))))
+                            (= (and priv pub) 4)))`
+
+		proof, err := Prove(program, Expr("7"), Expr("12"))
+		assert.NoError(t, err)
+
+		valid, err := Verify(program, Expr("12"), proof)
+		assert.NoError(t, err)
+		assert.True(t, valid)
+	})
+
+	t.Run("or", func(t *testing.T) {
+		program := `(lambda (priv pub) (letrec ((or (lambda (a b)
+                                    (eval (cons 'coproc_or (cons a (cons b nil)))))))
+                            (= (or priv pub) 31)))`
+
+		proof, err := Prove(program, Expr("19"), Expr("15"))
+		assert.NoError(t, err)
+
+		valid, err := Verify(program, Expr("15"), proof)
+		assert.NoError(t, err)
+		assert.True(t, valid)
+	})
+
 	t.Run("xor", func(t *testing.T) {
 		program := `(lambda (priv pub) (letrec ((xor (lambda (a b)
                                     (eval (cons 'coproc_xor (cons a (cons b nil)))))))
