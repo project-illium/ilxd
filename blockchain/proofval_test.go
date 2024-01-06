@@ -27,11 +27,11 @@ func TestProofValidator(t *testing.T) {
 
 	pubx, puby := spendKey.GetPublic().(*icrypto.NovaPublicKey).ToXY()
 
-	inUnlockingScript := types.UnlockingScript{
-		ScriptCommitment: mockScriptCommitment,
-		ScriptParams:     [][]byte{pubx, puby},
+	inLockingScript := types.LockingScript{
+		ScriptCommitment: types.NewID(mockScriptCommitment),
+		LockingParams:    [][]byte{pubx, puby},
 	}
-	inScriptHash, err := inUnlockingScript.Hash()
+	inScriptHash, err := inLockingScript.Hash()
 	assert.NoError(t, err)
 	inNote := &types.SpendNote{
 		ScriptHash: inScriptHash[:],
@@ -43,11 +43,11 @@ func TestProofValidator(t *testing.T) {
 	inCommitment, err := inNote.Commitment()
 	assert.NoError(t, err)
 
-	outUnlockingScript := types.UnlockingScript{
-		ScriptCommitment: mockScriptCommitment,
-		ScriptParams:     [][]byte{pubx, puby},
+	outLockingScript := types.LockingScript{
+		ScriptCommitment: types.NewID(mockScriptCommitment),
+		LockingParams:    [][]byte{pubx, puby},
 	}
-	outScriptHash, err := outUnlockingScript.Hash()
+	outScriptHash, err := outLockingScript.Hash()
 	assert.NoError(t, err)
 	outNote := &types.SpendNote{
 		ScriptHash: outScriptHash[:],
@@ -63,7 +63,7 @@ func TestProofValidator(t *testing.T) {
 	acc.Insert(inCommitment[:], true)
 	root := acc.Root()
 
-	inNullifier, err := types.CalculateNullifier(0, inNote.Salt, inUnlockingScript.ScriptCommitment, inUnlockingScript.ScriptParams...)
+	inNullifier, err := types.CalculateNullifier(0, inNote.Salt, inLockingScript.ScriptCommitment.Bytes(), inLockingScript.LockingParams...)
 	assert.NoError(t, err)
 
 	fakeProof := make([]byte, 8000)

@@ -36,15 +36,15 @@ func TestNewTestHarness(t *testing.T) {
 	assert.NoError(t, err)
 	root := acc.Root()
 
-	nullifer, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment.Bytes(), notes[0].UnlockingScript.LockingParams...)
+	nullifer, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].LockingScript.ScriptCommitment.Bytes(), notes[0].LockingScript.LockingParams...)
 	assert.NoError(t, err)
 
 	salt, err := types.RandomSalt()
 	assert.NoError(t, err)
 
 	outLockingScript := &types.LockingScript{
-		ScriptCommitment: notes[0].UnlockingScript.ScriptCommitment,
-		LockingParams:    notes[0].UnlockingScript.LockingParams,
+		ScriptCommitment: notes[0].LockingScript.ScriptCommitment,
+		LockingParams:    notes[0].LockingScript.LockingParams,
 	}
 	outScriptHash, err := outLockingScript.Hash()
 	assert.NoError(t, err)
@@ -57,8 +57,8 @@ func TestNewTestHarness(t *testing.T) {
 			State:      notes[0].Note.State,
 			Salt:       salt,
 		},
-		UnlockingScript: outLockingScript,
-		PrivateKey:      notes[0].PrivateKey,
+		LockingScript: outLockingScript,
+		PrivateKey:    notes[0].PrivateKey,
 	}
 
 	outCommitment, err := outNote.Note.Commitment()
@@ -93,8 +93,8 @@ func TestNewTestHarness(t *testing.T) {
 					Hashes: proof.Hashes,
 					Flags:  proof.Flags,
 				},
-				ScriptCommitment: notes[0].UnlockingScript.ScriptCommitment.Bytes(),
-				ScriptParams:     notes[0].UnlockingScript.LockingParams,
+				ScriptCommitment: notes[0].LockingScript.ScriptCommitment.Bytes(),
+				ScriptParams:     notes[0].LockingScript.LockingParams,
 				UnlockingParams:  make([]byte, 64),
 			},
 		},
@@ -235,14 +235,14 @@ func generateBlocksDat() error {
 	}
 
 	sn2 := &SpendableNote{
-		Note:            out,
-		UnlockingScript: sn.UnlockingScript,
-		PrivateKey:      sn.PrivateKey,
+		Note:          out,
+		LockingScript: sn.LockingScript,
+		PrivateKey:    sn.PrivateKey,
 	}
 	sn3 := &SpendableNote{
-		Note:            out2,
-		UnlockingScript: sn.UnlockingScript,
-		PrivateKey:      sn.PrivateKey,
+		Note:          out2,
+		LockingScript: sn.LockingScript,
+		PrivateKey:    sn.PrivateKey,
 	}
 
 	tx := &transactions.StandardTransaction{

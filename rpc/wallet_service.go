@@ -112,17 +112,17 @@ func (s *GrpcServer) GetAddressInfo(ctx context.Context, req *pb.GetAddressInfoR
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	unlockingScript := types.UnlockingScript{
-		ScriptCommitment: addrInfo.UnlockingScript.ScriptCommitment,
-		ScriptParams:     addrInfo.UnlockingScript.ScriptParams,
+	lockingScript := types.LockingScript{
+		ScriptCommitment: types.NewID(addrInfo.LockingScript.ScriptCommitment),
+		LockingParams:    addrInfo.LockingScript.LockingParams,
 	}
-	unlockingScript.Serialize()
+	lockingScript.Serialize()
 
 	resp := &pb.GetAddressInfoResponse{
-		Address:         addr.String(),
-		UnlockingScript: unlockingScript.Serialize(),
-		ViewPrivateKey:  addrInfo.ViewPrivKey,
-		WatchOnly:       addrInfo.WatchOnly,
+		Address:        addr.String(),
+		LockingScript:  lockingScript.Serialize(),
+		ViewPrivateKey: addrInfo.ViewPrivKey,
+		WatchOnly:      addrInfo.WatchOnly,
 	}
 	return resp, nil
 }
@@ -222,18 +222,18 @@ func (s *GrpcServer) ImportAddress(ctx context.Context, req *pb.ImportAddressReq
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if len(req.UnlockingScript) < zk.CommitmentLen {
-		return nil, status.Error(codes.InvalidArgument, "invalid unlocking script")
+	if len(req.LockingScript) < zk.CommitmentLen {
+		return nil, status.Error(codes.InvalidArgument, "invalid locking script")
 	}
-	unlockingScript := new(types.UnlockingScript)
-	if err := unlockingScript.Deserialize(req.UnlockingScript); err != nil {
+	lockingScript := new(types.LockingScript)
+	if err := lockingScript.Deserialize(req.LockingScript); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	privKey, err := crypto.UnmarshalPrivateKey(req.ViewPrivateKey)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	err = s.wallet.ImportAddress(addr, *unlockingScript, privKey, req.Rescan, req.RescanFromHeight)
+	err = s.wallet.ImportAddress(addr, *lockingScript, privKey, req.Rescan, req.RescanFromHeight)
 	return &pb.ImportAddressResponse{}, err
 }
 
@@ -290,9 +290,9 @@ func (s *GrpcServer) CreateMultisigAddress(ctx context.Context, req *pb.CreateMu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	unlockingScript := types.UnlockingScript{
-		ScriptCommitment: scriptCommitment,
-		ScriptParams:     [][]byte{threshold},
+	lockingScript := types.LockingScript{
+		ScriptCommitment: types.NewID(scriptCommitment),
+		LockingParams:    [][]byte{threshold},
 	}
 	for _, key := range req.Pubkeys {
 		pubkey, err := crypto.UnmarshalPublicKey(key)
@@ -305,7 +305,7 @@ func (s *GrpcServer) CreateMultisigAddress(ctx context.Context, req *pb.CreateMu
 		}
 
 		x, y := novaKey.ToXY()
-		unlockingScript.ScriptParams = append(unlockingScript.ScriptParams, x, y)
+		lockingScript.LockingParams = append(lockingScript.LockingParams, x, y)
 	}
 
 	viewKey, err := crypto.UnmarshalPublicKey(req.ViewPubkey)
@@ -313,7 +313,7 @@ func (s *GrpcServer) CreateMultisigAddress(ctx context.Context, req *pb.CreateMu
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	addr, err := walletlib.NewBasicAddress(unlockingScript, viewKey, s.chainParams)
+	addr, err := walletlib.NewBasicAddress(lockingScript, viewKey, s.chainParams)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -553,11 +553,11 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 		},
 	}
 	for _, in := range rawTx.PrivateInputs {
-		unlockingScript := types.UnlockingScript{
-			ScriptCommitment: in.ScriptCommitment,
-			ScriptParams:     in.ScriptParams,
+		lockingScript := types.LockingScript{
+			ScriptCommitment: types.NewID(in.ScriptCommitment),
+			LockingParams:    in.ScriptParams,
 		}
-		scriptHash, err := unlockingScript.Hash()
+		scriptHash, err := lockingScript.Hash()
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
@@ -651,11 +651,11 @@ func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.Crea
 			Inputs: make([]*pb.PrivateInput, 0, len(rawTx.PrivateInputs)),
 		},
 	}
-	unlockingScript := types.UnlockingScript{
-		ScriptCommitment: rawTx.PrivateInputs[0].ScriptCommitment,
-		ScriptParams:     rawTx.PrivateInputs[0].ScriptParams,
+	lockingScript := types.LockingScript{
+		ScriptCommitment: types.NewID(rawTx.PrivateInputs[0].ScriptCommitment),
+		LockingParams:    rawTx.PrivateInputs[0].ScriptParams,
 	}
-	scriptHash, err := unlockingScript.Hash()
+	scriptHash, err := lockingScript.Hash()
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -723,11 +723,11 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 
 		for i, in := range req.RawTx.Inputs {
 			if in.UnlockingParams == "" {
-				unlockingScript := types.UnlockingScript{
-					ScriptCommitment: in.ScriptCommitment,
-					ScriptParams:     in.ScriptParams,
+				lockingScript := types.LockingScript{
+					ScriptCommitment: types.NewID(in.ScriptCommitment),
+					LockingParams:    in.ScriptParams,
 				}
-				scriptHash, err := unlockingScript.Hash()
+				scriptHash, err := lockingScript.Hash()
 				if err != nil {
 					return nil, status.Error(codes.InvalidArgument, err.Error())
 				}
@@ -832,11 +832,11 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 
-			unlockingScript := types.UnlockingScript{
-				ScriptCommitment: req.RawTx.Inputs[0].ScriptCommitment,
-				ScriptParams:     req.RawTx.Inputs[0].ScriptParams,
+			lockingScript := types.LockingScript{
+				ScriptCommitment: types.NewID(req.RawTx.Inputs[0].ScriptCommitment),
+				LockingParams:    req.RawTx.Inputs[0].ScriptParams,
 			}
-			scriptHash, err := unlockingScript.Hash()
+			scriptHash, err := lockingScript.Hash()
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}

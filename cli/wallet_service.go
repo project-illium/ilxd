@@ -153,15 +153,15 @@ func (x *GetAddrInfo) Execute(args []string) error {
 	}
 
 	kp := struct {
-		Addr            string             `json:"address"`
-		UnlockingScript types.HexEncodable `json:"unlockingScript"`
-		ViewPrivateKey  types.HexEncodable `json:"viewPrivateKey"`
-		WatchOnly       bool               `json:"watchOnly"`
+		Addr           string             `json:"address"`
+		LockingScript  types.HexEncodable `json:"lockingScript"`
+		ViewPrivateKey types.HexEncodable `json:"viewPrivateKey"`
+		WatchOnly      bool               `json:"watchOnly"`
 	}{
-		Addr:            resp.Address,
-		UnlockingScript: resp.UnlockingScript,
-		ViewPrivateKey:  resp.ViewPrivateKey,
-		WatchOnly:       resp.WatchOnly,
+		Addr:           resp.Address,
+		LockingScript:  resp.LockingScript,
+		ViewPrivateKey: resp.ViewPrivateKey,
+		WatchOnly:      resp.WatchOnly,
 	}
 	out, err := json.MarshalIndent(&kp, "", "    ")
 	if err != nil {
@@ -281,7 +281,7 @@ func (x *GetPrivateKey) Execute(args []string) error {
 
 type ImportAddress struct {
 	Address          string `short:"a" long:"addr" description:"The address to import"`
-	UnlockingScript  string `short:"u" long:"unlockingscript" description:"The unlocking script for the address. Serialized as hex string"`
+	LockingScript    string `short:"u" long:"lockingscript" description:"The locking script for the address. Serialized as hex string"`
 	ViewPrivateKey   string `short:"k" long:"viewkey" description:"The view private key for the address. Serialized as hex string."`
 	Rescan           bool   `short:"r" long:"rescan" description:"Whether or not to rescan the blockchain to try to detect transactions for this address."`
 	RescanFromHeight uint32 `short:"t" long:"rescanheight" description:"The height of the chain to rescan from. Selecting a height close to the address birthday saves resources."`
@@ -294,7 +294,7 @@ func (x *ImportAddress) Execute(args []string) error {
 		return err
 	}
 
-	unlockingScriptBytes, err := hex.DecodeString(x.UnlockingScript)
+	lockingScriptBytes, err := hex.DecodeString(x.LockingScript)
 	if err != nil {
 		return err
 	}
@@ -305,7 +305,7 @@ func (x *ImportAddress) Execute(args []string) error {
 
 	_, err = client.ImportAddress(makeContext(x.opts.AuthToken), &pb.ImportAddressRequest{
 		Address:          x.Address,
-		UnlockingScript:  unlockingScriptBytes,
+		LockingScript:    lockingScriptBytes,
 		ViewPrivateKey:   privKeyBytes,
 		Rescan:           x.Rescan,
 		RescanFromHeight: x.RescanFromHeight,
@@ -432,11 +432,11 @@ func (x *CreateMultisigAddress) Execute(args []string) error {
 	threshold := make([]byte, 4)
 	binary.BigEndian.PutUint32(threshold, x.Threshold)
 
-	unlockingScript := types.UnlockingScript{
-		ScriptCommitment: scriptCommitment,
-		ScriptParams:     [][]byte{threshold},
+	lockingScript := types.LockingScript{
+		ScriptCommitment: types.NewID(scriptCommitment),
+		LockingParams:    [][]byte{threshold},
 	}
-	unlockingScript.ScriptParams = append(unlockingScript.ScriptParams, pubkeys...)
+	lockingScript.LockingParams = append(lockingScript.LockingParams, pubkeys...)
 
 	var chainParams *params.NetworkParams
 	switch strings.ToLower(x.Net) {
@@ -452,17 +452,17 @@ func (x *CreateMultisigAddress) Execute(args []string) error {
 		return errors.New("invalid net")
 	}
 
-	addr, err := walletlib.NewBasicAddress(unlockingScript, viewKey, chainParams)
+	addr, err := walletlib.NewBasicAddress(lockingScript, viewKey, chainParams)
 	if err != nil {
 		return err
 	}
 
 	kp := struct {
-		Addr            string             `json:"address"`
-		UnlockingScript types.HexEncodable `json:"unlockingScript"`
+		Addr          string             `json:"address"`
+		LockingScript types.HexEncodable `json:"lockingScript"`
 	}{
-		Addr:            addr.String(),
-		UnlockingScript: unlockingScript.Serialize(),
+		Addr:          addr.String(),
+		LockingScript: lockingScript.Serialize(),
 	}
 	out, err := json.MarshalIndent(&kp, "", "    ")
 	if err != nil {

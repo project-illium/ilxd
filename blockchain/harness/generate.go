@@ -101,7 +101,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				outputNotes = append(outputNotes, &SpendableNote{
 					Note:             outputNote,
 					PrivateKey:       privKey,
-					UnlockingScript:  lockingScript,
+					LockingScript:    lockingScript,
 					cachedScriptHash: scriptHash,
 				})
 
@@ -116,9 +116,9 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				}
 
 				remainingNotes[outNullifier] = &SpendableNote{
-					Note:            outputNote,
-					UnlockingScript: lockingScript,
-					PrivateKey:      privKey,
+					Note:          outputNote,
+					LockingScript: lockingScript,
+					PrivateKey:    privKey,
 				}
 
 				outputs = append(outputs, &transactions.Output{
@@ -156,8 +156,8 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 							Hashes: inclusionProof.Hashes,
 							Flags:  inclusionProof.Flags,
 						},
-						ScriptCommitment: sn.UnlockingScript.ScriptCommitment.Bytes(),
-						ScriptParams:     sn.UnlockingScript.LockingParams,
+						ScriptCommitment: sn.LockingScript.ScriptCommitment.Bytes(),
+						ScriptParams:     sn.LockingScript.LockingParams,
 						UnlockingParams:  mockUnlockingSig,
 					},
 				},
@@ -541,9 +541,9 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	genesis.Header.Timestamp = time.Now().Add(-time.Hour * 24 * 365 * 10).Unix()
 
 	spendableNote := &SpendableNote{
-		Note:            note2,
-		UnlockingScript: note2LockingScript,
-		PrivateKey:      spendKey,
+		Note:          note2,
+		LockingScript: note2LockingScript,
+		PrivateKey:    spendKey,
 	}
 	return genesis, spendableNote, nil
 }

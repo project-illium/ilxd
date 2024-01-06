@@ -61,7 +61,7 @@ func TestGenerator(t *testing.T) {
 
 	root := testHarness.Accumulator().Root()
 
-	nullifier, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
+	nullifier, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].LockingScript.ScriptCommitment.Bytes(), notes[0].LockingScript.LockingParams...)
 	assert.NoError(t, err)
 
 	stakeTx := &transactions.StakeTransaction{

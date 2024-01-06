@@ -32,7 +32,7 @@ type LockingScript struct {
 	LockingParams    [][]byte
 }
 
-// Serialize returns the unlocking script serialized as a byte slice
+// Serialize returns the locking script serialized as a byte slice
 func (u *LockingScript) Serialize() []byte {
 	ser := make([]byte, len(u.ScriptCommitment))
 	copy(ser, u.ScriptCommitment[:])
@@ -52,7 +52,7 @@ func (ul *LockingScript) Deserialize(ser []byte) error {
 	return nil
 }
 
-// Hash returns the Lurk Commitment hash of the unlocking script
+// Hash returns the Lurk Commitment hash of the locking script
 func (u *LockingScript) Hash() (ID, error) {
 	expr, err := u.lurkExpression()
 	if err != nil {

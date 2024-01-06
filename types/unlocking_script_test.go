@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestUnlockingScript_Hash(t *testing.T) {
+func TestLockingScript_Hash(t *testing.T) {
 	sh, err := hex.DecodeString("13e0143cceae5e7e44d8025c57f4759cfb6384e4a2d3d1106e6c098603845900")
 	assert.NoError(t, err)
 	param2, err := hex.DecodeString("0cef7dd85c04c505d55c063824a5bad62170db0d37e2068fc6c749ada2cb8293")
@@ -30,7 +30,7 @@ func TestUnlockingScript_Hash(t *testing.T) {
 	assert.Equal(t, "0e259200938dd2eb040d998ebbbbac8c14dc631125d8105cd996d2f1d0d24301", h.String())
 }
 
-func TestUnlockingScript_SerializeDeserialize(t *testing.T) {
+func TestLockingScript_SerializeDeserialize(t *testing.T) {
 	sh, err := hex.DecodeString("13e0143cceae5e7e44d8025c57f4759cfb6384e4a2d3d1106e6c098603845900")
 	assert.NoError(t, err)
 	param2, err := hex.DecodeString("0cef7dd85c04c505d55c063824a5bad62170db0d37e2068fc6c749ada2cb8293")
