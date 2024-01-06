@@ -17,9 +17,9 @@ func TestUnlockingScript_Hash(t *testing.T) {
 	assert.NoError(t, err)
 	param1 := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
 
-	ul := UnlockingScript{
-		ScriptCommitment: sh,
-		ScriptParams:     [][]byte{param1, param2},
+	ul := LockingScript{
+		ScriptCommitment: NewID(sh),
+		LockingParams:    [][]byte{param1, param2},
 	}
 
 	expr, err := ul.lurkExpression()
@@ -37,18 +37,18 @@ func TestUnlockingScript_SerializeDeserialize(t *testing.T) {
 	assert.NoError(t, err)
 	param1 := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
 
-	ul := UnlockingScript{
-		ScriptCommitment: sh,
-		ScriptParams:     [][]byte{param1, param2},
+	ul := LockingScript{
+		ScriptCommitment: NewID(sh),
+		LockingParams:    [][]byte{param1, param2},
 	}
 
 	ser := ul.Serialize()
 	assert.Len(t, ser, 32+33+9)
 
-	ul2 := new(UnlockingScript)
+	ul2 := new(LockingScript)
 	err = ul2.Deserialize(ser)
 	assert.NoError(t, err)
 
 	assert.Equal(t, ul.ScriptCommitment, ul2.ScriptCommitment)
-	assert.Equal(t, ul.ScriptParams, ul2.ScriptParams)
+	assert.Equal(t, ul.LockingParams, ul2.LockingParams)
 }

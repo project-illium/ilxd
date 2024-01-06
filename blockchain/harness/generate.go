@@ -83,11 +83,11 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 					return nil, nil, err
 				}
 
-				unlockingScript := &types.UnlockingScript{
-					ScriptCommitment: mockStandardScriptCommitment,
-					ScriptParams:     [][]byte{pubx, puby},
+				lockingScript := &types.LockingScript{
+					ScriptCommitment: types.NewID(mockStandardScriptCommitment),
+					LockingParams:    [][]byte{pubx, puby},
 				}
-				scriptHash, err := unlockingScript.Hash()
+				scriptHash, err := lockingScript.Hash()
 				if err != nil {
 					return nil, nil, err
 				}
@@ -101,7 +101,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				outputNotes = append(outputNotes, &SpendableNote{
 					Note:             outputNote,
 					PrivateKey:       privKey,
-					UnlockingScript:  unlockingScript,
+					UnlockingScript:  lockingScript,
 					cachedScriptHash: scriptHash,
 				})
 
@@ -110,14 +110,14 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 					return nil, nil, err
 				}
 
-				outNullifier, err := types.CalculateNullifier(nCommitments-1, outputNote.Salt, unlockingScript.ScriptCommitment, unlockingScript.ScriptParams...)
+				outNullifier, err := types.CalculateNullifier(nCommitments-1, outputNote.Salt, lockingScript.ScriptCommitment.Bytes(), lockingScript.LockingParams...)
 				if err != nil {
 					return nil, nil, err
 				}
 
 				remainingNotes[outNullifier] = &SpendableNote{
 					Note:            outputNote,
-					UnlockingScript: unlockingScript,
+					UnlockingScript: lockingScript,
 					PrivateKey:      privKey,
 				}
 
@@ -156,8 +156,8 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 							Hashes: inclusionProof.Hashes,
 							Flags:  inclusionProof.Flags,
 						},
-						ScriptCommitment: sn.UnlockingScript.ScriptCommitment,
-						ScriptParams:     sn.UnlockingScript.ScriptParams,
+						ScriptCommitment: sn.UnlockingScript.ScriptCommitment.Bytes(),
+						ScriptParams:     sn.UnlockingScript.LockingParams,
 						UnlockingParams:  mockUnlockingSig,
 					},
 				},
@@ -319,11 +319,11 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 
 	pubx, puby := spendKey.GetPublic().(*icrypto.NovaPublicKey).ToXY()
 
-	note1UnlockingScript := &types.UnlockingScript{
-		ScriptCommitment: mockStandardScriptCommitment,
-		ScriptParams:     [][]byte{pubx, puby},
+	note1LockingScript := &types.LockingScript{
+		ScriptCommitment: types.NewID(mockStandardScriptCommitment),
+		LockingParams:    [][]byte{pubx, puby},
 	}
-	note1ScriptHash, err := note1UnlockingScript.Hash()
+	note1ScriptHash, err := note1LockingScript.Hash()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -340,11 +340,11 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		return nil, nil, err
 	}
 
-	note2UnlockingScript := &types.UnlockingScript{
-		ScriptCommitment: mockStandardScriptCommitment,
-		ScriptParams:     [][]byte{pubx, puby},
+	note2LockingScript := &types.LockingScript{
+		ScriptCommitment: types.NewID(mockStandardScriptCommitment),
+		LockingParams:    [][]byte{pubx, puby},
 	}
-	note2ScriptHash, err := note2UnlockingScript.Hash()
+	note2ScriptHash, err := note2LockingScript.Hash()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -405,11 +405,11 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	// Finally we're going to create the zk-snark proof for the coinbase
 	// transaction.
 
-	nullifier1, err := types.CalculateNullifier(0, salt1, note1UnlockingScript.ScriptCommitment, note1UnlockingScript.ScriptParams...)
+	nullifier1, err := types.CalculateNullifier(0, salt1, note1LockingScript.ScriptCommitment.Bytes(), note1LockingScript.LockingParams...)
 	if err != nil {
 		return nil, nil, err
 	}
-	nullifier2, err := types.CalculateNullifier(1, salt2, note2UnlockingScript.ScriptCommitment, note2UnlockingScript.ScriptParams...)
+	nullifier2, err := types.CalculateNullifier(1, salt2, note2LockingScript.ScriptCommitment.Bytes(), note2LockingScript.LockingParams...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -542,7 +542,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 
 	spendableNote := &SpendableNote{
 		Note:            note2,
-		UnlockingScript: note2UnlockingScript,
+		UnlockingScript: note2LockingScript,
 		PrivateKey:      spendKey,
 	}
 	return genesis, spendableNote, nil

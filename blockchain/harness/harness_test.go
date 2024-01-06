@@ -36,17 +36,17 @@ func TestNewTestHarness(t *testing.T) {
 	assert.NoError(t, err)
 	root := acc.Root()
 
-	nullifer, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment, notes[0].UnlockingScript.ScriptParams...)
+	nullifer, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].UnlockingScript.ScriptCommitment.Bytes(), notes[0].UnlockingScript.LockingParams...)
 	assert.NoError(t, err)
 
 	salt, err := types.RandomSalt()
 	assert.NoError(t, err)
 
-	outUnlockingScript := &types.UnlockingScript{
+	outLockingScript := &types.LockingScript{
 		ScriptCommitment: notes[0].UnlockingScript.ScriptCommitment,
-		ScriptParams:     notes[0].UnlockingScript.ScriptParams,
+		LockingParams:    notes[0].UnlockingScript.LockingParams,
 	}
-	outScriptHash, err := outUnlockingScript.Hash()
+	outScriptHash, err := outLockingScript.Hash()
 	assert.NoError(t, err)
 
 	outNote := &SpendableNote{
@@ -57,7 +57,7 @@ func TestNewTestHarness(t *testing.T) {
 			State:      notes[0].Note.State,
 			Salt:       salt,
 		},
-		UnlockingScript: outUnlockingScript,
+		UnlockingScript: outLockingScript,
 		PrivateKey:      notes[0].PrivateKey,
 	}
 
@@ -93,8 +93,8 @@ func TestNewTestHarness(t *testing.T) {
 					Hashes: proof.Hashes,
 					Flags:  proof.Flags,
 				},
-				ScriptCommitment: notes[0].UnlockingScript.ScriptCommitment,
-				ScriptParams:     notes[0].UnlockingScript.ScriptParams,
+				ScriptCommitment: notes[0].UnlockingScript.ScriptCommitment.Bytes(),
+				ScriptParams:     notes[0].UnlockingScript.LockingParams,
 				UnlockingParams:  make([]byte, 64),
 			},
 		},
