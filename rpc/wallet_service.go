@@ -418,7 +418,7 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 	for _, out := range req.RawTx.Outputs {
 		privOut := standard.PrivateOutput{
 			SpendNote: types.SpendNote{
-				ScriptHash: out.ScriptHash,
+				ScriptHash: types.NewID(out.ScriptHash),
 				Amount:     types.Amount(out.Amount),
 			},
 		}
@@ -562,7 +562,7 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 		note := types.SpendNote{
-			ScriptHash: scriptHash[:],
+			ScriptHash: scriptHash,
 			Amount:     types.Amount(in.Amount),
 			AssetID:    in.AssetID,
 			State:      in.State,
@@ -602,7 +602,7 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 			ScriptHash: make([]byte, len(out.ScriptHash)),
 		}
 		copy(po.Salt, out.Salt[:])
-		copy(po.ScriptHash, out.ScriptHash)
+		copy(po.ScriptHash, out.ScriptHash.Bytes())
 		copy(po.Asset_ID, out.AssetID[:])
 		ser, err := out.State.Serialize(true)
 		if err != nil {
@@ -660,7 +660,7 @@ func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.Crea
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	note := types.SpendNote{
-		ScriptHash: scriptHash[:],
+		ScriptHash: scriptHash,
 		Amount:     types.Amount(rawTx.PrivateInputs[0].Amount),
 		AssetID:    rawTx.PrivateInputs[0].AssetID,
 		State:      rawTx.PrivateInputs[0].State,
@@ -776,11 +776,11 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		for _, out := range req.RawTx.Outputs {
 			privOut := standard.PrivateOutput{
 				SpendNote: types.SpendNote{
-					ScriptHash: make([]byte, len(out.ScriptHash)),
+					ScriptHash: types.ID{},
 					Amount:     types.Amount(out.Amount),
 				},
 			}
-			copy(privOut.ScriptHash, out.ScriptHash)
+			copy(privOut.ScriptHash[:], out.ScriptHash)
 			copy(privOut.Salt[:], out.Salt)
 			copy(privOut.AssetID[:], out.Asset_ID)
 			state := new(types.State)

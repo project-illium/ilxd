@@ -8,12 +8,12 @@ import (
 func TestLurkEncrypt(t *testing.T) {
 	plainText := make([][32]byte, 10)
 	for i := 0; i < 10; i++ {
-		data, err := randomFieldElement()
+		data, err := RandomFieldElement()
 		assert.NoError(t, err)
 		plainText[i] = data
 	}
 
-	key, err := randomFieldElement()
+	key, err := RandomFieldElement()
 	assert.NoError(t, err)
 
 	cipherText, err := LurkEncrypt(plainText, key)

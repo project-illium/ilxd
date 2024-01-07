@@ -626,7 +626,7 @@ func (x *ProveMultisig) Execute(args []string) error {
 	for _, out := range rawTx.Outputs {
 		privOut := standard.PrivateOutput{
 			SpendNote: types.SpendNote{
-				ScriptHash: out.ScriptHash,
+				ScriptHash: types.NewID(out.ScriptHash),
 				Amount:     types.Amount(out.Amount),
 			},
 		}
@@ -1239,11 +1239,11 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 		for _, out := range rawTx.Outputs {
 			privOut := standard.PrivateOutput{
 				SpendNote: types.SpendNote{
-					ScriptHash: make([]byte, len(out.ScriptHash)),
+					ScriptHash: types.ID{},
 					Amount:     types.Amount(out.Amount),
 				},
 			}
-			copy(privOut.ScriptHash, out.ScriptHash)
+			copy(privOut.ScriptHash[:], out.ScriptHash)
 			copy(privOut.Salt[:], out.Salt)
 			copy(privOut.AssetID[:], out.Asset_ID)
 			state := new(types.State)

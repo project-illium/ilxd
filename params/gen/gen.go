@@ -108,7 +108,7 @@ func main() {
 	}
 
 	note0 := types.SpendNote{
-		ScriptHash: scriptHash.Bytes(),
+		ScriptHash: scriptHash,
 		Amount:     types.Amount(stakeAmt),
 		AssetID:    types.IlliumCoinID,
 	}
@@ -119,7 +119,7 @@ func main() {
 	note0.Salt = salt
 
 	note1 := types.SpendNote{
-		ScriptHash: scriptHash.Bytes(),
+		ScriptHash: scriptHash,
 		Amount:     types.Amount(secondOutAmt),
 		AssetID:    types.IlliumCoinID,
 	}

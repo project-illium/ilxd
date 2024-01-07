@@ -16,6 +16,7 @@ import (
 //go:embed lurk/basic_transfer.lurk
 var basicTransferScriptLurk embed.FS
 var basicTransferScriptData string
+var basicTransferScriptCommitment []byte
 
 //go:embed lurk/password_script.lurk
 var passwordScriptLurk embed.FS
@@ -30,6 +31,10 @@ var timelockedMultisigScriptLurk embed.FS
 var timelockedMultisigScriptData string
 var timeLockedMultisigCommitment []byte
 
+//go:embed lurk/standard_validation.lurk
+var standardValidationScriptLurk embed.FS
+var standardValidationScriptData string
+
 func init() {
 	mp, err := macros.NewMacroPreprocessor(macros.WithStandardLib(), macros.RemoveComments())
 	if err != nil {
@@ -40,6 +45,10 @@ func init() {
 		panic(err)
 	}
 	basicTransferScriptData, err = mp.Preprocess(string(data))
+	if err != nil {
+		panic(err)
+	}
+	basicTransferScriptCommitment, err = LurkCommit(basicTransferScriptData)
 	if err != nil {
 		panic(err)
 	}
@@ -74,11 +83,26 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+	data, err = standardValidationScriptLurk.ReadFile("lurk/standard_validation.lurk")
+	if err != nil {
+		panic(err)
+	}
+
+	standardValidationScriptData = string(data)
 }
 
 // BasicTransferScript returns the basic transfer lurk script
 func BasicTransferScript() string {
 	return basicTransferScriptData
+}
+
+// BasicTransferScriptCommitment returns the script commitment hash
+// for the basic transfer script.
+func BasicTransferScriptCommitment() []byte {
+	ret := make([]byte, len(basicTransferScriptCommitment))
+	copy(ret, basicTransferScriptCommitment)
+	return ret
 }
 
 // PasswordScript returns the password lurk script
@@ -102,6 +126,11 @@ func TimelockedMultisigScriptCommitment() []byte {
 	ret := make([]byte, len(timeLockedMultisigCommitment))
 	copy(ret, timeLockedMultisigCommitment)
 	return ret
+}
+
+// StandardValidationProgram returns the standard validation lurk program script
+func StandardValidationProgram() string {
+	return standardValidationScriptData
 }
 
 func MakeMultisigUnlockingParams(pubkeys [][]byte, sigs [][]byte, sigHash []byte) ([]byte, error) {

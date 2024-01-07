@@ -12,7 +12,7 @@ import (
 
 // SpendNote holds all the data that makes up an output commitment.
 type SpendNote struct {
-	ScriptHash []byte
+	ScriptHash ID
 	Amount     Amount
 	AssetID    ID
 	Salt       [SaltLen]byte
@@ -23,7 +23,7 @@ type SpendNote struct {
 // data and returns the Lurk Commitment hash.
 func (s *SpendNote) Commitment() (ID, error) {
 	elems := []any{
-		s.ScriptHash,
+		s.ScriptHash.Bytes(),
 		s.Amount.ToBytes(),
 		s.AssetID.Bytes(),
 		s.Salt[:],
@@ -53,7 +53,7 @@ func (s *SpendNote) Serialize() ([]byte, error) {
 	amountBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(amountBytes, uint64(s.Amount))
 
-	ser = append(ser, s.ScriptHash...)
+	ser = append(ser, s.ScriptHash.Bytes()...)
 	ser = append(ser, amountBytes...)
 	ser = append(ser, idBytes...)
 	ser = append(ser, s.Salt[:]...)
@@ -71,8 +71,7 @@ func (s *SpendNote) Deserialize(ser []byte) error {
 	if len(ser) < ScriptHashLen+AmountLen+AssetIDLen+SaltLen {
 		return errors.New("invalid serialization length")
 	}
-	s.ScriptHash = make([]byte, ScriptHashLen)
-	copy(s.ScriptHash, ser[:ScriptHashLen])
+	copy(s.ScriptHash[:], ser[:ScriptHashLen])
 
 	s.Amount = Amount(binary.BigEndian.Uint64(ser[ScriptHashLen : ScriptHashLen+AmountLen]))
 	copy(s.AssetID[:], ser[ScriptHashLen+AmountLen:ScriptHashLen+AmountLen+AssetIDLen])

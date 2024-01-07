@@ -34,7 +34,7 @@ func TestProofValidator(t *testing.T) {
 	inScriptHash, err := inLockingScript.Hash()
 	assert.NoError(t, err)
 	inNote := &types.SpendNote{
-		ScriptHash: inScriptHash[:],
+		ScriptHash: inScriptHash,
 		Amount:     1000000,
 		AssetID:    types.IlliumCoinID,
 		Salt:       salt1,
@@ -50,7 +50,7 @@ func TestProofValidator(t *testing.T) {
 	outScriptHash, err := outLockingScript.Hash()
 	assert.NoError(t, err)
 	outNote := &types.SpendNote{
-		ScriptHash: outScriptHash[:],
+		ScriptHash: outScriptHash,
 		Amount:     900000,
 		AssetID:    types.IlliumCoinID,
 		Salt:       salt1,

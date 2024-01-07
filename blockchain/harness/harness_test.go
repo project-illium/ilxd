@@ -51,7 +51,7 @@ func TestNewTestHarness(t *testing.T) {
 
 	outNote := &SpendableNote{
 		Note: &types.SpendNote{
-			ScriptHash: outScriptHash[:],
+			ScriptHash: outScriptHash,
 			Amount:     notes[0].Note.Amount - 10,
 			AssetID:    notes[0].Note.AssetID,
 			State:      notes[0].Note.State,
@@ -101,7 +101,7 @@ func TestNewTestHarness(t *testing.T) {
 		Outputs: []standard.PrivateOutput{
 			{
 				SpendNote: types.SpendNote{
-					ScriptHash: outScriptHash[:],
+					ScriptHash: outScriptHash,
 					Amount:     outNote.Note.Amount,
 					Salt:       outNote.Note.Salt,
 					State:      outNote.Note.State,

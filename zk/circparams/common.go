@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
 
-package params
+package circparams
 
 import (
 	"fmt"
@@ -57,31 +57,22 @@ type InclusionProof struct {
 
 func (ip *InclusionProof) ToExpr() (string, error) {
 	hashes := ""
-	for _, n := range ip.Hashes {
-		hashes += fmt.Sprintf("(cons 0x%x ", n)
+	for i, n := range ip.Hashes {
+		mask := uint64(1) << i
+		bit := ip.Flags & mask
+		b := "nil"
+		if bit > 0 {
+			b = "t"
+		}
+		h := fmt.Sprintf("(cons 0x%x %s)", n, b)
+		hashes += "(cons " + h + " "
 	}
 	hashes += "nil)"
 	for i := 0; i < len(ip.Hashes)-1; i++ {
 		hashes += ")"
 	}
 
-	flags := ""
-	for i := 0; i < len(ip.Hashes); i++ {
-		mask := uint64(1) << i
-		bit := ip.Flags & mask
-
-		if bit > 0 {
-			flags += "(cons t "
-		} else {
-			flags += "(cons nil "
-		}
-	}
-	flags += "nil)"
-	for i := 0; i < len(ip.Hashes)-1; i++ {
-		flags += ")"
-	}
-
-	return fmt.Sprintf("(cons %s %s)", hashes, flags), nil
+	return hashes, nil
 }
 
 type PrivateOutput struct {

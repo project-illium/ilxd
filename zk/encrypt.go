@@ -25,7 +25,7 @@ func LurkEncrypt(plaintext [][32]byte, key [32]byte) ([][32]byte, error) {
 	ciphertext := make([][32]byte, len(plaintext)+1)
 loop:
 	for {
-		nonce, err := randomFieldElement()
+		nonce, err := RandomFieldElement()
 		if err != nil {
 			return nil, err
 		}
@@ -69,7 +69,7 @@ func xorBytes(a, b []byte) []byte {
 	return result
 }
 
-func randomFieldElement() ([32]byte, error) {
+func RandomFieldElement() ([32]byte, error) {
 	upperBound := new(big.Int)
 	upperBound.SetString(LurkMaxFieldElement, 16)
 

@@ -1,0 +1,241 @@
+(
+    letrec (
+        ;; hash uses the blake2s function inside the circuit.
+        ;; x is expected to be an integer of up to 255 bits.
+        ;; It gets converted to its byte representation inside
+        ;; the coprocessor before hashing.
+        ;;
+        ;; This is an expensive compution and hashing will
+        ;; substantially increase proving time.
+        (hash (lambda (x) (num (commit x))))
+            ;;(eval (cons 'blake2s_hash (cons x nil))))))
+
+        ;; cat-and-hash accepts a list of integers, each up to
+        ;; 255 bits. The integers are converted to their byte
+        ;; representation, concatenated together, then hashed.
+        ;; If a list element is type u64 then only a 8 byte
+        ;; array will be concatenated for that element.
+        (cat-and-hash (lambda (list)
+            (hash list)))
+
+        ;; map-get returns an item from a map given the key.
+        ;; the map must be a list of form (:key item :key item).
+        (map-get (lambda (key plist)
+            (if plist
+                (if (eq key (car plist))
+                    (car (cdr plist))
+                    (map-get key (cdr (cdr plist))))
+                nil)))
+
+        ;; nth returns the item at the given index from
+        ;; the list or nil if the index doesn't exist.
+        (nth (lambda (idx plist)
+            (if (= idx 0)
+                (car plist)
+                (nth (- idx 1) (cdr plist)))))
+
+        ;; map-update updates value of the given key in the
+        ;; provided map and returns the new map.
+        ;; If the key is not in the map a new map entry will
+        ;; be added.
+        ;; The map is formatted as a flat list of format
+        ;; (:key item :key item)
+        (map-update (lambda (key value map)
+             (if (eq map nil)
+                 (cons key (cons value nil))
+                 (let ((existing-key (car map))
+                       (rest-map (cdr map)))
+                       (if (= existing-key key)
+                           (cons key (cons value (cdr (cdr map))))
+                           (cons existing-key (map-update key value rest-map)))))))
+
+        ;; check-overflow returns whether the sum of a and b overflows a u64
+        (check-overflow (lambda (a b)
+            (if (> b 0)
+                (if (> a (- 18446744073709551615 b))
+                    t
+                    nil)
+                nil)))
+
+        ;; validate-inclusion-proof validates that the provided
+        ;; output commitment connects to the provided merkle root
+        ;; via a merkle inclusion proof.
+        (validate-inclusion-proof (lambda (output-commitment commitment-index hashes accumulator root)
+            (letrec (
+                (h (cat-and-hash '((u64 commitment-index) output-commitment)))
+                (is-hash-in-accumulator (lambda (h accumulator)
+                    (if (= h (car accumulator))
+                        t
+                        (if (eq (cdr accumulator) nil)
+                            nil
+                            (is-hash-in-accumulator h (cdr accumulator))))))
+                (hash-branches (lambda (h hashes)
+                    (let ((next-hash (car hashes))
+                        (val (car next-hash))
+                        (left (cdr next-hash))
+                        (new-h (if (eq left t)
+                                (cat-and-hash '(val h))
+                                (cat-and-hash '(h val)))))
+
+                        (if (eq (cdr hashes) nil)
+                            new-h
+                            (hash-branches new-h (cdr hashes)))))))
+
+                (if (is-hash-in-accumulator (hash-branches 'h hashes) accumulator)
+                    (eq (cat-and-hash accumulator) root)
+                    nil))))
+
+        ;; validate-input validates the input against the provided
+        ;; parameters. In particular it validates that the inclusion
+        ;; proof is valid, the nullifier is calculated correctly,
+        ;; and the committed unlocking function executed correctly.
+        (validate-input (lambda (input idx txo-root nullifiers private-params public-params)
+            (let (
+                (script-commitment (car input))
+                (amount (cdr input))
+                (asset-id (cdr amount))
+                (script-params (cdr asset-id))
+                (commitment-idx (cdr script-params))
+                (state (cdr commitment-idx))
+                (salt (cdr state))
+                (unlocking-params (cdr salt))
+                (inclusion-proof-hashes (cdr unlocking-params))
+                (inclusion-proof-acc (cdr inclusion-proof-hashes))
+                (spend-script-preimage (cons script-commitment (car script-params)))
+                (script-hash (hash 'spend-script-preimage))
+                (nullifier (nth idx nullifiers))
+                (calculated-nullifier (cat-and-hash '((car commitment-idx) (car salt) script-commitment (car script-params))))
+                (output-commitment (cat-and-hash '(script-hash (u64 (car amount)) (car asset-id) (car state) (car salt)))))
+
+                (if (eq ((open (comm script-commitment))
+                        (car script-params)
+                        (car unlocking-params)
+                        idx
+                        private-params
+                        public-params) nil)
+                    nil
+                    (if (eq (validate-inclusion-proof output-commitment
+                                (car commitment-idx)
+                                (car inclusion-proof-hashes)
+                                (car inclusion-proof-acc)
+                                txo-root) nil)
+                        nil
+                        (= nullifier calculated-nullifier))))))
+
+        ;; validate-output validates that the provided private output
+        ;; data matches the public output commitment found in the
+        ;; transaction.
+        (validate-output (lambda (output idx public-outputs)
+                    (let (
+                        (script-hash (car output))
+                        (amount (cdr output))
+                        (asset-id (cdr amount))
+                        (state (cdr asset-id))
+                        (salt (cdr state))
+                        (public-output (nth idx public-outputs))
+                        (commitment-preimage (cat-and-hash '(
+                                                    script-hash
+                                                    (u64 (car amount))
+                                                    (car asset-id)
+                                                    (car state)
+                                                    (car salt))))
+                        (output-commitment (hash commitment-preimage)))
+                        (= output-commitment (car public-output)))))
+
+        ;; validate-amounts validates that the total private input
+        ;; values do not exceed the total private output values.
+        ;; It performs this check both for the illium asset ID and
+        ;; for other token asset IDs. It will return false if an
+        ;; integer overflow is detected.
+        (validate-amounts (lambda (private-inputs private-outputs coinbase fee mint-id mint-amount)
+                        (letrec (
+                            (validate-assets (lambda (in-map out-map)
+                                       (let (
+                                             (out-asset-id (car out-map))
+                                             (in-value (map-get out-asset-id in-map)))
+
+                                              (if (eq out-asset-id nil)
+                                                  t
+                                                  (if (eq in-value nil)
+                                                      (if (eq out-asset-id mint-id)
+                                                          (<= (car (cdr out-map)) mint-amount)
+                                                          nil)
+                                                      (if (> (car (cdr out-map)) (+ in-value mint-amount))
+                                                          nil
+                                                          (validate-assets in-map (cdr (cdr out-map)))))))))
+
+                            (sum-xputs (lambda (xputs illium-sum asset-map)
+                                            (letrec (
+                                                (amount (cdr (car xputs)))
+                                                (asset-id (car (cdr amount)))
+                                                (sum-assets (lambda (asset-map a-id amt)
+                                                                (let ((asset-amt (map-get a-id asset-map)))
+
+                                                                (if (eq asset-amt nil)
+                                                                    (map-update a-id amt asset-map)
+                                                                    (if (check-overflow asset-amt amt)
+                                                                        nil
+                                                                        (map-update a-id (+ asset-amt amt) asset-map))) ))))
+
+                                                (if (eq xputs nil)
+                                                    (cons illium-sum asset-map)
+                                                    (if (= asset-id 0)
+                                                        (if (check-overflow illium-sum (u64 (car amount)))
+                                                              nil
+                                                              (sum-xputs (cdr xputs) (+ illium-sum (u64 (car amount))) asset-map))
+                                                        (let ((new-asset-map (sum-assets asset-map asset-id (u64 (car amount)))))
+                                                           (if (eq new-asset-map nil)
+                                                                nil
+                                                                (sum-xputs (cdr xputs) illium-sum new-asset-map) )))))))
+
+                            (in-vals (sum-xputs private-inputs 0 nil))
+                            (out-vals (sum-xputs private-outputs 0 nil)))
+
+                            (if (eq in-vals nil)
+                                nil
+                                (if (eq out-vals nil)
+                                    nil
+                                    (if (check-overflow (car in-vals) coinbase)
+                                        nil
+                                        (if (check-overflow (car out-vals) fee)
+                                            nil
+                                            (if (> (+ (car out-vals) fee) (+ (car in-vals) coinbase))
+                                                nil
+                                                (validate-assets (cdr in-vals) (cdr out-vals))))))))))
+
+        (validate-transaction (lambda (private-params public-params)
+                    (letrec (
+                            (private-inputs (car private-params))
+                            (private-outputs (car (cdr private-params)))
+                            (nullifiers (car public-params))
+                            (txo-root (cdr public-params))
+                            (fee (cdr txo-root))
+                            (coinbase (cdr fee))
+                            (mint-id (cdr coinbase))
+                            (mint-amount (cdr mint-id))
+                            (public-outputs (cdr mint-amount))
+
+                            (validate-inputs (lambda (idx inputs)
+                                (if (eq inputs nil)
+                                    t
+                                    (if (validate-input (car inputs) idx (car txo-root) nullifiers private-params public-params)
+                                        (validate-inputs (+ idx 1) (cdr inputs))
+                                        nil))))
+                            (validate-outputs (lambda (idx outputs)
+                                    (if (eq outputs nil)
+                                        t
+                                        (if (validate-output (car outputs) idx (car public-outputs))
+                                            (validate-outputs (+ idx 1) (cdr outputs))
+                                            nil)))))
+
+
+                           (if (eq private-inputs nil)
+                               nil
+                               (if (validate-inputs 0 private-inputs)
+                                   (if (eq private-outputs nil)
+                                       nil
+                                       (if (validate-outputs 0 private-outputs)
+                                          (validate-amounts private-inputs private-outputs (car coinbase) (car fee) (car mint-id) (car mint-amount))
+                                           nil))
+                                   nil)))))
+    )

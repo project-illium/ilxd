@@ -56,7 +56,7 @@ func TestBlockchain(t *testing.T) {
 	scriptHash, err := lockingScript.Hash()
 	assert.NoError(t, err)
 	note := types.SpendNote{
-		ScriptHash: scriptHash[:],
+		ScriptHash: scriptHash,
 		Amount:     10000,
 	}
 
@@ -67,7 +67,7 @@ func TestBlockchain(t *testing.T) {
 			Outputs: []standard.PrivateOutput{
 				{
 					SpendNote: types.SpendNote{
-						ScriptHash: scriptHash[:],
+						ScriptHash: scriptHash,
 						Amount:     10000,
 					},
 				},

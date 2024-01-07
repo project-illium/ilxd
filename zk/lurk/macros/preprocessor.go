@@ -77,7 +77,7 @@ var inputMap = map[string]int{
 	"script-commitment":           0,
 	"amount":                      1,
 	"asset-id":                    2,
-	"script-params":               3,
+	"locking-params":              3,
 	"commitment-index":            4,
 	"state":                       5,
 	"salt":                        6,
