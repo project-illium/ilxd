@@ -13,8 +13,8 @@ type PrivateInput struct {
 	ScriptHash      types.ID
 	Amount          types.Amount
 	AssetID         types.ID
-	State           types.State
 	Salt            types.ID
+	State           types.State
 	CommitmentIndex uint64
 	InclusionProof  InclusionProof
 	LockingFunction string
@@ -39,8 +39,8 @@ func (in *PrivateInput) ToExpr() (string, error) {
 	expr := fmt.Sprintf("(cons 0x%x ", in.ScriptHash.Bytes()) +
 		fmt.Sprintf("(cons %d ", in.Amount) +
 		fmt.Sprintf("(cons 0x%x ", in.AssetID.Bytes()) +
-		fmt.Sprintf("(cons %s ", state) +
 		fmt.Sprintf("(cons 0x%x ", in.Salt.Bytes()) +
+		fmt.Sprintf("(cons %s ", state) +
 		fmt.Sprintf("(cons %d ", in.CommitmentIndex) +
 		fmt.Sprintf("(cons %s ", ip) +
 		fmt.Sprintf("(cons %s ", in.LockingFunction) +
@@ -71,7 +71,6 @@ func (ip *InclusionProof) ToExpr() (string, error) {
 	for i := 0; i < len(ip.Hashes)-1; i++ {
 		hashes += ")"
 	}
-
 	return hashes, nil
 }
 
@@ -79,8 +78,8 @@ type PrivateOutput struct {
 	ScriptHash types.ID
 	Amount     types.Amount
 	AssetID    types.ID
-	State      types.State
 	Salt       types.ID
+	State      types.State
 }
 
 func (out *PrivateOutput) ToExpr() (string, error) {
@@ -91,8 +90,8 @@ func (out *PrivateOutput) ToExpr() (string, error) {
 	expr := fmt.Sprintf("(cons 0x%x ", out.ScriptHash.Bytes()) +
 		fmt.Sprintf("(cons %d ", out.Amount) +
 		fmt.Sprintf("(cons 0x%x ", out.AssetID.Bytes()) +
-		fmt.Sprintf("(cons %s ", state) +
 		fmt.Sprintf("(cons 0x%x ", out.Salt.Bytes()) +
+		fmt.Sprintf("(cons %s ", state) +
 		"nil)))))"
 	return expr, nil
 }

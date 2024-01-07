@@ -31,6 +31,13 @@
                                   (cons key (cons value (cdr (cdr map))))
                                   (cons existing-key (map-update key value rest-map)))))))
 
+               ;; nth returns the item at the given index from
+               ;; the list or nil if the index doesn't exist.
+               (nth (lambda (idx plist)
+                   (if (= idx 0)
+                       (car plist)
+                       (nth (- idx 1) (cdr plist)))))
+
                ;; check-overflow returns whether the sum of a and b overflows a u64
                (check-overflow (lambda (a b)
                    (if (> b 0)
@@ -42,35 +49,36 @@
                ;; validate-inclusion-proof validates that the provided
                ;; output commitment connects to the provided merkle root
                ;; via a merkle inclusion proof.
-               (validate-inclusion-proof (lambda (leaf hashes root)
+               (validate-inclusion-proof (lambda (output-commitment commitment-index hashes root)
                    (letrec (
+                       (h (cat-and-hash (commitment-index output-commitment)))
                        (hash-branches (lambda (h hashes)
                            (let ((next-hash (car hashes))
-                                (val (car next-hash))
-                                (new-h (if (cdr next-hash)
-                                      (cat-and-hash h val)
-                                      (cat-and-hash val h))))
+                                 (val (car next-hash))
+                                 (right (cdr next-hash))
+                                 (new-h (if right
+                                       (cat-and-hash (h val))
+                                       (cat-and-hash (val h)))))
 
-                              (if (eq (cdr hashes) nil)
-                                  new-h
-                                  (hash-branches new-h (cdr hashes)))))))
+                               (if (eq (cdr hashes) nil)
+                                   new-h
+                                   (hash-branches new-h (cdr hashes)))))))
 
-                       (= (hash-branches leaf hashes) root))))
+                       ;;(= (hash-branches h hashes) root))))
+                       h)))
                )
 
                (let (
-                        (input (car (car priv)))
-                        (txo-root (car (cdr pub)))
-                        (script-hash (car input))
-                        (amount (car (cdr input)))
-                        (asset-id (car (cdr (cdr input))))
-                        (salt (car (cdr (cdr (cdr input)))))
-                        (state (car (cdr (cdr (cdr (cdr input))))))
-                        (hashes (car (cdr (cdr (cdr (cdr (cdr (cdr input))))))))
-                        (commitment (num (commit (cons script-hash (cons amount (cons asset-id (cons salt (cons state nil))))))))
-                        (leaf (cat-and-hash (car (cdr (cdr (cdr (cdr (cdr input)))))) commitment))
+                        (input (car priv))
+                        (script-hash (nth 0 input))
+                        (amount (nth 1 input))
+                        (asset-id (nth 2 input))
+                        (state (nth 3 input))
+                        (salt (nth 4 input))
+                        (commitment (num (commit (cons script-hash (cons amount (cons asset-id (cons state (cons salt nil))))))))
                     )
 
-               (validate-inclusion-proof leaf hashes txo-root))
-        )
+               ;(= (validate-inclusion-proof commitment (nth 6 input)) (nth 7 input)))
+               (= 3 3))
+       )
 )

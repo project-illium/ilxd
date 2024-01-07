@@ -219,9 +219,19 @@ func TestStandardValidation(t *testing.T) {
 		acc.Insert(r[:], false)
 	}
 	acc.Insert(inCommitment.Bytes(), true)
+	/*for i := 0; i < 10000; i++ {
+		r, err := zk.RandomFieldElement()
+		assert.NoError(t, err)
+		acc.Insert(r[:], false)
+	}*/
 
 	icProof, err := acc.GetProof(inCommitment.Bytes())
 	assert.NoError(t, err)
+
+	inNullifier, err := types.CalculateNullifier(icProof.Index, inNote.Salt, inCommitment.Bytes(), [][]byte{pkx, pky}...)
+	assert.NoError(t, err)
+
+	lll := hash.HashWithIndex(inCommitment.Bytes(), icProof.Index)
 
 	priv := &circparams.PrivateParams{
 		Inputs: []circparams.PrivateInput{
@@ -229,14 +239,14 @@ func TestStandardValidation(t *testing.T) {
 				ScriptHash:      scriptHash,
 				Amount:          1100000,
 				AssetID:         types.IlliumCoinID,
-				State:           nil,
 				Salt:            inSalt,
+				State:           nil,
 				CommitmentIndex: icProof.Index,
 				InclusionProof: circparams.InclusionProof{
 					Hashes: icProof.Hashes,
 					Flags:  icProof.Flags,
 				},
-				LockingFunction: zk.BasicTransferScript(),
+				LockingFunction: fmt.Sprintf("0x%x", lll),
 				LockingParams:   [][]byte{pkx, pky},
 				UnlockingParams: fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS),
 			},
@@ -246,15 +256,15 @@ func TestStandardValidation(t *testing.T) {
 				ScriptHash: scriptHash,
 				Amount:     1000000,
 				AssetID:    types.IlliumCoinID,
-				State:      nil,
 				Salt:       types.NewID(outSalt[:]),
+				State:      nil,
 			},
 		},
 	}
 
 	pub := &circparams.PublicParams{
-		Nullifiers: nil,
-		TXORoot:    types.ID{},
+		Nullifiers: []types.Nullifier{inNullifier},
+		TXORoot:    acc.Root(),
 		Fee:        100000,
 		Coinbase:   0,
 		MintID:     types.ID{},
@@ -269,7 +279,28 @@ func TestStandardValidation(t *testing.T) {
 		Locktime:          time.Now(),
 		LocktimePrecision: 0,
 	}
-
-	_, err = zk.Prove(zk.StandardValidationProgram(), priv, pub)
+	start := time.Now()
+	proof, err := zk.Prove(zk.StandardValidationProgram(), priv, pub)
 	assert.NoError(t, err)
+	fmt.Println(time.Since(start))
+
+	start = time.Now()
+	valid, err := zk.Verify(zk.StandardValidationProgram(), pub, proof)
+	assert.NoError(t, err)
+	assert.True(t, valid)
+	fmt.Println(time.Since(start))
+}
+
+func calcRoot(commitment []byte, ip blockchain.InclusionProof) types.ID {
+	h := make([]byte, len(commitment))
+	copy(h, commitment)
+	for i := 0; i < len(ip.Hashes); i++ {
+		eval := ip.Flags & (1 << i)
+		if eval > 0 {
+			h = hash.HashMerkleBranches(h, ip.Hashes[i])
+		} else {
+			h = hash.HashMerkleBranches(ip.Hashes[i], h)
+		}
+	}
+	return types.NewID(h)
 }
