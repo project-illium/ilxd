@@ -1,6 +1,6 @@
 (lambda (priv pub) (
         letrec (
-               ;; cat-and-hash takes two integers, each up to 254 bits.
+               ;; cat-and-hash takes two integers, each up to max field element.
                ;; The integers are converted to their byte representation,
                ;; concatenated together, then hashed with blake2s. The two
                ;; most significant bits of the output are dropped.
@@ -113,7 +113,7 @@
                                (commitment-index (car (cdr (cdr (cdr (cdr (cdr input)))))))
                                (leaf (cat-and-hash commitment-index output-commitment))
                                (hashes (car (cdr (cdr (cdr (cdr (cdr (cdr input))))))))
-                               (nullifier (num (commit (cons commitment-index (cons salt (cons (cons script-commitment locking-params) nil))))))
+                               (nullifier (num (commit (cons commitment-index (cons salt (cons script-commitment (cons locking-params nil)))))))
                               )
 
                               ;; Make sure input amounts don't overflow. This isn't possible with
@@ -121,27 +121,35 @@
                               ;; potentially mint more.
                               (if (check-overflow asset-sum amount)
                                   nil
-                                  ;; Validate the inclusion proof proving the input commitment exists in the txo-set.
-                                  (if (validate-inclusion-proof leaf hashes txo-root)
-                                      ;; Validate the user's locking script
-                                      (if (locking-func locking-params unlocking-params idx priv pub)
-                                          (validate-inputs (cdr inputs) (+ idx 1) txo-root (map-update asset-id (+ asset-sum amount) asset-map) (cons nullifiers (cons nullifier nil))) ;; Validation passed. Continue to the next input.
-                                          nil ;; Locking script validation failed. Return false.
+                                  ;; Make sure the calculated nullifier matches the public nullifier
+                                  (if (= nullifier (car nullifiers))
+                                      ;; Validate the inclusion proof proving the input commitment exists in the txo-set.
+                                      (if (validate-inclusion-proof leaf hashes txo-root)
+                                          ;; Validate the user's locking script
+                                          (if (locking-func locking-params unlocking-params idx priv pub)
+                                              (validate-inputs (cdr inputs) (+ idx 1) txo-root (map-update asset-id (+ asset-sum amount) asset-map) (cdr nullifiers)) ;; Validation passed. Continue to the next input.
+                                              nil ;; Locking script validation failed. Return false.
+                                          )
+                                          nil ;; Invalid inclusion proof. Return false.
                                       )
-                                      nil ;; Invalid inclusion proof. Return false.
+                                      nil ;; Nullifier invalid. Return false.
                                   )
                               )
                          )
-                         (cons t (cons asset-map (cons (cdr nullifiers) nil))) ;; We've reached the end of the input list without error. Return true.
+                         (if nullifiers
+                             nil        ;; We have more public nullfiers than private inputs. Return false.
+                             asset-map) ;; We've reached the end of the input list without error. Return true.
                      )
                ))
 
-
                )
 
-              ;;(car (validate-inputs (car priv) 0 (car (cdr (cdr pub))) nil nil))
-              (if (validate-outputs (cdr priv) (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr pub)))))))) nil)
+              (if (validate-inputs (car priv) 0 (car (cdr (cdr pub))) nil (car (cdr pub)))
                   t
                   nil)
+
+              ;;(if (validate-outputs (cdr priv) (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr pub)))))))) nil)
+              ;;    t
+              ;;   nil)
         )
 )

@@ -229,12 +229,10 @@ func TestStandardValidation(t *testing.T) {
 		acc.Insert(r[:], false)
 	}*/
 
-	fmt.Println(zk.BasicTransferScript())
-
 	icProof, err := acc.GetProof(inCommitment.Bytes())
 	assert.NoError(t, err)
 
-	inNullifier, err := types.CalculateNullifier(icProof.Index, inNote.Salt, inCommitment.Bytes(), [][]byte{pkx, pky}...)
+	inNullifier, err := types.CalculateNullifier(icProof.Index, inNote.Salt, zk.BasicTransferScriptCommitment(), [][]byte{pkx, pky}...)
 	assert.NoError(t, err)
 
 	priv := &circparams.PrivateParams{
