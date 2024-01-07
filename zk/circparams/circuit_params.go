@@ -50,6 +50,7 @@ func (priv *PrivateParams) ToExpr() (string, error) {
 }
 
 type PublicParams struct {
+	SigHash           types.ID
 	Nullifiers        []types.Nullifier
 	TXORoot           types.ID
 	Fee               types.Amount
@@ -57,7 +58,6 @@ type PublicParams struct {
 	MintID            types.ID
 	MintAmount        types.Amount
 	Outputs           []PublicOutput
-	SigHash           types.ID
 	Locktime          time.Time
 	LocktimePrecision time.Duration
 }
@@ -90,15 +90,15 @@ func (pub *PublicParams) ToExpr() (string, error) {
 		outputs = "nil"
 	}
 
-	expr := "(cons " + nullifiers +
+	expr := fmt.Sprintf(" (cons 0x%x ", pub.SigHash.Bytes()) +
+		"(cons " + nullifiers +
 		fmt.Sprintf(" (cons 0x%x ", pub.TXORoot.Bytes()) +
 		fmt.Sprintf("(cons %d ", pub.Fee) +
 		fmt.Sprintf("(cons %d ", pub.Coinbase) +
 		fmt.Sprintf("(cons 0x%x ", pub.MintID.Bytes()) +
 		fmt.Sprintf("(cons %d ", pub.MintAmount) +
 		"(cons " + outputs +
-		fmt.Sprintf(" (cons 0x%x ", pub.SigHash.Bytes()) +
-		fmt.Sprintf("(cons %d ", pub.Locktime.Unix()) +
+		fmt.Sprintf("( cons %d ", pub.Locktime.Unix()) +
 		fmt.Sprintf("(cons %d ", int64(pub.LocktimePrecision.Seconds())) +
 		"nil))))))))))"
 

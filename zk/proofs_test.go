@@ -163,6 +163,10 @@ func TestStandardValidation(t *testing.T) {
 
 	pkx, pky := pk.(*crypto.NovaPublicKey).ToXY()
 
+	/*script := "(lambda (a b c d e) t)"
+	scriptCommitment, err := zk.LurkCommit(script)
+	assert.NoError(t, err)*/
+
 	outputLS := types.LockingScript{
 		ScriptCommitment: types.NewID(zk.BasicTransferScriptCommitment()),
 		LockingParams:    [][]byte{pkx, pky},
@@ -225,13 +229,13 @@ func TestStandardValidation(t *testing.T) {
 		acc.Insert(r[:], false)
 	}*/
 
+	fmt.Println(zk.BasicTransferScript())
+
 	icProof, err := acc.GetProof(inCommitment.Bytes())
 	assert.NoError(t, err)
 
 	inNullifier, err := types.CalculateNullifier(icProof.Index, inNote.Salt, inCommitment.Bytes(), [][]byte{pkx, pky}...)
 	assert.NoError(t, err)
-
-	lll := hash.HashWithIndex(inCommitment.Bytes(), icProof.Index)
 
 	priv := &circparams.PrivateParams{
 		Inputs: []circparams.PrivateInput{
@@ -246,7 +250,7 @@ func TestStandardValidation(t *testing.T) {
 					Hashes: icProof.Hashes,
 					Flags:  icProof.Flags,
 				},
-				LockingFunction: fmt.Sprintf("0x%x", lll),
+				LockingFunction: zk.BasicTransferScript(),
 				LockingParams:   [][]byte{pkx, pky},
 				UnlockingParams: fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS),
 			},
@@ -263,6 +267,7 @@ func TestStandardValidation(t *testing.T) {
 	}
 
 	pub := &circparams.PublicParams{
+		SigHash:    types.NewID(sigHash[:]),
 		Nullifiers: []types.Nullifier{inNullifier},
 		TXORoot:    acc.Root(),
 		Fee:        100000,
@@ -275,7 +280,6 @@ func TestStandardValidation(t *testing.T) {
 				CipherText: ciphertext,
 			},
 		},
-		SigHash:           types.NewID(sigHash[:]),
 		Locktime:          time.Now(),
 		LocktimePrecision: 0,
 	}

@@ -51,9 +51,9 @@
                                       (cat-and-hash h val)
                                       (cat-and-hash val h))))
 
-                              (if (eq (cdr hashes) nil)
-                                  new-h
-                                  (hash-branches new-h (cdr hashes)))))))
+                              (if (cdr hashes)
+                                  (hash-branches new-h (cdr hashes))
+                                  new-h)))))
 
                        (= (hash-branches leaf hashes) root))))
 
@@ -65,41 +65,61 @@
                           (pub-out (car public-outputs))
                          )
                          (if pub-out
-                             (if priv-out
-                                 (if (= (car pub-out) (num (commit (cons (car priv-out)
-                                                               (cons (car (cdr priv-out))
-                                                               (cons (car (cdr (cdr priv-out)))
-                                                               (cons (car (cdr (cdr (cdr priv-out))))
-                                                               (cons (car (cdr (cdr (cdr (cdr priv-out))))) nil))))))))
-                                     (validate-outputs (cdr private-outputs) (cdr public-outputs))
-                                     nil
+                             (if priv-out ;; If priv and pub are both non-nil then we need to validate the public commitment
+                                 (if (= (car pub-out) (num (commit (cons (car priv-out)                                 ;; script-hash
+                                                               (cons (car (cdr priv-out))                               ;; amount
+                                                               (cons (car (cdr (cdr priv-out)))                         ;; asset-id
+                                                               (cons (car (cdr (cdr (cdr priv-out))))                   ;; salt
+                                                               (cons (car (cdr (cdr (cdr (cdr priv-out))))) nil)))))))) ;; state
+                                     (validate-outputs (cdr private-outputs) (cdr public-outputs)) ;; If validation succeeds loop through the next ouputs
+                                     nil ;; Validation failed return false
                                  )
-                                 nil
+                                 nil ;; Length of priv and pub outputs don't match. Return false.
                              )
                              (if priv-out
-                                 nil
-                                 t
+                                 nil ;; Length of priv and pub outputs don't match. Return false.
+                                 t ;; Both priv and pub are nil, this means we hit the end of the loop without error. Return true.
                              )
                          )
                     )
                ))
+
+               (validate-inputs (lambda (inputs idx txo-root)
+                     (if (car inputs)
+                         (let (
+                               (input (car inputs))
+                               (locking-params (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr input))))))))))
+                               (unlocking-params (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr input)))))))))))
+                               (locking-func (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr input)))))))))
+                               (script-commitment (num (commit locking-func)))
+                               (script-hash (num (commit (cons script-commitment locking-params))))
+                               (amount (car (cdr input)))
+                               (asset-id (car (cdr (cdr input))))
+                               (salt (car (cdr (cdr (cdr input)))))
+                               (state (car (cdr (cdr (cdr (cdr input))))))
+                               (output-commitment (num (commit (cons script-hash (cons amount (cons asset-id (cons salt (cons state nil))))))))
+                               (commitment-index (car (cdr (cdr (cdr (cdr (cdr input)))))))
+                               (leaf (cat-and-hash commitment-index output-commitment))
+                               (hashes (car (cdr (cdr (cdr (cdr (cdr (cdr input))))))))
+                              )
+
+                              ;; Validate the inclusion proof proving the input commitment exists in the txo-set.
+                              (if (validate-inclusion-proof leaf hashes txo-root)
+                                  ;; Validate the user's locking script
+                                  (if (locking-func locking-params unlocking-params idx priv pub)
+                                      (validate-inputs (cdr inputs) (+ idx 1) txo-root) ;; Validation passed. Continue to the next input.
+                                      nil ;; Locking script validation failed. Return false.
+                                  )
+                                  nil ;; Invalid inclusion proof. Return false.
+                              )
+                         )
+                         t ;; We've reached the end of the input list without error. Return true.
+                     )
+               ))
+
+
                )
 
-               (let (
-                        (input (car (car priv)))
-                        (priv-outs (cdr priv))
-                        (pub-outs (car (cdr (cdr (cdr (cdr (cdr (cdr pub))))))))
-                        (txo-root (car (cdr pub)))
-                        (script-hash (car input))
-                        (amount (car (cdr input)))
-                        (asset-id (car (cdr (cdr input))))
-                        (salt (car (cdr (cdr (cdr input)))))
-                        (state (car (cdr (cdr (cdr (cdr input))))))
-                        (hashes (car (cdr (cdr (cdr (cdr (cdr (cdr input))))))))
-                        (commitment (num (commit (cons script-hash (cons amount (cons asset-id (cons salt (cons state nil))))))))
-                        (leaf (cat-and-hash (car (cdr (cdr (cdr (cdr (cdr input)))))) commitment))
-                    )
-
-               (validate-outputs priv-outs pub-outs))
+              (validate-inputs (car priv) 0 (car (cdr (cdr pub))))
         )
 )
