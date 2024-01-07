@@ -56,10 +56,39 @@
                                   (hash-branches new-h (cdr hashes)))))))
 
                        (= (hash-branches leaf hashes) root))))
+
+               ;; validate-output validates that the provided private output
+               ;; data matches the public output commitment found in the
+               ;; transaction.
+               (validate-outputs (lambda (private-outputs public-outputs)
+                    (let ((priv-out (car private-outputs))
+                          (pub-out (car public-outputs))
+                         )
+                         (if pub-out
+                             (if priv-out
+                                 (if (= (car pub-out) (num (commit (cons (car priv-out)
+                                                               (cons (car (cdr priv-out))
+                                                               (cons (car (cdr (cdr priv-out)))
+                                                               (cons (car (cdr (cdr (cdr priv-out))))
+                                                               (cons (car (cdr (cdr (cdr (cdr priv-out))))) nil))))))))
+                                     (validate-outputs (cdr private-outputs) (cdr public-outputs))
+                                     nil
+                                 )
+                                 nil
+                             )
+                             (if priv-out
+                                 nil
+                                 t
+                             )
+                         )
+                    )
+               ))
                )
 
                (let (
                         (input (car (car priv)))
+                        (priv-outs (cdr priv))
+                        (pub-outs (car (cdr (cdr (cdr (cdr (cdr (cdr pub))))))))
                         (txo-root (car (cdr pub)))
                         (script-hash (car input))
                         (amount (car (cdr input)))
@@ -71,6 +100,6 @@
                         (leaf (cat-and-hash (car (cdr (cdr (cdr (cdr (cdr input)))))) commitment))
                     )
 
-               (validate-inclusion-proof leaf hashes txo-root))
+               (validate-outputs priv-outs pub-outs))
         )
 )
