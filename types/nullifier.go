@@ -77,7 +77,7 @@ func CalculateNullifier(commitmentIndex uint64, salt [32]byte, scriptCommitment 
 		return Nullifier{}, err
 	}
 
-	expr = fmt.Sprintf("(cons %d (cons 0x%x ", commitmentIndex, salt) + expr + "))"
+	expr = fmt.Sprintf("(cons %d (cons 0x%x (cons %s nil)))", commitmentIndex, salt, expr)
 	h, err := zk.LurkCommit(expr)
 	if err != nil {
 		return Nullifier{}, err

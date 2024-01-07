@@ -60,31 +60,41 @@
                ;; validate-output validates that the provided private output
                ;; data matches the public output commitment found in the
                ;; transaction.
-               (validate-outputs (lambda (private-outputs public-outputs)
+               (validate-outputs (lambda (private-outputs public-outputs asset-map)
                     (let ((priv-out (car private-outputs))
                           (pub-out (car public-outputs))
+                          (amount (car (cdr priv-out)))
+                          (asset-id (car (cdr (cdr priv-out))))
+                          (asset-sum (map-get asset-id asset-map))
+                          (asset-sum (if asset-sum asset-sum 0))
                          )
                          (if pub-out
                              (if priv-out ;; If priv and pub are both non-nil then we need to validate the public commitment
-                                 (if (= (car pub-out) (num (commit (cons (car priv-out)                                 ;; script-hash
-                                                               (cons (car (cdr priv-out))                               ;; amount
-                                                               (cons (car (cdr (cdr priv-out)))                         ;; asset-id
-                                                               (cons (car (cdr (cdr (cdr priv-out))))                   ;; salt
-                                                               (cons (car (cdr (cdr (cdr (cdr priv-out))))) nil)))))))) ;; state
-                                     (validate-outputs (cdr private-outputs) (cdr public-outputs)) ;; If validation succeeds loop through the next ouputs
-                                     nil ;; Validation failed return false
+                                 (if (< amount 0)
+                                     nil ;; If amount is negative return false
+                                     (if (check-overflow asset-sum amount)
+                                         nil ;; If overflow return false
+                                         (if (= (car pub-out) (num (commit (cons (car priv-out)                                 ;; script-hash
+                                                                       (cons amount                                             ;; amount
+                                                                       (cons asset-id                                           ;; asset-id
+                                                                       (cons (car (cdr (cdr (cdr priv-out))))                   ;; salt
+                                                                       (cons (car (cdr (cdr (cdr (cdr priv-out))))) nil)))))))) ;; state
+                                             (validate-outputs (cdr private-outputs) (cdr public-outputs) (map-update asset-id (+ asset-sum amount) asset-map)) ;; If validation succeeds loop through the next ouputs
+                                             nil ;; Validation failed return false
+                                         )
+                                     )
                                  )
                                  nil ;; Length of priv and pub outputs don't match. Return false.
                              )
                              (if priv-out
                                  nil ;; Length of priv and pub outputs don't match. Return false.
-                                 t ;; Both priv and pub are nil, this means we hit the end of the loop without error. Return true.
+                                 asset-map ;; Both priv and pub are nil, this means we hit the end of the loop without error. Return true.
                              )
                          )
                     )
                ))
 
-               (validate-inputs (lambda (inputs idx txo-root)
+               (validate-inputs (lambda (inputs idx txo-root asset-map nullifiers)
                      (if (car inputs)
                          (let (
                                (input (car inputs))
@@ -98,28 +108,40 @@
                                (salt (car (cdr (cdr (cdr input)))))
                                (state (car (cdr (cdr (cdr (cdr input))))))
                                (output-commitment (num (commit (cons script-hash (cons amount (cons asset-id (cons salt (cons state nil))))))))
+                               (asset-sum (map-get asset-id asset-map))
+                               (asset-sum (if asset-sum asset-sum 0))
                                (commitment-index (car (cdr (cdr (cdr (cdr (cdr input)))))))
                                (leaf (cat-and-hash commitment-index output-commitment))
                                (hashes (car (cdr (cdr (cdr (cdr (cdr (cdr input))))))))
+                               (nullifier (num (commit (cons commitment-index (cons salt (cons (cons script-commitment locking-params) nil))))))
                               )
 
-                              ;; Validate the inclusion proof proving the input commitment exists in the txo-set.
-                              (if (validate-inclusion-proof leaf hashes txo-root)
-                                  ;; Validate the user's locking script
-                                  (if (locking-func locking-params unlocking-params idx priv pub)
-                                      (validate-inputs (cdr inputs) (+ idx 1) txo-root) ;; Validation passed. Continue to the next input.
-                                      nil ;; Locking script validation failed. Return false.
+                              ;; Make sure input amounts don't overflow. This isn't possible with
+                              ;; illium coins as there will never be more than 2^60, but assets can
+                              ;; potentially mint more.
+                              (if (check-overflow asset-sum amount)
+                                  nil
+                                  ;; Validate the inclusion proof proving the input commitment exists in the txo-set.
+                                  (if (validate-inclusion-proof leaf hashes txo-root)
+                                      ;; Validate the user's locking script
+                                      (if (locking-func locking-params unlocking-params idx priv pub)
+                                          (validate-inputs (cdr inputs) (+ idx 1) txo-root (map-update asset-id (+ asset-sum amount) asset-map) (cons nullifiers (cons nullifier nil))) ;; Validation passed. Continue to the next input.
+                                          nil ;; Locking script validation failed. Return false.
+                                      )
+                                      nil ;; Invalid inclusion proof. Return false.
                                   )
-                                  nil ;; Invalid inclusion proof. Return false.
                               )
                          )
-                         t ;; We've reached the end of the input list without error. Return true.
+                         (cons t (cons asset-map (cons (cdr nullifiers) nil))) ;; We've reached the end of the input list without error. Return true.
                      )
                ))
 
 
                )
 
-              (validate-inputs (car priv) 0 (car (cdr (cdr pub))))
+              ;;(car (validate-inputs (car priv) 0 (car (cdr (cdr pub))) nil nil))
+              (if (validate-outputs (cdr priv) (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr pub)))))))) nil)
+                  t
+                  nil)
         )
 )
