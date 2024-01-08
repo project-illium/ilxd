@@ -183,7 +183,7 @@ func TestStandardValidation(t *testing.T) {
 
 	outNote := types.SpendNote{
 		ScriptHash: scriptHash,
-		Amount:     1000000,
+		Amount:     500000,
 		AssetID:    types.IlliumCoinID,
 		Salt:       types.NewID(outSalt[:]),
 		State:      nil,
@@ -223,11 +223,11 @@ func TestStandardValidation(t *testing.T) {
 		acc.Insert(r[:], false)
 	}
 	acc.Insert(inCommitment.Bytes(), true)
-	/*for i := 0; i < 10000; i++ {
+	for i := 0; i < 10000; i++ {
 		r, err := zk.RandomFieldElement()
 		assert.NoError(t, err)
 		acc.Insert(r[:], false)
-	}*/
+	}
 
 	icProof, err := acc.GetProof(inCommitment.Bytes())
 	assert.NoError(t, err)
@@ -256,7 +256,14 @@ func TestStandardValidation(t *testing.T) {
 		Outputs: []circparams.PrivateOutput{
 			{
 				ScriptHash: scriptHash,
-				Amount:     1000000,
+				Amount:     500000,
+				AssetID:    types.IlliumCoinID,
+				Salt:       types.NewID(outSalt[:]),
+				State:      nil,
+			},
+			{
+				ScriptHash: scriptHash,
+				Amount:     500000,
 				AssetID:    types.IlliumCoinID,
 				Salt:       types.NewID(outSalt[:]),
 				State:      nil,
@@ -277,32 +284,25 @@ func TestStandardValidation(t *testing.T) {
 				Commitment: outCommitment,
 				CipherText: ciphertext,
 			},
+			{
+				Commitment: outCommitment,
+				CipherText: ciphertext,
+			},
 		},
 		Locktime:          time.Now(),
 		LocktimePrecision: 0,
 	}
-	start := time.Now()
-	proof, err := zk.Prove(zk.StandardValidationProgram(), priv, pub)
+	tag, val, iterations, err := zk.Eval(zk.StandardValidationProgram(), priv, pub)
 	assert.NoError(t, err)
-	fmt.Println(time.Since(start))
-
-	start = time.Now()
-	valid, err := zk.Verify(zk.StandardValidationProgram(), pub, proof)
-	assert.NoError(t, err)
-	assert.True(t, valid)
-	fmt.Println(time.Since(start))
+	assert.Equal(t, zk.TagSym, tag)
+	assert.Equal(t, zk.OutputTrue, val)
+	fmt.Println(iterations)
 }
 
-func calcRoot(commitment []byte, ip blockchain.InclusionProof) types.ID {
-	h := make([]byte, len(commitment))
-	copy(h, commitment)
-	for i := 0; i < len(ip.Hashes); i++ {
-		eval := ip.Flags & (1 << i)
-		if eval > 0 {
-			h = hash.HashMerkleBranches(h, ip.Hashes[i])
-		} else {
-			h = hash.HashMerkleBranches(ip.Hashes[i], h)
-		}
-	}
-	return types.NewID(h)
+func TestEval(t *testing.T) {
+	program := "(lambda (priv pub) (= (+ priv pub) 5))"
+	tag, out, _, err := zk.Eval(program, zk.Expr("3"), zk.Expr("2"))
+	assert.NoError(t, err)
+	assert.Equal(t, zk.TagSym, tag)
+	assert.Equal(t, zk.OutputTrue, out)
 }

@@ -32,6 +32,13 @@ int verify_proof_ffi(
     size_t proof_size,
     const uint8_t* expected_tag,
     const uint8_t* expected_output);
+int eval_ffi(
+    const char* lurk_program,
+    const char* private_params,
+    const char* public_params,
+    uint8_t* output_tag,
+    uint8_t* output_val,
+	size_t* iterations);
 */
 import "C"
 import (
@@ -42,8 +49,6 @@ import (
 )
 
 var once sync.Once
-
-var trueVal = []byte{4, 200, 219, 197, 70, 43, 38, 162, 69, 194, 112, 0, 19, 99, 1, 240, 70, 225, 92, 182, 50, 158, 201, 58, 139, 58, 93, 133, 73, 161, 152, 86}
 
 type Parameters interface {
 	// ToExpr marshals the Parameters to a string
@@ -79,7 +84,7 @@ func Prove(lurkProgram string, privateParams Parameters, publicParams Parameters
 	if err != nil {
 		return nil, err
 	}
-	if tag != TagSym || !bytes.Equal(output, trueVal) {
+	if tag != TagSym || !bytes.Equal(output, OutputTrue) {
 		return nil, errors.New("program output is not true")
 	}
 
@@ -93,7 +98,19 @@ func Verify(lurkProgram string, publicParams Parameters, proof []byte) (bool, er
 	}
 	tagBytes := make([]byte, 32)
 	tagBytes[len(tagBytes)-1] = byte(TagSym)
-	return verifyProof(lurkProgram, pub, proof, tagBytes, trueVal)
+	return verifyProof(lurkProgram, pub, proof, tagBytes, OutputTrue)
+}
+
+func Eval(lurkProgram string, privateParams Parameters, publicParams Parameters) (Tag, []byte, int, error) {
+	priv, err := privateParams.ToExpr()
+	if err != nil {
+		return TagNil, nil, 0, err
+	}
+	pub, err := publicParams.ToExpr()
+	if err != nil {
+		return TagNil, nil, 0, err
+	}
+	return evaluate(lurkProgram, priv, pub)
 }
 
 func createProof(lurkProgram, privateParams, publicParams string) ([]byte, Tag, []byte, error) {
@@ -179,4 +196,49 @@ func verifyProof(lurkProgram, publicParams string, proof, expectedTag, expectedO
 		return false, errors.New("proof verification errored")
 	}
 	return result == 0, nil
+}
+
+func evaluate(lurkProgram, privateParams, publicParams string) (Tag, []byte, int, error) {
+	clurkProgram := C.CString(lurkProgram)
+	cprivateParams := C.CString(privateParams)
+	cpublicParams := C.CString(publicParams)
+
+	defer C.free(unsafe.Pointer(clurkProgram))
+	defer C.free(unsafe.Pointer(cprivateParams))
+	defer C.free(unsafe.Pointer(cpublicParams))
+
+	// Fixme: set to actual proof size
+	var (
+		iterations C.size_t
+		outputTag  [32]byte
+		outputVal  [32]byte
+	)
+
+	result := C.eval_ffi(
+		clurkProgram,
+		cprivateParams,
+		cpublicParams,
+		(*C.uint8_t)(unsafe.Pointer(&outputTag[0])),
+		(*C.uint8_t)(unsafe.Pointer(&outputVal[0])),
+		&iterations,
+	)
+
+	if result != 0 {
+		return TagNil, nil, 0, errors.New("failed to create proof")
+	}
+
+	var (
+		tagOut = make([]byte, 32)
+		valOut = make([]byte, 32)
+	)
+	copy(tagOut, outputTag[:32])
+	copy(valOut, outputVal[:32])
+	iter_out := iterations
+
+	tag, err := TagFromBytes(tagOut)
+	if err != nil {
+		return TagNil, nil, 0, err
+	}
+
+	return tag, valOut, int(iter_out), nil
 }
