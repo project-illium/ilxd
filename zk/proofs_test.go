@@ -171,9 +171,6 @@ func TestStandardValidation(t *testing.T) {
 	scriptHash, err := outputLS.Hash()
 	assert.NoError(t, err)
 
-	inSalt1, err := zk.RandomFieldElement()
-	assert.NoError(t, err)
-
 	outSalt1, err := zk.RandomFieldElement()
 	assert.NoError(t, err)
 
@@ -208,10 +205,33 @@ func TestStandardValidation(t *testing.T) {
 	outCommitment2, err := outNote2.Commitment()
 	assert.NoError(t, err)
 
-	ser2, err := outNote1.Serialize()
+	ser2, err := outNote2.Serialize()
 	assert.NoError(t, err)
 
 	ciphertext2, err := viewPub.(*crypto.Curve25519PublicKey).Encrypt(ser2)
+	assert.NoError(t, err)
+
+	outSalt3, err := zk.RandomFieldElement()
+	assert.NoError(t, err)
+
+	outNote3 := types.SpendNote{
+		ScriptHash: scriptHash,
+		Amount:     50000,
+		AssetID:    types.IlliumCoinID,
+		Salt:       types.NewID(outSalt3[:]),
+		State:      nil,
+	}
+
+	outCommitment3, err := outNote3.Commitment()
+	assert.NoError(t, err)
+
+	ser3, err := outNote3.Serialize()
+	assert.NoError(t, err)
+
+	ciphertext3, err := viewPub.(*crypto.Curve25519PublicKey).Encrypt(ser3)
+	assert.NoError(t, err)
+
+	inSalt1, err := zk.RandomFieldElement()
 	assert.NoError(t, err)
 
 	inNote1 := types.SpendNote{
@@ -223,6 +243,20 @@ func TestStandardValidation(t *testing.T) {
 	}
 
 	inCommitment1, err := inNote1.Commitment()
+	assert.NoError(t, err)
+
+	inSalt2, err := zk.RandomFieldElement()
+	assert.NoError(t, err)
+
+	inNote2 := types.SpendNote{
+		ScriptHash: scriptHash,
+		Amount:     1100000,
+		AssetID:    types.IlliumCoinID,
+		Salt:       types.NewID(inSalt2[:]),
+		State:      nil,
+	}
+
+	inCommitment2, err := inNote2.Commitment()
 	assert.NoError(t, err)
 
 	sigHash, err := zk.RandomFieldElement()
@@ -239,6 +273,7 @@ func TestStandardValidation(t *testing.T) {
 		acc.Insert(r[:], false)
 	}
 	acc.Insert(inCommitment1.Bytes(), true)
+	acc.Insert(inCommitment2.Bytes(), true)
 	for i := 0; i < 10000; i++ {
 		r, err := zk.RandomFieldElement()
 		assert.NoError(t, err)
@@ -249,6 +284,12 @@ func TestStandardValidation(t *testing.T) {
 	assert.NoError(t, err)
 
 	inNullifier1, err := types.CalculateNullifier(icProof1.Index, inNote1.Salt, zk.BasicTransferScriptCommitment(), [][]byte{pkx, pky}...)
+	assert.NoError(t, err)
+
+	icProof2, err := acc.GetProof(inCommitment2.Bytes())
+	assert.NoError(t, err)
+
+	inNullifier2, err := types.CalculateNullifier(icProof2.Index, inNote2.Salt, zk.BasicTransferScriptCommitment(), [][]byte{pkx, pky}...)
 	assert.NoError(t, err)
 
 	priv := &circparams.PrivateParams{
@@ -323,6 +364,66 @@ func TestStandardValidation(t *testing.T) {
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
 		},
+		{
+			Name: "standard 1 input, 1 output valid",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				priv2 := priv.Clone()
+				priv2.Outputs = []circparams.PrivateOutput{priv.Outputs[0]}
+				pub2 := pub.Clone()
+				pub2.Outputs = []circparams.PublicOutput{pub.Outputs[0]}
+				return zk.StandardValidationProgram(), priv2, pub2, nil
+			},
+			ExpectedTag:    zk.TagSym,
+			ExpectedOutput: zk.OutputTrue,
+		},
+		{
+			Name: "standard 1 input, 3 output valid",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				priv2 := priv.Clone()
+				priv2.Outputs = append(priv2.Outputs, circparams.PrivateOutput{
+					ScriptHash: outNote3.ScriptHash,
+					Amount:     outNote3.Amount,
+					AssetID:    outNote3.AssetID,
+					Salt:       outNote3.Salt,
+					State:      outNote3.State,
+				})
+				pub2 := pub.Clone()
+				pub2.Outputs = append(pub2.Outputs, circparams.PublicOutput{
+					Commitment: outCommitment3,
+					CipherText: ciphertext3,
+				})
+				pub2.Fee = 50000
+				return zk.StandardValidationProgram(), priv2, pub2, nil
+			},
+			ExpectedTag:    zk.TagSym,
+			ExpectedOutput: zk.OutputTrue,
+		},
+		{
+			Name: "standard 2 input, 2 output valid",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				priv2 := priv.Clone()
+				priv2.Inputs = append(priv2.Inputs, circparams.PrivateInput{
+					ScriptHash:      inNote2.ScriptHash,
+					Amount:          inNote2.Amount,
+					AssetID:         inNote2.AssetID,
+					Salt:            inNote2.Salt,
+					State:           inNote2.State,
+					CommitmentIndex: icProof2.Index,
+					InclusionProof: circparams.InclusionProof{
+						Hashes: icProof2.Hashes,
+						Flags:  icProof2.Flags,
+					},
+					LockingFunction: zk.BasicTransferScript(),
+					LockingParams:   [][]byte{pkx, pky},
+					UnlockingParams: fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS),
+				})
+				pub2 := pub.Clone()
+				pub2.Nullifiers = append(pub2.Nullifiers, inNullifier2)
+				return zk.StandardValidationProgram(), priv2, pub2, nil
+			},
+			ExpectedTag:    zk.TagSym,
+			ExpectedOutput: zk.OutputTrue,
+		},
 	}
 
 	for _, test := range tests {
@@ -330,9 +431,9 @@ func TestStandardValidation(t *testing.T) {
 		assert.NoError(t, err)
 
 		tag, val, _, err := zk.Eval(program, priv, pub)
-		assert.NoError(t, err)
-		assert.Equal(t, test.ExpectedTag, tag)
-		assert.Equal(t, test.ExpectedOutput, val)
+		assert.NoErrorf(t, err, "Test: %s: error: %s", test.Name, err)
+		assert.Equalf(t, test.ExpectedTag, tag, "Test %s: Expected tag: %d, got %d", test.Name, test.ExpectedTag, tag)
+		assert.Equal(t, test.ExpectedOutput, val, "Test %s: Expected output: %x, got %x", test.ExpectedOutput, val)
 	}
 
 	/*start := time.Now()

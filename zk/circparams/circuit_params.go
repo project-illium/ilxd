@@ -49,6 +49,56 @@ func (priv *PrivateParams) ToExpr() (string, error) {
 	return fmt.Sprintf("(cons %s %s)", inputs, outputs), nil
 }
 
+func (priv *PrivateParams) Clone() *PrivateParams {
+	priv2 := &PrivateParams{
+		Inputs:  make([]PrivateInput, len(priv.Inputs)),
+		Outputs: make([]PrivateOutput, len(priv.Outputs)),
+	}
+	for i, in := range priv.Inputs {
+		priv2.Inputs[i] = PrivateInput{
+			ScriptHash:      in.ScriptHash.Clone(),
+			Amount:          in.Amount,
+			AssetID:         in.AssetID.Clone(),
+			Salt:            in.Salt.Clone(),
+			State:           make(types.State, len(in.State)),
+			CommitmentIndex: in.CommitmentIndex,
+			InclusionProof: InclusionProof{
+				Hashes: make([][]byte, len(in.InclusionProof.Hashes)),
+				Flags:  in.InclusionProof.Flags,
+			},
+			LockingFunction: in.LockingFunction,
+			LockingParams:   make(types.LockingParams, len(in.LockingParams)),
+			UnlockingParams: in.UnlockingParams,
+		}
+		for x, b := range in.State {
+			priv2.Inputs[i].State[x] = make([]byte, len(b))
+			copy(priv2.Inputs[i].State[x], b)
+		}
+		for x, b := range in.InclusionProof.Hashes {
+			priv2.Inputs[i].InclusionProof.Hashes[x] = make([]byte, len(b))
+			copy(priv2.Inputs[i].InclusionProof.Hashes[x], b)
+		}
+		for x, b := range in.LockingParams {
+			priv2.Inputs[i].LockingParams[x] = make([]byte, len(b))
+			copy(priv2.Inputs[i].LockingParams[x], b)
+		}
+	}
+	for i, out := range priv.Outputs {
+		priv2.Outputs[i] = PrivateOutput{
+			ScriptHash: out.ScriptHash.Clone(),
+			Amount:     out.Amount,
+			AssetID:    out.AssetID.Clone(),
+			Salt:       out.Salt.Clone(),
+			State:      make(types.State, len(out.State)),
+		}
+		for x, b := range out.State {
+			priv2.Outputs[i].State[x] = make([]byte, len(b))
+			copy(priv2.Outputs[i].State[x], b)
+		}
+	}
+	return priv2
+}
+
 type PublicParams struct {
 	SigHash           types.ID
 	Nullifiers        []types.Nullifier
@@ -90,7 +140,7 @@ func (pub *PublicParams) ToExpr() (string, error) {
 		outputs = "nil"
 	}
 
-	expr := fmt.Sprintf(" (cons 0x%x ", pub.SigHash.Bytes()) +
+	expr := fmt.Sprintf("(cons 0x%x ", pub.SigHash.Bytes()) +
 		"(cons " + nullifiers +
 		fmt.Sprintf(" (cons 0x%x ", pub.TXORoot.Bytes()) +
 		fmt.Sprintf("(cons %d ", pub.Fee) +
@@ -98,9 +148,35 @@ func (pub *PublicParams) ToExpr() (string, error) {
 		fmt.Sprintf("(cons 0x%x ", pub.MintID.Bytes()) +
 		fmt.Sprintf("(cons %d ", pub.MintAmount) +
 		"(cons " + outputs +
-		fmt.Sprintf("( cons %d ", pub.Locktime.Unix()) +
+		fmt.Sprintf(" (cons %d ", pub.Locktime.Unix()) +
 		fmt.Sprintf("(cons %d ", int64(pub.LocktimePrecision.Seconds())) +
 		"nil))))))))))"
 
 	return expr, nil
+}
+
+func (pub *PublicParams) Clone() *PublicParams {
+	pub2 := &PublicParams{
+		SigHash:           pub.SigHash.Clone(),
+		Nullifiers:        make([]types.Nullifier, len(pub.Nullifiers)),
+		TXORoot:           pub.TXORoot.Clone(),
+		Fee:               pub.Fee,
+		Coinbase:          pub.Coinbase,
+		MintID:            pub.MintID.Clone(),
+		MintAmount:        pub.MintAmount,
+		Outputs:           make([]PublicOutput, len(pub.Outputs)),
+		Locktime:          time.Unix(pub.Locktime.Unix(), 0),
+		LocktimePrecision: pub.LocktimePrecision,
+	}
+	for i, n := range pub.Nullifiers {
+		pub2.Nullifiers[i] = n.Clone()
+	}
+	for i, out := range pub.Outputs {
+		pub2.Outputs[i] = PublicOutput{
+			Commitment: out.Commitment.Clone(),
+			CipherText: make([]byte, len(out.CipherText)),
+		}
+		copy(pub2.Outputs[i].CipherText, out.CipherText)
+	}
+	return pub2
 }
