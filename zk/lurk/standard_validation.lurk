@@ -94,6 +94,10 @@
                     )
                ))
 
+               ;; validate-inputs loops through the private inputs and for each
+               ;; validates that the nullifer is valid, the commitment links to
+               ;; to the txo-root via the merkle proof, and executes the user's
+               ;; script with the provided unlocking params.
                (validate-inputs (lambda (inputs idx txo-root asset-map nullifiers)
                      (if (car inputs)
                          (let (
@@ -142,14 +146,60 @@
                      )
                ))
 
+               ;; validate-amounts make sure the output amounts do not exceed the input
+               ;; amounts, taking into consideration fees, any coinbase or mint.
+               (validate-amounts (lambda (in-map out-map fee coinbase mint-id mint-amount)
+                     (let (
+                            (out-asset (car out-map))
+                            (out-amount (car (cdr out-map)))
+                            (in-amount (map-get out-asset in-map))
+                            (in-amount (if in-amount in-amount 0))
+                          )
+
+                         (if out-asset
+                             (if (= out-asset 0)
+                                 (if (check-overflow out-amount fee)
+                                     nil ;; Overflow. Return false.
+                                     (if (check-overflow in-amount coinbase)
+                                         nil ;; Overflow. Return false.
+                                         (if (> (+ out-amount fee) (+ in-amount coinbase))
+                                             nil ;; Input amount + coinbase exceeds output amount + fee. Return nil.
+                                             (validate-amounts in-map (cdr (cdr out-map)) fee coinbase mint-amount mint-id)
+                                         )
+                                     )
+                                 )
+                                 (if (= out-asset mint-id)
+                                     (if (check-overflow in-amount mint-amount)
+                                         nil ;; Overflow. Return false.
+                                         (if (> out-amount (+ in-amount mint-amount))
+                                              nil ;; Input amount + mint exceeds output amount. Return nil.
+                                              (validate-amounts in-map (cdr (cdr out-map)) fee coinbase mint-amount mint-id)
+                                         )
+                                     )
+                                     (if (> out-amount in-amount)
+                                         nil ;; Input amount exceeds output amount. Return nil.
+                                         (validate-amounts in-map (cdr (cdr out-map)) fee coinbase mint-amount mint-id)
+                                     )
+                                 )
+                             )
+                             t ;; We've looped through all the output assets without error. Return true.
+                         )
+                    )
+               ))
+
                )
 
-              (if (validate-inputs (car priv) 0 (car (cdr (cdr pub))) nil (car (cdr pub)))
-                  t
-                  nil)
-
-              ;;(if (validate-outputs (cdr priv) (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr pub)))))))) nil)
-              ;;    t
-              ;;   nil)
+              (let (
+                     (input-amounts (validate-inputs (car priv) 0 (car (cdr (cdr pub))) nil (car (cdr pub))))
+                     (output-amounts (validate-outputs (cdr priv) (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr pub)))))))) nil))
+                   )
+                   (if input-amounts
+                       (if output-amounts
+                           (validate-amounts input-amounts output-amounts (car (cdr (cdr (cdr pub)))) (car (cdr (cdr (cdr (cdr pub))))) (car (cdr (cdr (cdr (cdr (cdr pub)))))) (car (cdr (cdr (cdr (cdr (cdr (cdr pub))))))))
+                           nil
+                       )
+                       nil
+                   )
+              )
         )
 )
