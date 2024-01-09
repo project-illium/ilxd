@@ -172,7 +172,7 @@ func TestStandardValidation(t *testing.T) {
 		{
 			Name: "standard 1 input, 1 output valid",
 			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
-				priv, pub, err := generateStandardTxParams(1, 1, 1100000, 1000000)
+				priv, pub, err := generateTxParams(1, 1, defaultOpts())
 				if err != nil {
 					return "", nil, nil, err
 				}
@@ -184,7 +184,10 @@ func TestStandardValidation(t *testing.T) {
 		{
 			Name: "standard 1 input, 2 output valid",
 			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
-				priv, pub, err := generateStandardTxParams(1, 2, 2100000, 1000000)
+				opts := defaultOpts()
+				opts.inAmounts = map[int]types.Amount{0: 2100000}
+				opts.outAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(1, 2, opts)
 				if err != nil {
 					return "", nil, nil, err
 				}
@@ -196,7 +199,10 @@ func TestStandardValidation(t *testing.T) {
 		{
 			Name: "standard 1 input, 3 output valid",
 			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
-				priv, pub, err := generateStandardTxParams(1, 3, 3100000, 1000000)
+				opts := defaultOpts()
+				opts.inAmounts = map[int]types.Amount{0: 3100000}
+				opts.outAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(1, 3, opts)
 				if err != nil {
 					return "", nil, nil, err
 				}
@@ -208,7 +214,7 @@ func TestStandardValidation(t *testing.T) {
 		{
 			Name: "standard 2 input, 2 output valid",
 			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
-				priv, pub, err := generateStandardTxParams(2, 2, 1000000, 950000)
+				priv, pub, err := generateTxParams(2, 2, defaultOpts())
 				if err != nil {
 					return "", nil, nil, err
 				}
@@ -220,7 +226,7 @@ func TestStandardValidation(t *testing.T) {
 		{
 			Name: "standard 3 input, 3 output valid",
 			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
-				priv, pub, err := generateStandardTxParams(3, 3, 1000000, 950000)
+				priv, pub, err := generateTxParams(3, 3, defaultOpts())
 				if err != nil {
 					return "", nil, nil, err
 				}
@@ -228,6 +234,219 @@ func TestStandardValidation(t *testing.T) {
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
+		},
+		{
+			Name: "standard: out amount exceeds in amount",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.inAmounts = map[int]types.Amount{0: 1000000}
+				opts.outAmounts = map[int]types.Amount{0: 1000001}
+				priv, pub, err := generateTxParams(1, 1, opts)
+				if err != nil {
+					return "", nil, nil, err
+				}
+				pub.Fee = 0
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "standard: out amount exceeds in amount plus fee",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.inAmounts = map[int]types.Amount{0: 1000000}
+				opts.outAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(1, 1, opts)
+				if err != nil {
+					return "", nil, nil, err
+				}
+				pub.Fee = 1
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "standard: invalid output commitment",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				priv, pub, err := generateTxParams(1, 1, defaultOpts())
+				if err != nil {
+					return "", nil, nil, err
+				}
+				priv.Outputs[0].State = types.State{[]byte{0x01}}
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "standard: invalid input commitment",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				priv, pub, err := generateTxParams(1, 1, defaultOpts())
+				if err != nil {
+					return "", nil, nil, err
+				}
+				priv.Inputs[0].State = types.State{[]byte{0x01}}
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "standard: invalid input index",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				priv, pub, err := generateTxParams(1, 1, defaultOpts())
+				if err != nil {
+					return "", nil, nil, err
+				}
+				priv.Inputs[0].CommitmentIndex = 1234
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "standard: invalid input proof",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				priv, pub, err := generateTxParams(1, 1, defaultOpts())
+				if err != nil {
+					return "", nil, nil, err
+				}
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return "", nil, nil, err
+				}
+				priv.Inputs[0].InclusionProof.Hashes[0] = r[:]
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "standard: invalid nullifier",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				priv, pub, err := generateTxParams(1, 1, defaultOpts())
+				if err != nil {
+					return "", nil, nil, err
+				}
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return "", nil, nil, err
+				}
+				pub.Nullifiers[0] = types.NewNullifier(r[:])
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "standard: locking script invalid",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				priv, pub, err := generateTxParams(1, 1, defaultOpts())
+				if err != nil {
+					return "", nil, nil, err
+				}
+				priv.Inputs[0].LockingFunction = "(lambda (a b c d e) t)"
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "standard: locking params invalid",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				priv, pub, err := generateTxParams(1, 1, defaultOpts())
+				if err != nil {
+					return "", nil, nil, err
+				}
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return "", nil, nil, err
+				}
+				priv.Inputs[0].LockingParams = [][]byte{r[:]}
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "standard: unlocking params invalid",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				priv, pub, err := generateTxParams(1, 1, defaultOpts())
+				if err != nil {
+					return "", nil, nil, err
+				}
+				sk, _, err := crypto.GenerateNovaKey(rand.Reader)
+				if err != nil {
+					return "", nil, nil, err
+				}
+				sig, err := sk.Sign([]byte("hello"))
+				if err != nil {
+					return "", nil, nil, err
+				}
+				sigRx, sigRy, sigS := crypto.UnmarshalSignature(sig)
+				priv.Inputs[0].UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS)
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "standard 2 input, 2 output with asset IDs",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				id := types.ID{}
+				id[0] = 0xff
+				opts := defaultOpts()
+				opts.inAssets = map[int]types.ID{0: id, 1: id}
+				opts.outAssets = map[int]types.ID{0: id, 1: id}
+				priv, pub, err := generateTxParams(2, 2, defaultOpts())
+				if err != nil {
+					return "", nil, nil, err
+				}
+				pub.Fee = 0
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagSym,
+			ExpectedOutput: zk.OutputTrue,
+		},
+		{
+			Name: "standard 3 input, 3 output with mixed asset IDs",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				id1 := types.ID{}
+				id1[0] = 0xff
+				id2 := types.ID{}
+				id2[0] = 0x33
+				id := types.ID{}
+				opts := defaultOpts()
+				opts.inAssets = map[int]types.ID{0: id, 1: id1, 2: id2}
+				opts.inAssets = map[int]types.ID{0: id, 1: id1, 2: id2}
+				priv, pub, err := generateTxParams(3, 3, defaultOpts())
+				if err != nil {
+					return "", nil, nil, err
+				}
+				pub.Fee = 0
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagSym,
+			ExpectedOutput: zk.OutputTrue,
+		},
+		{
+			Name: "standard 2 input, 2 output invalid out amount",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				id := types.ID{}
+				id[0] = 0xff
+				opts := defaultOpts()
+				opts.inAssets = map[int]types.ID{0: id}
+				priv, pub, err := generateTxParams(1, 1, defaultOpts())
+				if err != nil {
+					return "", nil, nil, err
+				}
+				pub.Fee = 0
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
 		},
 	}
 
@@ -238,11 +457,27 @@ func TestStandardValidation(t *testing.T) {
 		tag, val, _, err := zk.Eval(program, priv, pub)
 		assert.NoErrorf(t, err, "Test: %s: error: %s", test.Name, err)
 		assert.Equalf(t, test.ExpectedTag, tag, "Test %s: Expected tag: %d, got %d", test.Name, test.ExpectedTag, tag)
-		assert.Equal(t, test.ExpectedOutput, val, "Test %s: Expected output: %x, got %x", test.ExpectedOutput, val)
+		assert.Equal(t, test.ExpectedOutput, val, "Test %s: Expected output: %x, got %x", test.Name, test.ExpectedOutput, val)
 	}
 }
 
-func generateStandardTxParams(numInputs, numOutputs int, inAmt, outAmt types.Amount) (*circparams.PrivateParams, *circparams.PublicParams, error) {
+type options struct {
+	inAssets   map[int]types.ID
+	outAssets  map[int]types.ID
+	inAmounts  map[int]types.Amount
+	outAmounts map[int]types.Amount
+}
+
+func defaultOpts() *options {
+	return &options{
+		inAssets:   make(map[int]types.ID),
+		outAssets:  make(map[int]types.ID),
+		inAmounts:  make(map[int]types.Amount),
+		outAmounts: make(map[int]types.Amount),
+	}
+}
+
+func generateTxParams(numInputs, numOutputs int, opts *options) (*circparams.PrivateParams, *circparams.PublicParams, error) {
 	sigHash, err := zk.RandomFieldElement()
 	if err != nil {
 		return nil, nil, err
@@ -303,10 +538,19 @@ func generateStandardTxParams(numInputs, numOutputs int, inAmt, outAmt types.Amo
 
 		note := types.SpendNote{
 			ScriptHash: scriptHash,
-			Amount:     outAmt,
+			Amount:     1000000,
 			AssetID:    types.IlliumCoinID,
 			Salt:       types.NewID(salt[:]),
 			State:      nil,
+		}
+
+		amt, ok := opts.outAmounts[i]
+		if ok {
+			note.Amount = amt
+		}
+		assetID, ok := opts.outAssets[i]
+		if ok {
+			note.AssetID = assetID
 		}
 
 		serializedNote, err := note.Serialize()
@@ -362,10 +606,19 @@ func generateStandardTxParams(numInputs, numOutputs int, inAmt, outAmt types.Amo
 
 		note := types.SpendNote{
 			ScriptHash: scriptHash,
-			Amount:     inAmt,
+			Amount:     1100000,
 			AssetID:    types.IlliumCoinID,
 			Salt:       types.NewID(salt[:]),
 			State:      nil,
+		}
+
+		amt, ok := opts.inAmounts[i]
+		if ok {
+			note.Amount = amt
+		}
+		assetID, ok := opts.inAssets[i]
+		if ok {
+			note.AssetID = assetID
 		}
 
 		commitment, err := note.Commitment()
