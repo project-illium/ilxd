@@ -395,12 +395,15 @@ func TestStandardValidation(t *testing.T) {
 		{
 			Name: "standard 2 input, 2 output with asset IDs",
 			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
-				id := types.ID{}
-				id[0] = 0xff
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return "", nil, nil, err
+				}
+				id := types.NewID(r[:])
 				opts := defaultOpts()
 				opts.inAssets = map[int]types.ID{0: id, 1: id}
 				opts.outAssets = map[int]types.ID{0: id, 1: id}
-				priv, pub, err := generateTxParams(2, 2, defaultOpts())
+				priv, pub, err := generateTxParams(2, 2, opts)
 				if err != nil {
 					return "", nil, nil, err
 				}
@@ -413,15 +416,19 @@ func TestStandardValidation(t *testing.T) {
 		{
 			Name: "standard 3 input, 3 output with mixed asset IDs",
 			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
-				id1 := types.ID{}
-				id1[0] = 0xff
-				id2 := types.ID{}
-				id2[0] = 0x33
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return "", nil, nil, err
+				}
+				r2, err := zk.RandomFieldElement()
+				if err != nil {
+					return "", nil, nil, err
+				}
 				id := types.ID{}
 				opts := defaultOpts()
-				opts.inAssets = map[int]types.ID{0: id, 1: id1, 2: id2}
-				opts.inAssets = map[int]types.ID{0: id, 1: id1, 2: id2}
-				priv, pub, err := generateTxParams(3, 3, defaultOpts())
+				opts.inAssets = map[int]types.ID{0: id, 1: types.NewID(r[:]), 2: types.NewID(r2[:])}
+				opts.outAssets = map[int]types.ID{0: id, 1: types.NewID(r[:]), 2: types.NewID(r2[:])}
+				priv, pub, err := generateTxParams(3, 3, opts)
 				if err != nil {
 					return "", nil, nil, err
 				}
@@ -434,11 +441,42 @@ func TestStandardValidation(t *testing.T) {
 		{
 			Name: "standard 2 input, 2 output invalid out amount",
 			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
-				id := types.ID{}
-				id[0] = 0xff
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return "", nil, nil, err
+				}
 				opts := defaultOpts()
-				opts.inAssets = map[int]types.ID{0: id}
-				priv, pub, err := generateTxParams(1, 1, defaultOpts())
+				opts.inAssets = map[int]types.ID{0: types.NewID(r[:])}
+				priv, pub, err := generateTxParams(1, 1, opts)
+				if err != nil {
+					return "", nil, nil, err
+				}
+				pub.Fee = 0
+				fmt.Println(priv.Inputs[0].AssetID)
+				fmt.Println(priv.Outputs[0].AssetID)
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "standard 3 input, 3 output asset output exceeds input",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return "", nil, nil, err
+				}
+				r2, err := zk.RandomFieldElement()
+				if err != nil {
+					return "", nil, nil, err
+				}
+				id := types.ID{}
+				opts := defaultOpts()
+				opts.inAssets = map[int]types.ID{0: id, 1: types.NewID(r[:]), 2: types.NewID(r2[:])}
+				opts.outAssets = map[int]types.ID{0: id, 1: types.NewID(r[:]), 2: types.NewID(r2[:])}
+				opts.inAmounts = map[int]types.Amount{1: 1000000}
+				opts.outAmounts = map[int]types.Amount{1: 1000001}
+				priv, pub, err := generateTxParams(3, 3, opts)
 				if err != nil {
 					return "", nil, nil, err
 				}
