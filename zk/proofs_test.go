@@ -621,6 +621,87 @@ func TestTransactionValidation(t *testing.T) {
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
+		{
+			Name: "coinbase 1 output valid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.outAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(0, 1, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				pub.Coinbase = 1000000
+				return []string{zk.CoinbaseValidationProgram()}, priv, pub, nil
+			},
+			ExpectedTag:    zk.TagSym,
+			ExpectedOutput: zk.OutputTrue,
+		},
+		{
+			Name: "coinbase 2 output valid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.outAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(0, 2, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				pub.Coinbase = 2000000
+				return []string{zk.CoinbaseValidationProgram()}, priv, pub, nil
+			},
+			ExpectedTag:    zk.TagSym,
+			ExpectedOutput: zk.OutputTrue,
+		},
+		{
+			Name: "coinbase 2 output too many coins",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.outAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(0, 2, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				pub.Coinbase = 1999999
+				return []string{zk.CoinbaseValidationProgram()}, priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "coinbase 2 output non-ilx asset",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				opts := defaultOpts()
+				opts.outAmounts = map[int]types.Amount{0: 1000000}
+				opts.outAssets = map[int]types.ID{0: types.ID{}, 1: types.NewID(r[:])}
+				priv, pub, err := generateTxParams(0, 2, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				pub.Coinbase = 1000000
+				return []string{zk.CoinbaseValidationProgram()}, priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "coinbase 2 output invalid output commitment",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.outAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(0, 1, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				priv.Outputs[0].State = types.State{[]byte{0x01}}
+				pub.Coinbase = 1000000
+				return []string{zk.CoinbaseValidationProgram()}, priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
 	}
 
 	for _, test := range tests {

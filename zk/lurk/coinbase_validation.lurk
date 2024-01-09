@@ -100,7 +100,11 @@
               (let (
                      (output-amounts (validate-outputs (cdr priv) (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr pub)))))))) (cons 0 (cons 0 nil))))
                    )
-                   (validate-amounts output-amounts (car (cdr (cdr (cdr (cdr pub))))))
+                   (if output-amounts
+                       (validate-amounts output-amounts (car (cdr (cdr (cdr (cdr pub))))))
+                       nil
+                   )
+
               )
         )
 )
