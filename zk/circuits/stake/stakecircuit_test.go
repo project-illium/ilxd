@@ -48,7 +48,7 @@ func TestStakeCircuit(t *testing.T) {
 	assert.NoError(t, err)
 
 	note1 := types.SpendNote{
-		ScriptHash: scriptHash[:],
+		ScriptHash: scriptHash,
 		AssetID:    [32]byte{},
 		Amount:     1000000,
 		Salt:       salt,
