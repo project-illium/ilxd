@@ -121,7 +121,7 @@ func (pub *PublicParams) ToExpr() (string, error) {
 	for i := 0; i < len(pub.Nullifiers)-1; i++ {
 		nullifiers += ")"
 	}
-	if len(nullifiers) == 0 {
+	if len(pub.Nullifiers) == 0 {
 		nullifiers = "nil"
 	}
 	outputs := ""
@@ -136,7 +136,7 @@ func (pub *PublicParams) ToExpr() (string, error) {
 	for i := 0; i < len(pub.Outputs)-1; i++ {
 		outputs += ")"
 	}
-	if len(outputs) == 0 {
+	if len(pub.Outputs) == 0 {
 		outputs = "nil"
 	}
 

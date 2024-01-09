@@ -162,242 +162,242 @@ func TestEval(t *testing.T) {
 	assert.Equal(t, zk.OutputTrue, out)
 }
 
-func TestStandardValidation(t *testing.T) {
+func TestTransactionValidation(t *testing.T) {
 	tests := []struct {
 		Name           string
-		Setup          func() (string, zk.Parameters, zk.Parameters, error)
+		Setup          func() ([]string, zk.Parameters, zk.Parameters, error)
 		ExpectedTag    zk.Tag
 		ExpectedOutput []byte
 	}{
 		{
-			Name: "standard 1 input, 1 output valid",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint 1 input, 1 output valid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(1, 1, defaultOpts())
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
 		},
 		{
-			Name: "standard 1 input, 2 output valid",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint 1 input, 2 output valid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				opts := defaultOpts()
 				opts.inAmounts = map[int]types.Amount{0: 2100000}
 				opts.outAmounts = map[int]types.Amount{0: 1000000}
 				priv, pub, err := generateTxParams(1, 2, opts)
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
 		},
 		{
-			Name: "standard 1 input, 3 output valid",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint 1 input, 3 output valid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				opts := defaultOpts()
 				opts.inAmounts = map[int]types.Amount{0: 3100000}
 				opts.outAmounts = map[int]types.Amount{0: 1000000}
 				priv, pub, err := generateTxParams(1, 3, opts)
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
 		},
 		{
-			Name: "standard 2 input, 2 output valid",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint 2 input, 2 output valid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(2, 2, defaultOpts())
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
 		},
 		{
-			Name: "standard 3 input, 3 output valid",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint 3 input, 3 output valid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(3, 3, defaultOpts())
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
 		},
 		{
-			Name: "standard: out amount exceeds in amount",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint: out amount exceeds in amount",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				opts := defaultOpts()
 				opts.inAmounts = map[int]types.Amount{0: 1000000}
 				opts.outAmounts = map[int]types.Amount{0: 1000001}
 				priv, pub, err := generateTxParams(1, 1, opts)
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				pub.Fee = 0
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
 		{
-			Name: "standard: out amount exceeds in amount plus fee",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint: out amount exceeds in amount plus fee",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				opts := defaultOpts()
 				opts.inAmounts = map[int]types.Amount{0: 1000000}
 				opts.outAmounts = map[int]types.Amount{0: 1000000}
 				priv, pub, err := generateTxParams(1, 1, opts)
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				pub.Fee = 1
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
 		{
-			Name: "standard: invalid output commitment",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint: invalid output commitment",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(1, 1, defaultOpts())
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				priv.Outputs[0].State = types.State{[]byte{0x01}}
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
 		{
-			Name: "standard: invalid input commitment",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint: invalid input commitment",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(1, 1, defaultOpts())
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				priv.Inputs[0].State = types.State{[]byte{0x01}}
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
 		{
-			Name: "standard: invalid input index",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint: invalid input index",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(1, 1, defaultOpts())
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				priv.Inputs[0].CommitmentIndex = 1234
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
 		{
-			Name: "standard: invalid input proof",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint: invalid input proof",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(1, 1, defaultOpts())
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				r, err := zk.RandomFieldElement()
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				priv.Inputs[0].InclusionProof.Hashes[0] = r[:]
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
 		{
-			Name: "standard: invalid nullifier",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint: invalid nullifier",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(1, 1, defaultOpts())
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				r, err := zk.RandomFieldElement()
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				pub.Nullifiers[0] = types.NewNullifier(r[:])
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
 		{
-			Name: "standard: locking script invalid",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint: locking script invalid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(1, 1, defaultOpts())
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				priv.Inputs[0].LockingFunction = "(lambda (a b c d e) t)"
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
 		{
-			Name: "standard: locking params invalid",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint: locking params invalid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(1, 1, defaultOpts())
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				r, err := zk.RandomFieldElement()
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				priv.Inputs[0].LockingParams = [][]byte{r[:]}
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
 		{
-			Name: "standard: unlocking params invalid",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint: unlocking params invalid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(1, 1, defaultOpts())
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				sk, _, err := crypto.GenerateNovaKey(rand.Reader)
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				sig, err := sk.Sign([]byte("hello"))
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				sigRx, sigRy, sigS := crypto.UnmarshalSignature(sig)
 				priv.Inputs[0].UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS)
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
 		{
-			Name: "standard 2 input, 2 output with asset IDs",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint 2 input, 2 output with asset IDs",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				r, err := zk.RandomFieldElement()
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				id := types.NewID(r[:])
 				opts := defaultOpts()
@@ -405,24 +405,24 @@ func TestStandardValidation(t *testing.T) {
 				opts.outAssets = map[int]types.ID{0: id, 1: id}
 				priv, pub, err := generateTxParams(2, 2, opts)
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				pub.Fee = 0
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
 		},
 		{
-			Name: "standard 3 input, 3 output with mixed asset IDs",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint 3 input, 3 output with mixed asset IDs",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				r, err := zk.RandomFieldElement()
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				r2, err := zk.RandomFieldElement()
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				id := types.ID{}
 				opts := defaultOpts()
@@ -430,43 +430,43 @@ func TestStandardValidation(t *testing.T) {
 				opts.outAssets = map[int]types.ID{0: id, 1: types.NewID(r[:]), 2: types.NewID(r2[:])}
 				priv, pub, err := generateTxParams(3, 3, opts)
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				pub.Fee = 0
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
 		},
 		{
-			Name: "standard 1 input, 1 output invalid out amount",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint 1 input, 1 output invalid out amount",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				r, err := zk.RandomFieldElement()
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				opts := defaultOpts()
 				opts.inAssets = map[int]types.ID{0: types.NewID(r[:])}
 				priv, pub, err := generateTxParams(1, 1, opts)
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				pub.Fee = 0
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
 		{
-			Name: "standard 3 input, 3 output asset output exceeds input",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint 3 input, 3 output asset output exceeds input",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				r, err := zk.RandomFieldElement()
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				r2, err := zk.RandomFieldElement()
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				id := types.ID{}
 				opts := defaultOpts()
@@ -476,20 +476,20 @@ func TestStandardValidation(t *testing.T) {
 				opts.outAmounts = map[int]types.Amount{1: 1000001}
 				priv, pub, err := generateTxParams(3, 3, opts)
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				pub.Fee = 0
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
 		{
-			Name: "standard 2 input, 2 output with asset ID and fee without ilx",
-			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+			Name: "standard/mint 2 input, 2 output with asset ID and fee without ilx",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				r, err := zk.RandomFieldElement()
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				id := types.NewID(r[:])
 				opts := defaultOpts()
@@ -497,10 +497,126 @@ func TestStandardValidation(t *testing.T) {
 				opts.outAssets = map[int]types.ID{0: id, 1: id}
 				priv, pub, err := generateTxParams(2, 2, opts)
 				if err != nil {
-					return "", nil, nil, err
+					return nil, nil, nil, err
 				}
 				pub.Fee = 1000
-				return zk.StandardValidationProgram(), priv, pub, nil
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "mint 1 input, 1 output mint asset with fee valid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				opts := defaultOpts()
+				opts.outAmounts = map[int]types.Amount{0: 1000000}
+				opts.outAssets = map[int]types.ID{0: types.NewID(r[:])}
+				opts.inAmounts = map[int]types.Amount{0: 50000}
+				opts.inAssets = map[int]types.ID{0: types.ID{}}
+				priv, pub, err := generateTxParams(1, 1, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				pub.Fee = 50000
+				pub.MintID = types.NewID(r[:])
+				pub.MintAmount = 1000000
+				return []string{zk.MintValidationProgram()}, priv, pub, nil
+			},
+			ExpectedTag:    zk.TagSym,
+			ExpectedOutput: zk.OutputTrue,
+		},
+		{
+			Name: "mint 1 input, 2 output mint asset with fee valid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				opts := defaultOpts()
+				opts.outAmounts = map[int]types.Amount{0: 1000000, 1: 50000}
+				opts.outAssets = map[int]types.ID{0: types.NewID(r[:]), 1: types.ID{}}
+				opts.inAmounts = map[int]types.Amount{0: 100000}
+				opts.inAssets = map[int]types.ID{0: types.ID{}}
+				priv, pub, err := generateTxParams(1, 2, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				pub.Fee = 50000
+				pub.MintID = types.NewID(r[:])
+				pub.MintAmount = 1000000
+				return []string{zk.MintValidationProgram()}, priv, pub, nil
+			},
+			ExpectedTag:    zk.TagSym,
+			ExpectedOutput: zk.OutputTrue,
+		},
+		{
+			Name: "mint 0 input, 1 output mint asset no fee valid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				opts := defaultOpts()
+				opts.outAmounts = map[int]types.Amount{0: 1000000}
+				opts.outAssets = map[int]types.ID{0: types.NewID(r[:])}
+				priv, pub, err := generateTxParams(0, 1, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				pub.Fee = 0
+				pub.MintID = types.NewID(r[:])
+				pub.MintAmount = 1000000
+				return []string{zk.MintValidationProgram()}, priv, pub, nil
+			},
+			ExpectedTag:    zk.TagSym,
+			ExpectedOutput: zk.OutputTrue,
+		},
+		{
+			Name: "mint 0 input, 1 output mint asset no fee too many coins",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				opts := defaultOpts()
+				opts.outAmounts = map[int]types.Amount{0: 1000000}
+				opts.outAssets = map[int]types.ID{0: types.NewID(r[:])}
+				priv, pub, err := generateTxParams(0, 1, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				pub.Fee = 0
+				pub.MintID = types.NewID(r[:])
+				pub.MintAmount = 100000
+				return []string{zk.MintValidationProgram()}, priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "mint 1 input, 2 output mint asset with fee too many coins",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				opts := defaultOpts()
+				opts.outAmounts = map[int]types.Amount{0: 1000000, 1: 50000}
+				opts.outAssets = map[int]types.ID{0: types.NewID(r[:]), 1: types.ID{}}
+				opts.inAmounts = map[int]types.Amount{0: 100000}
+				opts.inAssets = map[int]types.ID{0: types.ID{}}
+				priv, pub, err := generateTxParams(1, 2, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				pub.Fee = 50000
+				pub.MintID = types.NewID(r[:])
+				pub.MintAmount = 100000
+				return []string{zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
@@ -508,13 +624,15 @@ func TestStandardValidation(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		program, priv, pub, err := test.Setup()
+		programs, priv, pub, err := test.Setup()
 		assert.NoError(t, err)
 
-		tag, val, _, err := zk.Eval(program, priv, pub)
-		assert.NoErrorf(t, err, "Test: %s: error: %s", test.Name, err)
-		assert.Equalf(t, test.ExpectedTag, tag, "Test %s: Expected tag: %d, got %d", test.Name, test.ExpectedTag, tag)
-		assert.Equal(t, test.ExpectedOutput, val, "Test %s: Expected output: %x, got %x", test.Name, test.ExpectedOutput, val)
+		for _, prog := range programs {
+			tag, val, _, err := zk.Eval(prog, priv, pub)
+			assert.NoErrorf(t, err, "Test: %s: error: %s", test.Name, err)
+			assert.Equalf(t, test.ExpectedTag, tag, "Test %s: Expected tag: %d, got %d", test.Name, test.ExpectedTag, tag)
+			assert.Equal(t, test.ExpectedOutput, val, "Test %s: Expected output: %x, got %x", test.Name, test.ExpectedOutput, val)
+		}
 	}
 }
 

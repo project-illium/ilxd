@@ -35,6 +35,10 @@ var timeLockedMultisigCommitment []byte
 var standardValidationScriptLurk embed.FS
 var standardValidationScriptData string
 
+//go:embed lurk/mint_validation.lurk
+var mintValidationScriptLurk embed.FS
+var mintValidationScriptData string
+
 func init() {
 	mp, err := macros.NewMacroPreprocessor(macros.WithStandardLib(), macros.RemoveComments())
 	if err != nil {
@@ -90,6 +94,12 @@ func init() {
 	}
 
 	standardValidationScriptData = string(data)
+	data, err = mintValidationScriptLurk.ReadFile("lurk/mint_validation.lurk")
+	if err != nil {
+		panic(err)
+	}
+
+	mintValidationScriptData = string(data)
 }
 
 // BasicTransferScript returns the basic transfer lurk script
@@ -131,6 +141,11 @@ func TimelockedMultisigScriptCommitment() []byte {
 // StandardValidationProgram returns the standard validation lurk program script
 func StandardValidationProgram() string {
 	return standardValidationScriptData
+}
+
+// MintValidationProgram returns the mint validation lurk program script
+func MintValidationProgram() string {
+	return mintValidationScriptData
 }
 
 func MakeMultisigUnlockingParams(pubkeys [][]byte, sigs [][]byte, sigHash []byte) ([]byte, error) {

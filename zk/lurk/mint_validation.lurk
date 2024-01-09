@@ -162,7 +162,7 @@
                                      nil ;; Overflow. Return false.
                                      (if (> (+ out-amount fee) in-amount)
                                          nil ;; Input amount + coinbase exceeds output amount + fee. Return nil.
-                                         (validate-amounts in-map (cdr (cdr out-map)) fee mint-amount mint-id)
+                                         (validate-amounts in-map (cdr (cdr out-map)) fee mint-id mint-amount)
                                      )
                                  )
                                  (if (= out-asset mint-id)
@@ -170,12 +170,12 @@
                                          nil ;; Overflow. Return false.
                                          (if (> out-amount (+ in-amount mint-amount))
                                               nil ;; Input amount + mint exceeds output amount. Return nil.
-                                              (validate-amounts in-map (cdr (cdr out-map)) fee mint-amount mint-id)
+                                              (validate-amounts in-map (cdr (cdr out-map)) fee mint-id mint-amount)
                                          )
                                      )
                                      (if (> out-amount in-amount)
                                          nil ;; Input amount exceeds output amount. Return nil.
-                                         (validate-amounts in-map (cdr (cdr out-map)) fee mint-amount mint-id)
+                                         (validate-amounts in-map (cdr (cdr out-map)) fee mint-id mint-amount)
                                      )
                                  )
                              )

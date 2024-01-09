@@ -23,7 +23,7 @@ func TestSpendNote_Hash(t *testing.T) {
 	copy(salt[:], saltBytes)
 
 	note := &SpendNote{
-		ScriptHash: sh,
+		ScriptHash: NewID(sh),
 		Amount:     12345,
 		AssetID:    ID{},
 		Salt:       salt,
@@ -38,7 +38,7 @@ func TestSpendNote_Hash(t *testing.T) {
 	s2, err := RandomSalt()
 	assert.NoError(t, err)
 	note2 := &SpendNote{
-		ScriptHash: sh,
+		ScriptHash: NewID(sh),
 		Amount:     12345,
 		AssetID:    ID{},
 		Salt:       s2,
@@ -50,7 +50,7 @@ func TestSpendNote_Hash(t *testing.T) {
 	s3, err := RandomSalt()
 	assert.NoError(t, err)
 	note3 := &SpendNote{
-		ScriptHash: sh,
+		ScriptHash: NewID(sh),
 		Amount:     12345,
 		AssetID:    ID{},
 		Salt:       s3,
@@ -75,7 +75,7 @@ func TestSpendNote_SerializeDeserialize(t *testing.T) {
 	copy(salt[:], saltBytes)
 
 	note := &SpendNote{
-		ScriptHash: sh,
+		ScriptHash: NewID(sh),
 		Amount:     12345,
 		AssetID:    ID{},
 		Salt:       salt,
