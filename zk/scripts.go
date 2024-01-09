@@ -43,6 +43,10 @@ var mintValidationScriptData string
 var coinbaseValidationScriptLurk embed.FS
 var coinbaseValidationScriptData string
 
+//go:embed lurk/stake_validation.lurk
+var stakeValidationScriptLurk embed.FS
+var stakeValidationScriptData string
+
 func init() {
 	mp, err := macros.NewMacroPreprocessor(macros.WithStandardLib(), macros.RemoveComments())
 	if err != nil {
@@ -111,6 +115,13 @@ func init() {
 	}
 
 	coinbaseValidationScriptData = string(data)
+
+	data, err = stakeValidationScriptLurk.ReadFile("lurk/stake_validation.lurk")
+	if err != nil {
+		panic(err)
+	}
+
+	stakeValidationScriptData = string(data)
 }
 
 // BasicTransferScript returns the basic transfer lurk script
@@ -168,6 +179,11 @@ func CoinbaseValidationProgram() string {
 // as they use the same script.
 func TreasuryValidationProgram() string {
 	return coinbaseValidationScriptData
+}
+
+// StakeValidationProgram returns the stake validation lurk program script
+func StakeValidationProgram() string {
+	return stakeValidationScriptData
 }
 
 func MakeMultisigUnlockingParams(pubkeys [][]byte, sigs [][]byte, sigHash []byte) ([]byte, error) {

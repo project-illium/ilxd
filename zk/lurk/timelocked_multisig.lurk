@@ -17,7 +17,7 @@
 ;; will only be valid for 10 minutes after it is signed. Feel free to adjust this value
 ;; for your use case.
 (lambda (locking-params unlocking-params input-index private-params public-params)
-        !(import std/crypto)
+        !(import std/crypto/checksig)
 
         !(def lock-until (car locking-params))
         !(def threshold (car (cdr locking-params)))

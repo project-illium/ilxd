@@ -7,6 +7,7 @@ package zk_test
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/crypto"
@@ -155,6 +156,7 @@ func TestCoprocessors(t *testing.T) {
 }
 
 func TestEval(t *testing.T) {
+	fmt.Println(hex.EncodeToString(zk.TimelockedMultisigScriptCommitment()))
 	program := "(lambda (priv pub) (= (+ priv pub) 5))"
 	tag, out, _, err := zk.Eval(program, zk.Expr("3"), zk.Expr("2"))
 	assert.NoError(t, err)
@@ -162,7 +164,7 @@ func TestEval(t *testing.T) {
 	assert.Equal(t, zk.OutputTrue, out)
 }
 
-func TestTransactionValidation(t *testing.T) {
+func TestTransactionProofValidation(t *testing.T) {
 	tests := []struct {
 		Name           string
 		Setup          func() ([]string, zk.Parameters, zk.Parameters, error)
@@ -698,6 +700,201 @@ func TestTransactionValidation(t *testing.T) {
 				priv.Outputs[0].State = types.State{[]byte{0x01}}
 				pub.Coinbase = 1000000
 				return []string{zk.CoinbaseValidationProgram()}, priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "stake valid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.inAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(1, 0, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				stakePub := &circparams.StakePublicParams{
+					StakeAmount:  1000000,
+					PublicParams: *pub,
+				}
+				privIn := priv.Inputs[0]
+				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			},
+			ExpectedTag:    zk.TagSym,
+			ExpectedOutput: zk.OutputTrue,
+		},
+		{
+			Name: "stake private doesn't equal public amount",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.inAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(1, 0, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				stakePub := &circparams.StakePublicParams{
+					StakeAmount:  1100000,
+					PublicParams: *pub,
+				}
+				privIn := priv.Inputs[0]
+				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "stake invalid input commitment index",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.inAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(1, 0, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				stakePub := &circparams.StakePublicParams{
+					StakeAmount:  1000000,
+					PublicParams: *pub,
+				}
+				privIn := priv.Inputs[0]
+				privIn.CommitmentIndex = 0
+				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "stake invalid input commitment hashes",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.inAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(1, 0, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				stakePub := &circparams.StakePublicParams{
+					StakeAmount:  1000000,
+					PublicParams: *pub,
+				}
+				privIn := priv.Inputs[0]
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				privIn.InclusionProof.Hashes[0] = r[:]
+				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "stake invalid nullifier",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.inAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(1, 0, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				stakePub := &circparams.StakePublicParams{
+					StakeAmount:  1000000,
+					PublicParams: *pub,
+				}
+				privIn := priv.Inputs[0]
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				pub.Nullifiers[0] = types.NewNullifier(r[:])
+				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "stake invalid commmitment",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.inAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(1, 0, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				stakePub := &circparams.StakePublicParams{
+					StakeAmount:  1000000,
+					PublicParams: *pub,
+				}
+				privIn := priv.Inputs[0]
+				privIn.State = types.State{[]byte{0x01}}
+				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "stake invalid unlocking script",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.inAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(1, 0, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				stakePub := &circparams.StakePublicParams{
+					StakeAmount:  1000000,
+					PublicParams: *pub,
+				}
+				privIn := priv.Inputs[0]
+				sk, _, err := crypto.GenerateNovaKey(rand.Reader)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				sig, err := sk.Sign([]byte("hello"))
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				sigRx, sigRy, sigS := crypto.UnmarshalSignature(sig)
+				privIn.UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS)
+				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "stake invalid locking function",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.inAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(1, 0, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				stakePub := &circparams.StakePublicParams{
+					StakeAmount:  1000000,
+					PublicParams: *pub,
+				}
+				privIn := priv.Inputs[0]
+				privIn.LockingFunction = "(lambda (a b c d e) t)"
+				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "stake timelocked with wrong script",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				opts := defaultOpts()
+				opts.inAmounts = map[int]types.Amount{0: 1000000}
+				priv, pub, err := generateTxParams(1, 0, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				stakePub := &circparams.StakePublicParams{
+					StakeAmount:  1000000,
+					PublicParams: *pub,
+				}
+				privIn := priv.Inputs[0]
+				stakePub.Locktime = time.Now()
+				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,

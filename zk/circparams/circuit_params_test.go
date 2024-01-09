@@ -6,7 +6,6 @@ package circparams
 
 import (
 	"encoding/binary"
-	"fmt"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/zk/lurk/macros"
@@ -123,7 +122,6 @@ func TestPrivateParams_ToExpr(t *testing.T) {
 	}
 
 	expr, err := priv.ToExpr()
-	fmt.Println(expr)
 	assert.NoError(t, err)
 	assert.True(t, macros.IsValidLurk(expr))
 
