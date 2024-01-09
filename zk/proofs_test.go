@@ -439,7 +439,7 @@ func TestStandardValidation(t *testing.T) {
 			ExpectedOutput: zk.OutputTrue,
 		},
 		{
-			Name: "standard 2 input, 2 output invalid out amount",
+			Name: "standard 1 input, 1 output invalid out amount",
 			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
 				r, err := zk.RandomFieldElement()
 				if err != nil {
@@ -452,8 +452,6 @@ func TestStandardValidation(t *testing.T) {
 					return "", nil, nil, err
 				}
 				pub.Fee = 0
-				fmt.Println(priv.Inputs[0].AssetID)
-				fmt.Println(priv.Outputs[0].AssetID)
 				return zk.StandardValidationProgram(), priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
@@ -481,6 +479,27 @@ func TestStandardValidation(t *testing.T) {
 					return "", nil, nil, err
 				}
 				pub.Fee = 0
+				return zk.StandardValidationProgram(), priv, pub, nil
+			},
+			ExpectedTag:    zk.TagNil,
+			ExpectedOutput: zk.OutputFalse,
+		},
+		{
+			Name: "standard 2 input, 2 output with asset ID and fee without ilx",
+			Setup: func() (string, zk.Parameters, zk.Parameters, error) {
+				r, err := zk.RandomFieldElement()
+				if err != nil {
+					return "", nil, nil, err
+				}
+				id := types.NewID(r[:])
+				opts := defaultOpts()
+				opts.inAssets = map[int]types.ID{0: id, 1: id}
+				opts.outAssets = map[int]types.ID{0: id, 1: id}
+				priv, pub, err := generateTxParams(2, 2, opts)
+				if err != nil {
+					return "", nil, nil, err
+				}
+				pub.Fee = 1000
 				return zk.StandardValidationProgram(), priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,

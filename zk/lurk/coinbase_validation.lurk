@@ -98,15 +98,9 @@
 
               ;; Validate the outputs and amounts
               (let (
-                     (output-amounts (validate-outputs (cdr priv) (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr pub)))))))) nil))
+                     (output-amounts (validate-outputs (cdr priv) (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr pub)))))))) (cons 0 (cons 0 nil))))
                    )
-                   (if input-amounts
-                       (if output-amounts
-                           (validate-amounts output-amounts (car (cdr (cdr (cdr (cdr pub))))))
-                           nil
-                       )
-                       nil
-                   )
+                   (validate-amounts output-amounts (car (cdr (cdr (cdr (cdr pub))))))
               )
         )
 )

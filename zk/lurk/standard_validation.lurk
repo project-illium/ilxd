@@ -179,8 +179,8 @@
 
               ;; Validate the inputs, outputs, and amounts
               (let (
-                     (input-amounts (validate-inputs (car priv) 0 (car (cdr (cdr pub))) nil (car (cdr pub))))
-                     (output-amounts (validate-outputs (cdr priv) (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr pub)))))))) nil))
+                     (input-amounts (validate-inputs (car priv) 0 (car (cdr (cdr pub))) (cons 0 (cons 0 nil)) (car (cdr pub))))
+                     (output-amounts (validate-outputs (cdr priv) (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr pub)))))))) (cons 0 (cons 0 nil))))
                    )
                    (if input-amounts
                        (if output-amounts
