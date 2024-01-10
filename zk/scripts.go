@@ -239,3 +239,49 @@ func MakeMultisigUnlockingParams(pubkeys [][]byte, sigs [][]byte, sigHash []byte
 	}
 	return []byte(unlockignScript), nil
 }
+
+func MakeMultisigUnlockingParams2(pubkeys []crypto.PubKey, sigs [][]byte, sigHash []byte) (string, error) {
+	sigCpy := make([][]byte, len(sigs))
+	copy(sigCpy, sigs)
+
+	keySelector := "(cons "
+	for i, key := range pubkeys {
+		if len(sigs) > 0 {
+			valid, err := key.Verify(sigHash, sigs[0])
+			if err != nil {
+				return "", err
+			}
+			if valid {
+				keySelector += "1 "
+				sigs = sigs[1:]
+			} else {
+				keySelector += "0 "
+			}
+		} else {
+			keySelector += "0 "
+		}
+		if i == len(pubkeys)-1 {
+			keySelector += "nil"
+		} else {
+			keySelector += "(cons "
+		}
+	}
+	for i := 0; i < len(pubkeys); i++ {
+		keySelector += ")"
+	}
+
+	unlockignScript := "(cons " + keySelector + " "
+	for _, sig := range sigCpy {
+		unlockignScript += "(cons "
+		if len(sig) != 64 {
+			return "", errors.New("invalid signature len")
+		}
+		sigRx, sigRy, sigS := icrypto.UnmarshalSignature(sig)
+		unlockignScript += fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x))) ", sigRx, sigRy, sigS)
+	}
+	unlockignScript += "nil)"
+	for i := 0; i < len(sigCpy); i++ {
+		unlockignScript += ")"
+	}
+	return unlockignScript, nil
+}

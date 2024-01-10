@@ -16,3 +16,12 @@
                 (eval (cons 'coproc_checksig (cons (car sig) (cons (car (cdr sig)) (cons (car (cdr (cdr sig))) (cons (car pubkey) (cons (car (cdr pubkey)) (cons sighash nil))))))))
         ))
 ))
+
+!(module collections (
+        ;; nth returns the item at the given index from
+        ;; the list or nil if the index doesn't exist.
+        (nth (lambda (idx plist)
+            (if (= idx 0)
+                (car plist)
+                (nth (- idx 1) (cdr plist)))))
+))

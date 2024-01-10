@@ -56,7 +56,6 @@ func (priv *PrivateParams) Clone() *PrivateParams {
 	}
 	for i, in := range priv.Inputs {
 		priv2.Inputs[i] = PrivateInput{
-			ScriptHash:      in.ScriptHash.Clone(),
 			Amount:          in.Amount,
 			AssetID:         in.AssetID.Clone(),
 			Salt:            in.Salt.Clone(),
@@ -66,7 +65,7 @@ func (priv *PrivateParams) Clone() *PrivateParams {
 				Hashes: make([][]byte, len(in.InclusionProof.Hashes)),
 				Flags:  in.InclusionProof.Flags,
 			},
-			LockingFunction: in.LockingFunction,
+			Script:          in.Script,
 			LockingParams:   make(types.LockingParams, len(in.LockingParams)),
 			UnlockingParams: in.UnlockingParams,
 		}

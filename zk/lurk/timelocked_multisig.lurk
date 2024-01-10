@@ -18,6 +18,7 @@
 ;; for your use case.
 (lambda (locking-params unlocking-params input-index private-params public-params)
         !(import std/crypto/checksig)
+        !(import std/collections/nth)
 
         !(def lock-until (car locking-params))
         !(def threshold (car (cdr locking-params)))

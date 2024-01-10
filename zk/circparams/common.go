@@ -10,14 +10,13 @@ import (
 )
 
 type PrivateInput struct {
-	ScriptHash      types.ID
 	Amount          types.Amount
 	AssetID         types.ID
 	Salt            types.ID
 	State           types.State
 	CommitmentIndex uint64
 	InclusionProof  InclusionProof
-	LockingFunction string
+	Script          string
 	LockingParams   types.LockingParams
 	UnlockingParams string
 }
@@ -36,17 +35,16 @@ func (in *PrivateInput) ToExpr() (string, error) {
 		return "", err
 	}
 
-	expr := fmt.Sprintf("(cons 0x%x ", in.ScriptHash.Bytes()) +
-		fmt.Sprintf("(cons %d ", in.Amount) +
+	expr := fmt.Sprintf("(cons %d ", in.Amount) +
 		fmt.Sprintf("(cons 0x%x ", in.AssetID.Bytes()) +
 		fmt.Sprintf("(cons 0x%x ", in.Salt.Bytes()) +
 		fmt.Sprintf("(cons %s ", state) +
 		fmt.Sprintf("(cons %d ", in.CommitmentIndex) +
 		fmt.Sprintf("(cons %s ", ip) +
-		fmt.Sprintf("(cons %s ", in.LockingFunction) +
+		fmt.Sprintf("(cons %s ", in.Script) +
 		fmt.Sprintf("(cons %s ", lockingParams) +
 		fmt.Sprintf("(cons %s ", in.UnlockingParams) +
-		"nil))))))))))"
+		"nil)))))))))"
 	return expr, nil
 }
 

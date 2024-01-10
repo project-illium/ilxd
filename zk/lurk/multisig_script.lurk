@@ -15,7 +15,8 @@
 ;;
 ;; Where each sig is a cons cell of (sig-r sig-s).
 (lambda (locking-params unlocking-params input-index private-params public-params)
-        !(import std/crypto)
+        !(import std/crypto/checksig)
+        !(import std/collections/nth)
 
         !(def threshold (car locking-params))
         !(def key-selector (car unlocking-params))

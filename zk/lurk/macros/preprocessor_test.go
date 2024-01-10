@@ -16,6 +16,14 @@ import (
 	"testing"
 )
 
+func TestMacroPreprocessor_Preprocess(t *testing.T) {
+	mp, err := macros.NewMacroPreprocessor()
+	assert.NoError(t, err)
+	lurkProgram, err := mp.Preprocess("!(param nullifiers 0)")
+	assert.NoError(t, err)
+	fmt.Println(lurkProgram)
+}
+
 func TestPreProcessValidParentheses(t *testing.T) {
 	type testVector struct {
 		input    string
@@ -43,15 +51,16 @@ func TestPreProcessValidParentheses(t *testing.T) {
 		{"(lambda (script-params unlocking-params input-index private-params public-params) !(assert-eq (+ x 5) 4) !(def z 5) !(assert t) t)", "(lambda (script-params unlocking-params input-index private-params public-params) (if (eq (eq (+ x 5) 4) nil) nil (let ((z 5)) (if (eq t nil) nil t))))"},
 		{"!(list 1 2 3 4)", "(cons 1 (cons 2 (cons 3 (cons 4 nil))))"},
 		{"!(list 1 (car x) 3 4)", "(cons 1 (cons (car x) (cons 3 (cons 4 nil))))"},
-		{"!(param nullifiers 0)", "(nth 0 (nth 0 public-params))"},
-		{"!(param txo-root)", "(nth 1 public-params)"},
-		{"!(param fee)", "(nth 2 public-params)"},
-		{"!(param coinbase)", "(nth 3 public-params)"},
-		{"!(param mint-id)", "(nth 4 public-params)"},
-		{"!(param mint-amount)", "(nth 5 public-params)"},
-		{"!(param sighash)", "(nth 7 public-params)"},
-		{"!(param locktime)", "(nth 8 public-params)"},
-		{"!(param locktime-precision)", "(nth 9 public-params)"},
+		{"!(param nullifiers 0)", "(car (car (cdr public-params)))"},
+		{"!(param nullifiers 1)", "(car (cdr (car (cdr public-params))))"},
+		{"!(param sighash)", "(car public-params)"},
+		{"!(param txo-root)", "(car (cdr (cdr public-params)))"},
+		{"!(param fee)", "(car (cdr (cdr (cdr public-params))))"},
+		{"!(param coinbase)", "(car (cdr (cdr (cdr (cdr public-params)))))"},
+		{"!(param mint-id)", "(car (cdr (cdr (cdr (cdr (cdr public-params))))))"},
+		{"!(param mint-amount)", "(car (cdr (cdr (cdr (cdr (cdr (cdr public-params)))))))"},
+		{"!(param locktime)", "(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params)))))))))"},
+		{"!(param locktime-precision)", "(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params))))))))))"},
 		{"!(param priv-in 2)", "(nth 2 (car private-params))"},
 		{"!(param priv-out 3)", "(nth 3 (car (cdr private-params)))"},
 		{"!(param pub-out 4)", "(nth 4 (nth 6 public-params))"},

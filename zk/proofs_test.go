@@ -349,7 +349,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				priv.Inputs[0].LockingFunction = "(lambda (a b c d e) t)"
+				priv.Inputs[0].Script = "(lambda (a b c d e) t)"
 				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagNil,
@@ -873,7 +873,7 @@ func TestTransactionProofValidation(t *testing.T) {
 					PublicParams: *pub,
 				}
 				privIn := priv.Inputs[0]
-				privIn.LockingFunction = "(lambda (a b c d e) t)"
+				privIn.Script = "(lambda (a b c d e) t)"
 				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
 			},
 			ExpectedTag:    zk.TagNil,
@@ -899,6 +899,47 @@ func TestTransactionProofValidation(t *testing.T) {
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
+		/*{
+			Name: "standard 1 of 1 multisig input valid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				commitment, err := zk.LurkCommit(zk.MultisigScript())
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				opts := defaultOpts()
+				opts.inScriptCommitments = map[int]types.ID{0: types.NewID(commitment)}
+				priv, pub, err := generateTxParams(1, 1, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				sk, pk, err := crypto.GenerateNovaKey(rand.Reader)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				pkX, pkY := pk.(*crypto.NovaPublicKey).ToXY()
+				priv.Inputs[0].LockingParams = [][]byte{{0x01}, pkX, pkY}
+
+				sig, err := sk.Sign(pub.SigHash.Bytes())
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				unlockingScript, err := zk.MakeMultisigUnlockingParams2([]lcrypto.PubKey{pk}, [][]byte{sig}, pub.SigHash.Bytes())
+				if err != nil {
+					return nil, nil, nil, err
+				}
+
+				priv.Inputs[0].UnlockingParams = unlockingScript
+
+				nullifer, err := types.CalculateNullifier(priv.Inputs[0].CommitmentIndex, priv.Inputs[0].Salt, commitment, priv.Inputs[0].LockingParams...)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				pub.Nullifiers[0] = nullifer
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
+			},
+			ExpectedTag:    zk.TagSym,
+			ExpectedOutput: zk.OutputTrue,
+		},*/
 	}
 
 	for _, test := range tests {
@@ -915,18 +956,20 @@ func TestTransactionProofValidation(t *testing.T) {
 }
 
 type options struct {
-	inAssets   map[int]types.ID
-	outAssets  map[int]types.ID
-	inAmounts  map[int]types.Amount
-	outAmounts map[int]types.Amount
+	inAssets            map[int]types.ID
+	outAssets           map[int]types.ID
+	inAmounts           map[int]types.Amount
+	outAmounts          map[int]types.Amount
+	inScriptCommitments map[int]types.ID
 }
 
 func defaultOpts() *options {
 	return &options{
-		inAssets:   make(map[int]types.ID),
-		outAssets:  make(map[int]types.ID),
-		inAmounts:  make(map[int]types.Amount),
-		outAmounts: make(map[int]types.Amount),
+		inAssets:            make(map[int]types.ID),
+		outAssets:           make(map[int]types.ID),
+		inAmounts:           make(map[int]types.Amount),
+		outAmounts:          make(map[int]types.Amount),
+		inScriptCommitments: make(map[int]types.ID),
 	}
 }
 
@@ -1047,6 +1090,10 @@ func generateTxParams(numInputs, numOutputs int, opts *options) (*circparams.Pri
 			LockingParams:    [][]byte{pkx, pky},
 		}
 
+		if customCommit, ok := opts.inScriptCommitments[i]; ok {
+			lockingScript.ScriptCommitment = customCommit
+		}
+
 		scriptHash, err := lockingScript.Hash()
 		if err != nil {
 			return nil, nil, err
@@ -1094,13 +1141,12 @@ func generateTxParams(numInputs, numOutputs int, opts *options) (*circparams.Pri
 		sigRx, sigRy, sigS := crypto.UnmarshalSignature(sig)
 
 		priv.Inputs = append(priv.Inputs, circparams.PrivateInput{
-			ScriptHash:      note.ScriptHash,
 			Amount:          note.Amount,
 			AssetID:         note.AssetID,
 			Salt:            note.Salt,
 			State:           note.State,
 			CommitmentIndex: proof.Index,
-			LockingFunction: zk.BasicTransferScript(),
+			Script:          zk.BasicTransferScript(),
 			LockingParams:   [][]byte{pkx, pky},
 			UnlockingParams: fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS),
 		})
