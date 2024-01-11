@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	lcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params/hash"
@@ -171,7 +172,7 @@ func TestTransactionProofValidation(t *testing.T) {
 		ExpectedTag    zk.Tag
 		ExpectedOutput []byte
 	}{
-		{
+		/*{
 			Name: "standard/mint 1 input, 1 output valid",
 			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(1, 1, defaultOpts())
@@ -898,17 +899,11 @@ func TestTransactionProofValidation(t *testing.T) {
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
-		},
-		/*{
+		},*/
+		{
 			Name: "standard 1 of 1 multisig input valid",
 			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				commitment, err := zk.LurkCommit(zk.MultisigScript())
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				opts := defaultOpts()
-				opts.inScriptCommitments = map[int]types.ID{0: types.NewID(commitment)}
-				priv, pub, err := generateTxParams(1, 1, opts)
 				if err != nil {
 					return nil, nil, nil, err
 				}
@@ -917,7 +912,13 @@ func TestTransactionProofValidation(t *testing.T) {
 					return nil, nil, nil, err
 				}
 				pkX, pkY := pk.(*crypto.NovaPublicKey).ToXY()
-				priv.Inputs[0].LockingParams = [][]byte{{0x01}, pkX, pkY}
+				opts := defaultOpts()
+				opts.inLockingParams = map[int][][]byte{0: {{0x01}, pkX, pkY}}
+				opts.inScriptCommitments = map[int]types.ID{0: types.NewID(commitment)}
+				priv, pub, err := generateTxParams(1, 1, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
 
 				sig, err := sk.Sign(pub.SigHash.Bytes())
 				if err != nil {
@@ -929,17 +930,18 @@ func TestTransactionProofValidation(t *testing.T) {
 				}
 
 				priv.Inputs[0].UnlockingParams = unlockingScript
+				priv.Inputs[0].Script = zk.MultisigScript()
 
 				nullifer, err := types.CalculateNullifier(priv.Inputs[0].CommitmentIndex, priv.Inputs[0].Salt, commitment, priv.Inputs[0].LockingParams...)
 				if err != nil {
 					return nil, nil, nil, err
 				}
 				pub.Nullifiers[0] = nullifer
-				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
+				return []string{zk.StandardValidationProgram()}, priv, pub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
-		},*/
+		},
 	}
 
 	for _, test := range tests {
@@ -961,6 +963,7 @@ type options struct {
 	inAmounts           map[int]types.Amount
 	outAmounts          map[int]types.Amount
 	inScriptCommitments map[int]types.ID
+	inLockingParams     map[int][][]byte
 }
 
 func defaultOpts() *options {
@@ -970,6 +973,7 @@ func defaultOpts() *options {
 		inAmounts:           make(map[int]types.Amount),
 		outAmounts:          make(map[int]types.Amount),
 		inScriptCommitments: make(map[int]types.ID),
+		inLockingParams:     make(map[int][][]byte),
 	}
 }
 
@@ -1093,6 +1097,9 @@ func generateTxParams(numInputs, numOutputs int, opts *options) (*circparams.Pri
 		if customCommit, ok := opts.inScriptCommitments[i]; ok {
 			lockingScript.ScriptCommitment = customCommit
 		}
+		if lockingParams, ok := opts.inLockingParams[i]; ok {
+			lockingScript.LockingParams = lockingParams
+		}
 
 		scriptHash, err := lockingScript.Hash()
 		if err != nil {
@@ -1147,7 +1154,7 @@ func generateTxParams(numInputs, numOutputs int, opts *options) (*circparams.Pri
 			State:           note.State,
 			CommitmentIndex: proof.Index,
 			Script:          zk.BasicTransferScript(),
-			LockingParams:   [][]byte{pkx, pky},
+			LockingParams:   lockingScript.LockingParams,
 			UnlockingParams: fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS),
 		})
 

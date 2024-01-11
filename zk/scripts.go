@@ -277,7 +277,7 @@ func MakeMultisigUnlockingParams2(pubkeys []crypto.PubKey, sigs [][]byte, sigHas
 			return "", errors.New("invalid signature len")
 		}
 		sigRx, sigRy, sigS := icrypto.UnmarshalSignature(sig)
-		unlockignScript += fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x))) ", sigRx, sigRy, sigS)
+		unlockignScript += fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil))) ", sigRx, sigRy, sigS)
 	}
 	unlockignScript += "nil)"
 	for i := 0; i < len(sigCpy); i++ {

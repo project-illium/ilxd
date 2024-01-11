@@ -60,8 +60,8 @@
 !(module collections (
         ;; nth returns the item at the given index from
         ;; the list or nil if the index doesn't exist.
-        !(defun nth (idx plist)
+        !(defun nth (idx plist) (
             (if (= idx 0)
                 (car plist)
-                (nth (- idx 1) (cdr plist))))
+                (nth (- idx 1) (cdr plist)))))
 ))
