@@ -180,6 +180,7 @@ impl<G> SecretKey<G>
     where
         G: Group,
 {
+    #[allow(dead_code)]
     pub fn random(mut rng: impl RngCore) -> Self {
         let secret = G::Scalar::random(&mut rng);
         Self(secret)
@@ -209,6 +210,7 @@ impl<G> PublicKey<G>
     where
         G: Group,
 {
+    #[allow(dead_code)]
     pub fn from_secret_key(s: &SecretKey<G>) -> Self {
         let point = G::generator() * s.0;
         Self(point)
@@ -229,6 +231,7 @@ impl<G> SecretKey<G>
     where
         G: Group,
 {
+    #[allow(dead_code)]
     pub fn sign(self, c: G::Scalar, mut rng: impl RngCore) -> Signature<G> {
         // T
         let mut t = [0u8; 80];
@@ -261,12 +264,14 @@ impl<G> SecretKey<G>
         x
     }
 
+    #[allow(dead_code)]
     fn to_uniform(digest: &[u8]) -> G::Scalar {
         assert_eq!(digest.len(), 64);
         let mut bits: [u64; 8] = [0; 8];
         LittleEndian::read_u64_into(digest, &mut bits);
         Self::mul_bits(&G::Scalar::ONE, BitIterator::new(bits))
     }
+
     #[allow(dead_code)]
     pub fn to_uniform_32(digest: &[u8]) -> G::Scalar {
         assert_eq!(digest.len(), 32);
@@ -275,6 +280,7 @@ impl<G> SecretKey<G>
         Self::mul_bits(&G::Scalar::ONE, BitIterator::new(bits))
     }
 
+    #[allow(dead_code)]
     pub fn hash_to_scalar(persona: &[u8], a: &[u8], b: &[u8]) -> G::Scalar {
         let mut hasher = Sha3_512::new();
         hasher.update(persona);
@@ -372,6 +378,7 @@ pub fn synthesize_bits<F: PrimeField, CS: ConstraintSystem<F>>(
 }
 
 // Synthesize a bit representation into circuit gadgets.
+#[allow(dead_code)]
 pub fn synthesize_bits2<F: PrimeField, CS: ConstraintSystem<F>>(
     cs: &mut CS,
     bits: &Option<Vec<bool>>,

@@ -32,7 +32,6 @@ use pasta_curves::{
     group::ff::Field
 };
 use flate2::{write::ZlibEncoder, read::ZlibDecoder, Compression};
-use nova::supernova::error::SuperNovaError;
 
 use coprocessors::{
     xor::MultiCoproc,
@@ -200,7 +199,7 @@ pub extern "C" fn verify_proof_ffi(
         output_array.to_vec(),
     ) {
         Ok(res) => res,
-        Err(err) => {
+        Err(_) => {
             return -1
         }
     };
@@ -277,7 +276,7 @@ fn create_public_params() -> PublicParams<Fr, MultiFrame<'static, Fr, MultiCopro
     let lang_rc = Arc::new(lang.clone());
 
     let instance_primary = Instance::new(REDUCTION_COUNT, lang_rc, true, Kind::SuperNovaAuxParams);
-    let pp = supernova_public_params::<_, _, MultiFrame<'_, _, _>>(&instance_primary).unwrap();
+    let pp = supernova_public_params(&instance_primary).unwrap();
     pp
 }
 
@@ -317,14 +316,14 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     let cprocs = make_cprocs_funcs_from_lang(&lang);
     let frames = evaluate(Some((&lurk_step, &cprocs, &lang)), call, store, max_steps).unwrap();
 
-    let supernova_prover = SuperNovaProver::<Fr, MultiCoproc<Fr>, MultiFrame<'_, _, _>>::new(
+    let supernova_prover = SuperNovaProver::<Fr, MultiCoproc<Fr>>::new(
         REDUCTION_COUNT,
         lang_rc.clone(),
     );
 
     let pp = get_public_params();
 
-    let (proof, z0, zi, _num_steps) = supernova_prover.prove(&pp, &frames, store)?;
+    let (proof, _, zi, _num_steps) = supernova_prover.prove(&pp, &frames, store)?;
     let compressed_proof = proof.compress(&pp).unwrap();
 
     let mut ret_tag = zi[0].to_bytes();
@@ -377,7 +376,7 @@ fn verify_proof(
 
     let pp = get_public_params();
     let decoder = ZlibDecoder::new(&proof[..]);
-    let decompressed_proof: Proof<Fr, MultiCoproc<Fr>, MultiFrame<Fr, MultiCoproc<Fr>>> = bincode::deserialize_from(decoder)?;
+    let decompressed_proof: Proof<Fr, MultiCoproc<Fr>> = bincode::deserialize_from(decoder)?;
     let res = decompressed_proof.verify(&pp, &z0, &zi)?;
     Ok(res)
 }
@@ -416,7 +415,6 @@ fn eval_simple(
     lang.add_coprocessor(cproc_sym_checksig, ChecksigCoprocessor::new());
     lang.add_coprocessor(cproc_sym_blake2s, Blake2sCoprocessor::new());
     lang.add_coprocessor(cproc_sym_sha256, Sha256Coprocessor::new());
-    let lang_rc = Arc::new(lang.clone());
 
     let lurk_step = make_eval_step_from_config(&EvalConfig::new_nivc(&lang));
     let cprocs = make_cprocs_funcs_from_lang(&lang);
