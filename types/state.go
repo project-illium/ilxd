@@ -25,7 +25,7 @@ type State [][]byte
 // A length byte of zero is treated as a delimiter.
 func (s *State) Serialize(pad bool) ([]byte, error) {
 	ser := serializeData(*s)
-	if pad {
+	if pad && len(ser) < 128 {
 		ser = append(ser, bytes.Repeat([]byte{0x00}, 128-len(ser))...)
 	}
 	return ser, nil

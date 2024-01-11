@@ -65,8 +65,8 @@
                       (locked-until (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr pub))))))))))
                       (locking-params (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr priv)))))))))
                       (unlocking-params (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr priv))))))))))
-                      (locking-func (car (cdr (cdr (cdr (cdr (cdr (cdr priv))))))))
-                      (script-commitment (num (commit locking-func)))
+                      (script (car (cdr (cdr (cdr (cdr (cdr (cdr priv))))))))
+                      (script-commitment (num (commit script)))
                       (script-hash (num (commit (cons script-commitment locking-params))))
                       (amount (car priv))
                       (asset-id (car (cdr priv)))
@@ -86,7 +86,7 @@
                             ;; Validate the inclusion proof proving the input commitment exists in the txo-set.
                             (if (validate-inclusion-proof leaf hashes (car (cdr (cdr pub))))
                                 ;; Validate the user's locking script
-                                (if (locking-func locking-params unlocking-params 0 priv pub)
+                                (if (script locking-params unlocking-params 0 priv pub)
                                     ;; If locked-until is greater than zero the script must be the
                                     ;; timelocked-multisig script.
                                     (if (> locked-until 0)

@@ -104,8 +104,8 @@
                                (input (car inputs))
                                (locking-params (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr input)))))))))
                                (unlocking-params (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr input))))))))))
-                               (locking-func (car (cdr (cdr (cdr (cdr (cdr (cdr input))))))))
-                               (script-commitment (num (commit locking-func)))
+                               (script (car (cdr (cdr (cdr (cdr (cdr (cdr input))))))))
+                               (script-commitment (num (commit script)))
                                (script-hash (num (commit (cons script-commitment locking-params))))
                                (amount (car input))
                                (asset-id (car (cdr input)))
@@ -130,7 +130,7 @@
                                       ;; Validate the inclusion proof proving the input commitment exists in the txo-set.
                                       (if (validate-inclusion-proof leaf hashes txo-root)
                                           ;; Validate the user's locking script
-                                          (if (locking-func locking-params unlocking-params idx priv pub)
+                                          (if (script locking-params unlocking-params idx priv pub)
                                               (validate-inputs (cdr inputs) (+ idx 1) txo-root (map-update asset-id (+ asset-sum amount) asset-map) (cdr nullifiers)) ;; Validation passed. Continue to the next input.
                                               nil ;; Locking script validation failed. Return false.
                                           )

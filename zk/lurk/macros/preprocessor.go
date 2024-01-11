@@ -83,7 +83,7 @@ var inputMap = map[string]string{
 	"inclusion-proof":  "(car (cdr (cdr (cdr (cdr (cdr %s))))))",
 	"script":           "(car (cdr (cdr (cdr (cdr (cdr (cdr %s)))))))",
 	"locking-params":   "(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr %s))))))))",
-	"unlocking-params": "(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr %s))))))))",
+	"unlocking-params": "(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr %s)))))))))",
 }
 
 var outputMap = map[string]string{
@@ -96,7 +96,7 @@ var outputMap = map[string]string{
 
 var pubOutMap = map[string]string{
 	"commitment": "(car %s)",
-	"ciphertext": "(car (cdr (%s))",
+	"ciphertext": "(car (cdr %s))",
 }
 
 func loadFilesFromFS(fileSystem fs.FS, directory string) ([]string, error) {
@@ -412,7 +412,7 @@ func macroExpandParam(lurkProgram string) string {
 				for i := 0; i < idx; i++ {
 					expr += "(cdr "
 				}
-				resultExp := fmt.Sprintf("%s(car private-params))", expr)
+				resultExp := fmt.Sprintf("%s(car private-params)", expr)
 				for i := 0; i < idx+1; i++ {
 					resultExp += ")"
 				}
@@ -453,6 +453,7 @@ func macroExpandParam(lurkProgram string) string {
 					expr += "(cdr "
 				}
 				resultExp := fmt.Sprintf("%s(car (cdr private-params))", expr)
+				//resultExp := fmt.Sprintf("%s(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params))))))))", expr)
 				for i := 0; i < idx+1; i++ {
 					resultExp += ")"
 				}
@@ -491,7 +492,8 @@ func macroExpandParam(lurkProgram string) string {
 				for i := 0; i < idx; i++ {
 					expr += "(cdr "
 				}
-				resultExp := fmt.Sprintf("%s(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params))))))))", index)
+				//resultExp := fmt.Sprintf("%s(car (cdr private-params))", expr)
+				resultExp := fmt.Sprintf("%s(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params))))))))", expr)
 				for i := 0; i < idx+1; i++ {
 					resultExp += ")"
 				}
