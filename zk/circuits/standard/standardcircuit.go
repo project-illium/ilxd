@@ -96,7 +96,7 @@ func StandardCircuit(privateParams, publicParams interface{}) bool {
 		}
 
 		// Now calculate the commitmentPreimage and commitment hash.
-		in.ScriptHash = spendScriptHash.Bytes()
+		in.ScriptHash = spendScriptHash
 		outputCommitment, err := in.Commitment()
 		if err != nil {
 			return false

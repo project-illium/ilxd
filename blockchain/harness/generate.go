@@ -92,7 +92,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 					return nil, nil, err
 				}
 				outputNote := &types.SpendNote{
-					ScriptHash: scriptHash[:],
+					ScriptHash: scriptHash,
 					Amount:     (sn.Note.Amount / types.Amount(outputsPerTx)) - types.Amount(fee),
 					AssetID:    types.IlliumCoinID,
 					Salt:       salt,
@@ -169,7 +169,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 						Amount:     outNote.Note.Amount,
 						Salt:       outNote.Note.Salt,
 						AssetID:    outNote.Note.AssetID,
-						ScriptHash: outNote.cachedScriptHash[:],
+						ScriptHash: outNote.cachedScriptHash,
 					},
 				})
 			}
@@ -328,7 +328,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		return nil, nil, err
 	}
 	note1 := &types.SpendNote{
-		ScriptHash: note1ScriptHash[:],
+		ScriptHash: note1ScriptHash,
 		Amount:     types.Amount(initialCoins) / 2,
 		AssetID:    types.IlliumCoinID,
 		Salt:       salt1,
@@ -349,7 +349,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		return nil, nil, err
 	}
 	note2 := &types.SpendNote{
-		ScriptHash: note2ScriptHash[:],
+		ScriptHash: note2ScriptHash,
 		Amount:     types.Amount(initialCoins) / 2,
 		AssetID:    types.IlliumCoinID,
 		Salt:       salt2,
@@ -431,7 +431,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		Outputs: []standard.PrivateOutput{
 			{
 				SpendNote: types.SpendNote{
-					ScriptHash: note1ScriptHash[:],
+					ScriptHash: note1ScriptHash,
 					Amount:     types.Amount(initialCoins / 2),
 					Salt:       note1.Salt,
 					AssetID:    note1.AssetID,
@@ -440,7 +440,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 			},
 			{
 				SpendNote: types.SpendNote{
-					ScriptHash: note2ScriptHash[:],
+					ScriptHash: note2ScriptHash,
 					Amount:     types.Amount(initialCoins / 2),
 					Salt:       note2.Salt,
 					AssetID:    note2.AssetID,

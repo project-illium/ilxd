@@ -56,7 +56,7 @@ func StakeCircuit(privateParams, publicParams interface{}) bool {
 	if err != nil {
 		return false
 	}
-	priv.ScriptHash = spendScriptHash.Bytes()
+	priv.ScriptHash = spendScriptHash
 	priv.Amount = types.Amount(pub.Amount)
 
 	outputCommitment, err := priv.Commitment()

@@ -1,0 +1,110 @@
+(lambda (priv pub) (
+        letrec (
+
+               ;; map-get returns an item from a map given the key.
+               ;; the map must be a list of form (:key item :key item).
+               (map-get (lambda (key plist)
+                    (if plist
+                       (if (eq key (car plist))
+                           (car (cdr plist))
+                           (map-get key (cdr (cdr plist))))
+                       nil)))
+
+               ;; map-update updates value of the given key in the
+               ;; provided map and returns the new map.
+               ;; If the key is not in the map a new map entry will
+               ;; be added.
+               ;; The map is formatted as a flat list of format
+               ;; (:key item :key item)
+               (map-update (lambda (key value map)
+                    (if (eq map nil)
+                        (cons key (cons value nil))
+                        (let ((existing-key (car map))
+                              (rest-map (cdr map)))
+                              (if (= existing-key key)
+                                  (cons key (cons value (cdr (cdr map))))
+                                  (cons existing-key (map-update key value rest-map)))))))
+
+               ;; check-overflow returns whether the sum of a and b overflows a u64
+               (check-overflow (lambda (a b)
+                   (if (> b 0)
+                       (if (> a (- 18446744073709551615 b))
+                           t
+                           nil)
+                       nil)))
+
+               ;; validate-output validates that the provided private output
+               ;; data matches the public output commitment found in the
+               ;; transaction.
+               (validate-outputs (lambda (private-outputs public-outputs asset-map)
+                    (let ((priv-out (car private-outputs))
+                          (pub-out (car public-outputs))
+                          (amount (car (cdr priv-out)))
+                          (asset-id (car (cdr (cdr priv-out))))
+                          (asset-sum (map-get asset-id asset-map))
+                          (asset-sum (if asset-sum asset-sum 0))
+                         )
+                         (if pub-out
+                             (if priv-out ;; If priv and pub are both non-nil then we need to validate the public commitment
+                                 (if (< amount 0)
+                                     nil ;; If amount is negative return false
+                                     (if (check-overflow asset-sum amount)
+                                         nil ;; If overflow return false
+                                         (if (= (car pub-out) (num (commit (cons (car priv-out)                                 ;; script-hash
+                                                                       (cons amount                                             ;; amount
+                                                                       (cons asset-id                                           ;; asset-id
+                                                                       (cons (car (cdr (cdr (cdr priv-out))))                   ;; salt
+                                                                       (cons (car (cdr (cdr (cdr (cdr priv-out))))) nil)))))))) ;; state
+                                             (validate-outputs (cdr private-outputs) (cdr public-outputs) (map-update asset-id (+ asset-sum amount) asset-map)) ;; If validation succeeds loop through the next ouputs
+                                             nil ;; Validation failed return false
+                                         )
+                                     )
+                                 )
+                                 nil ;; Length of priv and pub outputs don't match. Return false.
+                             )
+                             (if priv-out
+                                 nil ;; Length of priv and pub outputs don't match. Return false.
+                                 asset-map ;; Both priv and pub are nil, this means we hit the end of the loop without error. Return true.
+                             )
+                         )
+                    )
+               ))
+
+               ;; validate-amounts makes sure the output amounts do not exceed the input
+               ;; amounts, taking into consideration fees and any coinbase or mint.
+               (validate-amounts (lambda (out-map coinbase)
+                     (let (
+                            (out-asset (car out-map))
+                            (out-amount (car (cdr out-map)))
+                          )
+
+                         (if out-asset
+                             (if (= out-asset 0)
+                                 (if (check-overflow 0 coinbase)
+                                     nil ;; Overflow. Return false.
+                                     (if (> out-amount coinbase)
+                                         nil ;; Coinbase exceeds output amount. Return false.
+                                         (validate-amounts (cdr (cdr out-map)) coinbase)
+                                     )
+                                 )
+                                 nil ;; Coinbase cannot have other assets as outputs. Return false.
+                             )
+                             t ;; We've looped through all the output assets without error. Return true.
+                         )
+                    )
+               ))
+
+               )
+
+              ;; Validate the outputs and amounts
+              (let (
+                     (output-amounts (validate-outputs (cdr priv) (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr pub)))))))) (cons 0 (cons 0 nil))))
+                   )
+                   (if output-amounts
+                       (validate-amounts output-amounts (car (cdr (cdr (cdr (cdr pub))))))
+                       nil
+                   )
+
+              )
+        )
+)

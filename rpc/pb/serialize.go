@@ -41,18 +41,18 @@ func (r *RawTransaction) UnmarshalJSON(data []byte) error {
 
 type privateInputJSON struct {
 	Amount           uint64               `json:"amount"`
-	Salt             types.HexEncodable   `json:"salt"`
 	AssetID          types.HexEncodable   `json:"assetID"`
+	Salt             types.HexEncodable   `json:"salt"`
 	State            types.HexEncodable   `json:"state"`
-	ScriptCommitment types.HexEncodable   `json:"scriptCommitment"`
-	ScriptParams     []types.HexEncodable `json:"scriptParams"`
 	TxoProof         *TxoProof            `json:"txoProof"`
+	ScriptCommitment types.HexEncodable   `json:"scriptCommitment"`
+	LockingParams    []types.HexEncodable `json:"lockingParams"`
 	UnlockingParams  string               `json:"unlockingParams"`
 }
 
 func (i *PrivateInput) MarshalJSON() ([]byte, error) {
-	params := make([]types.HexEncodable, 0, len(i.ScriptParams))
-	for _, p := range i.ScriptParams {
+	params := make([]types.HexEncodable, 0, len(i.LockingParams))
+	for _, p := range i.LockingParams {
 		params = append(params, p)
 	}
 	s := &privateInputJSON{
@@ -61,7 +61,7 @@ func (i *PrivateInput) MarshalJSON() ([]byte, error) {
 		AssetID:          i.Asset_ID,
 		State:            i.State,
 		ScriptCommitment: i.ScriptCommitment,
-		ScriptParams:     params,
+		LockingParams:    params,
 		TxoProof:         i.TxoProof,
 		UnlockingParams:  i.UnlockingParams,
 	}
@@ -74,8 +74,8 @@ func (i *PrivateInput) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	params := make([][]byte, 0, len(input.ScriptParams))
-	for _, p := range input.ScriptParams {
+	params := make([][]byte, 0, len(input.LockingParams))
+	for _, p := range input.LockingParams {
 		params = append(params, p)
 	}
 
@@ -85,7 +85,7 @@ func (i *PrivateInput) UnmarshalJSON(data []byte) error {
 		Asset_ID:         input.AssetID,
 		State:            input.State,
 		ScriptCommitment: input.ScriptCommitment,
-		ScriptParams:     params,
+		LockingParams:    params,
 		TxoProof:         input.TxoProof,
 		UnlockingParams:  input.UnlockingParams,
 	}
@@ -93,11 +93,11 @@ func (i *PrivateInput) UnmarshalJSON(data []byte) error {
 }
 
 type privateOutputJSON struct {
-	Amount     uint64             `json:"amount"`
-	Salt       types.HexEncodable `json:"salt"`
-	AssetID    types.HexEncodable `json:"assetID"`
-	State      types.HexEncodable `json:"state"`
 	ScriptHash types.HexEncodable `json:"scriptHash"`
+	Amount     uint64             `json:"amount"`
+	AssetID    types.HexEncodable `json:"assetID"`
+	Salt       types.HexEncodable `json:"salt"`
+	State      types.HexEncodable `json:"state"`
 }
 
 func (o *PrivateOutput) MarshalJSON() ([]byte, error) {

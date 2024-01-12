@@ -13,9 +13,10 @@
 ;; public keys. For example: (1 0 1). A zero means the signature should be validated
 ;; against the public key at that index.
 ;;
-;; Where each sig is a cons cell of (sig-r sig-s).
+;; Where each sig is a list of (sig-rx sig-ry, sig-s).
 (lambda (locking-params unlocking-params input-index private-params public-params)
-        !(import std/crypto)
+        !(import std/crypto/checksig)
+        !(import std/collections/nth)
 
         !(def threshold (car locking-params))
         !(def key-selector (car unlocking-params))
@@ -24,17 +25,18 @@
         !(def sighash !(param sighash))
 
         !(defun validate-sigs (selector key-idx sig-idx valid-sigs) (
-                (if (= (car selector) 1)
-                    (if (check-sig (nth sig-idx sigs) (cons (nth key-idx pubkeys) (nth (+ key-idx 1) pubkeys)) sighash)
-                        (validate-sigs (cdr selector) (+ key-idx 2) (+ sig-idx 1) (+ valid-sigs 1))
-                        nil
-                    )
-                    (if (cdr selector)
+                (if (car selector)
+                    (if (= (car selector) 1)
+                        (if (checksig (nth sig-idx sigs) (cons (nth key-idx pubkeys) (cons (nth (+ key-idx 1) pubkeys) nil)) sighash)
+                            (validate-sigs (cdr selector) (+ key-idx 2) (+ sig-idx 1) (+ valid-sigs 1))
+                            nil
+                        )
                         (validate-sigs (cdr selector) (+ key-idx 2) sig-idx valid-sigs)
-                        (>= valid-sigs threshold)
                     )
+                    (>= valid-sigs threshold)
                 )
         ))
 
         (validate-sigs key-selector 0 0 0)
+        ;;(if (nth 2 pubkeys) t nil)
 )

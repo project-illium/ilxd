@@ -16,6 +16,7 @@ import (
 //go:embed lurk/basic_transfer.lurk
 var basicTransferScriptLurk embed.FS
 var basicTransferScriptData string
+var basicTransferScriptCommitment []byte
 
 //go:embed lurk/password_script.lurk
 var passwordScriptLurk embed.FS
@@ -30,6 +31,22 @@ var timelockedMultisigScriptLurk embed.FS
 var timelockedMultisigScriptData string
 var timeLockedMultisigCommitment []byte
 
+//go:embed lurk/standard_validation.lurk
+var standardValidationScriptLurk embed.FS
+var standardValidationScriptData string
+
+//go:embed lurk/mint_validation.lurk
+var mintValidationScriptLurk embed.FS
+var mintValidationScriptData string
+
+//go:embed lurk/coinbase_validation.lurk
+var coinbaseValidationScriptLurk embed.FS
+var coinbaseValidationScriptData string
+
+//go:embed lurk/stake_validation.lurk
+var stakeValidationScriptLurk embed.FS
+var stakeValidationScriptData string
+
 func init() {
 	mp, err := macros.NewMacroPreprocessor(macros.WithStandardLib(), macros.RemoveComments())
 	if err != nil {
@@ -40,6 +57,10 @@ func init() {
 		panic(err)
 	}
 	basicTransferScriptData, err = mp.Preprocess(string(data))
+	if err != nil {
+		panic(err)
+	}
+	basicTransferScriptCommitment, err = LurkCommit(basicTransferScriptData)
 	if err != nil {
 		panic(err)
 	}
@@ -74,11 +95,46 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+	data, err = standardValidationScriptLurk.ReadFile("lurk/standard_validation.lurk")
+	if err != nil {
+		panic(err)
+	}
+
+	standardValidationScriptData = string(data)
+	data, err = mintValidationScriptLurk.ReadFile("lurk/mint_validation.lurk")
+	if err != nil {
+		panic(err)
+	}
+
+	mintValidationScriptData = string(data)
+
+	data, err = coinbaseValidationScriptLurk.ReadFile("lurk/coinbase_validation.lurk")
+	if err != nil {
+		panic(err)
+	}
+
+	coinbaseValidationScriptData = string(data)
+
+	data, err = stakeValidationScriptLurk.ReadFile("lurk/stake_validation.lurk")
+	if err != nil {
+		panic(err)
+	}
+
+	stakeValidationScriptData = string(data)
 }
 
 // BasicTransferScript returns the basic transfer lurk script
 func BasicTransferScript() string {
 	return basicTransferScriptData
+}
+
+// BasicTransferScriptCommitment returns the script commitment hash
+// for the basic transfer script.
+func BasicTransferScriptCommitment() []byte {
+	ret := make([]byte, len(basicTransferScriptCommitment))
+	copy(ret, basicTransferScriptCommitment)
+	return ret
 }
 
 // PasswordScript returns the password lurk script
@@ -104,25 +160,42 @@ func TimelockedMultisigScriptCommitment() []byte {
 	return ret
 }
 
-func MakeMultisigUnlockingParams(pubkeys [][]byte, sigs [][]byte, sigHash []byte) ([]byte, error) {
+// StandardValidationProgram returns the standard validation lurk program script
+func StandardValidationProgram() string {
+	return standardValidationScriptData
+}
+
+// MintValidationProgram returns the mint validation lurk program script
+func MintValidationProgram() string {
+	return mintValidationScriptData
+}
+
+// CoinbaseValidationProgram returns the coinbase validation lurk program script
+func CoinbaseValidationProgram() string {
+	return coinbaseValidationScriptData
+}
+
+// TreasuryValidationProgram is an alias for the coinbase validation program
+// as they use the same script.
+func TreasuryValidationProgram() string {
+	return coinbaseValidationScriptData
+}
+
+// StakeValidationProgram returns the stake validation lurk program script
+func StakeValidationProgram() string {
+	return stakeValidationScriptData
+}
+
+func MakeMultisigUnlockingParams(pubkeys []crypto.PubKey, sigs [][]byte, sigHash []byte) (string, error) {
 	sigCpy := make([][]byte, len(sigs))
 	copy(sigCpy, sigs)
 
-	keys := make([]crypto.PubKey, 0, len(pubkeys)/2)
-	for i := 0; i < len(pubkeys); i += 2 {
-		key, err := icrypto.PublicKeyFromXY(pubkeys[i], pubkeys[i+1])
-		if err != nil {
-			return nil, err
-		}
-		keys = append(keys, key)
-	}
-
 	keySelector := "(cons "
-	for i, key := range keys {
+	for i, key := range pubkeys {
 		if len(sigs) > 0 {
 			valid, err := key.Verify(sigHash, sigs[0])
 			if err != nil {
-				return nil, err
+				return "", err
 			}
 			if valid {
 				keySelector += "1 "
@@ -133,13 +206,13 @@ func MakeMultisigUnlockingParams(pubkeys [][]byte, sigs [][]byte, sigHash []byte
 		} else {
 			keySelector += "0 "
 		}
-		if i == len(keys)-1 {
+		if i == len(pubkeys)-1 {
 			keySelector += "nil"
 		} else {
 			keySelector += "(cons "
 		}
 	}
-	for i := 0; i < len(keys); i++ {
+	for i := 0; i < len(pubkeys); i++ {
 		keySelector += ")"
 	}
 
@@ -147,13 +220,14 @@ func MakeMultisigUnlockingParams(pubkeys [][]byte, sigs [][]byte, sigHash []byte
 	for _, sig := range sigCpy {
 		unlockignScript += "(cons "
 		if len(sig) != 64 {
-			return nil, errors.New("invalid signature len")
+			return "", errors.New("invalid signature len")
 		}
-		unlockignScript += fmt.Sprintf("(cons 0x%x 0x%x) ", sig[:32], sig[32:])
+		sigRx, sigRy, sigS := icrypto.UnmarshalSignature(sig)
+		unlockignScript += fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil))) ", sigRx, sigRy, sigS)
 	}
 	unlockignScript += "nil)"
 	for i := 0; i < len(sigCpy); i++ {
 		unlockignScript += ")"
 	}
-	return []byte(unlockignScript), nil
+	return unlockignScript, nil
 }

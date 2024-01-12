@@ -146,7 +146,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 					return nil, err
 				}
 				note1 := &types.SpendNote{
-					ScriptHash: note1ScriptHash[:],
+					ScriptHash: note1ScriptHash,
 					Amount:     100000000000,
 					AssetID:    types.IlliumCoinID,
 					State:      types.State{},

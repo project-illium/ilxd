@@ -55,7 +55,7 @@ func TestStandardCircuit(t *testing.T) {
 	assert.NoError(t, err)
 
 	note1 := types.SpendNote{
-		ScriptHash: usScriptHash[:],
+		ScriptHash: usScriptHash,
 		AssetID:    [types.AssetIDLen]byte{},
 		Amount:     1000000,
 		State:      types.State{},
@@ -66,7 +66,7 @@ func TestStandardCircuit(t *testing.T) {
 	assert.NoError(t, err)
 
 	note2 := types.SpendNote{
-		ScriptHash: us2ScriptHash[:],
+		ScriptHash: us2ScriptHash,
 		AssetID:    [types.AssetIDLen]byte{},
 		Amount:     990000,
 		State:      types.State{},
@@ -121,7 +121,7 @@ func TestStandardCircuit(t *testing.T) {
 		Outputs: []standard.PrivateOutput{
 			{
 				SpendNote: types.SpendNote{
-					ScriptHash: us2ScriptHash[:],
+					ScriptHash: us2ScriptHash,
 					Amount:     note2.Amount,
 					Salt:       note2.Salt,
 					State:      types.State{},

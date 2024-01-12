@@ -50,7 +50,7 @@ func TestWalletServerIndex(t *testing.T) {
 	note := randSpendNote()
 	scriptHash, err := ul.Hash()
 	assert.NoError(t, err)
-	note.ScriptHash = scriptHash.Bytes()
+	note.ScriptHash = scriptHash
 	commitment, err := note.Commitment()
 	assert.NoError(t, err)
 	ser, err := note.Serialize()
@@ -185,7 +185,7 @@ func TestWalletServerIndex(t *testing.T) {
 
 func randSpendNote() types.SpendNote {
 	note := types.SpendNote{
-		ScriptHash: make([]byte, 32),
+		ScriptHash: types.ID{},
 		Amount:     20000,
 		AssetID:    types.ID{},
 		State:      types.State{},

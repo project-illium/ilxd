@@ -46,5 +46,5 @@ func TestCalculateNullifier(t *testing.T) {
 	n, err := CalculateNullifier(123, [32]byte{}, commitment, param1, param2)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "0d2b8e884921b8aec0e4c24f824115e0308050dc06c3055c07ced2dff4edf0e7", n.String())
+	assert.Equal(t, "112c36d51636533954aef733108d223ab2e7d57623ac27e6805d21420c463155", n.String())
 }

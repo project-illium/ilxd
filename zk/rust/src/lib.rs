@@ -32,7 +32,6 @@ use pasta_curves::{
     group::ff::Field
 };
 use flate2::{write::ZlibEncoder, read::ZlibDecoder, Compression};
-use nova::supernova::error::SuperNovaError;
 
 use coprocessors::{
     xor::MultiCoproc,
@@ -200,7 +199,7 @@ pub extern "C" fn verify_proof_ffi(
         output_array.to_vec(),
     ) {
         Ok(res) => res,
-        Err(err) => {
+        Err(_) => {
             return -1
         }
     };
@@ -208,6 +207,49 @@ pub extern "C" fn verify_proof_ffi(
         return 0
     }
     1
+}
+
+#[no_mangle]
+pub extern "C" fn eval_ffi(
+    lurk_program: *const c_char,
+    private_params: *const c_char,
+    public_params: *const c_char,
+    output_tag: *mut u8,
+    output_val: *mut u8,
+    iterations: *mut usize,
+) -> i32 {
+    let c_str1 = unsafe { CStr::from_ptr(lurk_program) };
+    let program_str = match c_str1.to_str() {
+        Ok(str) => str,
+        Err(_) => return -1, // Indicate error
+    };
+    let c_str2 = unsafe { CStr::from_ptr(private_params) };
+    let priv_params_str = match c_str2.to_str() {
+        Ok(str) => str,
+        Err(_) => return -1, // Indicate error
+    };
+    let c_str3 = unsafe { CStr::from_ptr(public_params) };
+    let pub_params_str = match c_str3.to_str() {
+        Ok(str) => str,
+        Err(_) => return -1, // Indicate error
+    };
+
+    match eval_simple(
+        program_str.to_string(),
+        priv_params_str.to_string(),
+        pub_params_str.to_string()
+    ) {
+        Ok((vec1, vec2, n_iter)) => {
+            // Assume output1, output2, and output3 are large enough to hold the data
+            unsafe {
+                ptr::copy_nonoverlapping(vec1.as_ptr(), output_tag, vec1.len());
+                ptr::copy_nonoverlapping(vec2.as_ptr(), output_val, vec2.len());
+                *iterations = n_iter;
+            }
+            0 // Success
+        }
+        Err(_) => -1, // Error
+    }
 }
 
 static PUBLIC_PARAMS: OnceCell<Arc<PublicParams<Fr, MultiFrame<'static, Fr, MultiCoproc<Fr>>>>> = OnceCell::new();
@@ -234,7 +276,7 @@ fn create_public_params() -> PublicParams<Fr, MultiFrame<'static, Fr, MultiCopro
     let lang_rc = Arc::new(lang.clone());
 
     let instance_primary = Instance::new(REDUCTION_COUNT, lang_rc, true, Kind::SuperNovaAuxParams);
-    let pp = supernova_public_params::<_, _, MultiFrame<'_, _, _>>(&instance_primary).unwrap();
+    let pp = supernova_public_params(&instance_primary).unwrap();
     pp
 }
 
@@ -274,14 +316,14 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     let cprocs = make_cprocs_funcs_from_lang(&lang);
     let frames = evaluate(Some((&lurk_step, &cprocs, &lang)), call, store, max_steps).unwrap();
 
-    let supernova_prover = SuperNovaProver::<Fr, MultiCoproc<Fr>, MultiFrame<'_, _, _>>::new(
+    let supernova_prover = SuperNovaProver::<Fr, MultiCoproc<Fr>>::new(
         REDUCTION_COUNT,
         lang_rc.clone(),
     );
 
     let pp = get_public_params();
 
-    let (proof, z0, zi, _num_steps) = supernova_prover.prove(&pp, &frames, store)?;
+    let (proof, _, zi, _num_steps) = supernova_prover.prove(&pp, &frames, store)?;
     let compressed_proof = proof.compress(&pp).unwrap();
 
     let mut ret_tag = zi[0].to_bytes();
@@ -334,14 +376,62 @@ fn verify_proof(
 
     let pp = get_public_params();
     let decoder = ZlibDecoder::new(&proof[..]);
-    let decompressed_proof: Proof<Fr, MultiCoproc<Fr>, MultiFrame<Fr, MultiCoproc<Fr>>> = bincode::deserialize_from(decoder)?;
+    let decompressed_proof: Proof<Fr, MultiCoproc<Fr>> = bincode::deserialize_from(decoder)?;
     let res = decompressed_proof.verify(&pp, &z0, &zi)?;
     Ok(res)
 }
 
+fn eval_simple(
+    lurk_program: String,
+    private_params: String,
+    public_params: String
+) -> Result<(Vec<u8>, Vec<u8>, usize), Box<dyn Error>> {
+    let store = &Store::<Fr>::default();
+    let max_steps = 100000000;
+
+    let secret = Fr::random(OsRng);
+    let priv_expr = store.read_with_default_state(private_params.as_str())?;
+    let (output, ..) = evaluate_simple::<Fr, MultiCoproc<Fr>>(None, priv_expr, store, max_steps)?;
+    let comm = store.hide(secret, output[0]);
+    let commitment_zpr = store.hash_ptr(&comm);
+    let commitment_bytes = commitment_zpr.value().to_bytes();
+    let commitment: String = commitment_bytes.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+
+    let expr = format!(r#"(letrec ((f {lurk_program}))(f (open 0x{commitment}) {public_params}))"#);
+
+    let cproc_sym_and = user_sym("coproc_and");
+    let cproc_sym_or = user_sym("coproc_or");
+    let cproc_sym_xor = user_sym("coproc_xor");
+    let cproc_sym_checksig = user_sym("coproc_checksig");
+    let cproc_sym_blake2s = user_sym("coproc_blake2s");
+    let cproc_sym_sha256 = user_sym("coproc_sha256");
+
+    let call = store.read_with_default_state(expr.as_str())?;
+
+    let mut lang = Lang::<Fr, MultiCoproc<Fr>>::new();
+    lang.add_coprocessor(cproc_sym_and, AndCoprocessor::new());
+    lang.add_coprocessor(cproc_sym_or, OrCoprocessor::new());
+    lang.add_coprocessor(cproc_sym_xor, XorCoprocessor::new());
+    lang.add_coprocessor(cproc_sym_checksig, ChecksigCoprocessor::new());
+    lang.add_coprocessor(cproc_sym_blake2s, Blake2sCoprocessor::new());
+    lang.add_coprocessor(cproc_sym_sha256, Sha256Coprocessor::new());
+
+    let lurk_step = make_eval_step_from_config(&EvalConfig::new_nivc(&lang));
+    let cprocs = make_cprocs_funcs_from_lang(&lang);
+
+    let (output, iterations, _) = evaluate_simple::<Fr, MultiCoproc<Fr>>(Some((&lurk_step, &cprocs, &lang)), call, store, max_steps)?;
+    let z_ptr = store.hash_ptr(&output[0]);
+    let mut tag = z_ptr.tag().to_field::<Fr>().to_bytes();
+    let mut val = z_ptr.value().to_bytes();
+    tag.reverse();
+    val.reverse();
+
+    Ok((tag, val, iterations))
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{IO_TWO, IO_TRUE_HASH, create_proof, verify_proof, get_public_params};
+    use crate::{IO_TWO, IO_TRUE_HASH, create_proof, verify_proof, get_public_params, eval_simple};
     use lurk::field::LurkField;
 
     #[test]
@@ -368,5 +458,21 @@ mod tests {
         ).expect("verify_proof failed");
         println!("{:?}", res);
         assert!(res, "Verification failed");
+    }
+
+    #[test]
+    fn test_eval() {
+    get_public_params();
+            let program = r#"(lambda (priv pub) (letrec ((or (lambda (a b)
+                                                                 (eval (cons 'coproc_or (cons a (cons b nil)))))))
+                                                         (= (or 19 15) 31)))"#;
+            let (value, tag, iterations) = eval_simple(
+                program.to_string(),
+                "(cons 7 8)".to_string(),
+                "(cons 7 8)".to_string()
+            ).expect("eval failed");
+            println!("{:?}", tag);
+            println!("{:?}", value);
+            println!("{:?}", iterations);
     }
 }

@@ -16,3 +16,52 @@
                 (eval (cons 'coproc_checksig (cons (car sig) (cons (car (cdr sig)) (cons (car (cdr (cdr sig))) (cons (car pubkey) (cons (car (cdr pubkey)) (cons sighash nil))))))))
         ))
 ))
+
+;; module inputs exposes functions to compute the hashes
+;; for certain input data.
+;;
+;; ***NOTE***
+;; These values are already computed in the encasing function
+;; for the input being evaluated.
+;; For example is the script at index 1 is being evaluated, you
+;; can access the script-commitment just by using the script-commitment
+;; variable in your script.
+;;
+;; This module is only for computing these values for the other inputs
+;; in the transaction.
+!(module inputs (
+        ;; script-commitment computes the commitment for the input's
+        ;; locking script.
+        !(defun script-commitment (input)
+              (num (commit (car (cdr (cdr (cdr (cdr (cdr (cdr input))))))))))
+
+        ;; script-hash computes the script-hash for the
+        ;; provided input.
+        !(defun script-hash (input)
+            (let ((locking-params (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr input)))))))))
+                  (script (car (cdr (cdr (cdr (cdr (cdr (cdr input))))))))
+                  (script-commitment (num (commit script))))
+            (num (commit (cons script-commitment locking-params)))))
+
+        ;; output-commitment computes the output commitment being
+        ;; spent by the provided input.
+        !(defun output-commitment (input)
+            (let ((locking-params (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr input)))))))))
+                  (script (car (cdr (cdr (cdr (cdr (cdr (cdr input))))))))
+                  (script-commitment (num (commit script)))
+                  (script-hash (num (commit (cons script-commitment locking-params))))
+                  (amount (car input))
+                  (asset-id (car (cdr input)))
+                  (salt (car (cdr (cdr input))))
+                  (state (car (cdr (cdr (cdr input))))))
+            (num (commit (cons script-hash (cons amount (cons asset-id (cons salt (cons state nil)))))))))
+))
+
+!(module collections (
+        ;; nth returns the item at the given index from
+        ;; the list or nil if the index doesn't exist.
+        !(defun nth (idx plist) (
+            (if (= idx 0)
+                (car plist)
+                (nth (- idx 1) (cdr plist)))))
+))

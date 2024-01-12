@@ -588,7 +588,17 @@ func (x *ProveMultisig) Execute(args []string) error {
 
 	nullifiers := make([][]byte, 0, len(rawTx.Inputs))
 	for _, in := range rawTx.Inputs {
-		unlockingParams, err := zk.MakeMultisigUnlockingParams(in.ScriptParams[1:], sigs, sighash)
+		var keys []crypto.PubKey
+		for i := 1; i < len(in.LockingParams); i += 2 {
+			pubx, puby := in.LockingParams[i], in.LockingParams[i+1]
+			pub, err := icrypto.PublicKeyFromXY(pubx, puby)
+			if err != nil {
+				return err
+			}
+			keys = append(keys, pub)
+		}
+
+		unlockingParams, err := zk.MakeMultisigUnlockingParams(keys, sigs, sighash)
 		if err != nil {
 			return err
 		}
@@ -603,8 +613,8 @@ func (x *ProveMultisig) Execute(args []string) error {
 				Flags:  in.TxoProof.Flags,
 			},
 			ScriptCommitment: in.ScriptCommitment,
-			ScriptParams:     in.ScriptParams,
-			UnlockingParams:  unlockingParams,
+			ScriptParams:     in.LockingParams,
+			UnlockingParams:  []byte(unlockingParams),
 		}
 		copy(privIn.Salt[:], in.Salt)
 		copy(privIn.AssetID[:], in.Asset_ID)
@@ -626,7 +636,7 @@ func (x *ProveMultisig) Execute(args []string) error {
 	for _, out := range rawTx.Outputs {
 		privOut := standard.PrivateOutput{
 			SpendNote: types.SpendNote{
-				ScriptHash: out.ScriptHash,
+				ScriptHash: types.NewID(out.ScriptHash),
 				Amount:     types.Amount(out.Amount),
 			},
 		}
@@ -1196,7 +1206,7 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 						return nil, errors.New("key is not type Nova")
 					}
 					x, y := novaPub.ToXY()
-					if len(in.ScriptParams) == 2 && bytes.Equal(in.ScriptParams[0], x) && bytes.Equal(in.ScriptParams[1], y) {
+					if len(in.LockingParams) == 2 && bytes.Equal(in.LockingParams[0], x) && bytes.Equal(in.LockingParams[1], y) {
 						privKey = k
 						break
 					}
@@ -1222,7 +1232,7 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 					Flags:  in.TxoProof.Flags,
 				},
 				ScriptCommitment: in.ScriptCommitment,
-				ScriptParams:     in.ScriptParams,
+				ScriptParams:     in.LockingParams,
 				UnlockingParams:  []byte(in.UnlockingParams),
 			}
 			copy(privIn.Salt[:], in.Salt)
@@ -1239,11 +1249,11 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 		for _, out := range rawTx.Outputs {
 			privOut := standard.PrivateOutput{
 				SpendNote: types.SpendNote{
-					ScriptHash: make([]byte, len(out.ScriptHash)),
+					ScriptHash: types.ID{},
 					Amount:     types.Amount(out.Amount),
 				},
 			}
-			copy(privOut.ScriptHash, out.ScriptHash)
+			copy(privOut.ScriptHash[:], out.ScriptHash)
 			copy(privOut.Salt[:], out.Salt)
 			copy(privOut.AssetID[:], out.Asset_ID)
 			state := new(types.State)
@@ -1295,7 +1305,7 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 					return nil, errors.New("key is not type Nova")
 				}
 				x, y := novaPub.ToXY()
-				if len(rawTx.Inputs[0].ScriptParams) == 2 && bytes.Equal(rawTx.Inputs[0].ScriptParams[0], x) && bytes.Equal(rawTx.Inputs[0].ScriptParams[1], y) {
+				if len(rawTx.Inputs[0].LockingParams) == 2 && bytes.Equal(rawTx.Inputs[0].LockingParams[0], x) && bytes.Equal(rawTx.Inputs[0].LockingParams[1], y) {
 					privKey = k
 					break
 				}
@@ -1320,7 +1330,7 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 				Flags:  rawTx.Inputs[0].TxoProof.Flags,
 			},
 			ScriptCommitment: rawTx.Inputs[0].ScriptCommitment,
-			ScriptParams:     rawTx.Inputs[0].ScriptParams,
+			ScriptParams:     rawTx.Inputs[0].LockingParams,
 			UnlockingParams:  []byte(rawTx.Inputs[0].UnlockingParams),
 		}
 		copy(privateParams.Salt[:], rawTx.Inputs[0].Salt)

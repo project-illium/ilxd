@@ -7,6 +7,6 @@
 ;; The keypair must be `Nova` keypair generated using the Vesta curve.
 (lambda (locking-params unlocking-params input-index private-params public-params)
     !(import std/crypto/checksig)
-    (checksig unlocking-params locking-params !(param sighash))
+    (checksig unlocking-params locking-params (car public-params))
 )
 

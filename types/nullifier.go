@@ -67,17 +67,13 @@ func NewNullifierFromString(n string) (Nullifier, error) {
 }
 
 // CalculateNullifier calculates and returns the nullifier for the given inputs.
-func CalculateNullifier(commitmentIndex uint64, salt [32]byte, scriptCommitment []byte, scriptParams ...[]byte) (Nullifier, error) {
-	ul := LockingScript{
-		ScriptCommitment: NewID(scriptCommitment),
-		LockingParams:    scriptParams,
-	}
-	expr, err := ul.lurkExpression()
+func CalculateNullifier(commitmentIndex uint64, salt [32]byte, scriptCommitment []byte, lockingParams ...[]byte) (Nullifier, error) {
+	lockingParamExpr, err := buildLurkExpression(lockingParams)
 	if err != nil {
 		return Nullifier{}, err
 	}
 
-	expr = fmt.Sprintf("(cons %d (cons 0x%x ", commitmentIndex, salt) + expr + "))"
+	expr := fmt.Sprintf("(cons %d (cons 0x%x (cons 0x%x (cons %s nil))))", commitmentIndex, salt, scriptCommitment, lockingParamExpr)
 	h, err := zk.LurkCommit(expr)
 	if err != nil {
 		return Nullifier{}, err

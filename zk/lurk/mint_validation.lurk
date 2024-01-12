@@ -107,7 +107,7 @@
                                (script (car (cdr (cdr (cdr (cdr (cdr (cdr input))))))))
                                (script-commitment (num (commit script)))
                                (script-hash (num (commit (cons script-commitment locking-params))))
-                               (amount (car input))
+                               (amount (car  input))
                                (asset-id (car (cdr input)))
                                (salt (car (cdr (cdr input))))
                                (state (car (cdr (cdr (cdr input)))))
@@ -148,7 +148,7 @@
 
                ;; validate-amounts makes sure the output amounts do not exceed the input
                ;; amounts, taking into consideration fees and any coinbase or mint.
-               (validate-amounts (lambda (in-map out-map fee)
+               (validate-amounts (lambda (in-map out-map fee mint-id mint-amount)
                      (let (
                             (out-asset (car out-map))
                             (out-amount (car (cdr out-map)))
@@ -162,12 +162,21 @@
                                      nil ;; Overflow. Return false.
                                      (if (> (+ out-amount fee) in-amount)
                                          nil ;; Input amount + coinbase exceeds output amount + fee. Return nil.
-                                         (validate-amounts in-map (cdr (cdr out-map)) fee)
+                                         (validate-amounts in-map (cdr (cdr out-map)) fee mint-id mint-amount)
                                      )
                                  )
-                                 (if (> out-amount in-amount)
-                                     nil ;; Input amount exceeds output amount. Return nil.
-                                     (validate-amounts in-map (cdr (cdr out-map)) fee)
+                                 (if (= out-asset mint-id)
+                                     (if (check-overflow in-amount mint-amount)
+                                         nil ;; Overflow. Return false.
+                                         (if (> out-amount (+ in-amount mint-amount))
+                                              nil ;; Input amount + mint exceeds output amount. Return nil.
+                                              (validate-amounts in-map (cdr (cdr out-map)) fee mint-id mint-amount)
+                                         )
+                                     )
+                                     (if (> out-amount in-amount)
+                                         nil ;; Input amount exceeds output amount. Return nil.
+                                         (validate-amounts in-map (cdr (cdr out-map)) fee mint-id mint-amount)
+                                     )
                                  )
                              )
                              t ;; We've looped through all the output assets without error. Return true.
@@ -184,7 +193,7 @@
                    )
                    (if input-amounts
                        (if output-amounts
-                           (validate-amounts input-amounts output-amounts (car (cdr (cdr (cdr pub)))))
+                           (validate-amounts input-amounts output-amounts (car (cdr (cdr (cdr pub)))) (car (cdr (cdr (cdr (cdr (cdr pub)))))) (car (cdr (cdr (cdr (cdr (cdr (cdr pub))))))))
                            nil
                        )
                        nil

@@ -73,7 +73,11 @@ func (u *LockingScript) Hash() (ID, error) {
 }
 
 func (u *LockingScript) lurkExpression() (string, error) {
-	return buildLurkExpression(append([][]byte{u.ScriptCommitment[:]}, u.LockingParams...))
+	lockingExpr, err := buildLurkExpression(u.LockingParams)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("(cons 0x%x %s)", u.ScriptCommitment.Bytes(), lockingExpr), nil
 }
 
 func serializeData(data [][]byte) []byte {
@@ -127,13 +131,7 @@ func buildLurkExpression[T any](elems []T) (string, error) {
 			}
 			if len(e) == 32 {
 				expr += fmt.Sprintf("(cons 0x%x ", e)
-			} else if len(e) == 1 {
-				if e[0] == 0x00 {
-					expr += "(cons nil "
-				} else {
-					expr += "(cons t "
-				}
-			} else if len(e) <= 8 && len(e) > 1 {
+			} else if len(e) <= 8 {
 				for i := len(e); i < 8; i++ {
 					e = append([]byte{0x00}, e...)
 				}

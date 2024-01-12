@@ -235,7 +235,7 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 					log.Errorf("Wallet server index error rescanning chain: %s", err)
 					return err
 				}
-				if scriptHash.Compare(types.NewID(note.ScriptHash)) != 0 {
+				if scriptHash.Compare(note.ScriptHash) != 0 {
 					continue
 				}
 
@@ -501,7 +501,7 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 						log.Errorf("Wallet server index error rescanning chain: %s", err)
 						return err
 					}
-					if scriptHash.Compare(types.NewID(note.ScriptHash)) != 0 {
+					if scriptHash.Compare(note.ScriptHash) != 0 {
 						log.Errorf("Wallet server index error rescanning chain: %s", err)
 						return err
 					}

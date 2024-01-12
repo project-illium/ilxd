@@ -2,7 +2,7 @@
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
 
-package params
+package circparams
 
 import (
 	"fmt"
@@ -10,14 +10,13 @@ import (
 )
 
 type PrivateInput struct {
-	ScriptHash      types.ID
 	Amount          types.Amount
 	AssetID         types.ID
-	State           types.State
 	Salt            types.ID
+	State           types.State
 	CommitmentIndex uint64
 	InclusionProof  InclusionProof
-	LockingFunction string
+	Script          string
 	LockingParams   types.LockingParams
 	UnlockingParams string
 }
@@ -36,17 +35,16 @@ func (in *PrivateInput) ToExpr() (string, error) {
 		return "", err
 	}
 
-	expr := fmt.Sprintf("(cons 0x%x ", in.ScriptHash.Bytes()) +
-		fmt.Sprintf("(cons %d ", in.Amount) +
+	expr := fmt.Sprintf("(cons %d ", in.Amount) +
 		fmt.Sprintf("(cons 0x%x ", in.AssetID.Bytes()) +
-		fmt.Sprintf("(cons %s ", state) +
 		fmt.Sprintf("(cons 0x%x ", in.Salt.Bytes()) +
+		fmt.Sprintf("(cons %s ", state) +
 		fmt.Sprintf("(cons %d ", in.CommitmentIndex) +
 		fmt.Sprintf("(cons %s ", ip) +
-		fmt.Sprintf("(cons %s ", in.LockingFunction) +
+		fmt.Sprintf("(cons %s ", in.Script) +
 		fmt.Sprintf("(cons %s ", lockingParams) +
 		fmt.Sprintf("(cons %s ", in.UnlockingParams) +
-		"nil))))))))))"
+		"nil)))))))))"
 	return expr, nil
 }
 
@@ -57,39 +55,29 @@ type InclusionProof struct {
 
 func (ip *InclusionProof) ToExpr() (string, error) {
 	hashes := ""
-	for _, n := range ip.Hashes {
-		hashes += fmt.Sprintf("(cons 0x%x ", n)
+	for i, n := range ip.Hashes {
+		mask := uint64(1) << i
+		bit := ip.Flags & mask
+		b := "nil"
+		if bit > 0 {
+			b = "t"
+		}
+		h := fmt.Sprintf("(cons 0x%x %s)", n, b)
+		hashes += "(cons " + h + " "
 	}
 	hashes += "nil)"
 	for i := 0; i < len(ip.Hashes)-1; i++ {
 		hashes += ")"
 	}
-
-	flags := ""
-	for i := 0; i < len(ip.Hashes); i++ {
-		mask := uint64(1) << i
-		bit := ip.Flags & mask
-
-		if bit > 0 {
-			flags += "(cons t "
-		} else {
-			flags += "(cons nil "
-		}
-	}
-	flags += "nil)"
-	for i := 0; i < len(ip.Hashes)-1; i++ {
-		flags += ")"
-	}
-
-	return fmt.Sprintf("(cons %s %s)", hashes, flags), nil
+	return hashes, nil
 }
 
 type PrivateOutput struct {
 	ScriptHash types.ID
 	Amount     types.Amount
 	AssetID    types.ID
-	State      types.State
 	Salt       types.ID
+	State      types.State
 }
 
 func (out *PrivateOutput) ToExpr() (string, error) {
@@ -100,8 +88,8 @@ func (out *PrivateOutput) ToExpr() (string, error) {
 	expr := fmt.Sprintf("(cons 0x%x ", out.ScriptHash.Bytes()) +
 		fmt.Sprintf("(cons %d ", out.Amount) +
 		fmt.Sprintf("(cons 0x%x ", out.AssetID.Bytes()) +
-		fmt.Sprintf("(cons %s ", state) +
 		fmt.Sprintf("(cons 0x%x ", out.Salt.Bytes()) +
+		fmt.Sprintf("(cons %s ", state) +
 		"nil)))))"
 	return expr, nil
 }
