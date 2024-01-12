@@ -1555,7 +1555,7 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "mint valid variable supply",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
-				Asset_ID: mintRawPubkey,
+				Asset_ID: hash.HashFunc(mintRawPubkey),
 				Outputs: []*transactions.Output{
 					{
 						Commitment: make([]byte, types.CommitmentLen),

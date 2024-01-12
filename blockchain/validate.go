@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -412,7 +413,9 @@ func CheckTransactionSanity(t *transactions.Transaction, blockTime time.Time) er
 				return ruleError(ErrInvalidTx, "invalid mint key")
 			}
 
-			if !bytes.Equal(tx.MintTransaction.Asset_ID, rawPubkey) {
+			keyHash := hash.HashFunc(rawPubkey)
+
+			if !bytes.Equal(tx.MintTransaction.Asset_ID, keyHash) {
 				return ruleError(ErrInvalidTx, "variable supply mint transaction invalid assetID")
 			}
 		default:

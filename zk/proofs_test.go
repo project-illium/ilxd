@@ -33,11 +33,10 @@ func TestMain(m *testing.M) {
 func TestExpr_ToExpr(t *testing.T) {
 	sk1, pk1, err := crypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
-
 	pkx1, pky1 := pk1.(*crypto.NovaPublicKey).ToXY()
+
 	sk2, pk2, err := crypto.GenerateNovaKey(rand.Reader)
 	assert.NoError(t, err)
-
 	pkx2, pky2 := pk2.(*crypto.NovaPublicKey).ToXY()
 
 	opts := defaultOpts()
@@ -57,6 +56,7 @@ func TestExpr_ToExpr(t *testing.T) {
 				Ciphertext: pub.Outputs[1].CipherText,
 			},
 		},
+		Fee: uint64(pub.Fee),
 		Nullifiers: [][]byte{
 			pub.Nullifiers[0].Bytes(),
 			pub.Nullifiers[1].Bytes(),
@@ -66,7 +66,6 @@ func TestExpr_ToExpr(t *testing.T) {
 			Timestamp: pub.Locktime.Unix(),
 			Precision: int64(pub.LocktimePrecision.Seconds()),
 		},
-		Fee: uint64(pub.Fee),
 	}
 
 	sighash, err := tx.SigHash()
