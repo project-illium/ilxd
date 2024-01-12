@@ -52,7 +52,7 @@ const REDUCTION_COUNT: usize = 10;
 lazy_static! {
     static ref IO_ZERO: Fr = Fr::zero();
     static ref IO_ONE: Fr = Fr::one();
-    static ref IO_ENV_HASH: Fr = Fr::from_bytes(&hex::decode("27345e8c5736d418e5a91fa58d8e6b220b682c6501734ad8a3841adc730de72c").unwrap()).unwrap();
+    static ref IO_ENV_HASH: Fr = Fr::from_u64(12);
     static ref IO_TWO: Fr = Fr::from_u64(2);
     static ref IO_TRUE_HASH: Fr = Fr::from_bytes(&hex::decode("5698a149855d3a8b3ac99e32b65ce146f00163130070c245a2262b46c5dbc804").unwrap()).unwrap();
     static ref IO_CONT_HASH: Fr = Fr::from_bytes(&hex::decode("1c6b873ac13018a8332a6c340d61b4834698bb84fe5680523ce546705217f40e").unwrap()).unwrap();
@@ -323,7 +323,7 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
 
     let pp = get_public_params();
 
-    let (proof, _, zi, _num_steps) = supernova_prover.prove(&pp, &frames, store)?;
+    let (proof, _z0, zi, _num_steps) = supernova_prover.prove(&pp, &frames, store)?;
     let compressed_proof = proof.compress(&pp).unwrap();
 
     let mut ret_tag = zi[0].to_bytes();
@@ -361,16 +361,16 @@ fn verify_proof(
     let mut z0: Vec<Fr> = Vec::with_capacity(6);
     z0.push(IO_ONE.clone());
     z0.push(*call_zptr.value());
-    z0.push(IO_ZERO.clone());
     z0.push(IO_ENV_HASH.clone());
+    z0.push(IO_ZERO.clone());
     z0.push(IO_IN_CONT_TAG.clone());
     z0.push(IO_CONT_HASH.clone());
 
     let mut zi: Vec<Fr> = Vec::with_capacity(6);
     zi.push(Fr::from_bytes(&expected_tag).unwrap());
     zi.push(Fr::from_bytes(&expected_output).unwrap());
-    zi.push(IO_ZERO.clone());
     zi.push(IO_ENV_HASH.clone());
+    zi.push(IO_ZERO.clone());
     zi.push(IO_OUT_CONT_TAG.clone());
     zi.push(IO_CONT_HASH.clone());
 
