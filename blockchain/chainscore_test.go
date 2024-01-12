@@ -8,6 +8,7 @@ import (
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/blockchain/harness"
 	"github.com/project-illium/ilxd/types/blocks"
+	"github.com/project-illium/ilxd/zk"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -18,7 +19,7 @@ func TestBlockchain_CalcChainScore(t *testing.T) {
 
 	assert.NoError(t, testHarness.GenerateBlocks(10))
 
-	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(testHarness.Blockchain().Params()))
+	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(testHarness.Blockchain().Params()), blockchain.Verifier(&zk.MockVerifier{}))
 	assert.NoError(t, err)
 
 	for i := uint32(1); i < 5; i++ {

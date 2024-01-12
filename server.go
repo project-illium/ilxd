@@ -110,9 +110,6 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		golog.SetDebugLogging()
 	}
 
-	// Load public parameters
-	zk.LoadZKPublicParameters()
-
 	// Policy
 	policy := policy2.NewPolicy(
 		types.Amount(config.Policy.MinFeePerKilobyte),
@@ -141,6 +138,20 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		}
 	} else {
 		netParams = &params.MainnetParams
+	}
+
+	var verifier zk.Verifier
+	if config.MockProofs {
+		if !netParams.AllowMockProofs {
+			return nil, errors.New("mock proofs not allowed with network params selection")
+		}
+		v := &zk.MockVerifier{}
+		v.SetValid(true)
+		verifier = v
+	} else {
+		// Load public parameters
+		zk.LoadZKPublicParameters()
+		verifier = &zk.LurkVerifier{}
 	}
 
 	if config.CoinbaseAddress != "" {
@@ -189,6 +200,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		blockchain.MaxTxoRoots(blockchain.DefaultMaxTxoRoots),
 		blockchain.SignatureCache(sigCache),
 		blockchain.SnarkProofCache(proofCache),
+		blockchain.Verifier(verifier),
 	}
 
 	if config.Prune {
@@ -297,6 +309,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		mempool.BlockchainView(chain),
 		mempool.MinStake(policy.GetMinStake()),
 		mempool.FeePerKilobyte(policy.GetMinFeePerKilobyte()),
+		mempool.Verifier(verifier),
 	}
 
 	mpool, err := mempool.NewMempool(mempoolOpts...)
@@ -412,6 +425,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		IsCurrentCallback: s.handleCurrentStatusChange,
 		ProofCache:        proofCache,
 		SigCache:          sigCache,
+		Verifier:          verifier,
 	})
 	s.orphanBlocks = make(map[types.ID]*orphanBlock)
 	s.activeInventory = make(map[types.ID]*blocks.Block)

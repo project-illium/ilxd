@@ -21,7 +21,7 @@ import (
 )
 
 func TestBlockchain(t *testing.T) {
-	b, err := NewBlockchain(DefaultOptions())
+	b, err := NewBlockchain(DefaultOptions(), Verifier(&zk.MockVerifier{}))
 	assert.NoError(t, err)
 
 	// Chain should have genesis block

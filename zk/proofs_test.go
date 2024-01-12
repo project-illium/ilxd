@@ -15,11 +15,9 @@ import (
 	"github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
-	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/ilxd/zk/circparams"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/proto"
 	"os"
 	"testing"
 	"time"
@@ -28,46 +26,6 @@ import (
 func TestMain(m *testing.M) {
 	zk.LoadZKPublicParameters()
 	os.Exit(m.Run())
-}
-
-func TestExpr_ToExpr(t *testing.T) {
-
-	opts := defaultOpts()
-	opts.outAmounts = map[int]types.Amount{0: types.Amount(1000000)}
-	priv, pub, err := generateTxParams(0, 1, opts)
-	assert.NoError(t, err)
-
-	tx := &transactions.TreasuryTransaction{
-		Amount: 1000000,
-		Outputs: []*transactions.Output{
-			{
-				Commitment: pub.Outputs[0].Commitment.Bytes(),
-				Ciphertext: pub.Outputs[0].CipherText,
-			},
-		},
-		Proof: nil,
-	}
-
-	pub.SigHash = types.ID{}
-	pub.TXORoot = types.ID{}
-	pub.Fee = 0
-	pub.Coinbase = 1000000
-
-	//sig1rx, sig1ry, sig1s := crypto.UnmarshalSignature(sig1)
-
-	//priv.Inputs[0].UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sig1rx, sig1ry, sig1s)
-
-	fmt.Println(pub.ToExpr())
-	proof, err := zk.Prove(zk.TreasuryValidationProgram(), priv, pub)
-	assert.NoError(t, err)
-	valid, err := zk.Verify(zk.TreasuryValidationProgram(), pub, proof)
-	assert.NoError(t, err)
-	assert.True(t, valid)
-	tx.Proof = proof
-
-	ser, err := proto.Marshal(tx)
-	assert.NoError(t, err)
-	fmt.Println(hex.EncodeToString(ser))
 }
 
 func TestProve(t *testing.T) {

@@ -14,6 +14,7 @@ import (
 	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/ilxd/zk"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -21,9 +22,12 @@ import (
 
 func TestMempool(t *testing.T) {
 	view := newMockBlockchainView()
+	verifier := &zk.MockVerifier{}
+	verifier.SetValid(true)
 	options := []Option{
 		DefaultOptions(),
 		BlockchainView(view),
+		Verifier(verifier),
 	}
 	m, err := NewMempool(options...)
 	assert.NoError(t, err)
