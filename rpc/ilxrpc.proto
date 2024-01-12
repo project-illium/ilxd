@@ -525,7 +525,7 @@ message RegisterViewKeyRequest {
     bytes view_key                  = 1;
 
     // The locking script associated with the address belonging
-    // to the view key serialized as <scriptCommitment><scriptParams...>
+    // to the view key serialized as <scriptCommitment><lockingParams...>
     //
     // The server needs this in order to compute the nullifier and detect
     // spend transactions.
@@ -629,7 +629,7 @@ message GetAddressInfoResponse {
     string address          = 1;
 
     // This is the serialized locking script
-    // <scriptCommitment><scriptParams>
+    // <scriptCommitment><lockingParams>
     bytes lockingScript   = 2;
 
     //  The private view key for the address
@@ -673,7 +673,7 @@ message ImportAddressRequest {
     // import an address and detect spends.
     //
     // This is the serialized locking script
-    // <scriptCommitment><scriptParams>
+    // <scriptCommitment><lockingParams>
     bytes lockingScript   = 2;
 
     // The view private key needed to decrypt and
@@ -1173,37 +1173,37 @@ message RawTransaction {
 
 message PrivateInput {
     // The amount of the input
-    uint64 amount                = 1;
-    // Input salt
-    bytes salt                   = 2;
+    uint64 amount                 = 1;
     // Input asset ID
-    bytes asset_ID               = 3;
+    bytes asset_ID                = 2;
+    // Input salt
+    bytes salt                    = 3;
     // Input state
-    bytes state                  = 4;
-    // The locking function commitment
-    bytes script_commitment      = 5;
-    // The locking function parameters
-    repeated bytes script_params = 6;
+    bytes state                   = 4;
     // The txo proof linking the input
     // commitment to the accumulator
-    TxoProof txo_proof           = 7;
+    TxoProof txo_proof            = 5;
+    // The locking function commitment
+    bytes script_commitment       = 6;
+    // The locking function parameters
+    repeated bytes locking_params = 7;
     // Optional lurk expression used as
     // input to locking script. This is
     // only necessary for watch-only utxos.
-    string unlocking_params      = 8;
+    string unlocking_params       = 8;
 }
 
 message PrivateOutput {
-    // Output amount
-    uint64 amount     = 1;
-    // Output salt
-    bytes salt        = 2;
-    // Output asset ID
-    bytes asset_ID    = 3;
-    // Output state
-    bytes state       = 4;
     // Output scriptHash
-    bytes script_hash = 5;
+    bytes script_hash = 1;
+    // Output amount
+    uint64 amount     = 2;
+    // Output salt
+    bytes salt        = 3;
+    // Output asset ID
+    bytes asset_ID    = 4;
+    // Output state
+    bytes state       = 5;
 }
 
 message TxoProof {

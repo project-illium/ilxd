@@ -186,61 +186,7 @@ func StakeValidationProgram() string {
 	return stakeValidationScriptData
 }
 
-func MakeMultisigUnlockingParams(pubkeys [][]byte, sigs [][]byte, sigHash []byte) ([]byte, error) {
-	sigCpy := make([][]byte, len(sigs))
-	copy(sigCpy, sigs)
-
-	keys := make([]crypto.PubKey, 0, len(pubkeys)/2)
-	for i := 0; i < len(pubkeys); i += 2 {
-		key, err := icrypto.PublicKeyFromXY(pubkeys[i], pubkeys[i+1])
-		if err != nil {
-			return nil, err
-		}
-		keys = append(keys, key)
-	}
-
-	keySelector := "(cons "
-	for i, key := range keys {
-		if len(sigs) > 0 {
-			valid, err := key.Verify(sigHash, sigs[0])
-			if err != nil {
-				return nil, err
-			}
-			if valid {
-				keySelector += "1 "
-				sigs = sigs[1:]
-			} else {
-				keySelector += "0 "
-			}
-		} else {
-			keySelector += "0 "
-		}
-		if i == len(keys)-1 {
-			keySelector += "nil"
-		} else {
-			keySelector += "(cons "
-		}
-	}
-	for i := 0; i < len(keys); i++ {
-		keySelector += ")"
-	}
-
-	unlockignScript := "(cons " + keySelector + " "
-	for _, sig := range sigCpy {
-		unlockignScript += "(cons "
-		if len(sig) != 64 {
-			return nil, errors.New("invalid signature len")
-		}
-		unlockignScript += fmt.Sprintf("(cons 0x%x 0x%x) ", sig[:32], sig[32:])
-	}
-	unlockignScript += "nil)"
-	for i := 0; i < len(sigCpy); i++ {
-		unlockignScript += ")"
-	}
-	return []byte(unlockignScript), nil
-}
-
-func MakeMultisigUnlockingParams2(pubkeys []crypto.PubKey, sigs [][]byte, sigHash []byte) (string, error) {
+func MakeMultisigUnlockingParams(pubkeys []crypto.PubKey, sigs [][]byte, sigHash []byte) (string, error) {
 	sigCpy := make([][]byte, len(sigs))
 	copy(sigCpy, sigs)
 

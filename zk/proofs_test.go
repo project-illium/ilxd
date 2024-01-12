@@ -949,7 +949,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				unlockingScript, err := zk.MakeMultisigUnlockingParams2([]lcrypto.PubKey{pk}, [][]byte{sig}, pub.SigHash.Bytes())
+				unlockingScript, err := zk.MakeMultisigUnlockingParams([]lcrypto.PubKey{pk}, [][]byte{sig}, pub.SigHash.Bytes())
 				if err != nil {
 					return nil, nil, nil, err
 				}
@@ -1005,7 +1005,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				unlockingScript, err := zk.MakeMultisigUnlockingParams2([]lcrypto.PubKey{pk1, pk2, pk3}, [][]byte{sig1, sig2}, pub.SigHash.Bytes())
+				unlockingScript, err := zk.MakeMultisigUnlockingParams([]lcrypto.PubKey{pk1, pk2, pk3}, [][]byte{sig1, sig2}, pub.SigHash.Bytes())
 				if err != nil {
 					return nil, nil, nil, err
 				}
@@ -1061,7 +1061,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				unlockingScript, err := zk.MakeMultisigUnlockingParams2([]lcrypto.PubKey{pk1, pk2, pk3}, [][]byte{sig1, sig2}, pub.SigHash.Bytes())
+				unlockingScript, err := zk.MakeMultisigUnlockingParams([]lcrypto.PubKey{pk1, pk2, pk3}, [][]byte{sig1, sig2}, pub.SigHash.Bytes())
 				if err != nil {
 					return nil, nil, nil, err
 				}
@@ -1124,7 +1124,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				unlockingScript, err := zk.MakeMultisigUnlockingParams2([]lcrypto.PubKey{pk1, pk2, pk3}, [][]byte{sig1, sig2}, pub.SigHash.Bytes())
+				unlockingScript, err := zk.MakeMultisigUnlockingParams([]lcrypto.PubKey{pk1, pk2, pk3}, [][]byte{sig1, sig2}, pub.SigHash.Bytes())
 				if err != nil {
 					return nil, nil, nil, err
 				}

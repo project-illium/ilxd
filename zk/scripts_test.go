@@ -6,6 +6,7 @@ package zk
 
 import (
 	"crypto/rand"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/stretchr/testify/assert"
 	"regexp"
@@ -30,13 +31,7 @@ func TestMakeMultisigUnlockingParams(t *testing.T) {
 	sig2, err := priv2.Sign(sigHash)
 	assert.NoError(t, err)
 
-	pubkeys := make([][]byte, 0, 6)
-	x1, y1 := pub1.(*icrypto.NovaPublicKey).ToXY()
-	x2, y2 := pub2.(*icrypto.NovaPublicKey).ToXY()
-	x3, y3 := pub3.(*icrypto.NovaPublicKey).ToXY()
-	pubkeys = append(pubkeys, x1, y1, x2, y2, x3, y3)
-
-	script, err := MakeMultisigUnlockingParams(pubkeys, [][]byte{sig1, sig2}, sigHash)
+	script, err := MakeMultisigUnlockingParams([]crypto.PubKey{pub1, pub2, pub3}, [][]byte{sig1, sig2}, sigHash)
 	assert.NoError(t, err)
 
 	re := regexp.MustCompile(`0x[0-9a-fA-F]+`)

@@ -369,7 +369,7 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 
 	sighash, err := standardTx.SigHash()
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	// Create the transaction zk proof
@@ -380,7 +380,17 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 
 	nullifiers := make([][]byte, 0, len(req.RawTx.Inputs))
 	for _, in := range req.RawTx.Inputs {
-		unlockingParams, err := zk.MakeMultisigUnlockingParams(in.ScriptParams[1:], req.Sigs, sighash)
+		var keys []crypto.PubKey
+		for i := 1; i < len(in.LockingParams); i += 2 {
+			pubx, puby := in.LockingParams[i], in.LockingParams[i+1]
+			pub, err := icrypto.PublicKeyFromXY(pubx, puby)
+			if err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			keys = append(keys, pub)
+		}
+
+		unlockingParams, err := zk.MakeMultisigUnlockingParams(keys, req.Sigs, sighash)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -395,8 +405,8 @@ func (s *GrpcServer) ProveMultisig(ctx context.Context, req *pb.ProveMultisigReq
 				Flags:  in.TxoProof.Flags,
 			},
 			ScriptCommitment: in.ScriptCommitment,
-			ScriptParams:     in.ScriptParams,
-			UnlockingParams:  unlockingParams,
+			ScriptParams:     in.LockingParams,
+			UnlockingParams:  []byte(unlockingParams),
 		}
 		copy(privIn.Salt[:], in.Salt)
 		copy(privIn.AssetID[:], in.Asset_ID)
@@ -508,7 +518,7 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 					Amount: types.Amount(in.GetInput().Amount),
 				},
 				ScriptCommitment: in.GetInput().ScriptCommitment,
-				ScriptParams:     in.GetInput().ScriptParams,
+				ScriptParams:     in.GetInput().LockingParams,
 				UnlockingParams:  nil,
 			}
 			copy(rawInput.PrivateInput.Salt[:], in.GetInput().Salt)
@@ -578,7 +588,7 @@ func (s *GrpcServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRaw
 			Salt:             in.Salt[:],
 			Asset_ID:         in.AssetID[:],
 			ScriptCommitment: in.ScriptCommitment[:],
-			ScriptParams:     in.ScriptParams[:],
+			LockingParams:    in.ScriptParams[:],
 			TxoProof: &pb.TxoProof{
 				Commitment: commitment[:],
 				Hashes:     in.InclusionProof.Hashes,
@@ -626,7 +636,7 @@ func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.Crea
 				Amount: types.Amount(req.Input.GetInput().Amount),
 			},
 			ScriptCommitment: req.Input.GetInput().ScriptCommitment,
-			ScriptParams:     req.Input.GetInput().ScriptParams,
+			ScriptParams:     req.Input.GetInput().LockingParams,
 			UnlockingParams:  nil,
 		}
 		copy(rawInput.PrivateInput.Salt[:], req.Input.GetInput().Salt)
@@ -675,7 +685,7 @@ func (s *GrpcServer) CreateRawStakeTransaction(ctx context.Context, req *pb.Crea
 		Salt:             rawTx.PrivateInputs[0].Salt[:],
 		Asset_ID:         rawTx.PrivateInputs[0].AssetID[:],
 		ScriptCommitment: rawTx.PrivateInputs[0].ScriptCommitment[:],
-		ScriptParams:     rawTx.PrivateInputs[0].ScriptParams[:],
+		LockingParams:    rawTx.PrivateInputs[0].ScriptParams[:],
 		TxoProof: &pb.TxoProof{
 			Commitment: commitment[:],
 			Hashes:     rawTx.PrivateInputs[0].InclusionProof.Hashes,
@@ -725,7 +735,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 			if in.UnlockingParams == "" {
 				lockingScript := types.LockingScript{
 					ScriptCommitment: types.NewID(in.ScriptCommitment),
-					LockingParams:    in.ScriptParams,
+					LockingParams:    in.LockingParams,
 				}
 				scriptHash, err := lockingScript.Hash()
 				if err != nil {
@@ -759,7 +769,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 					Flags:  in.TxoProof.Flags,
 				},
 				ScriptCommitment: in.ScriptCommitment,
-				ScriptParams:     in.ScriptParams,
+				ScriptParams:     in.LockingParams,
 				UnlockingParams:  []byte(in.UnlockingParams),
 			}
 			copy(privIn.Salt[:], in.Salt)
@@ -834,7 +844,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 
 			lockingScript := types.LockingScript{
 				ScriptCommitment: types.NewID(req.RawTx.Inputs[0].ScriptCommitment),
-				LockingParams:    req.RawTx.Inputs[0].ScriptParams,
+				LockingParams:    req.RawTx.Inputs[0].LockingParams,
 			}
 			scriptHash, err := lockingScript.Hash()
 			if err != nil {
@@ -868,7 +878,7 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 				Flags:  req.RawTx.Inputs[0].TxoProof.Flags,
 			},
 			ScriptCommitment: req.RawTx.Inputs[0].ScriptCommitment,
-			ScriptParams:     req.RawTx.Inputs[0].ScriptParams,
+			ScriptParams:     req.RawTx.Inputs[0].LockingParams,
 			UnlockingParams:  []byte(req.RawTx.Inputs[0].UnlockingParams),
 		}
 		copy(privateParams.Salt[:], req.RawTx.Inputs[0].Salt)
