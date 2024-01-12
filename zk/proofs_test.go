@@ -31,64 +31,36 @@ func TestMain(m *testing.M) {
 }
 
 func TestExpr_ToExpr(t *testing.T) {
-	sk1, pk1, err := crypto.GenerateNovaKey(rand.Reader)
-	assert.NoError(t, err)
-	pkx1, pky1 := pk1.(*crypto.NovaPublicKey).ToXY()
-
-	sk2, pk2, err := crypto.GenerateNovaKey(rand.Reader)
-	assert.NoError(t, err)
-	pkx2, pky2 := pk2.(*crypto.NovaPublicKey).ToXY()
 
 	opts := defaultOpts()
-	opts.inLockingParams = map[int][][]byte{0: {pkx1, pky1}, 1: {pkx2, pky2}}
-
-	priv, pub, err := generateTxParams(2, 2, opts)
+	opts.outAmounts = map[int]types.Amount{0: types.Amount(1000000)}
+	priv, pub, err := generateTxParams(0, 1, opts)
 	assert.NoError(t, err)
 
-	tx := &transactions.StandardTransaction{
+	tx := &transactions.TreasuryTransaction{
+		Amount: 1000000,
 		Outputs: []*transactions.Output{
 			{
 				Commitment: pub.Outputs[0].Commitment.Bytes(),
 				Ciphertext: pub.Outputs[0].CipherText,
 			},
-			{
-				Commitment: pub.Outputs[1].Commitment.Bytes(),
-				Ciphertext: pub.Outputs[1].CipherText,
-			},
 		},
-		Fee: uint64(pub.Fee),
-		Nullifiers: [][]byte{
-			pub.Nullifiers[0].Bytes(),
-			pub.Nullifiers[1].Bytes(),
-		},
-		TxoRoot: pub.TXORoot.Bytes(),
-		Locktime: &transactions.Locktime{
-			Timestamp: pub.Locktime.Unix(),
-			Precision: int64(pub.LocktimePrecision.Seconds()),
-		},
+		Proof: nil,
 	}
 
-	sighash, err := tx.SigHash()
+	pub.SigHash = types.ID{}
+	pub.TXORoot = types.ID{}
+	pub.Fee = 0
+	pub.Coinbase = 1000000
+
+	//sig1rx, sig1ry, sig1s := crypto.UnmarshalSignature(sig1)
+
+	//priv.Inputs[0].UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sig1rx, sig1ry, sig1s)
+
+	fmt.Println(pub.ToExpr())
+	proof, err := zk.Prove(zk.TreasuryValidationProgram(), priv, pub)
 	assert.NoError(t, err)
-
-	pub.SigHash = types.NewID(sighash)
-
-	sig1, err := sk1.Sign(sighash)
-	assert.NoError(t, err)
-
-	sig1rx, sig1ry, sig1s := crypto.UnmarshalSignature(sig1)
-
-	sig2, err := sk2.Sign(sighash)
-	assert.NoError(t, err)
-
-	sig2rx, sig2ry, sig2s := crypto.UnmarshalSignature(sig2)
-
-	priv.Inputs[0].UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sig1rx, sig1ry, sig1s)
-	priv.Inputs[1].UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sig2rx, sig2ry, sig2s)
-
-	proof, err := zk.Prove(zk.StandardValidationProgram(), priv, pub)
-	assert.NoError(t, err)
-	valid, err := zk.Verify(zk.StandardValidationProgram(), pub, proof)
+	valid, err := zk.Verify(zk.TreasuryValidationProgram(), pub, proof)
 	assert.NoError(t, err)
 	assert.True(t, valid)
 	tx.Proof = proof
