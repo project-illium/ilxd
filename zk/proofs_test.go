@@ -15,9 +15,11 @@ import (
 	"github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/ilxd/zk/circparams"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"testing"
 	"time"
@@ -26,6 +28,75 @@ import (
 func TestMain(m *testing.M) {
 	zk.LoadZKPublicParameters()
 	os.Exit(m.Run())
+}
+
+func TestExpr_ToExpr(t *testing.T) {
+	sk1, pk1, err := crypto.GenerateNovaKey(rand.Reader)
+	assert.NoError(t, err)
+
+	pkx1, pky1 := pk1.(*crypto.NovaPublicKey).ToXY()
+	sk2, pk2, err := crypto.GenerateNovaKey(rand.Reader)
+	assert.NoError(t, err)
+
+	pkx2, pky2 := pk2.(*crypto.NovaPublicKey).ToXY()
+
+	opts := defaultOpts()
+	opts.inLockingParams = map[int][][]byte{0: {pkx1, pky1}, 1: {pkx2, pky2}}
+
+	priv, pub, err := generateTxParams(2, 2, opts)
+	assert.NoError(t, err)
+
+	tx := &transactions.StandardTransaction{
+		Outputs: []*transactions.Output{
+			{
+				Commitment: pub.Outputs[0].Commitment.Bytes(),
+				Ciphertext: pub.Outputs[0].CipherText,
+			},
+			{
+				Commitment: pub.Outputs[1].Commitment.Bytes(),
+				Ciphertext: pub.Outputs[1].CipherText,
+			},
+		},
+		Nullifiers: [][]byte{
+			pub.Nullifiers[0].Bytes(),
+			pub.Nullifiers[1].Bytes(),
+		},
+		TxoRoot: pub.TXORoot.Bytes(),
+		Locktime: &transactions.Locktime{
+			Timestamp: pub.Locktime.Unix(),
+			Precision: int64(pub.LocktimePrecision.Seconds()),
+		},
+		Fee: uint64(pub.Fee),
+	}
+
+	sighash, err := tx.SigHash()
+	assert.NoError(t, err)
+
+	pub.SigHash = types.NewID(sighash)
+
+	sig1, err := sk1.Sign(sighash)
+	assert.NoError(t, err)
+
+	sig1rx, sig1ry, sig1s := crypto.UnmarshalSignature(sig1)
+
+	sig2, err := sk2.Sign(sighash)
+	assert.NoError(t, err)
+
+	sig2rx, sig2ry, sig2s := crypto.UnmarshalSignature(sig2)
+
+	priv.Inputs[0].UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sig1rx, sig1ry, sig1s)
+	priv.Inputs[1].UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sig2rx, sig2ry, sig2s)
+
+	proof, err := zk.Prove(zk.StandardValidationProgram(), priv, pub)
+	assert.NoError(t, err)
+	valid, err := zk.Verify(zk.StandardValidationProgram(), pub, proof)
+	assert.NoError(t, err)
+	assert.True(t, valid)
+	tx.Proof = proof
+
+	ser, err := proto.Marshal(tx)
+	assert.NoError(t, err)
+	fmt.Println(hex.EncodeToString(ser))
 }
 
 func TestProve(t *testing.T) {
@@ -1038,6 +1109,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
+
 				pk1X, pk1Y := pk1.(*crypto.NovaPublicKey).ToXY()
 				pk2X, pk2Y := pk2.(*crypto.NovaPublicKey).ToXY()
 				pk3X, pk3Y := pk3.(*crypto.NovaPublicKey).ToXY()
@@ -1075,7 +1147,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				}
 				pub.Nullifiers[0] = nullifer
 				pub.Locktime = locktime
-				pub.LocktimePrecision = 600
+				pub.LocktimePrecision = 600 * time.Second
 				stakePub := &circparams.StakePublicParams{
 					StakeAmount:  1000000,
 					PublicParams: *pub,
@@ -1138,7 +1210,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				}
 				pub.Nullifiers[0] = nullifer
 				pub.Locktime = locktime.Add(-time.Minute)
-				pub.LocktimePrecision = 600
+				pub.LocktimePrecision = 600 * time.Second
 				stakePub := &circparams.StakePublicParams{
 					StakeAmount:  1000000,
 					PublicParams: *pub,
@@ -1365,7 +1437,7 @@ func generateTxParams(numInputs, numOutputs int, opts *options) (*circparams.Pri
 			UnlockingParams: fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS),
 		})
 
-		nullifier, err := types.CalculateNullifier(proof.Index, note.Salt, zk.BasicTransferScriptCommitment(), [][]byte{pkx, pky}...)
+		nullifier, err := types.CalculateNullifier(proof.Index, note.Salt, lockingScript.ScriptCommitment.Bytes(), lockingScript.LockingParams...)
 		if err != nil {
 			return nil, nil, err
 		}

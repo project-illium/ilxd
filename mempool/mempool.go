@@ -125,7 +125,7 @@ func (m *Mempool) ProcessTransaction(tx *transactions.Transaction) error {
 		return policyError(ErrFeeTooLow, "transaction fee is below policy minimum")
 	}
 
-	proofChan := blockchain.ValidateTransactionProof(tx, m.cfg.proofCache)
+	proofChan := blockchain.ValidateTransactionProof(tx, m.cfg.proofCache, m.cfg.verifier)
 	sigChan := blockchain.ValidateTransactionSig(tx, m.cfg.sigCache)
 
 	err = <-proofChan

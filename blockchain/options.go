@@ -8,6 +8,7 @@ import (
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/repo/mock"
+	"github.com/project-illium/ilxd/zk"
 )
 
 const (
@@ -52,6 +53,17 @@ func Params(params *params.NetworkParams) Option {
 func Datastore(ds repo.Datastore) Option {
 	return func(cfg *config) error {
 		cfg.datastore = ds
+		return nil
+	}
+}
+
+// Verifier is an implementation of the zk.Verifier interface
+// that is used to verify the zk-snark proofs.
+//
+// This option is required.
+func Verifier(verifier zk.Verifier) Option {
+	return func(cfg *config) error {
+		cfg.verifier = verifier
 		return nil
 	}
 }
@@ -123,6 +135,7 @@ type config struct {
 	sigCache      *SigCache
 	proofCache    *ProofCache
 	indexManager  IndexManager
+	verifier      zk.Verifier
 	maxNullifiers uint
 	maxTxoRoots   uint
 	prune         bool
@@ -143,6 +156,9 @@ func (cfg *config) validate() error {
 	}
 	if cfg.proofCache == nil {
 		return AssertError("NewBlockchain: proof cache cannot be nil")
+	}
+	if cfg.verifier == nil {
+		return AssertError("NewBlockchain: verifier cannot be nil")
 	}
 	return nil
 }

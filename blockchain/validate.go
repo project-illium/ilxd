@@ -335,7 +335,7 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 	}
 
 	if !flags.HasFlag(BFFastAdd) {
-		proofValidator := NewProofValidator(b.proofCache)
+		proofValidator := NewProofValidator(b.proofCache, b.verifier)
 		if err := proofValidator.Validate(blk.Transactions); err != nil {
 			return err
 		}

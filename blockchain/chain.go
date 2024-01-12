@@ -14,6 +14,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/ilxd/zk"
 	"math"
 	"sync"
 	"time"
@@ -52,6 +53,7 @@ type Blockchain struct {
 	sigCache          *SigCache
 	proofCache        *ProofCache
 	indexManager      IndexManager
+	verifier          zk.Verifier
 	notifications     []NotificationCallback
 	prune             bool
 	notificationsLock sync.RWMutex
@@ -84,6 +86,7 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 		indexManager:      cfg.indexManager,
 		sigCache:          cfg.sigCache,
 		proofCache:        cfg.proofCache,
+		verifier:          cfg.verifier,
 		stateLock:         sync.RWMutex{},
 		notificationsLock: sync.RWMutex{},
 	}
