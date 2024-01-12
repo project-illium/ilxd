@@ -29,6 +29,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestProve(t *testing.T) {
+	fmt.Println(hex.EncodeToString(zk.TimelockedMultisigScriptCommitment()))
 	r, err := zk.RandomFieldElement()
 	assert.NoError(t, err)
 	h, err := zk.LurkCommit(fmt.Sprintf("0x%x", r))
@@ -158,7 +159,6 @@ func TestCoprocessors(t *testing.T) {
 }
 
 func TestEval(t *testing.T) {
-	fmt.Println(hex.EncodeToString(zk.TimelockedMultisigScriptCommitment()))
 	program := "(lambda (priv pub) (= (+ priv pub) 5))"
 	tag, out, _, err := zk.Eval(program, zk.Expr("3"), zk.Expr("2"))
 	assert.NoError(t, err)

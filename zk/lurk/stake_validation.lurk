@@ -92,7 +92,7 @@
                                          ;; If locked-until is greater than zero the script must be the
                                          ;; timelocked-multisig script.
                                          (if (> locked-until 0)
-                                             (if (= script-commitment 0x3bc2c8ef06f3bd23cbba09fd2d61638077f4b4bef2d02673d5954fe3c7a7ebe8)
+                                             (if (= script-commitment 0x3d7888a3f0446ca56ff67c519264accf31c3e155e0c71fae771bab94aa9ca95e)
                                                  ;; Validate that the script's lock-until matches the transaction's
                                                  (= (car locking-params) locked-until)
                                                  nil
