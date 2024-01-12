@@ -93,13 +93,8 @@ func main() {
 	}
 	x, y := spendKey.GetPublic().(*icrypto.NovaPublicKey).ToXY()
 
-	basicTransferCommitment, err := zk.LurkCommit(zk.BasicTransferScript())
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	lockingScript := types.LockingScript{
-		ScriptCommitment: types.NewID(basicTransferCommitment),
+		ScriptCommitment: types.NewID(zk.BasicTransferScriptCommitment()),
 		LockingParams:    [][]byte{x, y},
 	}
 	scriptHash, err := lockingScript.Hash()
