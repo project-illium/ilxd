@@ -7,19 +7,25 @@ package repo
 import (
 	"bufio"
 	"bytes"
+	"embed"
 	"errors"
 	"fmt"
-	"github.com/gcash/bchutil"
-	"github.com/jessevdk/go-flags"
-	"github.com/multiformats/go-multiaddr"
 	"io"
+	"io/fs"
 	"net"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/gcash/bchutil"
+	"github.com/jessevdk/go-flags"
+	"github.com/multiformats/go-multiaddr"
 )
+
+//go:embed sample-ilxd.conf
+var configFS embed.FS
 
 const (
 	DefaultLogFilename    = "ilxd.log"
@@ -251,7 +257,7 @@ func createDefaultConfigFile(destinationPath string, testnet bool) error {
 		return err
 	}
 
-	sampleBytes, err := Asset("sample-ilxd.conf")
+	sampleBytes, err := fs.ReadFile(configFS, "sample-ilxd.conf")
 	if err != nil {
 		return err
 	}
