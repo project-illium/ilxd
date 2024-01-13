@@ -38,5 +38,4 @@
         ))
 
         (validate-sigs key-selector 0 0 0)
-        ;;(if (nth 2 pubkeys) t nil)
 )

@@ -8,7 +8,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	lcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
@@ -29,7 +28,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestProve(t *testing.T) {
-	fmt.Println(hex.EncodeToString(zk.TimelockedMultisigScriptCommitment()))
 	r, err := zk.RandomFieldElement()
 	assert.NoError(t, err)
 	h, err := zk.LurkCommit(fmt.Sprintf("0x%x", r))

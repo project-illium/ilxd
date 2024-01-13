@@ -15,6 +15,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/ilxd/zk"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -36,6 +37,8 @@ type TestHarness struct {
 	validators     map[peer.ID]*validator
 	txsPerBlock    int
 	timeSource     int64
+	prover         zk.Prover
+	verifier       zk.Verifier
 	cfg            *config
 }
 
@@ -57,11 +60,16 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 		return nil, err
 	}
 
+	verifier := &zk.MockVerifier{}
+	verifier.SetValid(true)
 	harness := &TestHarness{
 		acc:            blockchain.NewAccumulator(),
 		spendableNotes: make(map[types.Nullifier]*SpendableNote),
 		validators:     make(map[peer.ID]*validator),
 		txsPerBlock:    cfg.nTxsPerBlock,
+		timeSource:     0,
+		prover:         &zk.MockProver{},
+		verifier:       verifier,
 		cfg:            &cfg,
 	}
 	validatorID, err := peer.IDFromPrivateKey(cfg.networkKey)
@@ -103,7 +111,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 
 			if blk.Header.Height == 0 {
 				cfg.params.GenesisBlock = &blk
-				harness.chain, err = blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(cfg.params))
+				harness.chain, err = blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(cfg.params), blockchain.Verifier(harness.verifier))
 				if err != nil {
 					return nil, err
 				}
@@ -183,7 +191,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 			}
 		}
 	} else {
-		genesis, spendableNote, err := createGenesisBlock(cfg.params, cfg.networkKey, cfg.spendKey, cfg.initialCoins, cfg.genesisOutputs)
+		genesis, spendableNote, err := createGenesisBlock(cfg.params, cfg.networkKey, cfg.spendKey, cfg.initialCoins, cfg.genesisOutputs, harness.prover)
 		if err != nil {
 			return nil, err
 		}
