@@ -67,11 +67,10 @@ var paramMap = map[string]string{
 	"sighash":            "(car public-params)",
 	"txo-root":           "(car (cdr (cdr public-params)))",
 	"fee":                "(car (cdr (cdr (cdr public-params))))",
-	"coinbase":           "(car (cdr (cdr (cdr (cdr public-params)))))",
-	"mint-id":            "(car (cdr (cdr (cdr (cdr (cdr public-params))))))",
-	"mint-amount":        "(car (cdr (cdr (cdr (cdr (cdr (cdr public-params)))))))",
-	"locktime":           "(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params)))))))))",
-	"locktime-precision": "(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params))))))))))",
+	"mint-id":            "(car (cdr (cdr (cdr (cdr public-params)))))",
+	"mint-amount":        "(car (cdr (cdr (cdr (cdr (cdr public-params))))))",
+	"locktime":           "(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params))))))))",
+	"locktime-precision": "(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params)))))))))",
 }
 
 var inputMap = map[string]string{

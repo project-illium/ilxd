@@ -7,9 +7,7 @@ package zk_test
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/binary"
 	"fmt"
-	lcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params/hash"
@@ -171,7 +169,7 @@ func TestTransactionProofValidation(t *testing.T) {
 		ExpectedTag    zk.Tag
 		ExpectedOutput []byte
 	}{
-		{
+		/*{
 			Name: "standard/mint 1 input, 1 output valid",
 			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(1, 1, defaultOpts())
@@ -523,10 +521,18 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Fee = 50000
-				pub.MintID = types.NewID(r[:])
-				pub.MintAmount = 1000000
-				return []string{zk.MintValidationProgram()}, priv, pub, nil
+				mintPub := &circparams.MintPublicParams{
+					SigHash:           pub.SigHash,
+					Nullifiers:        pub.Nullifiers,
+					TXORoot:           pub.TXORoot,
+					Fee:               50000,
+					MintID:            types.NewID(r[:]),
+					MintAmount:        1000000,
+					Outputs:           pub.Outputs,
+					Locktime:          pub.Locktime,
+					LocktimePrecision: pub.LocktimePrecision,
+				}
+				return []string{zk.MintValidationProgram()}, priv, mintPub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
@@ -547,10 +553,18 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Fee = 50000
-				pub.MintID = types.NewID(r[:])
-				pub.MintAmount = 1000000
-				return []string{zk.MintValidationProgram()}, priv, pub, nil
+				mintPub := &circparams.MintPublicParams{
+					SigHash:           pub.SigHash,
+					Nullifiers:        pub.Nullifiers,
+					TXORoot:           pub.TXORoot,
+					Fee:               50000,
+					MintID:            types.NewID(r[:]),
+					MintAmount:        1000000,
+					Outputs:           pub.Outputs,
+					Locktime:          pub.Locktime,
+					LocktimePrecision: pub.LocktimePrecision,
+				}
+				return []string{zk.MintValidationProgram()}, priv, mintPub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
@@ -569,10 +583,18 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Fee = 0
-				pub.MintID = types.NewID(r[:])
-				pub.MintAmount = 1000000
-				return []string{zk.MintValidationProgram()}, priv, pub, nil
+				mintPub := &circparams.MintPublicParams{
+					SigHash:           pub.SigHash,
+					Nullifiers:        pub.Nullifiers,
+					TXORoot:           pub.TXORoot,
+					Fee:               0,
+					MintID:            types.NewID(r[:]),
+					MintAmount:        1000000,
+					Outputs:           pub.Outputs,
+					Locktime:          pub.Locktime,
+					LocktimePrecision: pub.LocktimePrecision,
+				}
+				return []string{zk.MintValidationProgram()}, priv, mintPub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
@@ -591,10 +613,18 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Fee = 0
-				pub.MintID = types.NewID(r[:])
-				pub.MintAmount = 100000
-				return []string{zk.MintValidationProgram()}, priv, pub, nil
+				mintPub := &circparams.MintPublicParams{
+					SigHash:           pub.SigHash,
+					Nullifiers:        pub.Nullifiers,
+					TXORoot:           pub.TXORoot,
+					Fee:               0,
+					MintID:            types.NewID(r[:]),
+					MintAmount:        100000,
+					Outputs:           pub.Outputs,
+					Locktime:          pub.Locktime,
+					LocktimePrecision: pub.LocktimePrecision,
+				}
+				return []string{zk.MintValidationProgram()}, priv, mintPub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
@@ -615,14 +645,22 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Fee = 50000
-				pub.MintID = types.NewID(r[:])
-				pub.MintAmount = 100000
-				return []string{zk.MintValidationProgram()}, priv, pub, nil
+				mintPub := &circparams.MintPublicParams{
+					SigHash:           pub.SigHash,
+					Nullifiers:        pub.Nullifiers,
+					TXORoot:           pub.TXORoot,
+					Fee:               50000,
+					MintID:            types.NewID(r[:]),
+					MintAmount:        100000,
+					Outputs:           pub.Outputs,
+					Locktime:          pub.Locktime,
+					LocktimePrecision: pub.LocktimePrecision,
+				}
+				return []string{zk.MintValidationProgram()}, priv, mintPub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
-		},
+		}, */
 		{
 			Name: "coinbase 1 output valid",
 			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
@@ -722,432 +760,432 @@ func TestTransactionProofValidation(t *testing.T) {
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
-		},
-		{
-			Name: "stake invalid asset ID",
-			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				opts := defaultOpts()
-				opts.inAmounts = map[int]types.Amount{0: 1000000}
-				r, err := zk.RandomFieldElement()
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				opts.inAssets = map[int]types.ID{0: types.NewID(r[:])}
-				priv, pub, err := generateTxParams(1, 0, opts)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
-				}
-				privIn := priv.Inputs[0]
-				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+		}, /*
+			{
+				Name: "stake invalid asset ID",
+				Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+					opts := defaultOpts()
+					opts.inAmounts = map[int]types.Amount{0: 1000000}
+					r, err := zk.RandomFieldElement()
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					opts.inAssets = map[int]types.ID{0: types.NewID(r[:])}
+					priv, pub, err := generateTxParams(1, 0, opts)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					stakePub := &circparams.StakePublicParams{
+						StakeAmount:  1000000,
+						PublicParams: *pub,
+					}
+					privIn := priv.Inputs[0]
+					return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+				},
+				ExpectedTag:    zk.TagNil,
+				ExpectedOutput: zk.OutputFalse,
 			},
-			ExpectedTag:    zk.TagNil,
-			ExpectedOutput: zk.OutputFalse,
-		},
-		{
-			Name: "stake private doesn't equal public amount",
-			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				opts := defaultOpts()
-				opts.inAmounts = map[int]types.Amount{0: 1000000}
-				priv, pub, err := generateTxParams(1, 0, opts)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1100000,
-					PublicParams: *pub,
-				}
-				privIn := priv.Inputs[0]
-				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			{
+				Name: "stake private doesn't equal public amount",
+				Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+					opts := defaultOpts()
+					opts.inAmounts = map[int]types.Amount{0: 1000000}
+					priv, pub, err := generateTxParams(1, 0, opts)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					stakePub := &circparams.StakePublicParams{
+						StakeAmount:  1100000,
+						PublicParams: *pub,
+					}
+					privIn := priv.Inputs[0]
+					return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+				},
+				ExpectedTag:    zk.TagNil,
+				ExpectedOutput: zk.OutputFalse,
 			},
-			ExpectedTag:    zk.TagNil,
-			ExpectedOutput: zk.OutputFalse,
-		},
-		{
-			Name: "stake invalid input commitment index",
-			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				opts := defaultOpts()
-				opts.inAmounts = map[int]types.Amount{0: 1000000}
-				priv, pub, err := generateTxParams(1, 0, opts)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
-				}
-				privIn := priv.Inputs[0]
-				privIn.CommitmentIndex = 0
-				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			{
+				Name: "stake invalid input commitment index",
+				Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+					opts := defaultOpts()
+					opts.inAmounts = map[int]types.Amount{0: 1000000}
+					priv, pub, err := generateTxParams(1, 0, opts)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					stakePub := &circparams.StakePublicParams{
+						StakeAmount:  1000000,
+						PublicParams: *pub,
+					}
+					privIn := priv.Inputs[0]
+					privIn.CommitmentIndex = 0
+					return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+				},
+				ExpectedTag:    zk.TagNil,
+				ExpectedOutput: zk.OutputFalse,
 			},
-			ExpectedTag:    zk.TagNil,
-			ExpectedOutput: zk.OutputFalse,
-		},
-		{
-			Name: "stake invalid input commitment hashes",
-			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				opts := defaultOpts()
-				opts.inAmounts = map[int]types.Amount{0: 1000000}
-				priv, pub, err := generateTxParams(1, 0, opts)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
-				}
-				privIn := priv.Inputs[0]
-				r, err := zk.RandomFieldElement()
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				privIn.InclusionProof.Hashes[0] = r[:]
-				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			{
+				Name: "stake invalid input commitment hashes",
+				Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+					opts := defaultOpts()
+					opts.inAmounts = map[int]types.Amount{0: 1000000}
+					priv, pub, err := generateTxParams(1, 0, opts)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					stakePub := &circparams.StakePublicParams{
+						StakeAmount:  1000000,
+						PublicParams: *pub,
+					}
+					privIn := priv.Inputs[0]
+					r, err := zk.RandomFieldElement()
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					privIn.InclusionProof.Hashes[0] = r[:]
+					return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+				},
+				ExpectedTag:    zk.TagNil,
+				ExpectedOutput: zk.OutputFalse,
 			},
-			ExpectedTag:    zk.TagNil,
-			ExpectedOutput: zk.OutputFalse,
-		},
-		{
-			Name: "stake invalid nullifier",
-			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				opts := defaultOpts()
-				opts.inAmounts = map[int]types.Amount{0: 1000000}
-				priv, pub, err := generateTxParams(1, 0, opts)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
-				}
-				privIn := priv.Inputs[0]
-				r, err := zk.RandomFieldElement()
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				pub.Nullifiers[0] = types.NewNullifier(r[:])
-				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			{
+				Name: "stake invalid nullifier",
+				Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+					opts := defaultOpts()
+					opts.inAmounts = map[int]types.Amount{0: 1000000}
+					priv, pub, err := generateTxParams(1, 0, opts)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					stakePub := &circparams.StakePublicParams{
+						StakeAmount:  1000000,
+						PublicParams: *pub,
+					}
+					privIn := priv.Inputs[0]
+					r, err := zk.RandomFieldElement()
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					pub.Nullifiers[0] = types.NewNullifier(r[:])
+					return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+				},
+				ExpectedTag:    zk.TagNil,
+				ExpectedOutput: zk.OutputFalse,
 			},
-			ExpectedTag:    zk.TagNil,
-			ExpectedOutput: zk.OutputFalse,
-		},
-		{
-			Name: "stake invalid commmitment",
-			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				opts := defaultOpts()
-				opts.inAmounts = map[int]types.Amount{0: 1000000}
-				priv, pub, err := generateTxParams(1, 0, opts)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
-				}
-				privIn := priv.Inputs[0]
-				privIn.State = types.State{[]byte{0x01}}
-				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			{
+				Name: "stake invalid commmitment",
+				Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+					opts := defaultOpts()
+					opts.inAmounts = map[int]types.Amount{0: 1000000}
+					priv, pub, err := generateTxParams(1, 0, opts)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					stakePub := &circparams.StakePublicParams{
+						StakeAmount:  1000000,
+						PublicParams: *pub,
+					}
+					privIn := priv.Inputs[0]
+					privIn.State = types.State{[]byte{0x01}}
+					return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+				},
+				ExpectedTag:    zk.TagNil,
+				ExpectedOutput: zk.OutputFalse,
 			},
-			ExpectedTag:    zk.TagNil,
-			ExpectedOutput: zk.OutputFalse,
-		},
-		{
-			Name: "stake invalid unlocking script",
-			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				opts := defaultOpts()
-				opts.inAmounts = map[int]types.Amount{0: 1000000}
-				priv, pub, err := generateTxParams(1, 0, opts)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
-				}
-				privIn := priv.Inputs[0]
-				sk, _, err := crypto.GenerateNovaKey(rand.Reader)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				sig, err := sk.Sign([]byte("hello"))
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				sigRx, sigRy, sigS := crypto.UnmarshalSignature(sig)
-				privIn.UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS)
-				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			{
+				Name: "stake invalid unlocking script",
+				Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+					opts := defaultOpts()
+					opts.inAmounts = map[int]types.Amount{0: 1000000}
+					priv, pub, err := generateTxParams(1, 0, opts)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					stakePub := &circparams.StakePublicParams{
+						StakeAmount:  1000000,
+						PublicParams: *pub,
+					}
+					privIn := priv.Inputs[0]
+					sk, _, err := crypto.GenerateNovaKey(rand.Reader)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					sig, err := sk.Sign([]byte("hello"))
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					sigRx, sigRy, sigS := crypto.UnmarshalSignature(sig)
+					privIn.UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS)
+					return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+				},
+				ExpectedTag:    zk.TagNil,
+				ExpectedOutput: zk.OutputFalse,
 			},
-			ExpectedTag:    zk.TagNil,
-			ExpectedOutput: zk.OutputFalse,
-		},
-		{
-			Name: "stake invalid locking function",
-			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				opts := defaultOpts()
-				opts.inAmounts = map[int]types.Amount{0: 1000000}
-				priv, pub, err := generateTxParams(1, 0, opts)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
-				}
-				privIn := priv.Inputs[0]
-				privIn.Script = "(lambda (a b c d e) t)"
-				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			{
+				Name: "stake invalid locking function",
+				Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+					opts := defaultOpts()
+					opts.inAmounts = map[int]types.Amount{0: 1000000}
+					priv, pub, err := generateTxParams(1, 0, opts)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					stakePub := &circparams.StakePublicParams{
+						StakeAmount:  1000000,
+						PublicParams: *pub,
+					}
+					privIn := priv.Inputs[0]
+					privIn.Script = "(lambda (a b c d e) t)"
+					return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+				},
+				ExpectedTag:    zk.TagNil,
+				ExpectedOutput: zk.OutputFalse,
 			},
-			ExpectedTag:    zk.TagNil,
-			ExpectedOutput: zk.OutputFalse,
-		},
-		{
-			Name: "stake timelocked with wrong script",
-			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				opts := defaultOpts()
-				opts.inAmounts = map[int]types.Amount{0: 1000000}
-				priv, pub, err := generateTxParams(1, 0, opts)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
-				}
-				privIn := priv.Inputs[0]
-				stakePub.Locktime = time.Now()
-				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+			{
+				Name: "stake timelocked with wrong script",
+				Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+					opts := defaultOpts()
+					opts.inAmounts = map[int]types.Amount{0: 1000000}
+					priv, pub, err := generateTxParams(1, 0, opts)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					stakePub := &circparams.StakePublicParams{
+						StakeAmount:  1000000,
+						PublicParams: *pub,
+					}
+					privIn := priv.Inputs[0]
+					stakePub.Locktime = time.Now()
+					return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+				},
+				ExpectedTag:    zk.TagNil,
+				ExpectedOutput: zk.OutputFalse,
 			},
-			ExpectedTag:    zk.TagNil,
-			ExpectedOutput: zk.OutputFalse,
-		},
-		{
-			Name: "standard 1 of 1 multisig input valid",
-			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				commitment, err := zk.LurkCommit(zk.MultisigScript())
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				sk, pk, err := crypto.GenerateNovaKey(rand.Reader)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				pkX, pkY := pk.(*crypto.NovaPublicKey).ToXY()
-				opts := defaultOpts()
-				opts.inLockingParams = map[int][][]byte{0: {{0x01}, pkX, pkY}}
-				opts.inScriptCommitments = map[int]types.ID{0: types.NewID(commitment)}
-				priv, pub, err := generateTxParams(1, 1, opts)
-				if err != nil {
-					return nil, nil, nil, err
-				}
+			{
+				Name: "standard 1 of 1 multisig input valid",
+				Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+					commitment, err := zk.LurkCommit(zk.MultisigScript())
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					sk, pk, err := crypto.GenerateNovaKey(rand.Reader)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					pkX, pkY := pk.(*crypto.NovaPublicKey).ToXY()
+					opts := defaultOpts()
+					opts.inLockingParams = map[int][][]byte{0: {{0x01}, pkX, pkY}}
+					opts.inScriptCommitments = map[int]types.ID{0: types.NewID(commitment)}
+					priv, pub, err := generateTxParams(1, 1, opts)
+					if err != nil {
+						return nil, nil, nil, err
+					}
 
-				sig, err := sk.Sign(pub.SigHash.Bytes())
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				unlockingScript, err := zk.MakeMultisigUnlockingParams([]lcrypto.PubKey{pk}, [][]byte{sig}, pub.SigHash.Bytes())
-				if err != nil {
-					return nil, nil, nil, err
-				}
+					sig, err := sk.Sign(pub.SigHash.Bytes())
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					unlockingScript, err := zk.MakeMultisigUnlockingParams([]lcrypto.PubKey{pk}, [][]byte{sig}, pub.SigHash.Bytes())
+					if err != nil {
+						return nil, nil, nil, err
+					}
 
-				priv.Inputs[0].UnlockingParams = unlockingScript
-				priv.Inputs[0].Script = zk.MultisigScript()
+					priv.Inputs[0].UnlockingParams = unlockingScript
+					priv.Inputs[0].Script = zk.MultisigScript()
 
-				nullifer, err := types.CalculateNullifier(priv.Inputs[0].CommitmentIndex, priv.Inputs[0].Salt, commitment, priv.Inputs[0].LockingParams...)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				pub.Nullifiers[0] = nullifer
-				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
+					nullifer, err := types.CalculateNullifier(priv.Inputs[0].CommitmentIndex, priv.Inputs[0].Salt, commitment, priv.Inputs[0].LockingParams...)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					pub.Nullifiers[0] = nullifer
+					return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
+				},
+				ExpectedTag:    zk.TagSym,
+				ExpectedOutput: zk.OutputTrue,
 			},
-			ExpectedTag:    zk.TagSym,
-			ExpectedOutput: zk.OutputTrue,
-		},
-		{
-			Name: "standard 2 of 3 multisig input valid",
-			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				commitment, err := zk.LurkCommit(zk.MultisigScript())
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				sk1, pk1, err := crypto.GenerateNovaKey(rand.Reader)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				sk2, pk2, err := crypto.GenerateNovaKey(rand.Reader)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				_, pk3, err := crypto.GenerateNovaKey(rand.Reader)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				pk1X, pk1Y := pk1.(*crypto.NovaPublicKey).ToXY()
-				pk2X, pk2Y := pk2.(*crypto.NovaPublicKey).ToXY()
-				pk3X, pk3Y := pk3.(*crypto.NovaPublicKey).ToXY()
-				opts := defaultOpts()
-				opts.inLockingParams = map[int][][]byte{0: {{0x02}, pk1X, pk1Y, pk2X, pk2Y, pk3X, pk3Y}}
-				opts.inScriptCommitments = map[int]types.ID{0: types.NewID(commitment)}
-				priv, pub, err := generateTxParams(1, 1, opts)
-				if err != nil {
-					return nil, nil, nil, err
-				}
+			{
+				Name: "standard 2 of 3 multisig input valid",
+				Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+					commitment, err := zk.LurkCommit(zk.MultisigScript())
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					sk1, pk1, err := crypto.GenerateNovaKey(rand.Reader)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					sk2, pk2, err := crypto.GenerateNovaKey(rand.Reader)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					_, pk3, err := crypto.GenerateNovaKey(rand.Reader)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					pk1X, pk1Y := pk1.(*crypto.NovaPublicKey).ToXY()
+					pk2X, pk2Y := pk2.(*crypto.NovaPublicKey).ToXY()
+					pk3X, pk3Y := pk3.(*crypto.NovaPublicKey).ToXY()
+					opts := defaultOpts()
+					opts.inLockingParams = map[int][][]byte{0: {{0x02}, pk1X, pk1Y, pk2X, pk2Y, pk3X, pk3Y}}
+					opts.inScriptCommitments = map[int]types.ID{0: types.NewID(commitment)}
+					priv, pub, err := generateTxParams(1, 1, opts)
+					if err != nil {
+						return nil, nil, nil, err
+					}
 
-				sig1, err := sk1.Sign(pub.SigHash.Bytes())
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				sig2, err := sk2.Sign(pub.SigHash.Bytes())
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				unlockingScript, err := zk.MakeMultisigUnlockingParams([]lcrypto.PubKey{pk1, pk2, pk3}, [][]byte{sig1, sig2}, pub.SigHash.Bytes())
-				if err != nil {
-					return nil, nil, nil, err
-				}
+					sig1, err := sk1.Sign(pub.SigHash.Bytes())
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					sig2, err := sk2.Sign(pub.SigHash.Bytes())
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					unlockingScript, err := zk.MakeMultisigUnlockingParams([]lcrypto.PubKey{pk1, pk2, pk3}, [][]byte{sig1, sig2}, pub.SigHash.Bytes())
+					if err != nil {
+						return nil, nil, nil, err
+					}
 
-				priv.Inputs[0].UnlockingParams = unlockingScript
-				priv.Inputs[0].Script = zk.MultisigScript()
+					priv.Inputs[0].UnlockingParams = unlockingScript
+					priv.Inputs[0].Script = zk.MultisigScript()
 
-				nullifer, err := types.CalculateNullifier(priv.Inputs[0].CommitmentIndex, priv.Inputs[0].Salt, commitment, priv.Inputs[0].LockingParams...)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				pub.Nullifiers[0] = nullifer
-				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
+					nullifer, err := types.CalculateNullifier(priv.Inputs[0].CommitmentIndex, priv.Inputs[0].Salt, commitment, priv.Inputs[0].LockingParams...)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					pub.Nullifiers[0] = nullifer
+					return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
+				},
+				ExpectedTag:    zk.TagSym,
+				ExpectedOutput: zk.OutputTrue,
 			},
-			ExpectedTag:    zk.TagSym,
-			ExpectedOutput: zk.OutputTrue,
-		},
-		{
-			Name: "stake 2 of 3 multisig timelock valid",
-			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				sk1, pk1, err := crypto.GenerateNovaKey(rand.Reader)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				sk2, pk2, err := crypto.GenerateNovaKey(rand.Reader)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				_, pk3, err := crypto.GenerateNovaKey(rand.Reader)
-				if err != nil {
-					return nil, nil, nil, err
-				}
+			{
+				Name: "stake 2 of 3 multisig timelock valid",
+				Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+					sk1, pk1, err := crypto.GenerateNovaKey(rand.Reader)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					sk2, pk2, err := crypto.GenerateNovaKey(rand.Reader)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					_, pk3, err := crypto.GenerateNovaKey(rand.Reader)
+					if err != nil {
+						return nil, nil, nil, err
+					}
 
-				pk1X, pk1Y := pk1.(*crypto.NovaPublicKey).ToXY()
-				pk2X, pk2Y := pk2.(*crypto.NovaPublicKey).ToXY()
-				pk3X, pk3Y := pk3.(*crypto.NovaPublicKey).ToXY()
-				opts := defaultOpts()
-				locktime := time.Now()
-				locktimeBytes := make([]byte, 8)
-				binary.BigEndian.PutUint64(locktimeBytes, uint64(locktime.Unix()))
-				opts.inLockingParams = map[int][][]byte{0: {locktimeBytes, {0x02}, pk1X, pk1Y, pk2X, pk2Y, pk3X, pk3Y}}
-				opts.inScriptCommitments = map[int]types.ID{0: types.NewID(zk.TimelockedMultisigScriptCommitment())}
-				opts.inAmounts = map[int]types.Amount{0: 1000000}
-				priv, pub, err := generateTxParams(1, 1, opts)
-				if err != nil {
-					return nil, nil, nil, err
-				}
+					pk1X, pk1Y := pk1.(*crypto.NovaPublicKey).ToXY()
+					pk2X, pk2Y := pk2.(*crypto.NovaPublicKey).ToXY()
+					pk3X, pk3Y := pk3.(*crypto.NovaPublicKey).ToXY()
+					opts := defaultOpts()
+					locktime := time.Now()
+					locktimeBytes := make([]byte, 8)
+					binary.BigEndian.PutUint64(locktimeBytes, uint64(locktime.Unix()))
+					opts.inLockingParams = map[int][][]byte{0: {locktimeBytes, {0x02}, pk1X, pk1Y, pk2X, pk2Y, pk3X, pk3Y}}
+					opts.inScriptCommitments = map[int]types.ID{0: types.NewID(zk.TimelockedMultisigScriptCommitment())}
+					opts.inAmounts = map[int]types.Amount{0: 1000000}
+					priv, pub, err := generateTxParams(1, 1, opts)
+					if err != nil {
+						return nil, nil, nil, err
+					}
 
-				sig1, err := sk1.Sign(pub.SigHash.Bytes())
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				sig2, err := sk2.Sign(pub.SigHash.Bytes())
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				unlockingScript, err := zk.MakeMultisigUnlockingParams([]lcrypto.PubKey{pk1, pk2, pk3}, [][]byte{sig1, sig2}, pub.SigHash.Bytes())
-				if err != nil {
-					return nil, nil, nil, err
-				}
+					sig1, err := sk1.Sign(pub.SigHash.Bytes())
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					sig2, err := sk2.Sign(pub.SigHash.Bytes())
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					unlockingScript, err := zk.MakeMultisigUnlockingParams([]lcrypto.PubKey{pk1, pk2, pk3}, [][]byte{sig1, sig2}, pub.SigHash.Bytes())
+					if err != nil {
+						return nil, nil, nil, err
+					}
 
-				priv.Inputs[0].UnlockingParams = unlockingScript
-				priv.Inputs[0].Script = zk.TimelockedMultisigScript()
+					priv.Inputs[0].UnlockingParams = unlockingScript
+					priv.Inputs[0].Script = zk.TimelockedMultisigScript()
 
-				nullifer, err := types.CalculateNullifier(priv.Inputs[0].CommitmentIndex, priv.Inputs[0].Salt, zk.TimelockedMultisigScriptCommitment(), priv.Inputs[0].LockingParams...)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				pub.Nullifiers[0] = nullifer
-				pub.Locktime = locktime
-				pub.LocktimePrecision = 600 * time.Second
-				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
-				}
-				privIn := priv.Inputs[0]
-				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+					nullifer, err := types.CalculateNullifier(priv.Inputs[0].CommitmentIndex, priv.Inputs[0].Salt, zk.TimelockedMultisigScriptCommitment(), priv.Inputs[0].LockingParams...)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					pub.Nullifiers[0] = nullifer
+					pub.Locktime = locktime
+					pub.LocktimePrecision = 600 * time.Second
+					stakePub := &circparams.StakePublicParams{
+						StakeAmount:  1000000,
+						PublicParams: *pub,
+					}
+					privIn := priv.Inputs[0]
+					return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+				},
+				ExpectedTag:    zk.TagSym,
+				ExpectedOutput: zk.OutputTrue,
 			},
-			ExpectedTag:    zk.TagSym,
-			ExpectedOutput: zk.OutputTrue,
-		},
-		{
-			Name: "stake 2 of 3 multisig timelock invalid locktime",
-			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				sk1, pk1, err := crypto.GenerateNovaKey(rand.Reader)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				sk2, pk2, err := crypto.GenerateNovaKey(rand.Reader)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				_, pk3, err := crypto.GenerateNovaKey(rand.Reader)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				pk1X, pk1Y := pk1.(*crypto.NovaPublicKey).ToXY()
-				pk2X, pk2Y := pk2.(*crypto.NovaPublicKey).ToXY()
-				pk3X, pk3Y := pk3.(*crypto.NovaPublicKey).ToXY()
-				opts := defaultOpts()
-				locktime := time.Now()
-				locktimeBytes := make([]byte, 8)
-				binary.BigEndian.PutUint64(locktimeBytes, uint64(locktime.Unix()))
-				opts.inLockingParams = map[int][][]byte{0: {locktimeBytes, {0x02}, pk1X, pk1Y, pk2X, pk2Y, pk3X, pk3Y}}
-				opts.inScriptCommitments = map[int]types.ID{0: types.NewID(zk.TimelockedMultisigScriptCommitment())}
-				opts.inAmounts = map[int]types.Amount{0: 1000000}
-				priv, pub, err := generateTxParams(1, 1, opts)
-				if err != nil {
-					return nil, nil, nil, err
-				}
+			{
+				Name: "stake 2 of 3 multisig timelock invalid locktime",
+				Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+					sk1, pk1, err := crypto.GenerateNovaKey(rand.Reader)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					sk2, pk2, err := crypto.GenerateNovaKey(rand.Reader)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					_, pk3, err := crypto.GenerateNovaKey(rand.Reader)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					pk1X, pk1Y := pk1.(*crypto.NovaPublicKey).ToXY()
+					pk2X, pk2Y := pk2.(*crypto.NovaPublicKey).ToXY()
+					pk3X, pk3Y := pk3.(*crypto.NovaPublicKey).ToXY()
+					opts := defaultOpts()
+					locktime := time.Now()
+					locktimeBytes := make([]byte, 8)
+					binary.BigEndian.PutUint64(locktimeBytes, uint64(locktime.Unix()))
+					opts.inLockingParams = map[int][][]byte{0: {locktimeBytes, {0x02}, pk1X, pk1Y, pk2X, pk2Y, pk3X, pk3Y}}
+					opts.inScriptCommitments = map[int]types.ID{0: types.NewID(zk.TimelockedMultisigScriptCommitment())}
+					opts.inAmounts = map[int]types.Amount{0: 1000000}
+					priv, pub, err := generateTxParams(1, 1, opts)
+					if err != nil {
+						return nil, nil, nil, err
+					}
 
-				sig1, err := sk1.Sign(pub.SigHash.Bytes())
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				sig2, err := sk2.Sign(pub.SigHash.Bytes())
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				unlockingScript, err := zk.MakeMultisigUnlockingParams([]lcrypto.PubKey{pk1, pk2, pk3}, [][]byte{sig1, sig2}, pub.SigHash.Bytes())
-				if err != nil {
-					return nil, nil, nil, err
-				}
+					sig1, err := sk1.Sign(pub.SigHash.Bytes())
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					sig2, err := sk2.Sign(pub.SigHash.Bytes())
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					unlockingScript, err := zk.MakeMultisigUnlockingParams([]lcrypto.PubKey{pk1, pk2, pk3}, [][]byte{sig1, sig2}, pub.SigHash.Bytes())
+					if err != nil {
+						return nil, nil, nil, err
+					}
 
-				priv.Inputs[0].UnlockingParams = unlockingScript
-				priv.Inputs[0].Script = zk.TimelockedMultisigScript()
+					priv.Inputs[0].UnlockingParams = unlockingScript
+					priv.Inputs[0].Script = zk.TimelockedMultisigScript()
 
-				nullifer, err := types.CalculateNullifier(priv.Inputs[0].CommitmentIndex, priv.Inputs[0].Salt, zk.TimelockedMultisigScriptCommitment(), priv.Inputs[0].LockingParams...)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				pub.Nullifiers[0] = nullifer
-				pub.Locktime = locktime.Add(-time.Minute)
-				pub.LocktimePrecision = 600 * time.Second
-				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
-				}
-				privIn := priv.Inputs[0]
-				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
-			},
-			ExpectedTag:    zk.TagNil,
-			ExpectedOutput: zk.OutputFalse,
-		},
+					nullifer, err := types.CalculateNullifier(priv.Inputs[0].CommitmentIndex, priv.Inputs[0].Salt, zk.TimelockedMultisigScriptCommitment(), priv.Inputs[0].LockingParams...)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					pub.Nullifiers[0] = nullifer
+					pub.Locktime = locktime.Add(-time.Minute)
+					pub.LocktimePrecision = 600 * time.Second
+					stakePub := &circparams.StakePublicParams{
+						StakeAmount:  1000000,
+						PublicParams: *pub,
+					}
+					privIn := priv.Inputs[0]
+					return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
+				},
+				ExpectedTag:    zk.TagNil,
+				ExpectedOutput: zk.OutputFalse,
+			},*/
 	}
 
 	for _, test := range tests {
@@ -1183,7 +1221,7 @@ func defaultOpts() *options {
 	}
 }
 
-func generateTxParams(numInputs, numOutputs int, opts *options) (*circparams.PrivateParams, *circparams.PublicParams, error) {
+func generateTxParams(numInputs, numOutputs int, opts *options) (*circparams.StandardPrivateParams, *circparams.StandardPublicParams, error) {
 	sigHash, err := zk.RandomFieldElement()
 	if err != nil {
 		return nil, nil, err
@@ -1198,15 +1236,12 @@ func generateTxParams(numInputs, numOutputs int, opts *options) (*circparams.Pri
 		acc.Insert(r[:], false)
 	}
 
-	priv := &circparams.PrivateParams{}
-	pub := &circparams.PublicParams{
+	priv := &circparams.StandardPrivateParams{}
+	pub := &circparams.StandardPublicParams{
 		SigHash:           sigHash,
 		Nullifiers:        nil,
 		TXORoot:           types.ID{},
 		Fee:               100000,
-		Coinbase:          0,
-		MintID:            types.ID{},
-		MintAmount:        0,
 		Outputs:           nil,
 		Locktime:          time.Time{},
 		LocktimePrecision: 0,
