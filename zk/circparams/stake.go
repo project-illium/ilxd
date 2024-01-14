@@ -10,7 +10,12 @@ import (
 	"time"
 )
 
-type StakePrivateParams PrivateParams
+type StakePrivateParams PrivateInput
+
+func (priv *StakePrivateParams) ToExpr() (string, error) {
+	pi := PrivateInput(*priv)
+	return pi.ToExpr()
+}
 
 type StakePublicParams1 struct {
 	StakeAmount types.Amount
@@ -23,10 +28,15 @@ type StakePublicParams1 struct {
 func (pub *StakePublicParams1) ToExpr() (string, error) {
 	expr := fmt.Sprintf("(cons %d ", pub.StakeAmount) +
 		fmt.Sprintf("(cons 0x%x ", pub.SigHash.Bytes()) +
-		fmt.Sprintf("(cons 0x%x ", pub.Nullifier.Bytes()) +
-		fmt.Sprintf(" (cons 0x%x ", pub.TXORoot.Bytes()) +
+		fmt.Sprintf("(cons (cons 0x%x nil) ", pub.Nullifier.Bytes()) +
+		fmt.Sprintf("(cons 0x%x ", pub.TXORoot.Bytes()) +
+		fmt.Sprintf("(cons %d ", 0) +
+		"(cons nil " + // Mint ID
+		fmt.Sprintf("(cons %d ", 0) + // Mint amount
+		"(cons nil " +
 		fmt.Sprintf(" (cons %d ", pub.LockedUntil.Unix()) +
-		"nil)))))"
+		fmt.Sprintf("(cons %d ", 0) +
+		"nil))))))))))"
 
 	return expr, nil
 }
