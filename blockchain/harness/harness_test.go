@@ -21,7 +21,7 @@ import (
 )
 
 func TestNewTestHarness(t *testing.T) {
-	h, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(1), Pregenerate(15000))
+	h, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(1), Pregenerate(0))
 	assert.NoError(t, err)
 
 	err = h.GenerateBlocks(5)

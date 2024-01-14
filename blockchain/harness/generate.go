@@ -150,7 +150,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 						Amount:          sn.Note.Amount,
 						Salt:            sn.Note.Salt,
 						AssetID:         sn.Note.AssetID,
-						State:           types.State{},
+						State:           sn.Note.State,
 						CommitmentIndex: inclusionProof.Index,
 						InclusionProof: circparams.InclusionProof{
 							Hashes: inclusionProof.Hashes,
@@ -164,7 +164,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 			}
 			for _, outNote := range outputNotes {
 				privateParams.Outputs = append(privateParams.Outputs, circparams.PrivateOutput{
-					State:      types.State{},
+					State:      outNote.Note.State,
 					Amount:     outNote.Note.Amount,
 					Salt:       outNote.Note.Salt,
 					AssetID:    outNote.Note.AssetID,
@@ -172,23 +172,10 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				})
 			}
 
-			publicOutputs := make([]circparams.PublicOutput, len(outputNotes))
-			for i, output := range outputs {
-				publicOutputs[i] = circparams.PublicOutput{
-					Commitment: types.NewID(output.Commitment),
-					CipherText: output.Ciphertext,
-				}
+			publicPrams, err := standardTx.ToCircuitParams()
+			if err != nil {
+				return nil, nil, err
 			}
-
-			publicPrams := &circparams.StandardPublicParams{
-				TXORoot:    acc.Root(),
-				SigHash:    types.NewID(sigHash),
-				Outputs:    publicOutputs,
-				Nullifiers: []types.Nullifier{inNullifier},
-				Fee:        types.Amount(fee),
-				Locktime:   time.Unix(0, 0),
-			}
-
 			proof, err := h.prover.Prove(zk.StandardValidationProgram(), privateParams, publicPrams)
 			if err != nil {
 				return nil, nil, err
@@ -404,16 +391,9 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		return nil, nil, err
 	}
 
-	publicParams := &circparams.CoinbasePublicParams{
-		Outputs: []circparams.PublicOutput{
-			{
-				Commitment: commitment1,
-			},
-			{
-				Commitment: commitment2,
-			},
-		},
-		Coinbase: types.Amount(initialCoins),
+	publicParams, err := coinbaseTx.ToCircuitParams()
+	if err != nil {
+		return nil, nil, err
 	}
 	privateParams := &circparams.CoinbasePrivateParams{
 		{
@@ -461,9 +441,10 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 
 	stakeTx := &transactions.StakeTransaction{
 		Validator_ID: idBytes,
-		Amount:       initialCoins,
+		Amount:       uint64(note1.Amount),
 		Nullifier:    nullifier1.Bytes(),
 		TxoRoot:      txoRoot.Bytes(), // See note above
+		LockedUntil:  0,
 	}
 
 	// Sign the stake transaction
@@ -485,26 +466,25 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	}
 
 	sigRx, sigRy, sigS := icrypto.UnmarshalSignature(sig3)
-
-	publicParams2 := &circparams.StakePublicParams{
-		StakeAmount: types.Amount(initialCoins / 2),
-		SigHash:     types.NewID(sigHash2),
-		Nullifier:   nullifier1,
-		TXORoot:     txoRoot,
-		LockedUntil: time.Unix(0, 0),
+	if err != nil {
+		return nil, nil, err
+	}
+	publicParams2, err := stakeTx.ToCircuitParams()
+	if err != nil {
+		return nil, nil, err
 	}
 	privateParams2 := &circparams.StakePrivateParams{
-		Amount:          types.Amount(initialCoins / 2),
-		AssetID:         types.IlliumCoinID,
-		Salt:            salt1,
-		State:           types.State{},
+		Amount:          note1.Amount,
+		AssetID:         note1.AssetID,
+		Salt:            note1.Salt,
+		State:           note1.State,
 		CommitmentIndex: 0,
 		InclusionProof: circparams.InclusionProof{
 			Hashes: inclusionProof.Hashes,
 			Flags:  inclusionProof.Flags,
 		},
 		Script:          zk.BasicTransferScript(),
-		LockingParams:   [][]byte{pubx, puby},
+		LockingParams:   note1LockingScript.LockingParams,
 		UnlockingParams: fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS),
 	}
 

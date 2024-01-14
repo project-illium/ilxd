@@ -216,7 +216,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 		}
 		harness.spendableNotes[nullifier] = spendableNote
 
-		chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(cfg.params))
+		chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(cfg.params), blockchain.Verifier(harness.verifier))
 		if err != nil {
 			return nil, err
 		}
@@ -303,7 +303,7 @@ func (h *TestHarness) Clone() (*TestHarness, error) {
 		timeSource:     h.timeSource,
 	}
 
-	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(h.chain.Params()))
+	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(h.chain.Params()), blockchain.Verifier(h.verifier))
 	if err != nil {
 		return nil, err
 	}
