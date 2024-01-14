@@ -243,7 +243,7 @@ func LoadConfig() (*Config, error) {
 	return &cfg, nil
 }
 
-// createDefaultConfig copies the sample-obcrawler.conf content to the given destination path,
+// createDefaultConfig copies the sample-ilxd.conf content to the given destination path,
 // and populates it with some randomly generated RPC username and password.
 func createDefaultConfigFile(destinationPath string, testnet bool) error {
 	// Create the destination directory if it does not exists

@@ -144,7 +144,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 
 			sigRx, sigRy, sigS := icrypto.UnmarshalSignature(sig)
 
-			privateParams := &circparams.PrivateParams{
+			privateParams := &circparams.StandardPrivateParams{
 				Inputs: []circparams.PrivateInput{
 					{
 						Amount:          sn.Note.Amount,
@@ -180,7 +180,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				}
 			}
 
-			publicPrams := &circparams.PublicParams{
+			publicPrams := &circparams.StandardPublicParams{
 				TXORoot:    acc.Root(),
 				SigHash:    types.NewID(sigHash),
 				Outputs:    publicOutputs,
@@ -404,7 +404,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		return nil, nil, err
 	}
 
-	publicParams := &circparams.PublicParams{
+	publicParams := &circparams.CoinbasePublicParams{
 		Outputs: []circparams.PublicOutput{
 			{
 				Commitment: commitment1,
@@ -415,22 +415,20 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		},
 		Coinbase: types.Amount(initialCoins),
 	}
-	privateParams := &circparams.PrivateParams{
-		Outputs: []circparams.PrivateOutput{
-			{
-				ScriptHash: note1ScriptHash,
-				Amount:     types.Amount(initialCoins / 2),
-				Salt:       note1.Salt,
-				AssetID:    note1.AssetID,
-				State:      note1.State,
-			},
-			{
-				ScriptHash: note2ScriptHash,
-				Amount:     types.Amount(initialCoins / 2),
-				Salt:       note2.Salt,
-				AssetID:    note2.AssetID,
-				State:      note2.State,
-			},
+	privateParams := &circparams.CoinbasePrivateParams{
+		{
+			ScriptHash: note1ScriptHash,
+			Amount:     types.Amount(initialCoins / 2),
+			Salt:       note1.Salt,
+			AssetID:    note1.AssetID,
+			State:      note1.State,
+		},
+		{
+			ScriptHash: note2ScriptHash,
+			Amount:     types.Amount(initialCoins / 2),
+			Salt:       note2.Salt,
+			AssetID:    note2.AssetID,
+			State:      note2.State,
 		},
 	}
 
@@ -490,14 +488,12 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 
 	publicParams2 := &circparams.StakePublicParams{
 		StakeAmount: types.Amount(initialCoins / 2),
-		PublicParams: circparams.PublicParams{
-			SigHash:    types.NewID(sigHash2),
-			Nullifiers: []types.Nullifier{nullifier1},
-			TXORoot:    txoRoot,
-			Locktime:   time.Unix(0, 0),
-		},
+		SigHash:     types.NewID(sigHash2),
+		Nullifier:   nullifier1,
+		TXORoot:     txoRoot,
+		LockedUntil: time.Unix(0, 0),
 	}
-	privateParams2 := &circparams.PrivateInput{
+	privateParams2 := &circparams.StakePrivateParams{
 		Amount:          types.Amount(initialCoins / 2),
 		AssetID:         types.IlliumCoinID,
 		Salt:            salt1,

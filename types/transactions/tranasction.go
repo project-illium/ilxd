@@ -9,7 +9,10 @@ import (
 	"errors"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/zk"
+	"github.com/project-illium/ilxd/zk/circparams"
 	"google.golang.org/protobuf/proto"
+	"time"
 )
 
 var _ types.Serializable = (*Transaction)(nil)
@@ -264,6 +267,36 @@ func (tx *StandardTransaction) ID() types.ID {
 	return wtx.ID()
 }
 
+func (tx *StandardTransaction) ToCircuitParams() (zk.Parameters, error) {
+	sigHash, err := tx.SigHash()
+	if err != nil {
+		return nil, err
+	}
+	outputs := make([]circparams.PublicOutput, 0, len(tx.Outputs))
+	for _, out := range tx.Outputs {
+		outputs = append(outputs, circparams.PublicOutput{
+			Commitment: types.NewID(out.Commitment),
+			CipherText: out.Ciphertext,
+		})
+	}
+	nullifiers := make([]types.Nullifier, 0, len(tx.Nullifiers))
+	for _, n := range tx.Nullifiers {
+		nullifiers = append(nullifiers, types.NewNullifier(n))
+	}
+	params := &circparams.StandardPublicParams{
+		SigHash:    types.NewID(sigHash),
+		Nullifiers: nullifiers,
+		TXORoot:    types.NewID(tx.TxoRoot),
+		Fee:        types.Amount(tx.Fee),
+		Outputs:    outputs,
+	}
+	if tx.Locktime != nil {
+		params.Locktime = time.Unix(tx.Locktime.Timestamp, 0)
+		params.LocktimePrecision = time.Duration(tx.Locktime.Precision) * time.Second
+	}
+	return params, nil
+}
+
 func (tx *StandardTransaction) MarshalJSON() ([]byte, error) {
 	nullifiers := make([]types.HexEncodable, 0, len(tx.Nullifiers))
 	for _, n := range tx.Nullifiers {
@@ -353,6 +386,21 @@ func (tx *CoinbaseTransaction) ID() types.ID {
 	return wtx.ID()
 }
 
+func (tx *CoinbaseTransaction) ToCircuitParams() (zk.Parameters, error) {
+	outputs := make([]circparams.PublicOutput, 0, len(tx.Outputs))
+	for _, out := range tx.Outputs {
+		outputs = append(outputs, circparams.PublicOutput{
+			Commitment: types.NewID(out.Commitment),
+			CipherText: out.Ciphertext,
+		})
+	}
+	params := &circparams.CoinbasePublicParams{
+		Coinbase: types.Amount(tx.NewCoins),
+		Outputs:  outputs,
+	}
+	return params, nil
+}
+
 func (tx *CoinbaseTransaction) MarshalJSON() ([]byte, error) {
 	c := &coinbaseTxJSON{
 		Validator_ID: tx.Validator_ID,
@@ -426,6 +474,21 @@ func (tx *StakeTransaction) ID() types.ID {
 	return wtx.ID()
 }
 
+func (tx *StakeTransaction) ToCircuitParams() (zk.Parameters, error) {
+	sigHash, err := tx.SigHash()
+	if err != nil {
+		return nil, err
+	}
+	params := &circparams.StakePublicParams{
+		StakeAmount: types.Amount(tx.Amount),
+		SigHash:     types.NewID(sigHash),
+		Nullifier:   types.NewNullifier(tx.Nullifier),
+		TXORoot:     types.NewID(tx.TxoRoot),
+		LockedUntil: time.Unix(tx.LockedUntil, 0),
+	}
+	return params, nil
+}
+
 func (tx *StakeTransaction) MarshalJSON() ([]byte, error) {
 	s := &stakeTxJSON{
 		Validator_ID: tx.Validator_ID,
@@ -494,6 +557,21 @@ func (tx *TreasuryTransaction) SigHash() ([]byte, error) {
 func (tx *TreasuryTransaction) ID() types.ID {
 	wtx := WrapTransaction(tx)
 	return wtx.ID()
+}
+
+func (tx *TreasuryTransaction) ToCircuitParams() (zk.Parameters, error) {
+	outputs := make([]circparams.PublicOutput, 0, len(tx.Outputs))
+	for _, out := range tx.Outputs {
+		outputs = append(outputs, circparams.PublicOutput{
+			Commitment: types.NewID(out.Commitment),
+			CipherText: out.Ciphertext,
+		})
+	}
+	params := &circparams.TreasuryPublicParams{
+		TreasuryWithdrawAmount: types.Amount(tx.Amount),
+		Outputs:                outputs,
+	}
+	return params, nil
 }
 
 func (tx *TreasuryTransaction) MarshalJSON() ([]byte, error) {
@@ -574,6 +652,38 @@ func (tx *MintTransaction) SigHash() ([]byte, error) {
 func (tx *MintTransaction) ID() types.ID {
 	wtx := WrapTransaction(tx)
 	return wtx.ID()
+}
+
+func (tx *MintTransaction) ToCircuitParams() (zk.Parameters, error) {
+	sigHash, err := tx.SigHash()
+	if err != nil {
+		return nil, err
+	}
+	outputs := make([]circparams.PublicOutput, 0, len(tx.Outputs))
+	for _, out := range tx.Outputs {
+		outputs = append(outputs, circparams.PublicOutput{
+			Commitment: types.NewID(out.Commitment),
+			CipherText: out.Ciphertext,
+		})
+	}
+	nullifiers := make([]types.Nullifier, 0, len(tx.Nullifiers))
+	for _, n := range tx.Nullifiers {
+		nullifiers = append(nullifiers, types.NewNullifier(n))
+	}
+	params := &circparams.MintPublicParams{
+		SigHash:    types.NewID(sigHash),
+		Nullifiers: nullifiers,
+		TXORoot:    types.NewID(tx.TxoRoot),
+		Fee:        types.Amount(tx.Fee),
+		MintID:     types.NewID(tx.Asset_ID),
+		MintAmount: types.Amount(tx.NewTokens),
+		Outputs:    outputs,
+	}
+	if tx.Locktime != nil {
+		params.Locktime = time.Unix(tx.Locktime.Timestamp, 0)
+		params.LocktimePrecision = time.Duration(tx.Locktime.Precision) * time.Second
+	}
+	return params, nil
 }
 
 func (tx *MintTransaction) MarshalJSON() ([]byte, error) {

@@ -12,6 +12,11 @@ import (
 
 type MintPrivateParams StandardPrivateParams
 
+func (priv *MintPrivateParams) ToExpr() (string, error) {
+	p := StandardPrivateParams(*priv)
+	return p.ToExpr()
+}
+
 type MintPublicParams struct {
 	SigHash           types.ID
 	Nullifiers        []types.Nullifier
@@ -61,7 +66,7 @@ func (pub *MintPublicParams) ToExpr() (string, error) {
 		"(cons " + outputs +
 		fmt.Sprintf(" (cons %d ", pub.Locktime.Unix()) +
 		fmt.Sprintf("(cons %d ", int64(pub.LocktimePrecision.Seconds())) +
-		"nil))))))))))"
+		"nil)))))))))"
 
 	return expr, nil
 }

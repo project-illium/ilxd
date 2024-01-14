@@ -17,7 +17,7 @@ func (priv *StakePrivateParams) ToExpr() (string, error) {
 	return pi.ToExpr()
 }
 
-type StakePublicParams1 struct {
+type StakePublicParams struct {
 	StakeAmount types.Amount
 	SigHash     types.ID
 	Nullifier   types.Nullifier
@@ -25,7 +25,7 @@ type StakePublicParams1 struct {
 	LockedUntil time.Time
 }
 
-func (pub *StakePublicParams1) ToExpr() (string, error) {
+func (pub *StakePublicParams) ToExpr() (string, error) {
 	expr := fmt.Sprintf("(cons %d ", pub.StakeAmount) +
 		fmt.Sprintf("(cons 0x%x ", pub.SigHash.Bytes()) +
 		fmt.Sprintf("(cons (cons 0x%x nil) ", pub.Nullifier.Bytes()) +
