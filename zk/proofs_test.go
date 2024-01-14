@@ -773,7 +773,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				stakePub := &circparams.StakePublicParams1{
+				stakePub := &circparams.StakePublicParams{
 					StakeAmount: 1000000,
 					SigHash:     pub.SigHash,
 					Nullifier:   pub.Nullifiers[0],
@@ -781,9 +781,6 @@ func TestTransactionProofValidation(t *testing.T) {
 					LockedUntil: pub.Locktime,
 				}
 				privIn := circparams.StakePrivateParams(priv.Inputs[0])
-				fmt.Println(privIn.ToExpr())
-				fmt.Println()
-				fmt.Println(stakePub.ToExpr())
 				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
 			},
 			ExpectedTag:    zk.TagSym,
@@ -803,7 +800,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				stakePub := &circparams.StakePublicParams1{
+				stakePub := &circparams.StakePublicParams{
 					StakeAmount: 1000000,
 					SigHash:     pub.SigHash,
 					Nullifier:   pub.Nullifiers[0],
@@ -825,7 +822,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				stakePub := &circparams.StakePublicParams1{
+				stakePub := &circparams.StakePublicParams{
 					StakeAmount: 1100000,
 					SigHash:     pub.SigHash,
 					Nullifier:   pub.Nullifiers[0],
@@ -847,7 +844,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				stakePub := &circparams.StakePublicParams1{
+				stakePub := &circparams.StakePublicParams{
 					StakeAmount: 1000000,
 					SigHash:     pub.SigHash,
 					Nullifier:   pub.Nullifiers[0],
@@ -870,7 +867,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				stakePub := &circparams.StakePublicParams1{
+				stakePub := &circparams.StakePublicParams{
 					StakeAmount: 1000000,
 					SigHash:     pub.SigHash,
 					Nullifier:   pub.Nullifiers[0],
@@ -897,7 +894,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				stakePub := &circparams.StakePublicParams1{
+				stakePub := &circparams.StakePublicParams{
 					StakeAmount: 1000000,
 					SigHash:     pub.SigHash,
 					Nullifier:   pub.Nullifiers[0],
@@ -924,7 +921,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				stakePub := &circparams.StakePublicParams1{
+				stakePub := &circparams.StakePublicParams{
 					StakeAmount: 1000000,
 					SigHash:     pub.SigHash,
 					Nullifier:   pub.Nullifiers[0],
@@ -947,7 +944,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				stakePub := &circparams.StakePublicParams1{
+				stakePub := &circparams.StakePublicParams{
 					StakeAmount: 1000000,
 					SigHash:     pub.SigHash,
 					Nullifier:   pub.Nullifiers[0],
@@ -979,7 +976,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				stakePub := &circparams.StakePublicParams1{
+				stakePub := &circparams.StakePublicParams{
 					StakeAmount: 1000000,
 					SigHash:     pub.SigHash,
 					Nullifier:   pub.Nullifiers[0],
@@ -1002,7 +999,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				stakePub := &circparams.StakePublicParams1{
+				stakePub := &circparams.StakePublicParams{
 					StakeAmount: 1000000,
 					SigHash:     pub.SigHash,
 					Nullifier:   pub.Nullifiers[0],
@@ -1168,7 +1165,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				pub.Nullifiers[0] = nullifer
 				pub.Locktime = locktime
 				pub.LocktimePrecision = 600 * time.Second
-				stakePub := &circparams.StakePublicParams1{
+				stakePub := &circparams.StakePublicParams{
 					StakeAmount: 1000000,
 					SigHash:     pub.SigHash,
 					Nullifier:   pub.Nullifiers[0],
@@ -1234,7 +1231,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				pub.Nullifiers[0] = nullifer
 				pub.Locktime = locktime.Add(-time.Minute)
 				pub.LocktimePrecision = 600 * time.Second
-				stakePub := &circparams.StakePublicParams1{
+				stakePub := &circparams.StakePublicParams{
 					StakeAmount: 1000000,
 					SigHash:     pub.SigHash,
 					Nullifier:   pub.Nullifiers[0],
