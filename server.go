@@ -140,17 +140,22 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		netParams = &params.MainnetParams
 	}
 
-	var verifier zk.Verifier
+	var (
+		prover   zk.Prover
+		verifier zk.Verifier
+	)
 	if config.MockProofs {
 		if !netParams.AllowMockProofs {
 			return nil, errors.New("mock proofs not allowed with network params selection")
 		}
+		prover = &zk.MockProver{}
 		v := &zk.MockVerifier{}
 		v.SetValid(true)
 		verifier = v
 	} else {
 		// Load public parameters
 		zk.LoadZKPublicParameters()
+		prover = &zk.LurkProver{}
 		verifier = &zk.LurkVerifier{}
 	}
 
@@ -367,6 +372,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		Network:              network,
 		Policy:               policy,
 		Wallet:               wallet,
+		Prover:               prover,
 		BroadcastTxFunc:      s.submitTransaction,
 		SetLogLevelFunc:      zapLevel.SetLevel,
 		ReindexChainFunc:     s.reIndexChain,

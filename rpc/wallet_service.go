@@ -15,7 +15,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
-	"github.com/project-illium/ilxd/zk/circuits/stake"
+	"github.com/project-illium/ilxd/zk/circparams"
 	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/project-illium/walletlib"
 	"google.golang.org/grpc/codes"
@@ -721,9 +721,9 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		}
 
 		// Create the transaction zk proof
-		privateParams := &standard.PrivateParams{
-			Inputs:  []standard.PrivateInput{},
-			Outputs: []standard.PrivateOutput{},
+		privateParams := &circparams.StandardPrivateParams{
+			Inputs:  []circparams.PrivateInput{},
+			Outputs: []circparams.PrivateOutput{},
 		}
 
 		privkeyMap, err := s.wallet.PrivateKeys()
@@ -733,8 +733,13 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 
 		for i, in := range req.RawTx.Inputs {
 			if in.UnlockingParams == "" {
+				scriptCommitment, err := zk.LurkCommit(in.Script)
+				if err != nil {
+					return nil, status.Error(codes.InvalidArgument, err.Error())
+				}
+
 				lockingScript := types.LockingScript{
-					ScriptCommitment: types.NewID(in.ScriptCommitment),
+					ScriptCommitment: types.NewID(scriptCommitment),
 					LockingParams:    in.LockingParams,
 				}
 				scriptHash, err := lockingScript.Hash()
@@ -757,23 +762,23 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 				if err != nil {
 					return nil, status.Error(codes.Internal, err.Error())
 				}
-				in.UnlockingParams = fmt.Sprintf("(cons 0x%x 0x%x", sig[:32], sig[32:])
+
+				sigRx, sigRy, sigS := icrypto.UnmarshalSignature(sig)
+				in.UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS)
 			}
-			privIn := standard.PrivateInput{
-				SpendNote: types.SpendNote{
-					Amount: types.Amount(in.Amount),
-				},
+			privIn := circparams.PrivateInput{
+				Amount:          types.Amount(in.Amount),
+				AssetID:         types.NewID(in.Asset_ID),
+				Salt:            types.NewID(in.Salt),
 				CommitmentIndex: in.TxoProof.Index,
-				InclusionProof: standard.InclusionProof{
+				InclusionProof: circparams.InclusionProof{
 					Hashes: in.TxoProof.Hashes,
 					Flags:  in.TxoProof.Flags,
 				},
-				ScriptCommitment: in.ScriptCommitment,
-				ScriptParams:     in.LockingParams,
-				UnlockingParams:  []byte(in.UnlockingParams),
+				Script:          in.Script,
+				LockingParams:   in.LockingParams,
+				UnlockingParams: in.UnlockingParams,
 			}
-			copy(privIn.Salt[:], in.Salt)
-			copy(privIn.AssetID[:], in.Asset_ID)
 			state := new(types.State)
 			if err := state.Deserialize(in.State); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -784,15 +789,12 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		}
 
 		for _, out := range req.RawTx.Outputs {
-			privOut := standard.PrivateOutput{
-				SpendNote: types.SpendNote{
-					ScriptHash: types.ID{},
-					Amount:     types.Amount(out.Amount),
-				},
+			privOut := circparams.PrivateOutput{
+				ScriptHash: types.NewID(out.ScriptHash),
+				Amount:     types.Amount(out.Amount),
+				AssetID:    types.NewID(out.Asset_ID),
+				Salt:       types.NewID(out.Salt),
 			}
-			copy(privOut.ScriptHash[:], out.ScriptHash)
-			copy(privOut.Salt[:], out.Salt)
-			copy(privOut.AssetID[:], out.Asset_ID)
 			state := new(types.State)
 			if err := state.Deserialize(out.State); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -801,21 +803,12 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 			privateParams.Outputs = append(privateParams.Outputs, privOut)
 		}
 
-		publicParams := &standard.PublicParams{
-			TXORoot:    standardTx.TxoRoot,
-			SigHash:    sigHash,
-			Nullifiers: standardTx.Nullifiers,
-			Fee:        standardTx.Fee,
+		publicParams, err := standardTx.ToCircuitParams()
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 
-		for _, out := range standardTx.Outputs {
-			publicParams.Outputs = append(publicParams.Outputs, standard.PublicOutput{
-				Commitment: out.Commitment,
-				CipherText: out.Ciphertext,
-			})
-		}
-
-		proof, err := zk.CreateSnark(standard.StandardCircuit, privateParams, publicParams)
+		proof, err := s.prover.Prove(zk.StandardValidationProgram(), privateParams, publicParams)
 		if err != nil {
 			return nil, err
 		}
@@ -837,13 +830,18 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 		}
 
 		if req.RawTx.Inputs[0].UnlockingParams == "" {
+			scriptCommitment, err := zk.LurkCommit(req.RawTx.Inputs[0].Script)
+			if err != nil {
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
+
 			privkeyMap, err := s.wallet.PrivateKeys()
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 
 			lockingScript := types.LockingScript{
-				ScriptCommitment: types.NewID(req.RawTx.Inputs[0].ScriptCommitment),
+				ScriptCommitment: types.NewID(scriptCommitment),
 				LockingParams:    req.RawTx.Inputs[0].LockingParams,
 			}
 			scriptHash, err := lockingScript.Hash()
@@ -867,36 +865,35 @@ func (s *GrpcServer) ProveRawTransaction(ctx context.Context, req *pb.ProveRawTr
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 
-			req.RawTx.Inputs[0].UnlockingParams = fmt.Sprintf("(cons 0x%x 0x%x", sig[:32], sig[32:])
+			sigRx, sigRy, sigS := icrypto.UnmarshalSignature(sig)
+			req.RawTx.Inputs[0].UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS)
 		}
 
 		// Create the transaction zk proof
-		privateParams := &stake.PrivateParams{
+		privateParams := &circparams.StakePrivateParams{
+			Amount:          types.Amount(req.RawTx.Inputs[0].Amount),
+			AssetID:         types.NewID(req.RawTx.Inputs[0].Asset_ID),
+			Salt:            types.NewID(req.RawTx.Inputs[0].Salt),
 			CommitmentIndex: req.RawTx.Inputs[0].TxoProof.Index,
-			InclusionProof: standard.InclusionProof{
+			InclusionProof: circparams.InclusionProof{
 				Hashes: req.RawTx.Inputs[0].TxoProof.Hashes,
 				Flags:  req.RawTx.Inputs[0].TxoProof.Flags,
 			},
-			ScriptCommitment: req.RawTx.Inputs[0].ScriptCommitment,
-			ScriptParams:     req.RawTx.Inputs[0].LockingParams,
-			UnlockingParams:  []byte(req.RawTx.Inputs[0].UnlockingParams),
+			Script:          req.RawTx.Inputs[0].Script,
+			LockingParams:   req.RawTx.Inputs[0].LockingParams,
+			UnlockingParams: req.RawTx.Inputs[0].UnlockingParams,
 		}
-		copy(privateParams.Salt[:], req.RawTx.Inputs[0].Salt)
-		copy(privateParams.AssetID[:], req.RawTx.Inputs[0].Asset_ID)
 		state := new(types.State)
 		if err := state.Deserialize(req.RawTx.Inputs[0].State); err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 		privateParams.State = *state
 
-		publicParams := &stake.PublicParams{
-			TXORoot:   stakeTx.TxoRoot,
-			SigHash:   sigHash,
-			Amount:    stakeTx.Amount,
-			Nullifier: stakeTx.Nullifier,
+		publicParams, err := stakeTx.ToCircuitParams()
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
 		}
-
-		proof, err := zk.CreateSnark(stake.StakeCircuit, privateParams, publicParams)
+		proof, err := s.prover.Prove(zk.StakeValidationProgram(), privateParams, publicParams)
 		if err != nil {
 			return nil, err
 		}
