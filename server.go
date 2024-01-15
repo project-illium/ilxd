@@ -235,6 +235,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 
 	// Create wallet
 	walletOpts := []walletlib.Option{
+		walletlib.Prover(prover),
 		walletlib.DataDir(config.WalletDir),
 		walletlib.Params(netParams),
 		walletlib.FeePerKB(policy.GetMinFeePerKilobyte()),

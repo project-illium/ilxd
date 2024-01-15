@@ -34,7 +34,7 @@ func (pub *StakePublicParams) ToExpr() (string, error) {
 		"(cons nil " + // Mint ID
 		fmt.Sprintf("(cons %d ", 0) + // Mint amount
 		"(cons nil " +
-		fmt.Sprintf(" (cons %d ", pub.LockedUntil.Unix()) +
+		fmt.Sprintf("(cons %d ", pub.LockedUntil.Unix()) +
 		fmt.Sprintf("(cons %d ", 0) +
 		"nil))))))))))"
 

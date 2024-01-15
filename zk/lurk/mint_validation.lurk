@@ -55,7 +55,10 @@
                                   (hash-branches new-h (cdr hashes))
                                   new-h)))))
 
-                       (= (hash-branches leaf hashes) root))))
+                       (if hashes
+                           (= (hash-branches leaf hashes) root) ;; All others
+                           (= leaf root)                        ;; Genesis coinbase
+                       ))))
 
                ;; validate-output validates that the provided private output
                ;; data matches the public output commitment found in the

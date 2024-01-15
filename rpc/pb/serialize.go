@@ -40,14 +40,14 @@ func (r *RawTransaction) UnmarshalJSON(data []byte) error {
 }
 
 type privateInputJSON struct {
-	Amount           uint64               `json:"amount"`
-	AssetID          types.HexEncodable   `json:"assetID"`
-	Salt             types.HexEncodable   `json:"salt"`
-	State            types.HexEncodable   `json:"state"`
-	TxoProof         *TxoProof            `json:"txoProof"`
-	ScriptCommitment types.HexEncodable   `json:"scriptCommitment"`
-	LockingParams    []types.HexEncodable `json:"lockingParams"`
-	UnlockingParams  string               `json:"unlockingParams"`
+	Amount          uint64               `json:"amount"`
+	AssetID         types.HexEncodable   `json:"assetID"`
+	Salt            types.HexEncodable   `json:"salt"`
+	State           types.HexEncodable   `json:"state"`
+	TxoProof        *TxoProof            `json:"txoProof"`
+	Script          string               `json:"script"`
+	LockingParams   []types.HexEncodable `json:"lockingParams"`
+	UnlockingParams string               `json:"unlockingParams"`
 }
 
 func (i *PrivateInput) MarshalJSON() ([]byte, error) {
@@ -56,14 +56,14 @@ func (i *PrivateInput) MarshalJSON() ([]byte, error) {
 		params = append(params, p)
 	}
 	s := &privateInputJSON{
-		Amount:           i.Amount,
-		Salt:             i.Salt,
-		AssetID:          i.Asset_ID,
-		State:            i.State,
-		ScriptCommitment: i.ScriptCommitment,
-		LockingParams:    params,
-		TxoProof:         i.TxoProof,
-		UnlockingParams:  i.UnlockingParams,
+		Amount:          i.Amount,
+		Salt:            i.Salt,
+		AssetID:         i.Asset_ID,
+		State:           i.State,
+		Script:          i.Script,
+		LockingParams:   params,
+		TxoProof:        i.TxoProof,
+		UnlockingParams: i.UnlockingParams,
 	}
 	return json.Marshal(s)
 }
@@ -80,14 +80,14 @@ func (i *PrivateInput) UnmarshalJSON(data []byte) error {
 	}
 
 	*i = PrivateInput{
-		Amount:           input.Amount,
-		Salt:             input.Salt,
-		Asset_ID:         input.AssetID,
-		State:            input.State,
-		ScriptCommitment: input.ScriptCommitment,
-		LockingParams:    params,
-		TxoProof:         input.TxoProof,
-		UnlockingParams:  input.UnlockingParams,
+		Amount:          input.Amount,
+		Salt:            input.Salt,
+		Asset_ID:        input.AssetID,
+		State:           input.State,
+		Script:          input.Script,
+		LockingParams:   params,
+		TxoProof:        input.TxoProof,
+		UnlockingParams: input.UnlockingParams,
 	}
 	return nil
 }

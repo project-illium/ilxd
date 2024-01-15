@@ -69,6 +69,9 @@ func (ip *InclusionProof) ToExpr() (string, error) {
 	for i := 0; i < len(ip.Hashes)-1; i++ {
 		hashes += ")"
 	}
+	if len(ip.Hashes) == 0 {
+		hashes = "nil"
+	}
 	return hashes, nil
 }
 
