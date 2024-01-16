@@ -1387,10 +1387,9 @@ func pbIOtoIO(ios []*pb.WalletTransaction_IO) []interface{} {
 var provingPhrases = []string{
 	"Hang tight! We're doing moon math.",
 	"Patience, we're bending the laws of math for you.",
-	"Calculating... our wizards are at work!",
 	"Hang in there, we're bending the fabric of the cosmos.",
 	"Just a sec, bending the blockchain to our will.",
 	"Hang tight, your transaction is in the oven.",
-	"Sit tight, revving up the engines.",
+	"Sit tight, charging warp coils.",
 	"Be patient, traveling through hyperspace ain't like dusting crops.",
 }
