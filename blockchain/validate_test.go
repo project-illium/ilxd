@@ -796,6 +796,19 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: bytes.Repeat([]byte{0x01}, CiphertextLen),
+							},
+						},
+						Asset_ID:   hash.HashFunc(mintRawPubkey),
+						MintKey:    mintKeyBytes,
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot[:],
+					}),
+					transactions.WrapTransaction(&transactions.MintTransaction{
+						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
+						Outputs: []*transactions.Output{
+							{
+								Commitment: make([]byte, types.CommitmentLen),
 								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
@@ -803,19 +816,6 @@ func TestValidateBlock(t *testing.T) {
 						TxoRoot:    txoRoot[:],
 						Asset_ID:   hash.HashFunc(mintRawPubkey),
 						MintKey:    mintKeyBytes,
-					}),
-					transactions.WrapTransaction(&transactions.MintTransaction{
-						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
-						Outputs: []*transactions.Output{
-							{
-								Commitment: make([]byte, types.CommitmentLen),
-								Ciphertext: bytes.Repeat([]byte{0x01}, CiphertextLen),
-							},
-						},
-						Asset_ID:   mintRawPubkey,
-						MintKey:    hash.HashFunc(mintKeyBytes),
-						Nullifiers: [][]byte{nullifier[:]},
-						TxoRoot:    txoRoot[:],
 					}),
 				}
 

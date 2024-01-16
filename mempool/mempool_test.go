@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	icrypto "github.com/project-illium/ilxd/crypto"
+	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
@@ -195,7 +196,7 @@ func TestMempool(t *testing.T) {
 		{
 			name: "valid mint tx",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Asset_ID: mintRawPubkey,
+				Asset_ID: hash.HashFunc(mintRawPubkey),
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
 				MintKey:  mintKeyBytes,
 				Outputs: []*transactions.Output{
@@ -226,7 +227,7 @@ func TestMempool(t *testing.T) {
 		{
 			name: "mint tx fee too low",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Asset_ID: mintRawPubkey,
+				Asset_ID: hash.HashFunc(mintRawPubkey),
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
 				MintKey:  mintKeyBytes,
 				Outputs: []*transactions.Output{
@@ -257,7 +258,7 @@ func TestMempool(t *testing.T) {
 		{
 			name: "mint nullifier already in pool",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
-				Asset_ID: mintRawPubkey,
+				Asset_ID: hash.HashFunc(mintRawPubkey),
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
 				MintKey:  mintKeyBytes,
 				Outputs: []*transactions.Output{

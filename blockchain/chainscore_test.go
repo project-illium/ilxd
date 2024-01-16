@@ -14,12 +14,14 @@ import (
 )
 
 func TestBlockchain_CalcChainScore(t *testing.T) {
-	testHarness, err := harness.NewTestHarness(harness.DefaultOptions())
+	testHarness, err := harness.NewTestHarness(harness.DefaultOptions(), harness.Pregenerate(0))
 	assert.NoError(t, err)
 
 	assert.NoError(t, testHarness.GenerateBlocks(10))
 
-	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(testHarness.Blockchain().Params()), blockchain.Verifier(&zk.MockVerifier{}))
+	verifier := &zk.MockVerifier{}
+	verifier.SetValid(true)
+	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(testHarness.Blockchain().Params()), blockchain.Verifier(verifier))
 	assert.NoError(t, err)
 
 	for i := uint32(1); i < 5; i++ {

@@ -19,7 +19,7 @@ import (
 )
 
 func TestGenerator(t *testing.T) {
-	testHarness, err := harness.NewTestHarness(harness.DefaultOptions())
+	testHarness, err := harness.NewTestHarness(harness.DefaultOptions(), harness.Pregenerate(0))
 	assert.NoError(t, err)
 
 	verifier := &zk.MockVerifier{}

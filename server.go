@@ -544,7 +544,10 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 			s.mempool.RemoveBlockTransactions(blk.Transactions)
 
 			s.autoStakeLock.RLock()
-			toStake := s.coinbasesToStake
+			toStake := make(map[types.ID]struct{})
+			for key := range s.coinbasesToStake {
+				toStake[key.Clone()] = struct{}{}
+			}
 			s.autoStakeLock.RUnlock()
 			if len(toStake) > 0 {
 				for txid := range toStake {
