@@ -241,7 +241,7 @@ func TestStakePublicParams_ToExpr(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, macros.IsValidLurk(expr))
 
-	expected := `(cons 333333 (cons 0x258f7bccd5548075c0fb752ff19abb7dd1ee5c1d157c3fa93d125c452b743124 (cons (cons 0x17379becc7f415b7880349abe306e0f9a778317d88cedb923735d0be32268d0d nil) (cons 0x209cd61fca4bbbf52c43bc981659f8693999b6c16f840c6f2b29c7ec17ca5de9 (cons 0 (cons nil (cons 0 (cons nil  (cons 54321 (cons 0 nil))))))))))`
+	expected := `(cons 333333 (cons 0x320b5ea99e653bc2b593db4130d10a4efd3a0b4cc2e1a6672b678d71dfbd33ad (cons (cons 0x143aa29cb26d5a16e077395c7760432bdef05afeee6327f53df8217d1502dc63 nil) (cons 0x2fb047a7e9f84cb45b459c5cee3a54bb1b69ce73cd2b3a0b3794a0a875eb0618 (cons 0 (cons nil (cons 0 (cons nil (cons 54321 (cons 0 nil))))))))))`
 	assert.Equal(t, expected, expr)
 }
 

@@ -132,7 +132,7 @@ func TestMacroImports(t *testing.T) {
 				(plus-two 10)
 			))`,
 			modules:  []module{{path: filepath.Join(tempDir, "mod.lurk"), file: mod1}},
-			expected: "(letrec ((my-func (lambda (y) (if (eq (<= (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params)))))))))) 30) nil) nil(plus-two 10))))))",
+			expected: "(letrec ((my-func (lambda (y) (if (eq (<= (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params))))))))) 30) nil) nil(plus-two 10))))))",
 		},
 		{
 			input: `!(defun my-func (y) (
