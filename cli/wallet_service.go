@@ -21,7 +21,9 @@ import (
 	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/ilxd/zk/circparams"
 	"github.com/project-illium/walletlib"
+	"github.com/pterm/pterm"
 	"google.golang.org/protobuf/proto"
+	mrand "math/rand"
 	"strings"
 )
 
@@ -650,9 +652,14 @@ func (x *ProveMultisig) Execute(args []string) error {
 		prover = &zk.MockProver{}
 	}
 
-	proof, err := prover.Prove(zk.StandardValidationProgram(), privateParams, publicParams)
+	spinner, err := pterm.DefaultSpinner.Start(provingPhrases[mrand.Intn(len(provingPhrases))])
 	if err != nil {
 		return err
+	}
+	proof, err := prover.Prove(zk.StandardValidationProgram(), privateParams, publicParams)
+	if err != nil {
+		spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
+		return nil
 	}
 
 	standardTx.Proof = proof
@@ -661,15 +668,17 @@ func (x *ProveMultisig) Execute(args []string) error {
 	if x.Serialize {
 		ser, err := proto.Marshal(tx)
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error serializing transaction: %s", err.Error()))
+			return nil
 		}
-		fmt.Println(hex.EncodeToString(ser))
+		spinner.Success(hex.EncodeToString(ser))
 	} else {
 		out, err := json.MarshalIndent(tx, "", "    ")
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error serializing transaction: %s", err.Error()))
+			return nil
 		}
-		fmt.Println(string(out))
+		spinner.Success(string(out))
 	}
 	return nil
 }
@@ -985,23 +994,30 @@ func (x *ProveRawTransaction) Execute(args []string) error {
 		prover = &zk.MockProver{}
 	}
 
+	spinner, err := pterm.DefaultSpinner.Start(provingPhrases[mrand.Intn(len(provingPhrases))])
+	if err != nil {
+		return err
+	}
 	var tx *transactions.Transaction
 	if privKeys != nil || hasUnlockingParams {
 		tx, err = proveRawTransactionLocally(&rawTx, privKeys, prover)
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
+			return nil
 		}
 	} else {
 		client, err := makeWalletClient(x.opts)
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
+			return nil
 		}
 
 		resp, err := client.ProveRawTransaction(makeContext(x.opts.AuthToken), &pb.ProveRawTransactionRequest{
 			RawTx: &rawTx,
 		})
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
+			return nil
 		}
 		tx = resp.ProvedTx
 	}
@@ -1009,15 +1025,17 @@ func (x *ProveRawTransaction) Execute(args []string) error {
 	if x.Serialize {
 		ser, err := proto.Marshal(tx)
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error serializing transaction: %s", err.Error()))
+			return nil
 		}
-		fmt.Println(hex.EncodeToString(ser))
+		spinner.Success(hex.EncodeToString(ser))
 	} else {
 		out, err := json.MarshalIndent(tx, "", "    ")
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error serializing transaction: %s", err.Error()))
+			return nil
 		}
-		fmt.Println(string(out))
+		spinner.Success(string(out))
 	}
 	return nil
 }
@@ -1102,16 +1120,21 @@ func (x *Spend) Execute(args []string) error {
 		commitments = append(commitments, cBytes)
 	}
 
+	spinner, err := pterm.DefaultSpinner.Start(provingPhrases[mrand.Intn(len(provingPhrases))])
+	if err != nil {
+		return err
+	}
 	if x.SpendAll {
 		resp, err := client.SweepWallet(makeContext(x.opts.AuthToken), &pb.SweepWalletRequest{
 			ToAddress:      x.Address,
 			FeePerKilobyte: x.FeePerKB,
 		})
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
+			return nil
 		}
 
-		fmt.Println(hex.EncodeToString(resp.Transaction_ID))
+		spinner.Success(hex.EncodeToString(resp.Transaction_ID))
 	} else {
 		resp, err := client.Spend(makeContext(x.opts.AuthToken), &pb.SpendRequest{
 			ToAddress:        x.Address,
@@ -1120,10 +1143,11 @@ func (x *Spend) Execute(args []string) error {
 			InputCommitments: commitments,
 		})
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
+			return nil
 		}
 
-		fmt.Println(hex.EncodeToString(resp.Transaction_ID))
+		spinner.Success(hex.EncodeToString(resp.Transaction_ID))
 	}
 
 	return nil
@@ -1358,4 +1382,15 @@ func pbIOtoIO(ios []*pb.WalletTransaction_IO) []interface{} {
 		}
 	}
 	return ret
+}
+
+var provingPhrases = []string{
+	"Hang tight! We're doing moon math.",
+	"Patience, we're bending the laws of math for you.",
+	"Calculating... our wizards are at work!",
+	"Hang in there, we're bending the fabric of the cosmos.",
+	"Just a sec, bending the blockchain to our will.",
+	"Hang tight, your transaction is in the oven.",
+	"Sit tight, revving up the engines.",
+	"Be patient, traveling through hyperspace ain't like dusting crops.",
 }

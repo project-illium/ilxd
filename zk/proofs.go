@@ -162,6 +162,9 @@ func createProof(lurkProgram, privateParams, publicParams string) ([]byte, Tag, 
 }
 
 func verifyProof(lurkProgram, publicParams string, proof, expectedTag, expectedOutput []byte) (bool, error) {
+	if len(proof) == 0 {
+		return false, errors.New("proof is nil")
+	}
 	clurkProgram := C.CString(lurkProgram)
 	cpublicParams := C.CString(publicParams)
 
