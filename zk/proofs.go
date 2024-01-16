@@ -48,14 +48,28 @@ import (
 	"unsafe"
 )
 
+const (
+	// EstimatedProofSize is the estimated size (in bytes) of the transaction
+	// proofs. These vary slightly for each transaction type.
+	EstimatedProofSize = 11500
+
+	// LurkMaxFieldElement is the maximum value for a field element in lurk.
+	// In practice this means lurk script variables cannot exceed this value.
+	LurkMaxFieldElement = "40000000000000000000000000000000224698fc0994a8dd8c46eb2100000000"
+)
+
 var once sync.Once
 
+// Parameters is an interface for script private or public
+// parameters that converts a struct to a lurk list usable
+// by a script.
 type Parameters interface {
 	// ToExpr marshals the Parameters to a string
 	// expression used by lurk.
 	ToExpr() (string, error)
 }
 
+// Expr is a Parameters type that wraps a string expression
 type Expr string
 
 func (p Expr) ToExpr() (string, error) {
