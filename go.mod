@@ -21,7 +21,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.11.0
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/nixberg/chacha-rng-go v0.1.0
-	github.com/project-illium/walletlib v0.0.0-20240116182005-1a76f4bbe69e
+	github.com/project-illium/walletlib v0.0.0-20240116212128-22087f7cea19
 	github.com/project-illium/weightedrand/v2 v2.1.0
 	github.com/pterm/pterm v0.12.74
 	github.com/stretchr/testify v1.8.4
