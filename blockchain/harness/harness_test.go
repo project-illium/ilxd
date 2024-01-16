@@ -12,8 +12,6 @@ import (
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
-	"github.com/project-illium/ilxd/zk"
-	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 	"os"
@@ -74,56 +72,8 @@ func TestNewTestHarness(t *testing.T) {
 		Nullifiers: [][]byte{nullifer[:]},
 		TxoRoot:    root[:],
 		Fee:        10,
+		Proof:      make([]byte, 11000),
 	}
-
-	sighash, err := tx.SigHash()
-	assert.NoError(t, err)
-
-	privateParams := standard.PrivateParams{
-		Inputs: []standard.PrivateInput{
-			{
-				SpendNote: types.SpendNote{
-					Amount:  notes[0].Note.Amount,
-					Salt:    notes[0].Note.Salt,
-					AssetID: notes[0].Note.AssetID,
-					State:   notes[0].Note.State,
-				},
-				CommitmentIndex: proof.Index,
-				InclusionProof: standard.InclusionProof{
-					Hashes: proof.Hashes,
-					Flags:  proof.Flags,
-				},
-				ScriptCommitment: notes[0].LockingScript.ScriptCommitment.Bytes(),
-				ScriptParams:     notes[0].LockingScript.LockingParams,
-				UnlockingParams:  make([]byte, 64),
-			},
-		},
-		Outputs: []standard.PrivateOutput{
-			{
-				SpendNote: types.SpendNote{
-					ScriptHash: outScriptHash,
-					Amount:     outNote.Note.Amount,
-					Salt:       outNote.Note.Salt,
-					State:      outNote.Note.State,
-					AssetID:    outNote.Note.AssetID,
-				},
-			},
-		},
-	}
-	publicParams := standard.PublicParams{
-		TXORoot: root[:],
-		SigHash: sighash,
-		Outputs: []standard.PublicOutput{
-			{
-				Commitment: tx.Outputs[0].Commitment,
-				CipherText: tx.Outputs[0].Ciphertext,
-			},
-		},
-		Nullifiers: tx.Nullifiers,
-		Fee:        tx.Fee,
-	}
-	tx.Proof, err = zk.CreateSnark(standard.StandardCircuit, &privateParams, &publicParams)
-	assert.NoError(t, err)
 
 	err = h.GenerateBlockWithTransactions([]*transactions.Transaction{transactions.WrapTransaction(&tx)}, []*SpendableNote{outNote})
 	assert.NoError(t, err)

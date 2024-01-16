@@ -9,12 +9,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/project-illium/ilxd/blockchain"
 	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
-	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -99,7 +99,8 @@ func TestWalletServerIndex(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, proofs, 1)
 
-	valid := standard.ValidateInclusionProof(commitment.Bytes(), proofs[0].Index, proofs[0].Hashes, proofs[0].Flags, merkleRoot[:])
+	valid, err := blockchain.ValidateInclusionProof(commitment.Bytes(), proofs[0].Index, proofs[0].Hashes, proofs[0].Flags, merkleRoot[:])
+	assert.NoError(t, err)
 	assert.True(t, valid)
 
 	// Close the index, then repo and make sure it loads state correctly

@@ -229,20 +229,6 @@ func TestMintPrivateParams_ToExpr(t *testing.T) {
 func TestStakePublicParams_ToExpr(t *testing.T) {
 	rnd := deterministicRand{seed: 0}
 
-	o := make([]PublicOutput, 0, 1)
-	for i := 0; i < 1; i++ {
-		r := rnd.random()
-		out := PublicOutput{
-			Commitment: types.NewID(r[:]),
-			CipherText: make([]byte, 0, 226),
-		}
-		for x := 0; x < 7; x++ {
-			out.CipherText = append(out.CipherText, rnd.random()...)
-		}
-		out.CipherText = append(out.CipherText, rnd.random()[:2]...)
-		o = append(o, out)
-	}
-
 	s := StakePublicParams{
 		StakeAmount: 333333,
 		SigHash:     types.NewID(rnd.random()),
