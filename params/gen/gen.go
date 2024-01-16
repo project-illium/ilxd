@@ -18,6 +18,7 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
+	"github.com/project-illium/ilxd/zk/circparams"
 	"github.com/project-illium/walletlib"
 	"log"
 	"strings"
@@ -181,12 +182,13 @@ func main() {
 					},
 				},
 				Signature: nil,
-				Proof:     nil, // TODO
+				Proof:     nil,
 			}),
 			transactions.WrapTransaction(&transactions.StakeTransaction{
 				Validator_ID: validatorIDBytes,
 				Amount:       stakeAmt,
 				Nullifier:    nullifier.Bytes(),
+				LockedUntil:  0,
 				TxoRoot:      nil,
 				Signature:    nil,
 				Proof:        nil, // TODO
@@ -204,8 +206,13 @@ func main() {
 	}
 
 	acc := blockchain.NewAccumulator()
-	acc.Insert(blk.Transactions[0].GetCoinbaseTransaction().Outputs[0].Commitment, false)
+	acc.Insert(blk.Transactions[0].GetCoinbaseTransaction().Outputs[0].Commitment, true)
 	acc.Insert(blk.Transactions[0].GetCoinbaseTransaction().Outputs[1].Commitment, false)
+
+	inclProof, err := acc.GetProof(blk.Transactions[0].GetCoinbaseTransaction().Outputs[0].Commitment)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	blk.Transactions[1].GetStakeTransaction().TxoRoot = acc.Root().Bytes()
 
@@ -217,6 +224,66 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	cbPrivParams := &circparams.CoinbasePrivateParams{
+		{
+			ScriptHash: note0.ScriptHash,
+			Amount:     note0.Amount,
+			AssetID:    note0.AssetID,
+			Salt:       note0.Salt,
+			State:      note0.State,
+		},
+		{
+			ScriptHash: note1.ScriptHash,
+			Amount:     note1.Amount,
+			AssetID:    note1.AssetID,
+			Salt:       note1.Salt,
+			State:      note1.State,
+		},
+	}
+
+	cbPubParams, err := blk.Transactions[0].GetCoinbaseTransaction().ToCircuitParams()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cbProof, err := zk.Prove(zk.CoinbaseValidationProgram(), cbPrivParams, cbPubParams)
+	if err != nil {
+		log.Fatal("cb proof err: ", err)
+	}
+	blk.Transactions[0].GetCoinbaseTransaction().Proof = cbProof
+
+	stakePubParams, err := blk.Transactions[1].GetStakeTransaction().ToCircuitParams()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sig, err := spendKey.Sign(sigHash)
+	if err != nil {
+		log.Fatal(err)
+	}
+	sigRx, sigRy, sigS := icrypto.UnmarshalSignature(sig)
+
+	stakePrivParams := &circparams.StakePrivateParams{
+		Amount:          note0.Amount,
+		AssetID:         note0.AssetID,
+		Salt:            note0.Salt,
+		State:           note0.State,
+		CommitmentIndex: 0,
+		InclusionProof: circparams.InclusionProof{
+			Hashes: inclProof.Hashes,
+			Flags:  inclProof.Flags,
+		},
+		Script:          zk.BasicTransferScript(),
+		LockingParams:   lockingScript.LockingParams,
+		UnlockingParams: fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS),
+	}
+
+	stakeProof, err := zk.Prove(zk.StakeValidationProgram(), stakePrivParams, stakePubParams)
+	if err != nil {
+		log.Fatal("stake proof err: ", err)
+	}
+	blk.Transactions[1].GetStakeTransaction().Proof = stakeProof
 
 	merkleRoot := blockchain.TransactionsMerkleRoot(blk.Transactions)
 	blk.Header.TxRoot = merkleRoot[:]
