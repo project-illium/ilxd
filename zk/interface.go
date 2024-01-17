@@ -49,7 +49,10 @@ func (l *LurkVerifier) Verify(program string, publicParams Parameters, proof []b
 // It does validate that the private and public parameters make
 // the program return true, but it does not actually create the
 // proof. Instead, it just returns random bytes.
-type MockProver struct{}
+type MockProver struct {
+	proofLen int
+	mtx      sync.RWMutex
+}
 
 // Prove creates a proof that the private and public params
 // make the program return true.
@@ -64,9 +67,23 @@ func (m *MockProver) Prove(program string, privateParams Parameters, publicParam
 	if !bytes.Equal(val, OutputTrue) {
 		return nil, errors.New("program did not return true")
 	}
-	proof := make([]byte, 11000)
+	proofLen := EstimatedProofSize
+	m.mtx.RLock()
+	if m.proofLen > 0 {
+		proofLen = m.proofLen
+	}
+	m.mtx.RUnlock()
+	proof := make([]byte, proofLen)
 	rand.Read(proof)
 	return proof, nil
+}
+
+// SetProofLen sets the length of the mock proof returned
+// by the Prove method.
+func (m *MockProver) SetProofLen(length int) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	m.proofLen = length
 }
 
 // MockVerifier does nto validate the proof at all and just

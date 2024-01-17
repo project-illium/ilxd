@@ -12,6 +12,7 @@ import (
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types/transactions"
+	"os"
 )
 
 const (
@@ -39,7 +40,6 @@ func DefaultOptions() Option {
 		}
 		cfg.networkKey = networkPriv
 		cfg.spendKey = spendPriv
-		cfg.pregenerate = 25000
 		cfg.params = &params.RegestParams
 		cfg.datastore = mock.NewMapDatastore()
 		cfg.nTxsPerBlock = 1
@@ -51,6 +51,7 @@ func DefaultOptions() Option {
 // Option is configuration option function for the Network
 type Option func(cfg *config) error
 
+// Params sets the parameters to initialize the chain with
 func Params(params *params.NetworkParams) Option {
 	return func(cfg *config) error {
 		cfg.params = params
@@ -58,6 +59,7 @@ func Params(params *params.NetworkParams) Option {
 	}
 }
 
+// Datastore sets the harness' datastore
 func Datastore(ds repo.Datastore) Option {
 	return func(cfg *config) error {
 		cfg.datastore = ds
@@ -65,6 +67,7 @@ func Datastore(ds repo.Datastore) Option {
 	}
 }
 
+// NetworkKey sets the harness' network key
 func NetworkKey(privKey crypto.PrivKey) Option {
 	return func(cfg *config) error {
 		cfg.networkKey = privKey
@@ -72,6 +75,7 @@ func NetworkKey(privKey crypto.PrivKey) Option {
 	}
 }
 
+// SpendKey sets the harness' spend key
 func SpendKey(privKey crypto.PrivKey) Option {
 	return func(cfg *config) error {
 		cfg.spendKey = privKey
@@ -79,20 +83,20 @@ func SpendKey(privKey crypto.PrivKey) Option {
 	}
 }
 
-func Pregenerate(nBlocks int) Option {
+// LoadBlocks loads the requested number of blocks from the file
+// instead of creating a new genesis block.
+func LoadBlocks(f *os.File, nBlocks int) Option {
 	return func(cfg *config) error {
-		cfg.pregenerate = nBlocks
+		cfg.blockFiles = append(cfg.blockFiles, &blockFile{
+			f:       f,
+			nBlocks: nBlocks,
+		})
 		return nil
 	}
 }
 
-func Extension(extension bool) Option {
-	return func(cfg *config) error {
-		cfg.extension = true
-		return nil
-	}
-}
-
+// GenesisOutputs is any additional outputs to start the
+// genesis block with.
 func GenesisOutputs(outputs []*transactions.Output) Option {
 	return func(cfg *config) error {
 		cfg.genesisOutputs = outputs
@@ -100,6 +104,7 @@ func GenesisOutputs(outputs []*transactions.Output) Option {
 	}
 }
 
+// InitialCoins in the number of coins to start the chain with
 func InitialCoins(n uint64) Option {
 	return func(cfg *config) error {
 		cfg.initialCoins = n
@@ -107,16 +112,20 @@ func InitialCoins(n uint64) Option {
 	}
 }
 
-func NBlocks(n int) Option {
+// NTxsPerBlock is the number of transactions to generate
+// in each block.
+func NTxsPerBlock(n int) Option {
 	return func(cfg *config) error {
-		cfg.nBlocks = n
+		cfg.nTxsPerBlock = n
 		return nil
 	}
 }
 
-func NTxsPerBlock(n int) Option {
+// WriteToFile optionally write the harness blocks
+// to a file.
+func WriteToFile(f *os.File) Option {
 	return func(cfg *config) error {
-		cfg.nTxsPerBlock = n
+		cfg.writeToFile = f
 		return nil
 	}
 }
@@ -127,8 +136,9 @@ type config struct {
 	networkKey     crypto.PrivKey
 	spendKey       crypto.PrivKey
 	genesisOutputs []*transactions.Output
-	pregenerate    int
-	extension      bool
+	writeToFile    *os.File
+	blockFiles     []*blockFile
+	readBlocks     int
 	initialCoins   uint64
 	nBlocks        int
 	nTxsPerBlock   int

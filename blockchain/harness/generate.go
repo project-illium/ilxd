@@ -235,7 +235,7 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 		for _, del := range toDelete {
 			delete(remainingNotes, del)
 		}
-		//fmt.Println(blk.Header.Height)
+		fmt.Println(blk.Header.Height)
 	}
 	return newBlocks, remainingNotes, nil
 }

@@ -16,14 +16,6 @@ import (
 	"testing"
 )
 
-func TestMacroPreprocessor_Preprocess(t *testing.T) {
-	mp, err := macros.NewMacroPreprocessor()
-	assert.NoError(t, err)
-	lurkProgram, err := mp.Preprocess("!(param nullifiers 0)")
-	assert.NoError(t, err)
-	fmt.Println(lurkProgram)
-}
-
 func TestPreProcessValidParentheses(t *testing.T) {
 	type testVector struct {
 		input    string

@@ -16,6 +16,21 @@ package zk
 #cgo darwin LDFLAGS: -Lrust/target/release -Lrust/target/x86_64-apple-darwin/release -lillium_zk -lc++ -lssl -lcrypto -framework SystemConfiguration
 #include <stdlib.h>
 #include <stdint.h>
+#include <unistd.h>
+#include <fcntl.h>
+// Function to save the current stderr file descriptor and redirect stderr to /dev/null
+int redirect_stderr() {
+    int stderr_copy = dup(2);
+    int dev_null = open("/dev/null", O_WRONLY);
+    dup2(dev_null, 2);
+    close(dev_null);
+    return stderr_copy;
+}
+// Function to restore stderr from the saved file descriptor
+void restore_stderr(int stderr_copy) {
+    dup2(stderr_copy, 2);
+    close(stderr_copy);
+}
 void load_public_params();
 int create_proof_ffi(
     const char* lurk_program,
@@ -80,8 +95,11 @@ func (p Expr) ToExpr() (string, error) {
 // into memory or generates them if this is the first startup.
 func LoadZKPublicParameters() {
 	once.Do(func() {
-		log.Info("Loading lurk public parameters...")
+		// Redirect stderr to /dev/null
+		stderrCopy := C.redirect_stderr()
 		C.load_public_params()
+		// Restore stderr
+		C.restore_stderr(stderrCopy)
 	})
 }
 

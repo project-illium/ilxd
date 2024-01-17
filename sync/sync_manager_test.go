@@ -113,8 +113,10 @@ func TestSyncFromChooser(t *testing.T) {
 
 	harness2, err := net.harness.Clone()
 	assert.NoError(t, err)
-	net.harness.GenerateBlocks(1)
-	harness2.GenerateBlocks(2)
+	err = net.harness.GenerateBlocks(1)
+	assert.NoError(t, err)
+	err = harness2.GenerateBlocks(2)
+	assert.NoError(t, err)
 
 	choiceID, err := harness2.Blockchain().GetBlockIDByHeight(1001)
 	assert.NoError(t, err)

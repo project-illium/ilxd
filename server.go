@@ -32,6 +32,7 @@ import (
 	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/walletlib"
 	"github.com/project-illium/walletlib/client"
+	"github.com/pterm/pterm"
 	"go.uber.org/zap"
 	"sort"
 	stdsync "sync"
@@ -154,7 +155,10 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		verifier = v
 	} else {
 		// Load public parameters
+		loadingSpinner, _ := pterm.DefaultSpinner.Start("Loading lurk public parameters...")
 		zk.LoadZKPublicParameters()
+		fmt.Print("\033[A\033[K")
+		loadingSpinner.Success("Loaded parameters")
 		prover = &zk.LurkProver{}
 		verifier = &zk.LurkVerifier{}
 	}
