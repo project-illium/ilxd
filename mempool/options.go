@@ -9,6 +9,7 @@ import (
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/zk"
 	"time"
 )
 
@@ -55,6 +56,16 @@ func BlockchainView(cv ChainView) Option {
 func Params(params *params.NetworkParams) Option {
 	return func(cfg *config) error {
 		cfg.params = params
+		return nil
+	}
+}
+
+// Verifier is an implementation of the zk-snark Verifier interface.
+//
+// This option is required.
+func Verifier(verifier zk.Verifier) Option {
+	return func(cfg *config) error {
+		cfg.verifier = verifier
 		return nil
 	}
 }
@@ -132,6 +143,7 @@ type config struct {
 	minStake          types.Amount
 	sigCache          *blockchain.SigCache
 	proofCache        *blockchain.ProofCache
+	verifier          zk.Verifier
 	treasuryWhitelist map[types.ID]bool
 	transactionTTL    time.Duration
 }
@@ -151,6 +163,9 @@ func (cfg *config) validate() error {
 	}
 	if cfg.proofCache == nil {
 		return AssertError("NewMempool: proof cache cannot be nil")
+	}
+	if cfg.verifier == nil {
+		return AssertError("NewMempool: verifier cannot be nil")
 	}
 	return nil
 }

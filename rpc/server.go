@@ -18,6 +18,7 @@ import (
 	"github.com/project-illium/ilxd/rpc/pb"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/walletlib"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
@@ -38,6 +39,7 @@ type GrpcServerConfig struct {
 	Chain                *blockchain.Blockchain
 	Network              *net.Network
 	Wallet               *walletlib.Wallet
+	Prover               zk.Prover
 	Policy               *policy.Policy
 	BroadcastTxFunc      func(tx *transactions.Transaction) error
 	SetLogLevelFunc      func(level zapcore.Level)
@@ -66,6 +68,7 @@ type GrpcServer struct {
 	network          *net.Network
 	policy           *policy.Policy
 	wallet           *walletlib.Wallet
+	prover           zk.Prover
 	broadcastTxFunc  func(tx *transactions.Transaction) error
 	setLogLevelFunc  func(level zapcore.Level)
 	reindexChainFunc func() error
@@ -98,6 +101,7 @@ func NewGrpcServer(cfg *GrpcServerConfig) *GrpcServer {
 		txMemPool:        cfg.TxMemPool,
 		network:          cfg.Network,
 		wallet:           cfg.Wallet,
+		prover:           cfg.Prover,
 		broadcastTxFunc:  cfg.BroadcastTxFunc,
 		setLogLevelFunc:  cfg.SetLogLevelFunc,
 		reindexChainFunc: cfg.ReindexChainFunc,

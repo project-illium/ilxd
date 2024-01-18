@@ -16,14 +16,6 @@ import (
 	"testing"
 )
 
-func TestMacroPreprocessor_Preprocess(t *testing.T) {
-	mp, err := macros.NewMacroPreprocessor()
-	assert.NoError(t, err)
-	lurkProgram, err := mp.Preprocess("!(param nullifiers 0)")
-	assert.NoError(t, err)
-	fmt.Println(lurkProgram)
-}
-
 func TestPreProcessValidParentheses(t *testing.T) {
 	type testVector struct {
 		input    string
@@ -56,11 +48,10 @@ func TestPreProcessValidParentheses(t *testing.T) {
 		{"!(param sighash)", "(car public-params)"},
 		{"!(param txo-root)", "(car (cdr (cdr public-params)))"},
 		{"!(param fee)", "(car (cdr (cdr (cdr public-params))))"},
-		{"!(param coinbase)", "(car (cdr (cdr (cdr (cdr public-params)))))"},
-		{"!(param mint-id)", "(car (cdr (cdr (cdr (cdr (cdr public-params))))))"},
-		{"!(param mint-amount)", "(car (cdr (cdr (cdr (cdr (cdr (cdr public-params)))))))"},
-		{"!(param locktime)", "(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params)))))))))"},
-		{"!(param locktime-precision)", "(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params))))))))))"},
+		{"!(param mint-id)", "(car (cdr (cdr (cdr (cdr public-params)))))"},
+		{"!(param mint-amount)", "(car (cdr (cdr (cdr (cdr (cdr public-params))))))"},
+		{"!(param locktime)", "(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params))))))))"},
+		{"!(param locktime-precision)", "(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params)))))))))"},
 		{"!(param priv-in 2)", "(car (cdr (cdr (car private-params))))"},
 		{"!(param priv-out 3)", "(car (cdr (cdr (cdr (car (cdr private-params))))))"},
 		{"!(param priv-out 4)", "(car (cdr (cdr (cdr (cdr (car (cdr private-params)))))))"},
@@ -133,7 +124,7 @@ func TestMacroImports(t *testing.T) {
 				(plus-two 10)
 			))`,
 			modules:  []module{{path: filepath.Join(tempDir, "mod.lurk"), file: mod1}},
-			expected: "(letrec ((my-func (lambda (y) (if (eq (<= (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params)))))))))) 30) nil) nil(plus-two 10))))))",
+			expected: "(letrec ((my-func (lambda (y) (if (eq (<= (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params))))))))) 30) nil) nil(plus-two 10))))))",
 		},
 		{
 			input: `!(defun my-func (y) (

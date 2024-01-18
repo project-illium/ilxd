@@ -19,6 +19,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/ilxd/zk"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 	"testing"
@@ -234,12 +235,15 @@ func TestCheckBlockContext(t *testing.T) {
 
 func TestValidateBlock(t *testing.T) {
 	ds := mock.NewMapDatastore()
+	verifier := &zk.MockVerifier{}
+	verifier.SetValid(true)
 	b := Blockchain{
 		ds:           ds,
 		proofCache:   NewProofCache(30),
 		txoRootSet:   NewTxoRootSet(ds, 10),
 		nullifierSet: NewNullifierSet(ds, 10),
 		validatorSet: NewValidatorSet(&params.RegestParams, ds),
+		verifier:     verifier,
 	}
 	assert.NoError(t, dsInitTreasury(ds))
 	dbtx, err := ds.NewTransaction(context.Background(), false)
@@ -737,7 +741,7 @@ func TestValidateBlock(t *testing.T) {
 						MintKey:    mintKeyBytes,
 					}),
 				}
-				blk.Transactions[0].GetMintTransaction().Asset_ID = mintRawPubkey
+				blk.Transactions[0].GetMintTransaction().Asset_ID = hash.HashFunc(mintRawPubkey)
 
 				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
 				header.TxRoot = merkleRoot[:]
@@ -769,7 +773,7 @@ func TestValidateBlock(t *testing.T) {
 						MintKey:    mintKeyBytes,
 					}),
 				}
-				blk.Transactions[0].GetMintTransaction().Asset_ID = mintRawPubkey
+				blk.Transactions[0].GetMintTransaction().Asset_ID = hash.HashFunc(mintRawPubkey)
 
 				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
 				header.TxRoot = merkleRoot[:]
@@ -792,26 +796,26 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
-								Ciphertext: make([]byte, CiphertextLen),
+								Ciphertext: bytes.Repeat([]byte{0x01}, CiphertextLen),
 							},
 						},
+						Asset_ID:   hash.HashFunc(mintRawPubkey),
+						MintKey:    mintKeyBytes,
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
-						Asset_ID:   mintRawPubkey,
-						MintKey:    mintKeyBytes,
 					}),
 					transactions.WrapTransaction(&transactions.MintTransaction{
 						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
-								Ciphertext: bytes.Repeat([]byte{0x01}, CiphertextLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
-						Asset_ID:   mintRawPubkey,
-						MintKey:    mintKeyBytes,
 						Nullifiers: [][]byte{nullifier[:]},
 						TxoRoot:    txoRoot[:],
+						Asset_ID:   hash.HashFunc(mintRawPubkey),
+						MintKey:    mintKeyBytes,
 					}),
 				}
 
@@ -845,7 +849,7 @@ func TestValidateBlock(t *testing.T) {
 						TxoRoot:    txoRoot[:],
 					}),
 				}
-				blk.Transactions[0].GetMintTransaction().Asset_ID = mintRawPubkey
+				blk.Transactions[0].GetMintTransaction().Asset_ID = hash.HashFunc(mintRawPubkey)
 
 				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
 				header.TxRoot = merkleRoot[:]
@@ -1555,7 +1559,7 @@ func TestCheckTransactionSanity(t *testing.T) {
 			name: "mint valid variable supply",
 			tx: transactions.WrapTransaction(&transactions.MintTransaction{
 				Type:     transactions.MintTransaction_VARIABLE_SUPPLY,
-				Asset_ID: mintRawPubkey,
+				Asset_ID: hash.HashFunc(mintRawPubkey),
 				Outputs: []*transactions.Output{
 					{
 						Commitment: make([]byte, types.CommitmentLen),

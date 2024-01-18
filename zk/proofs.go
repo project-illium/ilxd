@@ -16,6 +16,21 @@ package zk
 #cgo darwin LDFLAGS: -Lrust/target/release -Lrust/target/x86_64-apple-darwin/release -lillium_zk -lc++ -lssl -lcrypto -framework SystemConfiguration
 #include <stdlib.h>
 #include <stdint.h>
+#include <unistd.h>
+#include <fcntl.h>
+// Function to save the current stderr file descriptor and redirect stderr to /dev/null
+int redirect_stderr() {
+    int stderr_copy = dup(2);
+    int dev_null = open("/dev/null", O_WRONLY);
+    dup2(dev_null, 2);
+    close(dev_null);
+    return stderr_copy;
+}
+// Function to restore stderr from the saved file descriptor
+void restore_stderr(int stderr_copy) {
+    dup2(stderr_copy, 2);
+    close(stderr_copy);
+}
 void load_public_params();
 int create_proof_ffi(
     const char* lurk_program,
@@ -48,14 +63,28 @@ import (
 	"unsafe"
 )
 
+const (
+	// EstimatedProofSize is the estimated size (in bytes) of the transaction
+	// proofs. These vary slightly for each transaction type.
+	EstimatedProofSize = 11500
+
+	// LurkMaxFieldElement is the maximum value for a field element in lurk.
+	// In practice this means lurk script variables cannot exceed this value.
+	LurkMaxFieldElement = "40000000000000000000000000000000224698fc0994a8dd8c46eb2100000000"
+)
+
 var once sync.Once
 
+// Parameters is an interface for script private or public
+// parameters that converts a struct to a lurk list usable
+// by a script.
 type Parameters interface {
 	// ToExpr marshals the Parameters to a string
 	// expression used by lurk.
 	ToExpr() (string, error)
 }
 
+// Expr is a Parameters type that wraps a string expression
 type Expr string
 
 func (p Expr) ToExpr() (string, error) {
@@ -66,8 +95,11 @@ func (p Expr) ToExpr() (string, error) {
 // into memory or generates them if this is the first startup.
 func LoadZKPublicParameters() {
 	once.Do(func() {
-		log.Info("Loading lurk public parameters...")
+		// Redirect stderr to /dev/null
+		stderrCopy := C.redirect_stderr()
 		C.load_public_params()
+		// Restore stderr
+		C.restore_stderr(stderrCopy)
 	})
 }
 
@@ -162,6 +194,9 @@ func createProof(lurkProgram, privateParams, publicParams string) ([]byte, Tag, 
 }
 
 func verifyProof(lurkProgram, publicParams string, proof, expectedTag, expectedOutput []byte) (bool, error) {
+	if len(proof) == 0 {
+		return false, errors.New("proof is nil")
+	}
 	clurkProgram := C.CString(lurkProgram)
 	cpublicParams := C.CString(publicParams)
 

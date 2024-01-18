@@ -32,6 +32,7 @@ import (
 	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/walletlib"
 	"github.com/project-illium/walletlib/client"
+	"github.com/pterm/pterm"
 	"go.uber.org/zap"
 	"sort"
 	stdsync "sync"
@@ -110,9 +111,6 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		golog.SetDebugLogging()
 	}
 
-	// Load public parameters
-	zk.LoadZKPublicParameters()
-
 	// Policy
 	policy := policy2.NewPolicy(
 		types.Amount(config.Policy.MinFeePerKilobyte),
@@ -141,6 +139,28 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		}
 	} else {
 		netParams = &params.MainnetParams
+	}
+
+	var (
+		prover   zk.Prover
+		verifier zk.Verifier
+	)
+	if config.MockProofs {
+		if !netParams.AllowMockProofs {
+			return nil, errors.New("mock proofs not allowed with network params selection")
+		}
+		prover = &zk.MockProver{}
+		v := &zk.MockVerifier{}
+		v.SetValid(true)
+		verifier = v
+	} else {
+		// Load public parameters
+		loadingSpinner, _ := pterm.DefaultSpinner.Start("Loading lurk public parameters...")
+		zk.LoadZKPublicParameters()
+		fmt.Print("\033[A\033[K")
+		loadingSpinner.Success("Loaded parameters")
+		prover = &zk.LurkProver{}
+		verifier = &zk.LurkVerifier{}
 	}
 
 	if config.CoinbaseAddress != "" {
@@ -189,6 +209,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		blockchain.MaxTxoRoots(blockchain.DefaultMaxTxoRoots),
 		blockchain.SignatureCache(sigCache),
 		blockchain.SnarkProofCache(proofCache),
+		blockchain.Verifier(verifier),
 	}
 
 	if config.Prune {
@@ -218,6 +239,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 
 	// Create wallet
 	walletOpts := []walletlib.Option{
+		walletlib.Prover(prover),
 		walletlib.DataDir(config.WalletDir),
 		walletlib.Params(netParams),
 		walletlib.FeePerKB(policy.GetMinFeePerKilobyte()),
@@ -297,6 +319,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		mempool.BlockchainView(chain),
 		mempool.MinStake(policy.GetMinStake()),
 		mempool.FeePerKilobyte(policy.GetMinFeePerKilobyte()),
+		mempool.Verifier(verifier),
 	}
 
 	mpool, err := mempool.NewMempool(mempoolOpts...)
@@ -354,6 +377,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		Network:              network,
 		Policy:               policy,
 		Wallet:               wallet,
+		Prover:               prover,
 		BroadcastTxFunc:      s.submitTransaction,
 		SetLogLevelFunc:      zapLevel.SetLevel,
 		ReindexChainFunc:     s.reIndexChain,
@@ -412,6 +436,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		IsCurrentCallback: s.handleCurrentStatusChange,
 		ProofCache:        proofCache,
 		SigCache:          sigCache,
+		Verifier:          verifier,
 	})
 	s.orphanBlocks = make(map[types.ID]*orphanBlock)
 	s.activeInventory = make(map[types.ID]*blocks.Block)
@@ -523,7 +548,10 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 			s.mempool.RemoveBlockTransactions(blk.Transactions)
 
 			s.autoStakeLock.RLock()
-			toStake := s.coinbasesToStake
+			toStake := make(map[types.ID]struct{})
+			for key := range s.coinbasesToStake {
+				toStake[key.Clone()] = struct{}{}
+			}
 			s.autoStakeLock.RUnlock()
 			if len(toStake) > 0 {
 				for txid := range toStake {

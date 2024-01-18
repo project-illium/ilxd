@@ -13,7 +13,6 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
-	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 	"math"
@@ -21,7 +20,9 @@ import (
 )
 
 func TestBlockchain(t *testing.T) {
-	b, err := NewBlockchain(DefaultOptions())
+	verifier := &zk.MockVerifier{}
+	verifier.SetValid(true)
+	b, err := NewBlockchain(DefaultOptions(), Verifier(verifier))
 	assert.NoError(t, err)
 
 	// Chain should have genesis block
@@ -46,42 +47,10 @@ func TestBlockchain(t *testing.T) {
 	assert.Equal(t, 1, len(b.validatorSet.validators))
 	assert.Equal(t, types.Amount(params.RegestParams.GenesisBlock.Transactions[1].GetStakeTransaction().Amount), b.validatorSet.TotalStaked())
 
-	// Try connecting the gensis block again and make sure it raises a dup block error
+	// Try connecting the genesis block again and make sure it raises a dup block error
 	assert.Error(t, b.ConnectBlock(b.params.GenesisBlock, BFGenesisValidation))
 
 	// Test treasury withdrawal
-	lockingScript := types.LockingScript{
-		ScriptCommitment: types.ID{},
-	}
-	scriptHash, err := lockingScript.Hash()
-	assert.NoError(t, err)
-	note := types.SpendNote{
-		ScriptHash: scriptHash,
-		Amount:     10000,
-	}
-
-	commitment, err := note.Commitment()
-	assert.NoError(t, err)
-	proof, err := zk.CreateSnark(standard.StandardCircuit,
-		&standard.PrivateParams{
-			Outputs: []standard.PrivateOutput{
-				{
-					SpendNote: types.SpendNote{
-						ScriptHash: scriptHash,
-						Amount:     10000,
-					},
-				},
-			},
-		}, &standard.PublicParams{
-			Outputs: []standard.PublicOutput{
-				{
-					Commitment: commitment[:],
-					CipherText: nil,
-				},
-			},
-			Coinbase: 10000,
-		})
-	assert.NoError(t, err)
 	blk := &blocks.Block{
 		Header: &blocks.BlockHeader{
 			Version:   1,
@@ -99,7 +68,7 @@ func TestBlockchain(t *testing.T) {
 					},
 				},
 				ProposalHash: make([]byte, MaxDocumentHashLen),
-				Proof:        proof,
+				Proof:        make([]byte, 11000),
 			}),
 		},
 	}

@@ -25,6 +25,7 @@ var passwordScriptData string
 //go:embed lurk/multisig_script.lurk
 var multisigScriptLurk embed.FS
 var multisigScriptData string
+var multisigCommitment []byte
 
 //go:embed lurk/timelocked_multisig.lurk
 var timelockedMultisigScriptLurk embed.FS
@@ -79,6 +80,10 @@ func init() {
 		panic(err)
 	}
 	multisigScriptData, err = mp.Preprocess(string(data))
+	if err != nil {
+		panic(err)
+	}
+	multisigCommitment, err = LurkCommit(multisigScriptData)
 	if err != nil {
 		panic(err)
 	}
@@ -145,6 +150,14 @@ func PasswordScript() string {
 // MultisigScript returns the multsig lurk script
 func MultisigScript() string {
 	return multisigScriptData
+}
+
+// MultisigScriptCommitment returns the script commitment hash
+// for the multisig script.
+func MultisigScriptCommitment() []byte {
+	ret := make([]byte, len(multisigCommitment))
+	copy(ret, multisigCommitment)
+	return ret
 }
 
 // TimelockedMultisigScript returns the timelocked multisig lurk script

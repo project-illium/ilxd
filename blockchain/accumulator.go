@@ -7,8 +7,11 @@ package blockchain
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/zk"
+	"github.com/project-illium/ilxd/zk/circparams"
 )
 
 // InclusionProof is a merkle inclusion proof which proves that
@@ -321,6 +324,78 @@ func (a *Accumulator) Clone() *Accumulator {
 		proofs:    proofs,
 		lookupMap: lookupMap,
 	}
+}
+
+// ValidateInclusionProof validates that the inclusion proof links the data
+// and commitment index to the merkle root. This function mirrors the functionality
+// inside the transaction validation lurk programs.
+func ValidateInclusionProof(data []byte, commitmentIndex uint64, hashes [][]byte, flags uint64, root []byte) (bool, error) {
+	// Prepend the output commitment wih the index and hash
+	h := hash.HashWithIndex(data, commitmentIndex)
+
+	// Iterate over the hashes and hash with the previous has
+	// using the flags to determine the ordering.
+	for i := 0; i < len(hashes); i++ {
+		eval := flags & (1 << i)
+		if eval > 0 {
+			h = hash.HashMerkleBranches(h, hashes[i])
+		} else {
+			h = hash.HashMerkleBranches(hashes[i], h)
+		}
+	}
+
+	return bytes.Equal(h, root), nil
+}
+
+// EvalInclusionProof also validates the inclusion proof but uses the lurk program
+// that is used to validate transactions to do so.
+func EvalInclusionProof(data []byte, commitmentIndex uint64, hashes [][]byte, flags uint64, root []byte) (bool, error) {
+	h := hash.HashWithIndex(data, commitmentIndex)
+
+	ip := &circparams.InclusionProof{
+		Hashes: hashes,
+		Flags:  flags,
+	}
+
+	ipExpr, err := ip.ToExpr()
+	if err != nil {
+		return false, err
+	}
+
+	program := fmt.Sprintf(`
+			(lambda (priv pub)
+				(letrec (
+                            (cat-and-hash (lambda (a b)
+                                    			(eval (cons 'coproc_blake2s (cons a (cons b nil))))))
+
+							(validate-inclusion-proof (lambda (leaf hashes root)
+								   (letrec (
+									   (hash-branches (lambda (h hashes)
+										   (let ((next-hash (car hashes))
+												(val (car next-hash))
+												(new-h (if (cdr next-hash)
+													  (cat-and-hash h val)
+													  (cat-and-hash val h))))
+				
+											  (if (cdr hashes)
+												  (hash-branches new-h (cdr hashes))
+												  new-h)))))
+				
+									   (if hashes
+										   (= (hash-branches leaf hashes) root) ;; All others
+										   (= leaf root)                        ;; Genesis coinbase
+									   ))))
+							)
+							(validate-inclusion-proof 0x%x %s 0x%x)
+				)
+			)
+	`, h, ipExpr, root)
+
+	tag, output, _, err := zk.Eval(program, zk.Expr("nil"), zk.Expr("nil"))
+	if err != nil {
+		return false, err
+	}
+	return tag == zk.TagSym && bytes.Equal(output, zk.OutputTrue), nil
 }
 
 // The Insert method often checks the value of the accumulator element

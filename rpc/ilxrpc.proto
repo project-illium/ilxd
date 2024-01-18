@@ -1183,8 +1183,8 @@ message PrivateInput {
     // The txo proof linking the input
     // commitment to the accumulator
     TxoProof txo_proof            = 5;
-    // The locking function commitment
-    bytes script_commitment       = 6;
+    // The locking script
+    string script                 = 6;
     // The locking function parameters
     repeated bytes locking_params = 7;
     // Optional lurk expression used as

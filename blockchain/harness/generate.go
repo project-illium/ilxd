@@ -6,6 +6,7 @@ package harness
 
 import (
 	"crypto/rand"
+	"fmt"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
@@ -15,8 +16,7 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
-	"github.com/project-illium/ilxd/zk/circuits/stake"
-	"github.com/project-illium/ilxd/zk/circuits/standard"
+	"github.com/project-illium/ilxd/zk/circparams"
 	"time"
 )
 
@@ -76,15 +76,13 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				}
 				pubx, puby := pubKey.(*icrypto.NovaPublicKey).ToXY()
 
-				mockStandardScriptCommitment := make([]byte, 32)
-
 				salt, err := types.RandomSalt()
 				if err != nil {
 					return nil, nil, err
 				}
 
 				lockingScript := &types.LockingScript{
-					ScriptCommitment: types.NewID(mockStandardScriptCommitment),
+					ScriptCommitment: types.NewID(zk.BasicTransferScriptCommitment()),
 					LockingParams:    [][]byte{pubx, puby},
 				}
 				scriptHash, err := lockingScript.Hash()
@@ -139,65 +137,50 @@ func (h *TestHarness) generateBlocks(nBlocks int) ([]*blocks.Block, map[types.Nu
 				return nil, nil, err
 			}
 
-			mockUnlockingSig := make([]byte, 32)
-			rand.Read(mockUnlockingSig)
+			sig, err := sn.PrivateKey.Sign(sigHash)
+			if err != nil {
+				return nil, nil, err
+			}
 
-			privateParams := &standard.PrivateParams{
-				Inputs: []standard.PrivateInput{
+			sigRx, sigRy, sigS := icrypto.UnmarshalSignature(sig)
+
+			privateParams := &circparams.StandardPrivateParams{
+				Inputs: []circparams.PrivateInput{
 					{
-						SpendNote: types.SpendNote{
-							Amount:  sn.Note.Amount,
-							Salt:    sn.Note.Salt,
-							AssetID: sn.Note.AssetID,
-							State:   types.State{},
-						},
+						Amount:          sn.Note.Amount,
+						Salt:            sn.Note.Salt,
+						AssetID:         sn.Note.AssetID,
+						State:           sn.Note.State,
 						CommitmentIndex: inclusionProof.Index,
-						InclusionProof: standard.InclusionProof{
+						InclusionProof: circparams.InclusionProof{
 							Hashes: inclusionProof.Hashes,
 							Flags:  inclusionProof.Flags,
 						},
-						ScriptCommitment: sn.LockingScript.ScriptCommitment.Bytes(),
-						ScriptParams:     sn.LockingScript.LockingParams,
-						UnlockingParams:  mockUnlockingSig,
+						Script:          zk.BasicTransferScript(),
+						LockingParams:   sn.LockingScript.LockingParams,
+						UnlockingParams: fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS),
 					},
 				},
 			}
 			for _, outNote := range outputNotes {
-				privateParams.Outputs = append(privateParams.Outputs, standard.PrivateOutput{
-					SpendNote: types.SpendNote{
-						State:      types.State{},
-						Amount:     outNote.Note.Amount,
-						Salt:       outNote.Note.Salt,
-						AssetID:    outNote.Note.AssetID,
-						ScriptHash: outNote.cachedScriptHash,
-					},
+				privateParams.Outputs = append(privateParams.Outputs, circparams.PrivateOutput{
+					State:      outNote.Note.State,
+					Amount:     outNote.Note.Amount,
+					Salt:       outNote.Note.Salt,
+					AssetID:    outNote.Note.AssetID,
+					ScriptHash: outNote.cachedScriptHash,
 				})
 			}
 
-			publicOutputs := make([]standard.PublicOutput, len(outputNotes))
-			for i, output := range outputs {
-				publicOutputs[i] = standard.PublicOutput{
-					Commitment: output.Commitment,
-					CipherText: output.Ciphertext,
-				}
-			}
-
-			publicPrams := &standard.PublicParams{
-				TXORoot:    acc.Root().Bytes(),
-				SigHash:    sigHash,
-				Outputs:    publicOutputs,
-				Nullifiers: [][]byte{inNullifier.Bytes()},
-				Fee:        fee,
-				Coinbase:   0,
-				MintID:     nil,
-				MintAmount: 0,
-				Locktime:   time.Time{},
-			}
-
-			_, err = zk.CreateSnark(standard.StandardCircuit, privateParams, publicPrams)
+			publicPrams, err := standardTx.ToCircuitParams()
 			if err != nil {
 				return nil, nil, err
 			}
+			proof, err := h.prover.Prove(zk.StandardValidationProgram(), privateParams, publicPrams)
+			if err != nil {
+				return nil, nil, err
+			}
+			standardTx.Proof = proof
 			txs = append(txs, transactions.WrapTransaction(standardTx))
 		}
 
@@ -306,7 +289,7 @@ func (h *TestHarness) generateBlockWithTransactions(txs []*transactions.Transact
 }
 
 func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypto.PrivKey,
-	initialCoins uint64, additionalOutputs []*transactions.Output) (*blocks.Block, *SpendableNote, error) {
+	initialCoins uint64, additionalOutputs []*transactions.Output, prover zk.Prover) (*blocks.Block, *SpendableNote, error) {
 
 	// First we'll create the spend note for the coinbase transaction.
 	// The initial coins will be generated to the spendKey.
@@ -315,12 +298,10 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		return nil, nil, err
 	}
 
-	mockStandardScriptCommitment := make([]byte, 32)
-
 	pubx, puby := spendKey.GetPublic().(*icrypto.NovaPublicKey).ToXY()
 
 	note1LockingScript := &types.LockingScript{
-		ScriptCommitment: types.NewID(mockStandardScriptCommitment),
+		ScriptCommitment: types.NewID(zk.BasicTransferScriptCommitment()),
 		LockingParams:    [][]byte{pubx, puby},
 	}
 	note1ScriptHash, err := note1LockingScript.Hash()
@@ -341,7 +322,7 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	}
 
 	note2LockingScript := &types.LockingScript{
-		ScriptCommitment: types.NewID(mockStandardScriptCommitment),
+		ScriptCommitment: types.NewID(zk.BasicTransferScriptCommitment()),
 		LockingParams:    [][]byte{pubx, puby},
 	}
 	note2ScriptHash, err := note2LockingScript.Hash()
@@ -409,51 +390,33 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 	if err != nil {
 		return nil, nil, err
 	}
-	nullifier2, err := types.CalculateNullifier(1, salt2, note2LockingScript.ScriptCommitment.Bytes(), note2LockingScript.LockingParams...)
+
+	publicParams, err := coinbaseTx.ToCircuitParams()
 	if err != nil {
 		return nil, nil, err
 	}
-
-	publicParams := &standard.PublicParams{
-		Outputs: []standard.PublicOutput{
-			{
-				Commitment: commitment1[:],
-			},
-			{
-				Commitment: commitment2[:],
-			},
+	privateParams := &circparams.CoinbasePrivateParams{
+		{
+			ScriptHash: note1ScriptHash,
+			Amount:     types.Amount(initialCoins / 2),
+			Salt:       note1.Salt,
+			AssetID:    note1.AssetID,
+			State:      note1.State,
 		},
-		Nullifiers: [][]byte{nullifier1.Bytes(), nullifier2.Bytes()},
-		Fee:        0,
-		Coinbase:   initialCoins,
-	}
-	privateParams := &standard.PrivateParams{
-		Outputs: []standard.PrivateOutput{
-			{
-				SpendNote: types.SpendNote{
-					ScriptHash: note1ScriptHash,
-					Amount:     types.Amount(initialCoins / 2),
-					Salt:       note1.Salt,
-					AssetID:    note1.AssetID,
-					State:      note1.State,
-				},
-			},
-			{
-				SpendNote: types.SpendNote{
-					ScriptHash: note2ScriptHash,
-					Amount:     types.Amount(initialCoins / 2),
-					Salt:       note2.Salt,
-					AssetID:    note2.AssetID,
-					State:      note2.State,
-				},
-			},
+		{
+			ScriptHash: note2ScriptHash,
+			Amount:     types.Amount(initialCoins / 2),
+			Salt:       note2.Salt,
+			AssetID:    note2.AssetID,
+			State:      note2.State,
 		},
 	}
 
-	_, err = zk.CreateSnark(standard.StandardCircuit, privateParams, publicParams)
+	proof, err := prover.Prove(zk.CoinbaseValidationProgram(), privateParams, publicParams)
 	if err != nil {
 		return nil, nil, err
 	}
+	coinbaseTx.Proof = proof
 
 	// Next we have to build the transaction staking the coins generated
 	// in the prior coinbase transaction. This is needed because if no
@@ -478,9 +441,10 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 
 	stakeTx := &transactions.StakeTransaction{
 		Validator_ID: idBytes,
-		Amount:       initialCoins,
+		Amount:       uint64(note1.Amount),
 		Nullifier:    nullifier1.Bytes(),
 		TxoRoot:      txoRoot.Bytes(), // See note above
+		LockedUntil:  0,
 	}
 
 	// Sign the stake transaction
@@ -501,32 +465,34 @@ func createGenesisBlock(params *params.NetworkParams, networkKey, spendKey crypt
 		return nil, nil, err
 	}
 
-	publicParams2 := &stake.PublicParams{
-		TXORoot:   txoRoot.Bytes(),
-		SigHash:   sigHash2,
-		Amount:    initialCoins / 2,
-		Nullifier: nullifier1.Bytes(),
-	}
-	privateParams2 := &stake.PrivateParams{
-		SpendNote: types.SpendNote{
-			AssetID: types.IlliumCoinID,
-			Salt:    salt1,
-			State:   types.State{},
-		},
-		CommitmentIndex: 0,
-		InclusionProof: standard.InclusionProof{
-			Hashes: inclusionProof.Hashes,
-			Flags:  inclusionProof.Flags,
-		},
-		ScriptCommitment: mockStandardScriptCommitment,
-		ScriptParams:     [][]byte{pubx, puby},
-		UnlockingParams:  sig3,
-	}
-
-	_, err = zk.CreateSnark(stake.StakeCircuit, privateParams2, publicParams2)
+	sigRx, sigRy, sigS := icrypto.UnmarshalSignature(sig3)
 	if err != nil {
 		return nil, nil, err
 	}
+	publicParams2, err := stakeTx.ToCircuitParams()
+	if err != nil {
+		return nil, nil, err
+	}
+	privateParams2 := &circparams.StakePrivateParams{
+		Amount:          note1.Amount,
+		AssetID:         note1.AssetID,
+		Salt:            note1.Salt,
+		State:           note1.State,
+		CommitmentIndex: 0,
+		InclusionProof: circparams.InclusionProof{
+			Hashes: inclusionProof.Hashes,
+			Flags:  inclusionProof.Flags,
+		},
+		Script:          zk.BasicTransferScript(),
+		LockingParams:   note1LockingScript.LockingParams,
+		UnlockingParams: fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS),
+	}
+
+	proof, err = prover.Prove(zk.StakeValidationProgram(), privateParams2, publicParams2)
+	if err != nil {
+		return nil, nil, err
+	}
+	stakeTx.Proof = proof
 
 	// Now we add the transactions to the genesis block
 	genesis := params.GenesisBlock

@@ -85,6 +85,10 @@ type NetworkParams struct {
 	// LongTermInflationRate defines the rate of emission per epoch after the
 	// TargetDistribution is exhausted.
 	LongTermInflationRate float64
+
+	// AllowMockProofs sets whether the node be made to use mock proofs.
+	// This is primarily for testing purposes as full proofs are very heavy.
+	AllowMockProofs bool
 }
 
 var MainnetParams = NetworkParams{
@@ -107,6 +111,7 @@ var MainnetParams = NetworkParams{
 	AValue:                     2.59,
 	TreasuryPercentage:         5,
 	LongTermInflationRate:      math.Pow(1.02, 1.0/52) - 1, // Annualizes to 2% over 52 periods.
+	AllowMockProofs:            false,
 }
 
 var Testnet1Params = NetworkParams{
@@ -128,6 +133,7 @@ var Testnet1Params = NetworkParams{
 	AValue:                     2.59,
 	TreasuryPercentage:         5,
 	LongTermInflationRate:      math.Pow(1.02, 1.0/52) - 1, // Annualizes to 2% over 52 periods.
+	AllowMockProofs:            false,
 }
 
 var AlphanetParams = NetworkParams{
@@ -151,6 +157,7 @@ var AlphanetParams = NetworkParams{
 	AValue:                     2.59,
 	TreasuryPercentage:         5,
 	LongTermInflationRate:      math.Pow(1.02, 1.0/52) - 1, // Annualizes to 2% over 52 periods.
+	AllowMockProofs:            false,
 }
 
 var RegestParams = NetworkParams{
@@ -171,4 +178,5 @@ var RegestParams = NetworkParams{
 	AValue:                     2.59,
 	TreasuryPercentage:         5,
 	LongTermInflationRate:      math.Pow(1.02, 1.0/52) - 1, // Annualizes to 2% over 52 periods.
+	AllowMockProofs:            true,
 }

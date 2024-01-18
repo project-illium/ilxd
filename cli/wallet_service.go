@@ -19,10 +19,11 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
-	"github.com/project-illium/ilxd/zk/circuits/stake"
-	"github.com/project-illium/ilxd/zk/circuits/standard"
+	"github.com/project-illium/ilxd/zk/circparams"
 	"github.com/project-illium/walletlib"
+	"github.com/pterm/pterm"
 	"google.golang.org/protobuf/proto"
+	mrand "math/rand"
 	"strings"
 )
 
@@ -543,6 +544,7 @@ type ProveMultisig struct {
 	Tx         string   `short:"t" long:"tx" description:"The transaction to prove. Serialized as hex string."`
 	Serialize  bool     `short:"s" long:"serialize" description:"Serialize the output as a hex string. If false it will be JSON."`
 	Signatures []string `short:"s" long:"sig" description:"A signature covering the tranaction's sighash. Use this option more than once to add more signatures.'"`
+	Mock       bool     `short:"m" long:"mock" description:"Create a mock proof instead of a real zk-snark. The inputs will still be validated."`
 	opts       *options
 }
 
@@ -581,12 +583,11 @@ func (x *ProveMultisig) Execute(args []string) error {
 	}
 
 	// Create the transaction zk proof
-	privateParams := &standard.PrivateParams{
-		Inputs:  []standard.PrivateInput{},
-		Outputs: []standard.PrivateOutput{},
+	privateParams := &circparams.StandardPrivateParams{
+		Inputs:  []circparams.PrivateInput{},
+		Outputs: []circparams.PrivateOutput{},
 	}
 
-	nullifiers := make([][]byte, 0, len(rawTx.Inputs))
 	for _, in := range rawTx.Inputs {
 		var keys []crypto.PubKey
 		for i := 1; i < len(in.LockingParams); i += 2 {
@@ -603,21 +604,19 @@ func (x *ProveMultisig) Execute(args []string) error {
 			return err
 		}
 
-		privIn := standard.PrivateInput{
-			SpendNote: types.SpendNote{
-				Amount: types.Amount(in.Amount),
-			},
+		privIn := circparams.PrivateInput{
+			Amount:          types.Amount(in.Amount),
+			AssetID:         types.NewID(in.Asset_ID),
+			Salt:            types.NewID(in.Salt),
 			CommitmentIndex: in.TxoProof.Index,
-			InclusionProof: standard.InclusionProof{
+			InclusionProof: circparams.InclusionProof{
 				Hashes: in.TxoProof.Hashes,
 				Flags:  in.TxoProof.Flags,
 			},
-			ScriptCommitment: in.ScriptCommitment,
-			ScriptParams:     in.LockingParams,
-			UnlockingParams:  []byte(unlockingParams),
+			Script:          in.Script,
+			LockingParams:   in.LockingParams,
+			UnlockingParams: unlockingParams,
 		}
-		copy(privIn.Salt[:], in.Salt)
-		copy(privIn.AssetID[:], in.Asset_ID)
 
 		state := new(types.State)
 		if err := state.Deserialize(in.State); err != nil {
@@ -626,22 +625,14 @@ func (x *ProveMultisig) Execute(args []string) error {
 		privIn.State = *state
 
 		privateParams.Inputs = append(privateParams.Inputs, privIn)
-
-		nullifier, err := types.CalculateNullifier(in.TxoProof.Index, privIn.Salt, privIn.ScriptCommitment, privIn.ScriptParams...)
-		if err != nil {
-			return err
-		}
-		nullifiers = append(nullifiers, nullifier.Bytes())
 	}
 	for _, out := range rawTx.Outputs {
-		privOut := standard.PrivateOutput{
-			SpendNote: types.SpendNote{
-				ScriptHash: types.NewID(out.ScriptHash),
-				Amount:     types.Amount(out.Amount),
-			},
+		privOut := circparams.PrivateOutput{
+			ScriptHash: types.NewID(out.ScriptHash),
+			Amount:     types.Amount(out.Amount),
+			AssetID:    types.NewID(out.Asset_ID),
+			Salt:       types.NewID(out.Salt),
 		}
-		copy(privOut.Salt[:], out.Salt)
-		copy(privOut.AssetID[:], out.Asset_ID)
 		state := new(types.State)
 		if err := state.Deserialize(out.State); err != nil {
 			return err
@@ -651,23 +642,24 @@ func (x *ProveMultisig) Execute(args []string) error {
 		privateParams.Outputs = append(privateParams.Outputs, privOut)
 	}
 
-	publicParams := &standard.PublicParams{
-		TXORoot:    standardTx.TxoRoot,
-		SigHash:    sighash,
-		Nullifiers: nullifiers,
-		Fee:        standardTx.Fee,
-	}
-
-	for _, out := range standardTx.Outputs {
-		publicParams.Outputs = append(publicParams.Outputs, standard.PublicOutput{
-			Commitment: out.Commitment,
-			CipherText: out.Ciphertext,
-		})
-	}
-
-	proof, err := zk.CreateSnark(standard.StandardCircuit, privateParams, publicParams)
+	publicParams, err := standardTx.ToCircuitParams()
 	if err != nil {
 		return err
+	}
+
+	var prover zk.Prover = &zk.LurkProver{}
+	if x.Mock {
+		prover = &zk.MockProver{}
+	}
+
+	spinner, err := pterm.DefaultSpinner.Start(provingPhrases[mrand.Intn(len(provingPhrases))])
+	if err != nil {
+		return err
+	}
+	proof, err := prover.Prove(zk.StandardValidationProgram(), privateParams, publicParams)
+	if err != nil {
+		spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
+		return nil
 	}
 
 	standardTx.Proof = proof
@@ -676,15 +668,17 @@ func (x *ProveMultisig) Execute(args []string) error {
 	if x.Serialize {
 		ser, err := proto.Marshal(tx)
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error serializing transaction: %s", err.Error()))
+			return nil
 		}
-		fmt.Println(hex.EncodeToString(ser))
+		spinner.Success(hex.EncodeToString(ser))
 	} else {
 		out, err := json.MarshalIndent(tx, "", "    ")
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error serializing transaction: %s", err.Error()))
+			return nil
 		}
-		fmt.Println(string(out))
+		spinner.Success(string(out))
 	}
 	return nil
 }
@@ -956,6 +950,7 @@ type ProveRawTransaction struct {
 	Tx          string   `short:"t" long:"rawtx" description:"The transaction to prove. Serialized as hex string or JSON."`
 	Serialize   bool     `short:"s" long:"serialize" description:"Serialize the output as a hex string. If false it will be JSON."`
 	PrivateKeys []string `short:"k" long:"privkey" description:"An optional spend private to sign the inputs. If one is not provided this CLI will connect to the wallet and look for the key. Serialized as hex string."`
+	Mock        bool     `short:"m" long:"mock" description:"Create a mock proof instead of a real zk-snark. The inputs will still be validated."`
 	opts        *options
 }
 
@@ -994,23 +989,35 @@ func (x *ProveRawTransaction) Execute(args []string) error {
 		}
 	}
 
+	var prover zk.Prover = &zk.LurkProver{}
+	if x.Mock {
+		prover = &zk.MockProver{}
+	}
+
+	spinner, err := pterm.DefaultSpinner.Start(provingPhrases[mrand.Intn(len(provingPhrases))])
+	if err != nil {
+		return err
+	}
 	var tx *transactions.Transaction
 	if privKeys != nil || hasUnlockingParams {
-		tx, err = proveRawTransactionLocally(&rawTx, privKeys)
+		tx, err = proveRawTransactionLocally(&rawTx, privKeys, prover)
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
+			return nil
 		}
 	} else {
 		client, err := makeWalletClient(x.opts)
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
+			return nil
 		}
 
 		resp, err := client.ProveRawTransaction(makeContext(x.opts.AuthToken), &pb.ProveRawTransactionRequest{
 			RawTx: &rawTx,
 		})
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
+			return nil
 		}
 		tx = resp.ProvedTx
 	}
@@ -1018,15 +1025,17 @@ func (x *ProveRawTransaction) Execute(args []string) error {
 	if x.Serialize {
 		ser, err := proto.Marshal(tx)
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error serializing transaction: %s", err.Error()))
+			return nil
 		}
-		fmt.Println(hex.EncodeToString(ser))
+		spinner.Success(hex.EncodeToString(ser))
 	} else {
 		out, err := json.MarshalIndent(tx, "", "    ")
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error serializing transaction: %s", err.Error()))
+			return nil
 		}
-		fmt.Println(string(out))
+		spinner.Success(string(out))
 	}
 	return nil
 }
@@ -1111,16 +1120,21 @@ func (x *Spend) Execute(args []string) error {
 		commitments = append(commitments, cBytes)
 	}
 
+	spinner, err := pterm.DefaultSpinner.Start(provingPhrases[mrand.Intn(len(provingPhrases))])
+	if err != nil {
+		return err
+	}
 	if x.SpendAll {
 		resp, err := client.SweepWallet(makeContext(x.opts.AuthToken), &pb.SweepWalletRequest{
 			ToAddress:      x.Address,
 			FeePerKilobyte: x.FeePerKB,
 		})
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
+			return nil
 		}
 
-		fmt.Println(hex.EncodeToString(resp.Transaction_ID))
+		spinner.Success(hex.EncodeToString(resp.Transaction_ID))
 	} else {
 		resp, err := client.Spend(makeContext(x.opts.AuthToken), &pb.SpendRequest{
 			ToAddress:        x.Address,
@@ -1129,10 +1143,11 @@ func (x *Spend) Execute(args []string) error {
 			InputCommitments: commitments,
 		})
 		if err != nil {
-			return err
+			spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
+			return nil
 		}
 
-		fmt.Println(hex.EncodeToString(resp.Transaction_ID))
+		spinner.Success(hex.EncodeToString(resp.Transaction_ID))
 	}
 
 	return nil
@@ -1176,7 +1191,7 @@ func (x *TimelockCoins) Execute(args []string) error {
 	return nil
 }
 
-func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.PrivKey) (*transactions.Transaction, error) {
+func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.PrivKey, prover zk.Prover) (*transactions.Transaction, error) {
 	if rawTx == nil {
 		return nil, errors.New("raw tx is nil")
 	}
@@ -1192,9 +1207,9 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 		}
 
 		// Create the transaction zk proof
-		privateParams := &standard.PrivateParams{
-			Inputs:  []standard.PrivateInput{},
-			Outputs: []standard.PrivateOutput{},
+		privateParams := &circparams.StandardPrivateParams{
+			Inputs:  []circparams.PrivateInput{},
+			Outputs: []circparams.PrivateOutput{},
 		}
 
 		for i, in := range rawTx.Inputs {
@@ -1220,23 +1235,22 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 					return nil, err
 				}
 
-				in.UnlockingParams = fmt.Sprintf("(cons 0x%x 0x%x)", sig[:32], sig[32:])
+				sigRx, sigRy, sigS := icrypto.UnmarshalSignature(sig)
+				in.UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x)))", sigRx, sigRy, sigS)
 			}
-			privIn := standard.PrivateInput{
-				SpendNote: types.SpendNote{
-					Amount: types.Amount(in.Amount),
-				},
+			privIn := circparams.PrivateInput{
+				Amount:          types.Amount(in.Amount),
+				AssetID:         types.NewID(in.Asset_ID),
+				Salt:            types.NewID(in.Salt),
 				CommitmentIndex: in.TxoProof.Index,
-				InclusionProof: standard.InclusionProof{
+				InclusionProof: circparams.InclusionProof{
 					Hashes: in.TxoProof.Hashes,
 					Flags:  in.TxoProof.Flags,
 				},
-				ScriptCommitment: in.ScriptCommitment,
-				ScriptParams:     in.LockingParams,
-				UnlockingParams:  []byte(in.UnlockingParams),
+				Script:          in.Script,
+				LockingParams:   in.LockingParams,
+				UnlockingParams: in.UnlockingParams,
 			}
-			copy(privIn.Salt[:], in.Salt)
-			copy(privIn.AssetID[:], in.Asset_ID)
 			state := new(types.State)
 			if err := state.Deserialize(in.State); err != nil {
 				return nil, err
@@ -1247,15 +1261,12 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 		}
 
 		for _, out := range rawTx.Outputs {
-			privOut := standard.PrivateOutput{
-				SpendNote: types.SpendNote{
-					ScriptHash: types.ID{},
-					Amount:     types.Amount(out.Amount),
-				},
+			privOut := circparams.PrivateOutput{
+				ScriptHash: types.NewID(out.ScriptHash),
+				Amount:     types.Amount(out.Amount),
+				AssetID:    types.NewID(out.Asset_ID),
+				Salt:       types.NewID(out.Salt),
 			}
-			copy(privOut.ScriptHash[:], out.ScriptHash)
-			copy(privOut.Salt[:], out.Salt)
-			copy(privOut.AssetID[:], out.Asset_ID)
 			state := new(types.State)
 			if err := state.Deserialize(out.State); err != nil {
 				return nil, err
@@ -1264,21 +1275,12 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 			privateParams.Outputs = append(privateParams.Outputs, privOut)
 		}
 
-		publicParams := &standard.PublicParams{
-			TXORoot:    standardTx.TxoRoot,
-			SigHash:    sigHash,
-			Nullifiers: standardTx.Nullifiers,
-			Fee:        standardTx.Fee,
+		publicParams, err := standardTx.ToCircuitParams()
+		if err != nil {
+			return nil, err
 		}
 
-		for _, out := range standardTx.Outputs {
-			publicParams.Outputs = append(publicParams.Outputs, standard.PublicOutput{
-				Commitment: out.Commitment,
-				CipherText: out.Ciphertext,
-			})
-		}
-
-		proof, err := zk.CreateSnark(standard.StandardCircuit, privateParams, publicParams)
+		proof, err := prover.Prove(zk.StandardValidationProgram(), privateParams, publicParams)
 		if err != nil {
 			return nil, err
 		}
@@ -1319,36 +1321,38 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 				return nil, err
 			}
 
-			rawTx.Inputs[0].UnlockingParams = fmt.Sprintf("(cons 0x%x 0x%x)", sig[:32], sig[32:])
+			sigRx, sigRy, sigS := icrypto.UnmarshalSignature(sig)
+
+			rawTx.Inputs[0].UnlockingParams = fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x)))", sigRx, sigRy, sigS)
 		}
 
 		// Create the transaction zk proof
-		privateParams := &stake.PrivateParams{
+		privateParams := &circparams.StakePrivateParams{
+			Amount:          types.Amount(rawTx.Inputs[0].Amount),
+			AssetID:         types.NewID(rawTx.Inputs[0].Asset_ID),
+			Salt:            types.NewID(rawTx.Inputs[0].Salt),
 			CommitmentIndex: rawTx.Inputs[0].TxoProof.Index,
-			InclusionProof: standard.InclusionProof{
+			InclusionProof: circparams.InclusionProof{
 				Hashes: rawTx.Inputs[0].TxoProof.Hashes,
 				Flags:  rawTx.Inputs[0].TxoProof.Flags,
 			},
-			ScriptCommitment: rawTx.Inputs[0].ScriptCommitment,
-			ScriptParams:     rawTx.Inputs[0].LockingParams,
-			UnlockingParams:  []byte(rawTx.Inputs[0].UnlockingParams),
+			Script:          rawTx.Inputs[0].Script,
+			LockingParams:   rawTx.Inputs[0].LockingParams,
+			UnlockingParams: rawTx.Inputs[0].UnlockingParams,
 		}
-		copy(privateParams.Salt[:], rawTx.Inputs[0].Salt)
-		copy(privateParams.AssetID[:], rawTx.Inputs[0].Asset_ID)
+
 		state := new(types.State)
 		if err := state.Deserialize(rawTx.Inputs[0].State); err != nil {
 			return nil, err
 		}
 		privateParams.State = *state
 
-		publicParams := &stake.PublicParams{
-			TXORoot:   stakeTx.TxoRoot,
-			SigHash:   sigHash,
-			Amount:    stakeTx.Amount,
-			Nullifier: stakeTx.Nullifier,
+		publicParams, err := stakeTx.ToCircuitParams()
+		if err != nil {
+			return nil, err
 		}
 
-		proof, err := zk.CreateSnark(stake.StakeCircuit, privateParams, publicParams)
+		proof, err := prover.Prove(zk.StakeValidationProgram(), privateParams, publicParams)
 		if err != nil {
 			return nil, err
 		}
@@ -1378,4 +1382,14 @@ func pbIOtoIO(ios []*pb.WalletTransaction_IO) []interface{} {
 		}
 	}
 	return ret
+}
+
+var provingPhrases = []string{
+	"Hang tight! We're doing moon math.",
+	"Patience, we're bending the laws of math for you.",
+	"Hang in there, we're bending the fabric of the cosmos.",
+	"Just a sec, bending the blockchain to our will.",
+	"Hang tight, your transaction is in the oven.",
+	"Sit tight, charging warp coils.",
+	"Be patient, traveling through hyperspace ain't like dusting crops.",
 }

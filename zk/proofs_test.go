@@ -8,7 +8,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	lcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
@@ -29,7 +28,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestProve(t *testing.T) {
-	fmt.Println(hex.EncodeToString(zk.TimelockedMultisigScriptCommitment()))
 	r, err := zk.RandomFieldElement()
 	assert.NoError(t, err)
 	h, err := zk.LurkCommit(fmt.Sprintf("0x%x", r))
@@ -525,10 +523,18 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Fee = 50000
-				pub.MintID = types.NewID(r[:])
-				pub.MintAmount = 1000000
-				return []string{zk.MintValidationProgram()}, priv, pub, nil
+				mintPub := &circparams.MintPublicParams{
+					SigHash:           pub.SigHash,
+					Nullifiers:        pub.Nullifiers,
+					TXORoot:           pub.TXORoot,
+					Fee:               50000,
+					MintID:            types.NewID(r[:]),
+					MintAmount:        1000000,
+					Outputs:           pub.Outputs,
+					Locktime:          pub.Locktime,
+					LocktimePrecision: pub.LocktimePrecision,
+				}
+				return []string{zk.MintValidationProgram()}, priv, mintPub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
@@ -549,10 +555,18 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Fee = 50000
-				pub.MintID = types.NewID(r[:])
-				pub.MintAmount = 1000000
-				return []string{zk.MintValidationProgram()}, priv, pub, nil
+				mintPub := &circparams.MintPublicParams{
+					SigHash:           pub.SigHash,
+					Nullifiers:        pub.Nullifiers,
+					TXORoot:           pub.TXORoot,
+					Fee:               50000,
+					MintID:            types.NewID(r[:]),
+					MintAmount:        1000000,
+					Outputs:           pub.Outputs,
+					Locktime:          pub.Locktime,
+					LocktimePrecision: pub.LocktimePrecision,
+				}
+				return []string{zk.MintValidationProgram()}, priv, mintPub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
@@ -571,10 +585,18 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Fee = 0
-				pub.MintID = types.NewID(r[:])
-				pub.MintAmount = 1000000
-				return []string{zk.MintValidationProgram()}, priv, pub, nil
+				mintPub := &circparams.MintPublicParams{
+					SigHash:           pub.SigHash,
+					Nullifiers:        pub.Nullifiers,
+					TXORoot:           pub.TXORoot,
+					Fee:               0,
+					MintID:            types.NewID(r[:]),
+					MintAmount:        1000000,
+					Outputs:           pub.Outputs,
+					Locktime:          pub.Locktime,
+					LocktimePrecision: pub.LocktimePrecision,
+				}
+				return []string{zk.MintValidationProgram()}, priv, mintPub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
@@ -593,10 +615,18 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Fee = 0
-				pub.MintID = types.NewID(r[:])
-				pub.MintAmount = 100000
-				return []string{zk.MintValidationProgram()}, priv, pub, nil
+				mintPub := &circparams.MintPublicParams{
+					SigHash:           pub.SigHash,
+					Nullifiers:        pub.Nullifiers,
+					TXORoot:           pub.TXORoot,
+					Fee:               0,
+					MintID:            types.NewID(r[:]),
+					MintAmount:        100000,
+					Outputs:           pub.Outputs,
+					Locktime:          pub.Locktime,
+					LocktimePrecision: pub.LocktimePrecision,
+				}
+				return []string{zk.MintValidationProgram()}, priv, mintPub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
@@ -617,10 +647,18 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Fee = 50000
-				pub.MintID = types.NewID(r[:])
-				pub.MintAmount = 100000
-				return []string{zk.MintValidationProgram()}, priv, pub, nil
+				mintPub := &circparams.MintPublicParams{
+					SigHash:           pub.SigHash,
+					Nullifiers:        pub.Nullifiers,
+					TXORoot:           pub.TXORoot,
+					Fee:               50000,
+					MintID:            types.NewID(r[:]),
+					MintAmount:        100000,
+					Outputs:           pub.Outputs,
+					Locktime:          pub.Locktime,
+					LocktimePrecision: pub.LocktimePrecision,
+				}
+				return []string{zk.MintValidationProgram()}, priv, mintPub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
@@ -634,8 +672,12 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Coinbase = 1000000
-				return []string{zk.CoinbaseValidationProgram()}, priv, pub, nil
+				cbPriv := circparams.CoinbasePrivateParams(priv.Outputs)
+				cbPub := &circparams.CoinbasePublicParams{
+					Coinbase: 1000000,
+					Outputs:  pub.Outputs,
+				}
+				return []string{zk.CoinbaseValidationProgram()}, &cbPriv, cbPub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
@@ -649,8 +691,12 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Coinbase = 2000000
-				return []string{zk.CoinbaseValidationProgram()}, priv, pub, nil
+				cbPriv := circparams.CoinbasePrivateParams(priv.Outputs)
+				cbPub := &circparams.CoinbasePublicParams{
+					Coinbase: 2000000,
+					Outputs:  pub.Outputs,
+				}
+				return []string{zk.CoinbaseValidationProgram()}, &cbPriv, cbPub, nil
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
@@ -664,8 +710,12 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Coinbase = 1999999
-				return []string{zk.CoinbaseValidationProgram()}, priv, pub, nil
+				cbPriv := circparams.CoinbasePrivateParams(priv.Outputs)
+				cbPub := &circparams.CoinbasePublicParams{
+					Coinbase: 1999999,
+					Outputs:  pub.Outputs,
+				}
+				return []string{zk.CoinbaseValidationProgram()}, &cbPriv, cbPub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
@@ -684,8 +734,12 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Coinbase = 1000000
-				return []string{zk.CoinbaseValidationProgram()}, priv, pub, nil
+				cbPriv := circparams.CoinbasePrivateParams(priv.Outputs)
+				cbPub := &circparams.CoinbasePublicParams{
+					Coinbase: 1000000,
+					Outputs:  pub.Outputs,
+				}
+				return []string{zk.CoinbaseValidationProgram()}, &cbPriv, cbPub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
@@ -699,9 +753,13 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				priv.Outputs[0].State = types.State{[]byte{0x01}}
-				pub.Coinbase = 1000000
-				return []string{zk.CoinbaseValidationProgram()}, priv, pub, nil
+				cbPriv := circparams.CoinbasePrivateParams(priv.Outputs)
+				cbPub := &circparams.CoinbasePublicParams{
+					Coinbase: 1000000,
+					Outputs:  pub.Outputs,
+				}
+				cbPriv[0].State = types.State{[]byte{0x01}}
+				return []string{zk.CoinbaseValidationProgram()}, &cbPriv, cbPub, nil
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
@@ -716,10 +774,13 @@ func TestTransactionProofValidation(t *testing.T) {
 					return nil, nil, nil, err
 				}
 				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
+					StakeAmount: 1000000,
+					SigHash:     pub.SigHash,
+					Nullifier:   pub.Nullifiers[0],
+					TXORoot:     pub.TXORoot,
+					LockedUntil: pub.Locktime,
 				}
-				privIn := priv.Inputs[0]
+				privIn := circparams.StakePrivateParams(priv.Inputs[0])
 				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
 			},
 			ExpectedTag:    zk.TagSym,
@@ -740,10 +801,13 @@ func TestTransactionProofValidation(t *testing.T) {
 					return nil, nil, nil, err
 				}
 				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
+					StakeAmount: 1000000,
+					SigHash:     pub.SigHash,
+					Nullifier:   pub.Nullifiers[0],
+					TXORoot:     pub.TXORoot,
+					LockedUntil: pub.Locktime,
 				}
-				privIn := priv.Inputs[0]
+				privIn := circparams.StakePrivateParams(priv.Inputs[0])
 				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
 			},
 			ExpectedTag:    zk.TagNil,
@@ -759,10 +823,13 @@ func TestTransactionProofValidation(t *testing.T) {
 					return nil, nil, nil, err
 				}
 				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1100000,
-					PublicParams: *pub,
+					StakeAmount: 1100000,
+					SigHash:     pub.SigHash,
+					Nullifier:   pub.Nullifiers[0],
+					TXORoot:     pub.TXORoot,
+					LockedUntil: pub.Locktime,
 				}
-				privIn := priv.Inputs[0]
+				privIn := circparams.StakePrivateParams(priv.Inputs[0])
 				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
 			},
 			ExpectedTag:    zk.TagNil,
@@ -778,10 +845,13 @@ func TestTransactionProofValidation(t *testing.T) {
 					return nil, nil, nil, err
 				}
 				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
+					StakeAmount: 1000000,
+					SigHash:     pub.SigHash,
+					Nullifier:   pub.Nullifiers[0],
+					TXORoot:     pub.TXORoot,
+					LockedUntil: pub.Locktime,
 				}
-				privIn := priv.Inputs[0]
+				privIn := circparams.StakePrivateParams(priv.Inputs[0])
 				privIn.CommitmentIndex = 0
 				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
 			},
@@ -798,10 +868,13 @@ func TestTransactionProofValidation(t *testing.T) {
 					return nil, nil, nil, err
 				}
 				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
+					StakeAmount: 1000000,
+					SigHash:     pub.SigHash,
+					Nullifier:   pub.Nullifiers[0],
+					TXORoot:     pub.TXORoot,
+					LockedUntil: pub.Locktime,
 				}
-				privIn := priv.Inputs[0]
+				privIn := circparams.StakePrivateParams(priv.Inputs[0])
 				r, err := zk.RandomFieldElement()
 				if err != nil {
 					return nil, nil, nil, err
@@ -822,15 +895,18 @@ func TestTransactionProofValidation(t *testing.T) {
 					return nil, nil, nil, err
 				}
 				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
+					StakeAmount: 1000000,
+					SigHash:     pub.SigHash,
+					Nullifier:   pub.Nullifiers[0],
+					TXORoot:     pub.TXORoot,
+					LockedUntil: pub.Locktime,
 				}
-				privIn := priv.Inputs[0]
+				privIn := circparams.StakePrivateParams(priv.Inputs[0])
 				r, err := zk.RandomFieldElement()
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pub.Nullifiers[0] = types.NewNullifier(r[:])
+				stakePub.Nullifier = types.NewNullifier(r[:])
 				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
 			},
 			ExpectedTag:    zk.TagNil,
@@ -846,10 +922,13 @@ func TestTransactionProofValidation(t *testing.T) {
 					return nil, nil, nil, err
 				}
 				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
+					StakeAmount: 1000000,
+					SigHash:     pub.SigHash,
+					Nullifier:   pub.Nullifiers[0],
+					TXORoot:     pub.TXORoot,
+					LockedUntil: pub.Locktime,
 				}
-				privIn := priv.Inputs[0]
+				privIn := circparams.StakePrivateParams(priv.Inputs[0])
 				privIn.State = types.State{[]byte{0x01}}
 				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
 			},
@@ -866,10 +945,13 @@ func TestTransactionProofValidation(t *testing.T) {
 					return nil, nil, nil, err
 				}
 				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
+					StakeAmount: 1000000,
+					SigHash:     pub.SigHash,
+					Nullifier:   pub.Nullifiers[0],
+					TXORoot:     pub.TXORoot,
+					LockedUntil: pub.Locktime,
 				}
-				privIn := priv.Inputs[0]
+				privIn := circparams.StakePrivateParams(priv.Inputs[0])
 				sk, _, err := crypto.GenerateNovaKey(rand.Reader)
 				if err != nil {
 					return nil, nil, nil, err
@@ -895,10 +977,13 @@ func TestTransactionProofValidation(t *testing.T) {
 					return nil, nil, nil, err
 				}
 				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
+					StakeAmount: 1000000,
+					SigHash:     pub.SigHash,
+					Nullifier:   pub.Nullifiers[0],
+					TXORoot:     pub.TXORoot,
+					LockedUntil: pub.Locktime,
 				}
-				privIn := priv.Inputs[0]
+				privIn := circparams.StakePrivateParams(priv.Inputs[0])
 				privIn.Script = "(lambda (a b c d e) t)"
 				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
 			},
@@ -915,11 +1000,14 @@ func TestTransactionProofValidation(t *testing.T) {
 					return nil, nil, nil, err
 				}
 				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
+					StakeAmount: 1000000,
+					SigHash:     pub.SigHash,
+					Nullifier:   pub.Nullifiers[0],
+					TXORoot:     pub.TXORoot,
+					LockedUntil: pub.Locktime,
 				}
-				privIn := priv.Inputs[0]
-				stakePub.Locktime = time.Now()
+				privIn := circparams.StakePrivateParams(priv.Inputs[0])
+				stakePub.LockedUntil = time.Now()
 				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
 			},
 			ExpectedTag:    zk.TagNil,
@@ -1038,6 +1126,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
+
 				pk1X, pk1Y := pk1.(*crypto.NovaPublicKey).ToXY()
 				pk2X, pk2Y := pk2.(*crypto.NovaPublicKey).ToXY()
 				pk3X, pk3Y := pk3.(*crypto.NovaPublicKey).ToXY()
@@ -1075,12 +1164,15 @@ func TestTransactionProofValidation(t *testing.T) {
 				}
 				pub.Nullifiers[0] = nullifer
 				pub.Locktime = locktime
-				pub.LocktimePrecision = 600
+				pub.LocktimePrecision = 600 * time.Second
 				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
+					StakeAmount: 1000000,
+					SigHash:     pub.SigHash,
+					Nullifier:   pub.Nullifiers[0],
+					TXORoot:     pub.TXORoot,
+					LockedUntil: pub.Locktime,
 				}
-				privIn := priv.Inputs[0]
+				privIn := circparams.StakePrivateParams(priv.Inputs[0])
 				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
 			},
 			ExpectedTag:    zk.TagSym,
@@ -1138,12 +1230,15 @@ func TestTransactionProofValidation(t *testing.T) {
 				}
 				pub.Nullifiers[0] = nullifer
 				pub.Locktime = locktime.Add(-time.Minute)
-				pub.LocktimePrecision = 600
+				pub.LocktimePrecision = 600 * time.Second
 				stakePub := &circparams.StakePublicParams{
-					StakeAmount:  1000000,
-					PublicParams: *pub,
+					StakeAmount: 1000000,
+					SigHash:     pub.SigHash,
+					Nullifier:   pub.Nullifiers[0],
+					TXORoot:     pub.TXORoot,
+					LockedUntil: pub.Locktime,
 				}
-				privIn := priv.Inputs[0]
+				privIn := circparams.StakePrivateParams(priv.Inputs[0])
 				return []string{zk.StakeValidationProgram()}, &privIn, stakePub, nil
 			},
 			ExpectedTag:    zk.TagNil,
@@ -1184,7 +1279,7 @@ func defaultOpts() *options {
 	}
 }
 
-func generateTxParams(numInputs, numOutputs int, opts *options) (*circparams.PrivateParams, *circparams.PublicParams, error) {
+func generateTxParams(numInputs, numOutputs int, opts *options) (*circparams.StandardPrivateParams, *circparams.StandardPublicParams, error) {
 	sigHash, err := zk.RandomFieldElement()
 	if err != nil {
 		return nil, nil, err
@@ -1199,15 +1294,12 @@ func generateTxParams(numInputs, numOutputs int, opts *options) (*circparams.Pri
 		acc.Insert(r[:], false)
 	}
 
-	priv := &circparams.PrivateParams{}
-	pub := &circparams.PublicParams{
+	priv := &circparams.StandardPrivateParams{}
+	pub := &circparams.StandardPublicParams{
 		SigHash:           sigHash,
 		Nullifiers:        nil,
 		TXORoot:           types.ID{},
 		Fee:               100000,
-		Coinbase:          0,
-		MintID:            types.ID{},
-		MintAmount:        0,
 		Outputs:           nil,
 		Locktime:          time.Time{},
 		LocktimePrecision: 0,
@@ -1365,7 +1457,7 @@ func generateTxParams(numInputs, numOutputs int, opts *options) (*circparams.Pri
 			UnlockingParams: fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS),
 		})
 
-		nullifier, err := types.CalculateNullifier(proof.Index, note.Salt, zk.BasicTransferScriptCommitment(), [][]byte{pkx, pky}...)
+		nullifier, err := types.CalculateNullifier(proof.Index, note.Salt, lockingScript.ScriptCommitment.Bytes(), lockingScript.LockingParams...)
 		if err != nil {
 			return nil, nil, err
 		}

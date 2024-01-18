@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
-	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -112,7 +111,8 @@ func TestAccumulator_GetProof(t *testing.T) {
 		for x, c := range elements {
 			proof, err := a.GetProof(c)
 			assert.NoError(t, err)
-			valid := standard.ValidateInclusionProof(proof.ID.Bytes(), proof.Index, proof.Hashes, proof.Flags, a.Root().Bytes())
+			valid, err := ValidateInclusionProof(proof.ID.Bytes(), proof.Index, proof.Hashes, proof.Flags, a.Root().Bytes())
+			assert.NoError(t, err)
 			assert.True(t, valid)
 			if !valid {
 				fmt.Println(i, x)
@@ -142,7 +142,9 @@ func TestAccumulator_MergeProofs(t *testing.T) {
 	for _, c := range elements {
 		proof, err := a.GetProof(c)
 		assert.NoError(t, err)
-		assert.True(t, standard.ValidateInclusionProof(proof.ID.Bytes(), proof.Index, proof.Hashes, proof.Flags, a.Root().Bytes()))
+		valid, err := ValidateInclusionProof(proof.ID.Bytes(), proof.Index, proof.Hashes, proof.Flags, a.Root().Bytes())
+		assert.NoError(t, err)
+		assert.True(t, valid)
 	}
 }
 

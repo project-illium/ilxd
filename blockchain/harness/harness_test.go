@@ -5,23 +5,15 @@
 package harness
 
 import (
-	"crypto/rand"
-	"encoding/binary"
-	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
-	"github.com/project-illium/ilxd/zk"
-	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/proto"
-	"os"
 	"testing"
 )
 
 func TestNewTestHarness(t *testing.T) {
-	h, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(1), Pregenerate(15000))
+	h, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(1))
 	assert.NoError(t, err)
 
 	err = h.GenerateBlocks(5)
@@ -74,324 +66,147 @@ func TestNewTestHarness(t *testing.T) {
 		Nullifiers: [][]byte{nullifer[:]},
 		TxoRoot:    root[:],
 		Fee:        10,
+		Proof:      make([]byte, 11000),
 	}
-
-	sighash, err := tx.SigHash()
-	assert.NoError(t, err)
-
-	privateParams := standard.PrivateParams{
-		Inputs: []standard.PrivateInput{
-			{
-				SpendNote: types.SpendNote{
-					Amount:  notes[0].Note.Amount,
-					Salt:    notes[0].Note.Salt,
-					AssetID: notes[0].Note.AssetID,
-					State:   notes[0].Note.State,
-				},
-				CommitmentIndex: proof.Index,
-				InclusionProof: standard.InclusionProof{
-					Hashes: proof.Hashes,
-					Flags:  proof.Flags,
-				},
-				ScriptCommitment: notes[0].LockingScript.ScriptCommitment.Bytes(),
-				ScriptParams:     notes[0].LockingScript.LockingParams,
-				UnlockingParams:  make([]byte, 64),
-			},
-		},
-		Outputs: []standard.PrivateOutput{
-			{
-				SpendNote: types.SpendNote{
-					ScriptHash: outScriptHash,
-					Amount:     outNote.Note.Amount,
-					Salt:       outNote.Note.Salt,
-					State:      outNote.Note.State,
-					AssetID:    outNote.Note.AssetID,
-				},
-			},
-		},
-	}
-	publicParams := standard.PublicParams{
-		TXORoot: root[:],
-		SigHash: sighash,
-		Outputs: []standard.PublicOutput{
-			{
-				Commitment: tx.Outputs[0].Commitment,
-				CipherText: tx.Outputs[0].Ciphertext,
-			},
-		},
-		Nullifiers: tx.Nullifiers,
-		Fee:        tx.Fee,
-	}
-	tx.Proof, err = zk.CreateSnark(standard.StandardCircuit, &privateParams, &publicParams)
-	assert.NoError(t, err)
 
 	err = h.GenerateBlockWithTransactions([]*transactions.Transaction{transactions.WrapTransaction(&tx)}, []*SpendableNote{outNote})
 	assert.NoError(t, err)
 }
 
-func generateBlocksDat() error {
-	h, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(1), Pregenerate(0))
-	if err != nil {
-		return err
+/*func TestTestHarness_GenerateBlocksDat(t *testing.T) {
+	b1, err := os.Open("blocks/blocks.dat")
+	assert.NoError(t, err)
+
+	f2, err := os.Create("blocks/blocks2.dat")
+	assert.NoError(t, err)
+
+	h2, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(1), LoadBlocks(b1, 15000), WriteToFile(f2))
+	assert.NoError(t, err)
+
+	err = h2.GenerateBlocks(1)
+	assert.NoError(t, err)
+
+	sk, pk, err := lcrypto.GenerateEd25519Key(rand.Reader)
+	assert.NoError(t, err)
+	pid, err := peer.IDFromPublicKey(pk)
+	assert.NoError(t, err)
+	pidBytes, err := pid.Marshal()
+	assert.NoError(t, err)
+
+	notes := h2.SpendableNotes()
+	commitment, err := notes[0].Note.Commitment()
+	assert.NoError(t, err)
+	proof, err := h2.Accumulator().GetProof(commitment.Bytes())
+	assert.NoError(t, err)
+	nullifer, err := types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].LockingScript.ScriptCommitment.Bytes(), notes[0].LockingScript.LockingParams...)
+	assert.NoError(t, err)
+
+	sh, err := notes[0].LockingScript.Hash()
+	assert.NoError(t, err)
+
+	salt0, err := types.RandomSalt()
+	assert.NoError(t, err)
+
+	salt1, err := types.RandomSalt()
+	assert.NoError(t, err)
+
+	note0 := types.SpendNote{
+		ScriptHash: sh,
+		Amount:     notes[0].Note.Amount / 2,
+		AssetID:    types.IlliumCoinID,
+		Salt:       salt0,
+		State:      nil,
 	}
 
-	f, err := os.Create("blocks/blocks.dat")
-	if err != nil {
-		return err
-	}
-	defer f.Close()
+	commit0, err := note0.Commitment()
+	assert.NoError(t, err)
 
-	blks, spendableNotes, err := h.generateBlocks(15000)
-	if err != nil {
-		return err
-	}
-
-	genesis, err := h.chain.GetBlockByHeight(0)
-	if err != nil {
-		return err
+	note1 := types.SpendNote{
+		ScriptHash: sh,
+		Amount:     notes[0].Note.Amount / 2,
+		AssetID:    types.IlliumCoinID,
+		Salt:       salt1,
+		State:      nil,
 	}
 
-	ser, err := proto.Marshal(genesis)
-	if err != nil {
-		return err
-	}
-	lenBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(lenBytes, uint32(len(ser)))
+	commit1, err := note1.Commitment()
+	assert.NoError(t, err)
 
-	if _, err := f.Write(lenBytes); err != nil {
-		return err
-	}
-	if _, err := f.Write(ser); err != nil {
-		return err
-	}
-
-	for _, blk := range blks {
-		ser, err := proto.Marshal(blk)
-		if err != nil {
-			return err
-		}
-		lenBytes := make([]byte, 4)
-		binary.BigEndian.PutUint32(lenBytes, uint32(len(ser)))
-
-		if _, err := f.Write(lenBytes); err != nil {
-			return err
-		}
-		if _, err := f.Write(ser); err != nil {
-			return err
-		}
-	}
-
-	for _, blk := range blks {
-		if err := h.chain.ConnectBlock(blk, blockchain.BFFastAdd); err != nil {
-			return err
-		}
-		for _, out := range blk.Outputs() {
-			h.acc.Insert(out.Commitment, true)
-		}
-	}
-	h.spendableNotes = spendableNotes
-
-	var (
-		nullifier types.Nullifier
-		sn        *SpendableNote
-	)
-	for k, v := range h.spendableNotes {
-		nullifier = k
-		sn = v
-		break
-	}
-	salt, err := types.RandomSalt()
-	if err != nil {
-		return err
-	}
-
-	out := &types.SpendNote{
-		ScriptHash: sn.Note.ScriptHash,
-		Amount:     sn.Note.Amount / 2,
-		AssetID:    sn.Note.AssetID,
-		State:      sn.Note.State,
-		Salt:       salt,
-	}
-	commitment, err := out.Commitment()
-	if err != nil {
-		return err
-	}
-
-	salt2, err := types.RandomSalt()
-	if err != nil {
-		return err
-	}
-
-	out2 := &types.SpendNote{
-		ScriptHash: sn.Note.ScriptHash,
-		Amount:     10000,
-		AssetID:    sn.Note.AssetID,
-		State:      sn.Note.State,
-		Salt:       salt2,
-	}
-	commitment2, err := out2.Commitment()
-	if err != nil {
-		return err
-	}
-
-	sn2 := &SpendableNote{
-		Note:          out,
-		LockingScript: sn.LockingScript,
-		PrivateKey:    sn.PrivateKey,
-	}
-	sn3 := &SpendableNote{
-		Note:          out2,
-		LockingScript: sn.LockingScript,
-		PrivateKey:    sn.PrivateKey,
-	}
-
-	tx := &transactions.StandardTransaction{
+	stdTx := &transactions.StandardTransaction{
 		Outputs: []*transactions.Output{
 			{
-				Commitment: commitment[:],
+				Commitment: commit0.Bytes(),
 				Ciphertext: make([]byte, blockchain.CiphertextLen),
 			},
 			{
-				Commitment: commitment2[:],
+				Commitment: commit1.Bytes(),
 				Ciphertext: make([]byte, blockchain.CiphertextLen),
 			},
 		},
-		Nullifiers: [][]byte{nullifier.Bytes()},
-		TxoRoot:    h.acc.Root().Bytes(),
+		Nullifiers: [][]byte{nullifer.Bytes()},
+		TxoRoot:    h2.Accumulator().Root().Bytes(),
+		Locktime:   nil,
+		Fee:        1000,
+		Proof:      []byte{0x00},
 	}
 
-	blks, _, err = h.generateBlocks(10000)
-	if err != nil {
-		return err
+	createdNotes := []*SpendableNote{
+		{
+			Note:             &note0,
+			LockingScript:    notes[0].LockingScript,
+			PrivateKey:       notes[0].PrivateKey,
+			cachedScriptHash: sh,
+		},
+		{
+			Note:             &note1,
+			LockingScript:    notes[0].LockingScript,
+			PrivateKey:       notes[0].PrivateKey,
+			cachedScriptHash: sh,
+		},
 	}
 
-	for _, blk := range blks {
-		ser, err := proto.Marshal(blk)
-		if err != nil {
-			return err
-		}
-		lenBytes := make([]byte, 4)
-		binary.BigEndian.PutUint32(lenBytes, uint32(len(ser)))
+	err = h2.GenerateBlockWithTransactions([]*transactions.Transaction{transactions.WrapTransaction(stdTx)}, createdNotes)
+	assert.NoError(t, err)
 
-		if _, err := f.Write(lenBytes); err != nil {
-			return err
-		}
-		if _, err := f.Write(ser); err != nil {
-			return err
-		}
-	}
+	notes = h2.SpendableNotes()
+	commitment, err = notes[0].Note.Commitment()
+	assert.NoError(t, err)
+	proof, err = h2.Accumulator().GetProof(commitment.Bytes())
+	assert.NoError(t, err)
+	nullifer, err = types.CalculateNullifier(proof.Index, notes[0].Note.Salt, notes[0].LockingScript.ScriptCommitment.Bytes(), notes[0].LockingScript.LockingParams...)
+	assert.NoError(t, err)
 
-	if err := h.GenerateBlockWithTransactions([]*transactions.Transaction{transactions.WrapTransaction(tx)}, []*SpendableNote{sn2, sn3}); err != nil {
-		return err
-	}
-
-	var (
-		stakeNullifier types.Nullifier
-		sn4            *SpendableNote
-	)
-	for k, v := range h.spendableNotes {
-		if v.Note.Amount == 10000 {
-			stakeNullifier = k
-			sn4 = v
-			break
-		}
-	}
-
-	priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
-	if err != nil {
-		return err
-	}
-	pid, err := peer.IDFromPrivateKey(priv)
-	if err != nil {
-		return err
-	}
-	pidBytes, err := pid.Marshal()
-	if err != nil {
-		return err
-	}
-
-	stx := &transactions.StakeTransaction{
+	stakeTx := &transactions.StakeTransaction{
 		Validator_ID: pidBytes,
-		Amount:       uint64(sn4.Note.Amount),
-		Nullifier:    stakeNullifier[:],
-		TxoRoot:      h.acc.Root().Bytes(),
+		Amount:       uint64(notes[0].Note.Amount),
+		Nullifier:    nullifer.Bytes(),
+		TxoRoot:      h2.Accumulator().Root().Bytes(),
+		LockedUntil:  0,
+		Signature:    nil,
+		Proof:        []byte{0x00},
 	}
+	sigHash, err := stakeTx.SigHash()
+	assert.NoError(t, err)
+	sig, err := sk.Sign(sigHash)
+	assert.NoError(t, err)
+	stakeTx.Signature = sig
 
-	if err := h.GenerateBlockWithTransactions([]*transactions.Transaction{transactions.WrapTransaction(stx)}, []*SpendableNote{}); err != nil {
-		return err
-	}
+	err = h2.GenerateBlockWithTransactions([]*transactions.Transaction{transactions.WrapTransaction(stakeTx)}, nil)
+	assert.NoError(t, err)
 
-	delete(h.spendableNotes, stakeNullifier)
+	err = h2.GenerateBlocks(6000)
+	assert.NoError(t, err)
 
-	f2, err := os.Create("blocks/blocks2.dat")
-	if err != nil {
-		return err
-	}
-	defer f.Close()
+	h2.Close()
 
-	blk, err := h.chain.GetBlockByHeight(15001)
-	if err != nil {
-		return err
-	}
-
-	ser, err = proto.Marshal(blk)
-	if err != nil {
-		return err
-	}
-	lenBytes = make([]byte, 4)
-	binary.BigEndian.PutUint32(lenBytes, uint32(len(ser)))
-
-	if _, err := f2.Write(lenBytes); err != nil {
-		return err
-	}
-	if _, err := f2.Write(ser); err != nil {
-		return err
-	}
-
-	blk, err = h.chain.GetBlockByHeight(15002)
-	if err != nil {
-		return err
-	}
-
-	ser, err = proto.Marshal(blk)
-	if err != nil {
-		return err
-	}
-	lenBytes = make([]byte, 4)
-	binary.BigEndian.PutUint32(lenBytes, uint32(len(ser)))
-
-	if _, err := f2.Write(lenBytes); err != nil {
-		return err
-	}
-	if _, err := f2.Write(ser); err != nil {
-		return err
-	}
-
-	blks, _, err = h.generateBlocks(6000)
-	if err != nil {
-		return err
-	}
-
-	for _, blk := range blks {
-		ser, err := proto.Marshal(blk)
-		if err != nil {
-			return err
-		}
-		lenBytes := make([]byte, 4)
-		binary.BigEndian.PutUint32(lenBytes, uint32(len(ser)))
-
-		if _, err := f2.Write(lenBytes); err != nil {
-			return err
-		}
-		if _, err := f2.Write(ser); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
-/*func TestBuildBlockData(t *testing.T) {
-	err := generateBlocksDat()
+func TestTestHarness_Blockchain(t *testing.T) {
+	f, err := BlocksData.Open("blocks/blocks.dat")
+	assert.NoError(t, err)
+
+	h2, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(1), LoadBlocks(f, 6))
+	assert.NoError(t, err)
+	err = h2.GenerateBlocks(1)
 	assert.NoError(t, err)
 }*/

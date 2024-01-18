@@ -1,4 +1,4 @@
-(lambda (priv stake-pub) (
+(lambda (priv pub) (
         letrec (
                ;; cat-and-hash takes two integers, each up to max field element.
                ;; The integers are converted to their byte representation,
@@ -55,13 +55,15 @@
                                   (hash-branches new-h (cdr hashes))
                                   new-h)))))
 
-                       (= (hash-branches leaf hashes) root))))
+                       (if hashes
+                           (= (hash-branches leaf hashes) root) ;; All others
+                           (= leaf root)                        ;; Genesis coinbase
+                       ))))
 
                )
 
                ;; Validate the staked input
                (let  (
-                      (pub (car (cdr stake-pub)))
                       (locked-until (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr pub))))))))))
                       (locking-params (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr priv)))))))))
                       (unlocking-params (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr (cdr priv))))))))))
@@ -80,19 +82,19 @@
                      )
 
                      ;; Make sure the public amount matches the private amount
-                     (if (= amount (car stake-pub))
+                     (if (= amount (car pub))
                          ;; Only ILX can be staked
                          (if (= asset-id 0)
                              ;; Make sure the calculated nullifier matches the public nullifier
-                             (if (= nullifier (car (car (cdr pub))))
+                             (if (= nullifier (car (car (cdr (cdr pub)))))
                                  ;; Validate the inclusion proof proving the input commitment exists in the txo-set.
-                                 (if (validate-inclusion-proof leaf hashes (car (cdr (cdr pub))))
+                                 (if (validate-inclusion-proof leaf hashes (car (cdr (cdr (cdr pub)))))
                                      ;; Validate the user's locking script
-                                     (if (script locking-params unlocking-params 0 priv pub)
+                                     (if (script locking-params unlocking-params 0 (cons (cons priv nil) nil) (cdr pub))
                                          ;; If locked-until is greater than zero the script must be the
                                          ;; timelocked-multisig script.
                                          (if (> locked-until 0)
-                                             (if (= script-commitment 0x3d7888a3f0446ca56ff67c519264accf31c3e155e0c71fae771bab94aa9ca95e)
+                                             (if (= script-commitment 0x302349323436be580d956cd1744e81292d30863a47a11cb650457c40fc58c8b6)
                                                  ;; Validate that the script's lock-until matches the transaction's
                                                  (= (car locking-params) locked-until)
                                                  nil

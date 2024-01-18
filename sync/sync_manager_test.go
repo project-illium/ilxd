@@ -18,6 +18,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/ilxd/zk"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -38,7 +39,12 @@ type mockNode struct {
 func generateMockNetwork(numNodes, numBlocks int) (*mockNetwork, error) {
 	mn := mocknet.New()
 
-	testHarness, err := harness.NewTestHarness(harness.DefaultOptions(), harness.Pregenerate(numBlocks))
+	f, err := harness.BlocksData.Open("blocks/blocks.dat")
+	if err != nil {
+		return nil, err
+	}
+
+	testHarness, err := harness.NewTestHarness(harness.DefaultOptions(), harness.LoadBlocks(f, numBlocks))
 	if err != nil {
 		return nil, err
 	}
@@ -112,10 +118,12 @@ func TestSyncFromChooser(t *testing.T) {
 
 	harness2, err := net.harness.Clone()
 	assert.NoError(t, err)
-	net.harness.GenerateBlocks(1)
-	harness2.GenerateBlocks(2)
+	err = net.harness.GenerateBlocks(1)
+	assert.NoError(t, err)
+	err = harness2.GenerateBlocks(2)
+	assert.NoError(t, err)
 
-	choiceID, err := harness2.Blockchain().GetBlockIDByHeight(1001)
+	choiceID, err := harness2.Blockchain().GetBlockIDByHeight(1000)
 	assert.NoError(t, err)
 
 	// Add more nodes following chain 2
@@ -124,7 +132,9 @@ func TestSyncFromChooser(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(net.harness.Blockchain().Params()))
+	verifier := &zk.MockVerifier{}
+	verifier.SetValid(true)
+	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(net.harness.Blockchain().Params()), blockchain.Verifier(verifier))
 	assert.NoError(t, err)
 
 	node, err := makeMockNode(net.mn, chain)
@@ -149,6 +159,7 @@ func TestSyncFromChooser(t *testing.T) {
 		IsCurrentCallback: nil,
 		ProofCache:        blockchain.NewProofCache(100000),
 		SigCache:          blockchain.NewSigCache(1000000),
+		Verifier:          verifier,
 	})
 	manager.behavorFlag = blockchain.BFFastAdd
 
@@ -181,7 +192,7 @@ func TestSyncWithNodesAtDifferentHeights(t *testing.T) {
 	assert.NoError(t, err)
 	harness2.GenerateBlocks(1)
 
-	choiceID, err := harness2.Blockchain().GetBlockIDByHeight(1001)
+	choiceID, err := harness2.Blockchain().GetBlockIDByHeight(1000)
 	assert.NoError(t, err)
 
 	// Add more nodes following chain 2
@@ -190,7 +201,9 @@ func TestSyncWithNodesAtDifferentHeights(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(net.harness.Blockchain().Params()))
+	verifier := &zk.MockVerifier{}
+	verifier.SetValid(true)
+	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(net.harness.Blockchain().Params()), blockchain.Verifier(verifier))
 	assert.NoError(t, err)
 
 	node, err := makeMockNode(net.mn, chain)
@@ -215,6 +228,7 @@ func TestSyncWithNodesAtDifferentHeights(t *testing.T) {
 		IsCurrentCallback: nil,
 		ProofCache:        blockchain.NewProofCache(100000),
 		SigCache:          blockchain.NewSigCache(1000000),
+		Verifier:          verifier,
 	})
 	manager.behavorFlag = blockchain.BFFastAdd
 
@@ -240,11 +254,13 @@ func TestSyncWithNodesAtDifferentHeights(t *testing.T) {
 }
 
 func TestSync(t *testing.T) {
-	net, err := generateMockNetwork(20, 25000)
+	net, err := generateMockNetwork(20, 21000)
 	assert.NoError(t, err)
 
 	t.Run("sync when all nodes agree", func(t *testing.T) {
-		chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(net.harness.Blockchain().Params()))
+		verifier := &zk.MockVerifier{}
+		verifier.SetValid(true)
+		chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(net.harness.Blockchain().Params()), blockchain.Verifier(verifier))
 		assert.NoError(t, err)
 
 		b100, err := net.harness.Blockchain().GetBlockByHeight(100)
@@ -282,6 +298,7 @@ func TestSync(t *testing.T) {
 			IsCurrentCallback: nil,
 			ProofCache:        blockchain.NewProofCache(100000),
 			SigCache:          blockchain.NewSigCache(1000000),
+			Verifier:          verifier,
 		})
 		manager.behavorFlag = blockchain.BFFastAdd
 
@@ -308,9 +325,12 @@ func TestSync(t *testing.T) {
 	})
 
 	t.Run("sync with chain fork", func(t *testing.T) {
-		// The extension option creates a new chain that forks at block 15000 and where
-		// the fork has a worse chain score.
-		harness2, err := harness.NewTestHarness(harness.DefaultOptions(), harness.Extension(true))
+		f, err := harness.BlocksData.Open("blocks/blocks.dat")
+		assert.NoError(t, err)
+		f2, err := harness.Blocks2Data.Open("blocks/blocks2.dat")
+		assert.NoError(t, err)
+
+		harness2, err := harness.NewTestHarness(harness.DefaultOptions(), harness.LoadBlocks(f, 15000), harness.LoadBlocks(f2, 6000))
 		assert.NoError(t, err)
 
 		// Add more nodes following chain 2
@@ -319,7 +339,9 @@ func TestSync(t *testing.T) {
 			assert.NoError(t, err)
 		}
 
-		chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(net.harness.Blockchain().Params()))
+		verifier := &zk.MockVerifier{}
+		verifier.SetValid(true)
+		chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(net.harness.Blockchain().Params()), blockchain.Verifier(verifier))
 		assert.NoError(t, err)
 
 		node, err := makeMockNode(net.mn, chain)
@@ -335,6 +357,7 @@ func TestSync(t *testing.T) {
 			IsCurrentCallback: nil,
 			ProofCache:        blockchain.NewProofCache(100000),
 			SigCache:          blockchain.NewSigCache(1000000),
+			Verifier:          verifier,
 		})
 		manager.behavorFlag = blockchain.BFFastAdd
 

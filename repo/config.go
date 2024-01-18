@@ -75,6 +75,7 @@ type Config struct {
 	CoinbaseAddress    string        `long:"coinbaseaddr" description:"An optional address to send all coinbase rewards to. If this option is not used the wallet will automatically select an internal address."`
 	NetworkKey         string        `long:"networkkey" description:"A network key to use for this node. This will override the node's peer ID."`
 	Prune              bool          `long:"prune" description:"Delete the blockchain from disk. The node will store just the date needed to validate new blocks."`
+	MockProofs         bool          `long:"mock" description:"Set the node to use mock proofs instead of full proofs. This option is only available for regtest."`
 
 	Policy  Policy     `group:"Policy"`
 	RPCOpts RPCOptions `group:"RPC Options"`
@@ -248,7 +249,7 @@ func LoadConfig() (*Config, error) {
 	return &cfg, nil
 }
 
-// createDefaultConfig copies the sample-obcrawler.conf content to the given destination path,
+// createDefaultConfig copies the sample-ilxd.conf content to the given destination path,
 // and populates it with some randomly generated RPC username and password.
 func createDefaultConfigFile(destinationPath string, testnet bool) error {
 	// Create the destination directory if it does not exists

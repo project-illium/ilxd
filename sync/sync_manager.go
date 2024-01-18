@@ -17,6 +17,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/ilxd/zk"
 	"math"
 	"math/rand"
 	"sync"
@@ -47,6 +48,7 @@ type SyncManager struct {
 	behavorFlag     blockchain.BehaviorFlags
 	proofCache      *blockchain.ProofCache
 	sigCache        *blockchain.SigCache
+	verifier        zk.Verifier
 	callback        func()
 	quit            chan struct{}
 }
@@ -65,6 +67,7 @@ type SyncManagerConfig struct {
 	Chooser           ConsensusChooser
 	ProofCache        *blockchain.ProofCache
 	SigCache          *blockchain.SigCache
+	Verifier          zk.Verifier
 	IsCurrentCallback func()
 }
 
@@ -79,6 +82,7 @@ func NewSyncManager(cfg *SyncManagerConfig) *SyncManager {
 		consensuChooser: cfg.Chooser,
 		proofCache:      cfg.ProofCache,
 		sigCache:        cfg.SigCache,
+		verifier:        cfg.Verifier,
 		buckets:         make(map[types.ID][]peer.ID),
 		syncMtx:         sync.Mutex{},
 		bucketMtx:       sync.RWMutex{},
@@ -625,7 +629,7 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 			defer close(sigChan)
 
 			go func() {
-				proofChan <- blockchain.NewProofValidator(sm.proofCache).Validate(toValidate)
+				proofChan <- blockchain.NewProofValidator(sm.proofCache, sm.verifier).Validate(toValidate)
 			}()
 			go func() {
 				sigChan <- blockchain.NewSigValidator(sm.sigCache).Validate(toValidate)

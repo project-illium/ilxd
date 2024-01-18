@@ -12,6 +12,7 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"github.com/project-illium/ilxd/zk"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -21,7 +22,9 @@ func TestGenerator(t *testing.T) {
 	testHarness, err := harness.NewTestHarness(harness.DefaultOptions())
 	assert.NoError(t, err)
 
-	mpool, err := mempool.NewMempool([]mempool.Option{mempool.DefaultOptions(), mempool.BlockchainView(testHarness.Blockchain())}...)
+	verifier := &zk.MockVerifier{}
+	verifier.SetValid(true)
+	mpool, err := mempool.NewMempool([]mempool.Option{mempool.DefaultOptions(), mempool.Verifier(verifier), mempool.BlockchainView(testHarness.Blockchain())}...)
 	assert.NoError(t, err)
 
 	respChan := make(chan *blocks.XThinnerBlock)

@@ -8,20 +8,17 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
-	"github.com/project-illium/ilxd/zk/circuits/stake"
-	"github.com/project-illium/ilxd/zk/circuits/standard"
 	"runtime"
-	"time"
 )
 
 // ValidateTransactionProof validates the zero knowledge proof for a single transaction.
 // proofCache must not be nil. The validator will check whether the proof already exists
 // in the cache. If it does the proof will be assumed to be valid. If not it will
 // validate the proof and add the proof to the cache if valid.
-func ValidateTransactionProof(tx *transactions.Transaction, proofCache *ProofCache) <-chan error {
+func ValidateTransactionProof(tx *transactions.Transaction, proofCache *ProofCache, verifier zk.Verifier) <-chan error {
 	errChan := make(chan error)
 	go func() {
-		validator := NewProofValidator(proofCache)
+		validator := NewProofValidator(proofCache, verifier)
 		errChan <- validator.Validate([]*transactions.Transaction{tx})
 		close(errChan)
 	}()
@@ -31,6 +28,7 @@ func ValidateTransactionProof(tx *transactions.Transaction, proofCache *ProofCac
 // proofValidator is used to validate transaction zero knowledge proofs in parallel.
 type proofValidator struct {
 	proofCache *ProofCache
+	verifier   zk.Verifier
 	workChan   chan *transactions.Transaction
 	resultChan chan error
 	done       chan struct{}
@@ -38,9 +36,10 @@ type proofValidator struct {
 
 // NewProofValidator returns a new ProofValidator.
 // The proofCache must NOT be nil.
-func NewProofValidator(proofCache *ProofCache) *proofValidator {
+func NewProofValidator(proofCache *ProofCache, verifier zk.Verifier) *proofValidator {
 	return &proofValidator{
 		proofCache: proofCache,
+		verifier:   verifier,
 		workChan:   make(chan *transactions.Transaction),
 		resultChan: make(chan error),
 		done:       make(chan struct{}),
@@ -98,36 +97,12 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- nil
 					break
 				}
-
-				sigHash, err := tx.StandardTransaction.SigHash()
+				params, err := tx.StandardTransaction.ToCircuitParams()
 				if err != nil {
 					p.resultChan <- err
 					break
 				}
-				outputs := make([]standard.PublicOutput, 0, len(tx.StandardTransaction.Outputs))
-				for _, out := range tx.StandardTransaction.Outputs {
-					outputs = append(outputs, standard.PublicOutput{
-						Commitment: out.Commitment,
-						CipherText: out.Ciphertext,
-					})
-				}
-
-				params := standard.PublicParams{
-					TXORoot:    tx.StandardTransaction.TxoRoot,
-					SigHash:    sigHash,
-					Outputs:    outputs,
-					Nullifiers: tx.StandardTransaction.Nullifiers,
-					Fee:        tx.StandardTransaction.Fee,
-					Coinbase:   0,
-					MintID:     nil,
-					MintAmount: 0,
-				}
-				if tx.StandardTransaction.Locktime != nil {
-					params.Locktime = time.Unix(tx.StandardTransaction.Locktime.Timestamp, 0)
-					params.LocktimePrecision = time.Duration(tx.StandardTransaction.Locktime.Precision)
-				}
-
-				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.StandardTransaction.Proof)
+				valid, err := p.verifier.Verify(zk.StandardValidationProgram(), params, tx.StandardTransaction.Proof)
 				if err != nil {
 					p.resultChan <- err
 					break
@@ -145,30 +120,12 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- nil
 					break
 				}
-				sigHash, err := tx.CoinbaseTransaction.SigHash()
+				params, err := tx.CoinbaseTransaction.ToCircuitParams()
 				if err != nil {
 					p.resultChan <- err
 					break
 				}
-				outputs := make([]standard.PublicOutput, 0, len(tx.CoinbaseTransaction.Outputs))
-				for _, out := range tx.CoinbaseTransaction.Outputs {
-					outputs = append(outputs, standard.PublicOutput{
-						Commitment: out.Commitment,
-						CipherText: out.Ciphertext,
-					})
-				}
-				params := standard.PublicParams{
-					TXORoot:    nil,
-					SigHash:    sigHash,
-					Outputs:    outputs,
-					Nullifiers: nil,
-					Fee:        0,
-					Coinbase:   tx.CoinbaseTransaction.NewCoins,
-					MintID:     nil,
-					MintAmount: 0,
-					Locktime:   time.Time{},
-				}
-				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.CoinbaseTransaction.Proof)
+				valid, err := p.verifier.Verify(zk.CoinbaseValidationProgram(), params, tx.CoinbaseTransaction.Proof)
 				if err != nil {
 					p.resultChan <- err
 					break
@@ -186,30 +143,12 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- nil
 					break
 				}
-				sigHash, err := tx.TreasuryTransaction.SigHash()
+				params, err := tx.TreasuryTransaction.ToCircuitParams()
 				if err != nil {
 					p.resultChan <- err
 					break
 				}
-				outputs := make([]standard.PublicOutput, 0, len(tx.TreasuryTransaction.Outputs))
-				for _, out := range tx.TreasuryTransaction.Outputs {
-					outputs = append(outputs, standard.PublicOutput{
-						Commitment: out.Commitment,
-						CipherText: out.Ciphertext,
-					})
-				}
-				params := standard.PublicParams{
-					TXORoot:    nil,
-					SigHash:    sigHash,
-					Outputs:    outputs,
-					Nullifiers: nil,
-					Fee:        0,
-					Coinbase:   tx.TreasuryTransaction.Amount,
-					MintID:     nil,
-					MintAmount: 0,
-					Locktime:   time.Time{},
-				}
-				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.TreasuryTransaction.Proof)
+				valid, err := p.verifier.Verify(zk.TreasuryValidationProgram(), params, tx.TreasuryTransaction.Proof)
 				if err != nil {
 					p.resultChan <- err
 					break
@@ -227,33 +166,12 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- nil
 					break
 				}
-				sigHash, err := tx.MintTransaction.SigHash()
+				params, err := tx.MintTransaction.ToCircuitParams()
 				if err != nil {
 					p.resultChan <- err
 					break
 				}
-				outputs := make([]standard.PublicOutput, 0, len(tx.MintTransaction.Outputs))
-				for _, out := range tx.MintTransaction.Outputs {
-					outputs = append(outputs, standard.PublicOutput{
-						Commitment: out.Commitment,
-						CipherText: out.Ciphertext,
-					})
-				}
-				params := standard.PublicParams{
-					TXORoot:    tx.MintTransaction.TxoRoot,
-					SigHash:    sigHash,
-					Outputs:    outputs,
-					Nullifiers: tx.MintTransaction.Nullifiers,
-					Fee:        tx.MintTransaction.Fee,
-					Coinbase:   0,
-					MintID:     tx.MintTransaction.Asset_ID,
-					MintAmount: tx.MintTransaction.NewTokens,
-				}
-				if tx.MintTransaction.Locktime != nil {
-					params.Locktime = time.Unix(tx.MintTransaction.Locktime.Timestamp, 0)
-					params.LocktimePrecision = time.Duration(tx.MintTransaction.Locktime.Precision)
-				}
-				valid, err := zk.ValidateSnark(standard.StandardCircuit, &params, tx.MintTransaction.Proof)
+				valid, err := p.verifier.Verify(zk.MintValidationProgram(), params, tx.MintTransaction.Proof)
 				if err != nil {
 					p.resultChan <- err
 					break
@@ -271,19 +189,12 @@ func (p *proofValidator) validateHandler() {
 					p.resultChan <- nil
 					break
 				}
-				sigHash, err := tx.StakeTransaction.SigHash()
+				params, err := tx.StakeTransaction.ToCircuitParams()
 				if err != nil {
 					p.resultChan <- err
 					break
 				}
-				params := stake.PublicParams{
-					TXORoot:     tx.StakeTransaction.TxoRoot,
-					LockedUntil: time.Unix(tx.StakeTransaction.LockedUntil, 0),
-					SigHash:     sigHash,
-					Amount:      tx.StakeTransaction.Amount,
-					Nullifier:   tx.StakeTransaction.Nullifier,
-				}
-				valid, err := zk.ValidateSnark(stake.StakeCircuit, &params, tx.StakeTransaction.Proof)
+				valid, err := p.verifier.Verify(zk.StakeValidationProgram(), params, tx.StakeTransaction.Proof)
 				if err != nil {
 					p.resultChan <- err
 					break
