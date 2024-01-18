@@ -738,17 +738,17 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 			case consensus.StatusFinalized:
 				blockID := blk.ID()
 				log.Debug("Block finalized", log.ArgsFromMap(map[string]any{
-					"id":           blockID,
+					"id":           blockID.String(),
 					"milliseconds": time.Since(t).Milliseconds(),
 				}))
 				if err := s.blockchain.ConnectBlock(b, blockchain.BFNone); err != nil {
 					log.WithCaller(true).Error("Error connecting block", log.ArgsFromMap(map[string]any{
-						"id":    blockID,
+						"id":    blockID.String(),
 						"error": err,
 					}))
 				} else {
 					log.Info("New block", log.ArgsFromMap(map[string]any{
-						"id":     blockID,
+						"id":     blockID.String(),
 						"height": blk.Header.Height,
 						"txs":    len(b.Transactions),
 					}))
@@ -756,7 +756,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 				}
 			case consensus.StatusRejected:
 				log.Debug("Block rejected by consensus", log.ArgsFromMap(map[string]any{
-					"id":     blk.ID(),
+					"id":     blk.ID().String(),
 					"height": blk.Header.Height,
 				}))
 			}
@@ -775,7 +775,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 					delete(s.orphanBlocks, orphan.blk.ID())
 				} else if orphan.blk.Header.Height == blk.Header.Height+1 {
 					log.Debug("Re-processing orphan block", log.ArgsFromMap(map[string]any{
-						"id":     orphan.blk.ID(),
+						"id":     orphan.blk.ID().String(),
 						"height": orphan.blk.Header.Height,
 					}))
 					go s.processBlock(orphan.blk, orphan.relayingPeer, false)

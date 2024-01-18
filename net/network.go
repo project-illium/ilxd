@@ -335,7 +335,7 @@ loop:
 		case mempool.PolicyError:
 			// Policy errors do not penalize peer
 			log.Debug("Mempool reject transaction", log.ArgsFromMap(map[string]any{
-				"txid":         tx.ID(),
+				"txid":         tx.ID().String(),
 				"from peer":    p,
 				"policy error": e.ErrorCode.String(),
 				"description":  e.Description,
@@ -344,7 +344,7 @@ loop:
 		case blockchain.RuleError:
 			// Rule errors do
 			log.Debug("Mempool reject transaction", log.ArgsFromMap(map[string]any{
-				"txid":        tx.ID(),
+				"txid":        tx.ID().String(),
 				"from peer":   p,
 				"rule error":  e.ErrorCode.String(),
 				"description": e.Description,
@@ -356,7 +356,7 @@ loop:
 			return pubsub.ValidationAccept
 		default:
 			log.Debug("Mempool reject transaction", log.ArgsFromMap(map[string]any{
-				"txid":          tx.ID(),
+				"txid":          tx.ID().String(),
 				"from peer":     p,
 				"unknown error": err,
 			}))
@@ -375,13 +375,13 @@ loop:
 			log.WithCaller(true).Error("error deserializing xthinner block", log.Args("error", err))
 			return pubsub.ValidationReject
 		}
-		log.WithCaller(true).Trace("Pubsub received new block", log.Args("id", blk.ID()))
+		log.WithCaller(true).Trace("Pubsub received new block", log.Args("id", blk.ID().String()))
 		err := cfg.validateBlock(blk, p)
 		switch e := err.(type) {
 		case blockchain.OrphanBlockError:
 			// Orphans we won't relay (yet) but won't penalize them either.
 			log.Debug("Received orphan block", log.ArgsFromMap(map[string]any{
-				"id":        blk.ID(),
+				"id":        blk.ID().String(),
 				"height":    blk.Header.Height,
 				"from peer": p,
 			}))
@@ -389,7 +389,7 @@ loop:
 		case blockchain.RuleError:
 			// Rule errors do
 			log.Debug("Reject block", log.ArgsFromMap(map[string]any{
-				"id":          blk.ID(),
+				"id":          blk.ID().String(),
 				"height":      blk.Header.Height,
 				"from peer":   p,
 				"rule error":  e.ErrorCode.String(),
@@ -402,7 +402,7 @@ loop:
 			return pubsub.ValidationAccept
 		default:
 			log.Debug("Reject block", log.ArgsFromMap(map[string]any{
-				"id":            blk.ID(),
+				"id":            blk.ID().String(),
 				"height":        blk.Header.Height,
 				"from peer":     p,
 				"unknown error": err,

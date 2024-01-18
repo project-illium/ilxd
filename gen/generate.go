@@ -271,7 +271,7 @@ out:
 	g.lastGenTime = time.Unix(blk.Header.Timestamp, 0)
 
 	log.Debug("Generated block", log.ArgsFromMap(map[string]any{
-		"id":     blk.ID(),
+		"id":     blk.ID().String(),
 		"height": blk.Header.Height,
 	}))
 

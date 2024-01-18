@@ -187,7 +187,7 @@ out:
 // will be marked as Rejected.
 func (eng *ConsensusEngine) NewBlock(header *blocks.BlockHeader, isAcceptable bool, callback chan<- Status) {
 	log.WithCaller(true).Trace("New block in consensus engine", log.ArgsFromMap(map[string]any{
-		"id":     header.ID(),
+		"id":     header.ID().String(),
 		"height": header.Height,
 	}))
 	headerCpy := proto.Clone(header).(*blocks.BlockHeader)
@@ -215,7 +215,7 @@ func (eng *ConsensusEngine) handleNewBlock(header *blocks.BlockHeader, isAccepta
 
 	if len(bc.blockVotes) > 1 {
 		log.Debug("Conflicting block received by consensus engine", log.ArgsFromMap(map[string]any{
-			"id":        header.ID(),
+			"id":        header.ID().String(),
 			"height":    header.Height,
 			"conflicts": len(bc.blockVotes),
 		}))
