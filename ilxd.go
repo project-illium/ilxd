@@ -16,7 +16,7 @@ import (
 func main() {
 	// Up some limits.
 	if err := limits.SetLimits(); err != nil {
-		log.Fatalf("failed to set limits: %v\n", err)
+		log.WithCaller(true).Fatal("Failed to set limits", log.Args("error", err))
 	}
 
 	// Configure the command line parser.
@@ -24,7 +24,7 @@ func main() {
 	parser := flags.NewNamedParser("ilxd", flags.Default)
 	parser.AddGroup("Node Options", "Configuration options for the node", &emptyCfg)
 	if _, err := parser.Parse(); err != nil {
-		log.Fatal(err)
+		log.WithCaller(true).Fatal("Failed to configure parser", log.Args("error", err))
 	}
 
 	// Load the config file. There are three steps to this:
@@ -33,13 +33,13 @@ func main() {
 	// 3. Override the first two with any provided command line options.
 	cfg, err := repo.LoadConfig()
 	if err != nil {
-		log.Fatal(err)
+		log.WithCaller(true).Fatal("Failed to load config", log.Args("error", err))
 	}
 
 	// Build and start the server.
 	server, err := BuildServer(cfg)
 	if err != nil {
-		log.Fatal(err)
+		log.WithCaller(true).Fatal("Failed to build server", log.Args("error", err))
 	}
 
 	// Listen for an exit signal and close.
@@ -49,7 +49,7 @@ func main() {
 		if sig == syscall.SIGINT || sig == syscall.SIGTERM {
 			log.Info("ilxd gracefully shutting down")
 			if err := server.Close(); err != nil {
-				log.Errorf("Shutdown error: %s", err)
+				log.WithCaller(true).Error("Shutdown error", log.Args("error", err))
 			}
 			os.Exit(1)
 		}

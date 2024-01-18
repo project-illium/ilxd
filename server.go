@@ -30,6 +30,7 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
+	"github.com/project-illium/logger"
 	"github.com/project-illium/walletlib"
 	"github.com/project-illium/walletlib/client"
 	"github.com/pterm/pterm"
@@ -44,7 +45,7 @@ const (
 	orphanResyncThreshold = 5
 )
 
-var log = pterm.DefaultLogger.WithLevel(pterm.LogLevelDisabled)
+var log = logger.DisabledLogger.WithLevel(pterm.LogLevelDisabled)
 
 type orphanBlock struct {
 	blk          *blocks.Block

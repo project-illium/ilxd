@@ -5,12 +5,13 @@
 package sync
 
 import (
+	"github.com/project-illium/logger"
 	"github.com/pterm/pterm"
 )
 
-var log = pterm.DefaultLogger.WithLevel(pterm.LogLevelDisabled)
+var log = logger.DisabledLogger.WithLevel(pterm.LogLevelDisabled)
 
 // UseLogger uses a specified Logger to output package logging info.
-func UseLogger(logger *pterm.Logger) {
+func UseLogger(logger *logger.Logger) {
 	log = logger
 }

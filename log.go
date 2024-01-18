@@ -14,8 +14,6 @@ import (
 	"github.com/project-illium/ilxd/sync"
 	"github.com/project-illium/walletlib"
 	"github.com/pterm/pterm"
-	"io"
-	"os"
 	"path"
 	"strings"
 
@@ -23,17 +21,6 @@ import (
 	"github.com/project-illium/ilxd/repo"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
-
-type logWriter struct {
-	fileLogger *lumberjack.Logger
-}
-
-func (w *logWriter) Write(p []byte) (n int, err error) {
-	if _, err := os.Stdout.Write(p); err != nil {
-		return 0, err
-	}
-	return w.fileLogger.Write(p)
-}
 
 var LogLevelMap = map[string]pterm.LogLevel{
 	"trace":   pterm.LogLevelTrace,
@@ -44,22 +31,13 @@ var LogLevelMap = map[string]pterm.LogLevel{
 	"fatal":   pterm.LogLevelFatal,
 }
 
-var logLevelSeverity = map[pterm.LogLevel]string{
-	pterm.LogLevelTrace: "TRACE",
-	pterm.LogLevelDebug: "DEBUG",
-	pterm.LogLevelInfo:  "INFO",
-	pterm.LogLevelWarn:  "WARNING",
-	pterm.LogLevelError: "ERROR",
-	pterm.LogLevelFatal: "FATAL",
-}
-
 func setupLogging(logDir, level string, testnet bool) error {
 	logLevel, ok := LogLevelMap[strings.ToLower(level)]
 	if !ok {
 		return errors.New("invalid log level")
 	}
 
-	var writer io.Writer = os.Stdout
+	log = log.WithCustomLogger(pterm.DefaultLogger.WithLevel(logLevel))
 
 	if logDir != "" {
 		logRotator := &lumberjack.Logger{
@@ -68,12 +46,11 @@ func setupLogging(logDir, level string, testnet bool) error {
 			MaxAge:     30, // Days
 			MaxBackups: 3,
 		}
-
-		// logRotator.Write([]byte(fmt.Sprintf("%+v\n", e)))
-		writer = &logWriter{fileLogger: logRotator}
+		log = log.WithCustomLogger(pterm.DefaultLogger.
+			WithLevel(logLevel).
+			WithFormatter(pterm.LogFormatterJSON).
+			WithWriter(logRotator))
 	}
-
-	log = pterm.DefaultLogger.WithWriter(writer).WithLevel(logLevel)
 
 	repo.UseLogger(log)
 	net.UseLogger(log)

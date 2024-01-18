@@ -70,7 +70,7 @@ func newGrpcServer(cfgOpts repo.RPCOptions, rpcCfg *rpc.GrpcServerConfig) (*rpc.
 
 	go func() {
 		if err := httpServer.ListenAndServeTLS(cfgOpts.RPCCert, cfgOpts.RPCKey); err != nil {
-			log.Debugf("Finished serving gRPC: %v", err)
+			log.WithCaller(true).Error("Err serving gRPC", log.Args("error", err))
 		}
 	}()
 	return gRPCServer, nil
@@ -83,8 +83,10 @@ type interceptor struct {
 func (i *interceptor) interceptStreaming(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	p, ok := peer.FromContext(ss.Context())
 	if ok {
-		log.Debugf("Streaming method %s invoked by %s", info.FullMethod,
-			p.Addr.String())
+		log.Trace("Streaming gRPC method invoked", log.ArgsFromMap(map[string]any{
+			"method": info.FullMethod,
+			"addr":   p.Addr.String(),
+		}))
 	}
 
 	err := validateAuthenticationToken(ss.Context(), i.authToken)
@@ -94,8 +96,11 @@ func (i *interceptor) interceptStreaming(srv interface{}, ss grpc.ServerStream, 
 
 	err = handler(srv, ss)
 	if err != nil && ok {
-		log.Errorf("Streaming method %s invoked by %s errored: %v",
-			info.FullMethod, p.Addr.String(), err)
+		log.Error("Streaming gRPC error", log.ArgsFromMap(map[string]any{
+			"method": info.FullMethod,
+			"addr":   p.Addr.String(),
+			"error":  err,
+		}))
 	}
 	return err
 }
@@ -103,8 +108,10 @@ func (i *interceptor) interceptStreaming(srv interface{}, ss grpc.ServerStream, 
 func (i *interceptor) interceptUnary(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 	p, ok := peer.FromContext(ctx)
 	if ok {
-		log.Debugf("Unary method %s invoked by %s", info.FullMethod,
-			p.Addr.String())
+		log.Trace("Unary gRPC method invoked", log.ArgsFromMap(map[string]any{
+			"method": info.FullMethod,
+			"addr":   p.Addr.String(),
+		}))
 	}
 
 	err = validateAuthenticationToken(ctx, i.authToken)
@@ -114,8 +121,11 @@ func (i *interceptor) interceptUnary(ctx context.Context, req interface{}, info 
 
 	resp, err = handler(ctx, req)
 	if err != nil && ok {
-		log.Errorf("Unary method %s invoked by %s errored: %v",
-			info.FullMethod, p.Addr.String(), err)
+		log.Error("Unary gRPC error", log.ArgsFromMap(map[string]any{
+			"method": info.FullMethod,
+			"addr":   p.Addr.String(),
+			"error":  err,
+		}))
 	}
 	return resp, err
 }
