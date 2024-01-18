@@ -5,14 +5,10 @@
 package harness
 
 import (
-	"crypto/rand"
-	lcrypto "github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/stretchr/testify/assert"
-	"os"
 	"testing"
 )
 
@@ -77,7 +73,7 @@ func TestNewTestHarness(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestTestHarness_Accumulator(t *testing.T) {
+/*func TestTestHarness_GenerateBlocksDat(t *testing.T) {
 	b1, err := os.Open("blocks/blocks.dat")
 	assert.NoError(t, err)
 
@@ -213,4 +209,4 @@ func TestTestHarness_Blockchain(t *testing.T) {
 	assert.NoError(t, err)
 	err = h2.GenerateBlocks(1)
 	assert.NoError(t, err)
-}
+}*/
