@@ -92,14 +92,20 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 				s.Close()
 				return
 			}
-			log.Debugf("Error reading from chain service stream: peer: %s, error: %s", remotePeer, err.Error())
+			log.Debug("Error reading from chain service stream", log.ArgsFromMap(map[string]any{
+				"peer":  remotePeer,
+				"error": err,
+			}))
 			s.Reset()
 			return
 		}
 		req := new(wire.MsgChainServiceRequest)
 		if err := proto.Unmarshal(msgBytes, req); err != nil {
 			reader.ReleaseMsg(msgBytes)
-			log.Debugf("Error unmarshalling chain service message: peer: %s, error: %s", remotePeer, err.Error())
+			log.Debug("Error unmarshalling chain service message", log.ArgsFromMap(map[string]any{
+				"peer":  remotePeer,
+				"error": err,
+			}))
 			s.Reset()
 			return
 		}
@@ -120,26 +126,38 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 		case *wire.MsgChainServiceRequest_GetHeadersStream:
 			err = cs.handleGetHeadersStream(m.GetHeadersStream, s)
 			if err != nil {
-				log.Errorf("Error sending header response to peer: %s, error: %s", remotePeer, err.Error())
+				log.WithCaller(true).Error("Error sending header response to peer", log.ArgsFromMap(map[string]any{
+					"peer":  remotePeer,
+					"error": err,
+				}))
 				s.Reset()
 				return
 			}
 		case *wire.MsgChainServiceRequest_GetBlockTxsStream:
 			err = cs.handleGetBlockTxsStream(m.GetBlockTxsStream, s)
 			if err != nil {
-				log.Errorf("Error sending block txs response to peer: %s, error: %s", remotePeer, err.Error())
+				log.WithCaller(true).Error("Error sending block txs response to peer", log.ArgsFromMap(map[string]any{
+					"peer":  remotePeer,
+					"error": err,
+				}))
 				s.Reset()
 				return
 			}
 		}
 		if err != nil {
-			log.Errorf("Error handing chain service message to peer: %s, error: %s", remotePeer, err.Error())
+			log.WithCaller(true).Error("Error handling chain service message", log.ArgsFromMap(map[string]any{
+				"peer":  remotePeer,
+				"error": err,
+			}))
 			continue
 		}
 
 		if resp != nil {
 			if err := net.WriteMsg(s, resp); err != nil {
-				log.Errorf("Error writing chain service response to peer: %s, error: %s", remotePeer, err.Error())
+				log.WithCaller(true).Error("Error writing chain service response", log.ArgsFromMap(map[string]any{
+					"peer":  remotePeer,
+					"error": err,
+				}))
 				s.Reset()
 				return
 			}

@@ -20,7 +20,6 @@ import (
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/walletlib"
-	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"net/http"
@@ -42,7 +41,7 @@ type GrpcServerConfig struct {
 	Prover               zk.Prover
 	Policy               *policy.Policy
 	BroadcastTxFunc      func(tx *transactions.Transaction) error
-	SetLogLevelFunc      func(level zapcore.Level)
+	SetLogLevelFunc      func(level string) error
 	ReindexChainFunc     func() error
 	RequestBlockFunc     func(blockID types.ID, remotePeer peer.ID)
 	AutoStakeFunc        func(bool) error
@@ -70,7 +69,7 @@ type GrpcServer struct {
 	wallet           *walletlib.Wallet
 	prover           zk.Prover
 	broadcastTxFunc  func(tx *transactions.Transaction) error
-	setLogLevelFunc  func(level zapcore.Level)
+	setLogLevelFunc  func(level string) error
 	reindexChainFunc func() error
 	requestBlockFunc func(blockID types.ID, remotePeer peer.ID)
 	autoStakeFunc    func(bool) error

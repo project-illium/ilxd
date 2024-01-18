@@ -71,6 +71,9 @@ func (behaviorFlags BehaviorFlags) HasFlag(flag BehaviorFlags) bool {
 // the block producer exists in the validator set.
 func (b *Blockchain) checkBlockContext(header *blocks.BlockHeader) error {
 	tip := b.index.Tip()
+	if header == nil {
+		return ruleError(ErrNilHeader, "header is nil")
+	}
 	if header.Height <= tip.Height() {
 		return ruleError(ErrDoesNotConnect, "block height less than current tip")
 	}
@@ -114,6 +117,9 @@ func (b *Blockchain) checkBlockContext(header *blocks.BlockHeader) error {
 
 // validateHeader validates the transaction header. No blockchain context is needed for this validation.
 func (b *Blockchain) validateHeader(header *blocks.BlockHeader, flags BehaviorFlags) error {
+	if header == nil {
+		return ruleError(ErrNilHeader, "header is nil")
+	}
 	if !flags.HasFlag(BFGenesisValidation) {
 		producerID, err := peer.IDFromBytes(header.Producer_ID)
 		if err != nil {

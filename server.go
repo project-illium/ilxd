@@ -33,7 +33,6 @@ import (
 	"github.com/project-illium/walletlib"
 	"github.com/project-illium/walletlib/client"
 	"github.com/pterm/pterm"
-	"go.uber.org/zap"
 	"sort"
 	stdsync "sync"
 	"time"
@@ -45,7 +44,7 @@ const (
 	orphanResyncThreshold = 5
 )
 
-var log = zap.S()
+var log = pterm.DefaultLogger.WithLevel(pterm.LogLevelDisabled)
 
 type orphanBlock struct {
 	blk          *blocks.Block
@@ -102,9 +101,8 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	defer close(s.ready)
 
 	// Logging
-	zapLevel, err := setupLogging(config.LogDir, config.LogLevel, config.Testnet)
-	if err != nil {
-		return nil, err //nolint:govet
+	if err := setupLogging(config.LogDir, config.LogLevel, config.Testnet); err != nil {
+		return nil, err
 	}
 
 	if config.EnableDebugLogging {
@@ -379,7 +377,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		Wallet:               wallet,
 		Prover:               prover,
 		BroadcastTxFunc:      s.submitTransaction,
-		SetLogLevelFunc:      zapLevel.SetLevel,
+		SetLogLevelFunc:      UpdateLogLevel,
 		ReindexChainFunc:     s.reIndexChain,
 		RequestBlockFunc:     s.requestBlock,
 		AutoStakeFunc:        s.setAutostake,
@@ -558,7 +556,8 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 					for _, tx := range blk.Transactions {
 						if tx.ID() == txid {
 							if err := s.wallet.Stake([]types.ID{types.NewID(tx.GetCoinbaseTransaction().Outputs[0].Commitment)}); err != nil {
-								log.Errorf("Error autostaking coinbase: %s", err)
+								log.WithCaller(true).Error("Autostaking coinbase failed",
+									log.Args("error", err))
 								continue
 							}
 							s.autoStakeLock.Lock()
@@ -595,7 +594,8 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 		if err == nil && validator.UnclaimedCoins > 0 {
 			tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.coinbaseAddr, s.networkKey)
 			if err != nil {
-				log.Errorf("Error building auto coinbase transaction: %s", err)
+				log.WithCaller(true).Error("Error building auto coinbase transaction",
+					log.Args("error", err))
 				return
 			}
 			s.autoStakeLock.Lock()
@@ -604,7 +604,8 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 			}
 			s.autoStakeLock.Unlock()
 			if err := s.submitTransaction(tx); err != nil {
-				log.Errorf("Error submitting auto coinbase transaction: %s", err)
+				log.WithCaller(true).Error("Error submitting auto coinbase transaction",
+					log.Args("error", err))
 				return
 			}
 		}
@@ -701,7 +702,8 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 
 	isAcceptable, err := s.policy.IsAcceptableBlock(blk)
 	if err != nil {
-		log.Warnf("Error calculating policy preference: %s", err)
+		log.WithCaller(true).Error("Error calculating policy preference",
+			log.Args("error", err))
 	}
 
 	s.inventoryLock.Lock()
@@ -726,7 +728,6 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 	s.orphanLock.Unlock()
 
 	s.generator.Interrupt(blk.Header.Height)
-	log.Debugf("[CONSENSUS] new block: %s", blk.ID())
 	s.engine.NewBlock(blk.Header, isAcceptable, callback)
 
 	go func(b *blocks.Block, t time.Time) {
@@ -735,15 +736,28 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 			switch status {
 			case consensus.StatusFinalized:
 				blockID := blk.ID()
-				log.Debugf("Block %s finalized in %d milliseconds", blockID, time.Since(t).Milliseconds())
+				log.Debug("Block finalized", log.ArgsFromMap(map[string]any{
+					"id":           blockID,
+					"milliseconds": time.Since(t).Milliseconds(),
+				}))
 				if err := s.blockchain.ConnectBlock(b, blockchain.BFNone); err != nil {
-					log.Warnf("Connect block error: block %s: %s", blockID, err)
+					log.WithCaller(true).Error("Error connecting block", log.ArgsFromMap(map[string]any{
+						"id":    blockID,
+						"error": err,
+					}))
 				} else {
-					log.Infof("New block: %s, (height: %d, transactions: %d)", blockID, blk.Header.Height, len(b.Transactions))
+					log.Info("New block", log.ArgsFromMap(map[string]any{
+						"id":     blockID,
+						"height": blk.Header.Height,
+						"txs":    len(b.Transactions),
+					}))
 					s.syncManager.SetCurrent()
 				}
 			case consensus.StatusRejected:
-				log.Debugf("Block %s rejected by consensus", b.ID())
+				log.Debug("Block rejected by consensus", log.ArgsFromMap(map[string]any{
+					"id":     blk.ID(),
+					"height": blk.Header.Height,
+				}))
 			}
 
 			// Leave it here for a little in case a peer requests it.
@@ -759,7 +773,10 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 				if orphan.blk.Header.Height == blk.Header.Height {
 					delete(s.orphanBlocks, orphan.blk.ID())
 				} else if orphan.blk.Header.Height == blk.Header.Height+1 {
-					log.Debugf("Re-procssing orphan at height %d: %s", orphan.blk.Header.Height, orphan.blk.ID())
+					log.Debug("Re-processing orphan block", log.ArgsFromMap(map[string]any{
+						"id":     orphan.blk.ID(),
+						"height": orphan.blk.Header.Height,
+					}))
 					go s.processBlock(orphan.blk, orphan.relayingPeer, false)
 					break
 				} else if time.Since(orphan.firstSeen) > maxOrphanDuration {
@@ -903,7 +920,10 @@ func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
 	s.inflightRequests[blockID] = true
 	s.inflightLock.Unlock()
 
-	log.Debugf("Requesting unknown block %s from peer %s", blockID, remotePeer.String())
+	log.Debug("Requesting unknown block", log.ArgsFromMap(map[string]any{
+		"id":   blockID,
+		"peer": remotePeer,
+	}))
 	blk, err := s.chainService.GetBlock(remotePeer, blockID)
 	if err != nil {
 		s.network.IncreaseBanscore(remotePeer, 0, 30)
@@ -1019,7 +1039,7 @@ func printSplashScreen() {
 }
 
 func (s *Server) printListenAddrs() {
-	log.Infof("PeerID: %s", s.network.Host().ID().String())
+	log.Info(fmt.Sprintf("PeerID: %s", s.network.Host().ID().String()))
 	var lisAddrs []string
 	ifaceAddrs := s.network.Host().Addrs()
 	for _, addr := range ifaceAddrs {
@@ -1027,7 +1047,7 @@ func (s *Server) printListenAddrs() {
 	}
 	sort.Strings(lisAddrs)
 	for _, addr := range lisAddrs {
-		log.Infof("Listening on %s", addr)
+		log.Info(fmt.Sprintf("Listening on %s", addr))
 	}
-	log.Infof("gRPC server listening on %s", s.config.RPCOpts.GrpcListener)
+	log.Info(fmt.Sprintf("gRPC server listening on %s", s.config.RPCOpts.GrpcListener))
 }

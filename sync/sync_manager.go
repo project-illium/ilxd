@@ -166,7 +166,12 @@ syncLoop:
 			for blockID, p := range blockMap {
 				err := sm.syncBlocks(p, height+1, height+lookaheadSize, bestID, blockID, sm.behavorFlag)
 				if err != nil {
-					log.Debugf("Error syncing blocks. Peer: %s, Our Height: %d, Sync To: %d, Err: %s", p, height, height+lookaheadSize, err)
+					log.Debug("Error syncing blocks", log.ArgsFromMap(map[string]any{
+						"peer":           p,
+						"current height": height,
+						"sync to height": height + lookaheadSize,
+						"error":          err,
+					}))
 				}
 				break
 			}
@@ -178,7 +183,7 @@ syncLoop:
 			// Step one is we need to find the fork point.
 			forkBlock, forkHeight, err := sm.findForkPoint(height, height+lookaheadSize, blockMap)
 			if err != nil {
-				log.Debugf("Error find fork point. Err: %s", err)
+				log.Debug("Error find fork point", log.Args("error", err))
 				continue
 			}
 
@@ -187,7 +192,12 @@ syncLoop:
 				for _, p := range blockMap {
 					err := sm.syncBlocks(p, height+1, forkHeight, bestID, forkBlock, sm.behavorFlag)
 					if err != nil {
-						log.Debugf("Error syncing blocks. Peer: %s, Err: %s", p, err)
+						log.Debug("Error syncing to fork point", log.ArgsFromMap(map[string]any{
+							"peer":           p,
+							"current height": height,
+							"fork height":    forkHeight,
+							"error":          err,
+						}))
 						continue syncLoop
 					}
 					break
@@ -209,7 +219,7 @@ syncLoop:
 				}
 				blks, err := sm.downloadEvalWindow(p, forkHeight+1)
 				if err != nil {
-					log.Debugf("Sync peer failed to serve evaluation window. Banning. Peer: %s", p)
+					log.Debug("Sync peer failed to serve evaluation window", log.Args("peer", p))
 					sm.network.IncreaseBanscore(p, 101, 0)
 					continue syncLoop
 				}
@@ -218,7 +228,7 @@ syncLoop:
 				// Step four is to compute the chain score for each side of the fork.
 				score, err := sm.chain.CalcChainScore(blks, sm.behavorFlag)
 				if err != nil {
-					log.Debugf("Sync peer failed to serve valid evaluation window. Banning. Peer: %s", p)
+					log.Debug("Sync peer served invalid evaluation window", log.Args("peer", p))
 					sm.network.IncreaseBanscore(p, 101, 0)
 					continue syncLoop
 				}
@@ -240,7 +250,7 @@ syncLoop:
 			if tipOfChain {
 				bestID, err = sm.consensuChooser(firstBlocks)
 				if err != nil {
-					log.Debugf("Sync error choosing between tips: %s", err)
+					log.WithCaller(true).Error("Sync error choosing between tips", log.Args("error", err))
 					continue syncLoop
 				}
 				bestID = firstMap[bestID]
@@ -284,7 +294,10 @@ syncLoop:
 			currentID, height, _ := sm.chain.BestBlock()
 			err = sm.syncBlocks(blockMap[bestID], height+1, syncTo[bestID].Header.Height, currentID, syncTo[bestID].ID(), sm.behavorFlag)
 			if err != nil {
-				log.Debugf("Error syncing blocks. Peer: %s, Err: %s", blockMap[bestID], err)
+				log.Debug("Error syncing to best fork", log.ArgsFromMap(map[string]any{
+					"peer":  blockMap[bestID],
+					"error": err,
+				}))
 				continue syncLoop
 			}
 		}
@@ -522,7 +535,10 @@ func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) {
 			p := peers[rand.Intn(len(peers))]
 			err := sm.syncBlocks(p, startHeight, checkpoint.Height, parent, checkpoint.BlockID, blockchain.BFFastAdd)
 			if err != nil {
-				log.Debugf("Error syncing checkpoints. Peer: %s, Err: %s", p, err)
+				log.Debug("Error syncing checkpoints", log.ArgsFromMap(map[string]any{
+					"peer":  p,
+					"error": err,
+				}))
 				continue
 			}
 			break

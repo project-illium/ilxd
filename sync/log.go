@@ -4,10 +4,13 @@
 
 package sync
 
-import "go.uber.org/zap"
+import (
+	"github.com/pterm/pterm"
+)
 
-var log = zap.S()
+var log = pterm.DefaultLogger.WithLevel(pterm.LogLevelDisabled)
 
-func UpdateLogger() {
-	log = zap.S()
+// UseLogger uses a specified Logger to output package logging info.
+func UseLogger(logger *pterm.Logger) {
+	log = logger
 }

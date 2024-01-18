@@ -172,13 +172,12 @@ func (x *SetLogLevel) Execute(args []string) error {
 		return err
 	}
 	var logLevelSeverity = map[string]pb.SetLogLevelRequest_Level{
-		"debug":     pb.SetLogLevelRequest_DEBUG,
-		"info":      pb.SetLogLevelRequest_INFO,
-		"warning":   pb.SetLogLevelRequest_WARNING,
-		"error":     pb.SetLogLevelRequest_ERROR,
-		"critical":  pb.SetLogLevelRequest_CRITICAL,
-		"alert":     pb.SetLogLevelRequest_ALERT,
-		"emergency": pb.SetLogLevelRequest_EMERGENCY,
+		"trace":   pb.SetLogLevelRequest_TRACE,
+		"debug":   pb.SetLogLevelRequest_DEBUG,
+		"info":    pb.SetLogLevelRequest_INFO,
+		"warning": pb.SetLogLevelRequest_WARNING,
+		"error":   pb.SetLogLevelRequest_ERROR,
+		"fatal":   pb.SetLogLevelRequest_FATAL,
 	}
 	level, ok := logLevelSeverity[strings.ToLower(x.Level)]
 	if !ok {

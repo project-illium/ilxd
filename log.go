@@ -6,7 +6,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/blockchain/indexers"
 	"github.com/project-illium/ilxd/consensus"
@@ -14,92 +13,54 @@ import (
 	"github.com/project-illium/ilxd/mempool"
 	"github.com/project-illium/ilxd/sync"
 	"github.com/project-illium/walletlib"
+	"github.com/pterm/pterm"
+	"io"
+	"os"
 	"path"
 	"strings"
 
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/repo"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-const (
-	black color = iota + 30
-	red
-	green
-	yellow
-	blue
-	magenta
-	cyan
-	white
-)
-
-// color represents a text color.
-type color uint8
-
-// Add adds the coloring to the given string.
-func (c color) Add(s string) string {
-	return fmt.Sprintf("\x1b[%dm%s\x1b[0m", uint8(c), s)
+type logWriter struct {
+	fileLogger *lumberjack.Logger
 }
 
-var LogLevelMap = map[string]zapcore.Level{
-	"debug":     zap.DebugLevel,
-	"info":      zap.InfoLevel,
-	"warning":   zap.WarnLevel,
-	"error":     zap.ErrorLevel,
-	"alert":     zap.DPanicLevel,
-	"critical":  zap.PanicLevel,
-	"emergency": zap.FatalLevel,
-}
-
-var logLevelSeverity = map[zapcore.Level]string{
-	zapcore.DebugLevel:  "DEBUG",
-	zapcore.InfoLevel:   "INFO",
-	zapcore.WarnLevel:   "WARNING",
-	zapcore.ErrorLevel:  "ERROR",
-	zapcore.DPanicLevel: "CRITICAL",
-	zapcore.PanicLevel:  "ALERT",
-	zapcore.FatalLevel:  "EMERGENCY",
-}
-
-func setupLogging(logDir, level string, testnet bool) (*zap.AtomicLevel, error) {
-	var cfg zap.Config
-	if testnet {
-		cfg = zap.NewDevelopmentConfig()
-	} else {
-		cfg = zap.NewProductionConfig()
+func (w *logWriter) Write(p []byte) (n int, err error) {
+	if _, err := os.Stdout.Write(p); err != nil {
+		return 0, err
 	}
+	return w.fileLogger.Write(p)
+}
 
+var LogLevelMap = map[string]pterm.LogLevel{
+	"trace":   pterm.LogLevelTrace,
+	"debug":   pterm.LogLevelDebug,
+	"info":    pterm.LogLevelInfo,
+	"warning": pterm.LogLevelWarn,
+	"error":   pterm.LogLevelError,
+	"fatal":   pterm.LogLevelFatal,
+}
+
+var logLevelSeverity = map[pterm.LogLevel]string{
+	pterm.LogLevelTrace: "TRACE",
+	pterm.LogLevelDebug: "DEBUG",
+	pterm.LogLevelInfo:  "INFO",
+	pterm.LogLevelWarn:  "WARNING",
+	pterm.LogLevelError: "ERROR",
+	pterm.LogLevelFatal: "FATAL",
+}
+
+func setupLogging(logDir, level string, testnet bool) error {
 	logLevel, ok := LogLevelMap[strings.ToLower(level)]
 	if !ok {
-		return nil, errors.New("invalid log level")
+		return errors.New("invalid log level")
 	}
-	cfg.Encoding = "console"
-	cfg.Level = zap.NewAtomicLevelAt(logLevel)
 
-	levelToColor := map[zapcore.Level]color{
-		zapcore.DebugLevel:  magenta,
-		zapcore.InfoLevel:   blue,
-		zapcore.WarnLevel:   yellow,
-		zapcore.ErrorLevel:  red,
-		zapcore.DPanicLevel: red,
-		zapcore.PanicLevel:  red,
-		zapcore.FatalLevel:  red,
-	}
-	customLevelEncoder := func(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
-		enc.AppendString("[" + levelToColor[level].Add(logLevelSeverity[level]) + "]")
-	}
-	cfg.EncoderConfig.EncodeLevel = customLevelEncoder
-	cfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
-	cfg.DisableCaller = true
-	cfg.DisableStacktrace = true
-	cfg.EncoderConfig.ConsoleSeparator = "  "
+	var writer io.Writer = os.Stdout
 
-	var (
-		logger *zap.Logger
-		err    error
-	)
 	if logDir != "" {
 		logRotator := &lumberjack.Logger{
 			Filename:   path.Join(logDir, repo.DefaultLogFilename),
@@ -108,32 +69,29 @@ func setupLogging(logDir, level string, testnet bool) (*zap.AtomicLevel, error) 
 			MaxBackups: 3,
 		}
 
-		lumberjackZapHook := func(e zapcore.Entry) error {
-			logRotator.Write([]byte(fmt.Sprintf("%+v\n", e)))
-			return nil
-		}
-
-		logger, err = cfg.Build(zap.Hooks(lumberjackZapHook))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		logger, err = cfg.Build()
-		if err != nil {
-			return nil, err
-		}
+		// logRotator.Write([]byte(fmt.Sprintf("%+v\n", e)))
+		writer = &logWriter{fileLogger: logRotator}
 	}
-	zap.ReplaceGlobals(logger)
 
-	log = zap.S()
-	repo.UpdateLogger()
-	net.UpdateLogger()
-	blockchain.UpdateLogger()
-	consensus.UpdateLogger()
-	gen.UpdateLogger()
-	sync.UpdateLogger()
-	mempool.UpdateLogger()
-	walletlib.UpdateLogger()
-	indexers.UpdateLogger()
-	return &cfg.Level, nil
+	log = pterm.DefaultLogger.WithWriter(writer).WithLevel(logLevel)
+
+	repo.UseLogger(log)
+	net.UseLogger(log)
+	blockchain.UseLogger(log)
+	consensus.UseLogger(log)
+	gen.UseLogger(log)
+	sync.UseLogger(log)
+	mempool.UseLogger(log)
+	walletlib.UseLogger(log)
+	indexers.UseLogger(log)
+	return nil
+}
+
+func UpdateLogLevel(level string) error {
+	logLevel, ok := LogLevelMap[strings.ToLower(level)]
+	if !ok {
+		return errors.New("invalid log level")
+	}
+	log = log.WithLevel(logLevel)
+	return nil
 }

@@ -5,7 +5,6 @@
 package gen
 
 import (
-	"fmt"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
@@ -36,6 +35,7 @@ type BlockGenerator struct {
 	broadcast      func(blk *blocks.XThinnerBlock) error
 	active         bool
 	activeMtx      sync.RWMutex
+	lastHeight     uint32
 	interruptChan  chan uint32
 	quit           chan struct{}
 }
@@ -73,9 +73,10 @@ func NewBlockGenerator(opts ...Option) (*BlockGenerator, error) {
 		tickInterval:   cfg.tickInterval,
 		chain:          cfg.chain,
 		broadcast:      cfg.broadcastFunc,
-		activeMtx:      sync.RWMutex{},
-		interruptChan:  make(chan uint32),
-		active:         false,
+
+		activeMtx:     sync.RWMutex{},
+		interruptChan: make(chan uint32),
+		active:        false,
 	}
 
 	return g, nil
@@ -135,7 +136,7 @@ func (g *BlockGenerator) eventLoop() {
 			val := g.chain.WeightedRandomValidator()
 			if val == g.ownPeerID {
 				if err := g.generateBlock(); err != nil {
-					log.Warnf("Error in block generator: %s", err.Error())
+					log.WithCaller(true).Error("Error in block generator", log.Args("error", err))
 				}
 			}
 		case <-g.quit:
@@ -145,17 +146,22 @@ func (g *BlockGenerator) eventLoop() {
 }
 
 func (g *BlockGenerator) generateBlock() error {
-	ok, err := g.chain.IsProducerUnderLimit(g.ownPeerID)
+	underlimit, err := g.chain.IsProducerUnderLimit(g.ownPeerID)
 	if err != nil {
 		return err
-	}
-	if !ok {
-		fmt.Println("overlimit")
-		return nil
 	}
 
 	now := time.Now()
 	bestID, height, timestamp := g.chain.BestBlock()
+	lastHeight := g.lastHeight
+	g.lastHeight = height
+	if !underlimit {
+		if height > lastHeight {
+			log.Warn("Block generator over limit")
+		}
+		return nil
+	}
+
 	if g.lastGenHeight != 0 && g.lastGenHeight == height+1 && now.Before(g.lastGenTime.Add(MinAllowableTimeBetweenDupBlocks)) {
 		return nil
 	}
@@ -248,8 +254,6 @@ func (g *BlockGenerator) generateBlock() error {
 		return err
 	}
 	xthinnerBlock.Header = blk.Header
-	g.lastGenHeight = blk.Header.Height
-	g.lastGenTime = time.Unix(blk.Header.Timestamp, 0)
 
 out:
 	for {
@@ -262,7 +266,14 @@ out:
 			break out
 		}
 	}
-	log.Debugf("[GEN] Generated block at height %d: %s", blk.Header.Height, blk.Header.ID())
+
+	g.lastGenHeight = blk.Header.Height
+	g.lastGenTime = time.Unix(blk.Header.Timestamp, 0)
+
+	log.Debug("Generated block", log.ArgsFromMap(map[string]any{
+		"id":     blk.ID(),
+		"height": blk.Header.Height,
+	}))
 
 	return g.broadcast(xthinnerBlock)
 }

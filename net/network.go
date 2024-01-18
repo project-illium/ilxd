@@ -333,19 +333,33 @@ loop:
 		err := cfg.acceptToMempool(tx)
 		switch e := err.(type) {
 		case mempool.PolicyError:
-			// Policy errors do no penalize peer
-			log.Debugf("Mempool reject tx %s. Policy error: %s:%s", tx.ID(), e.ErrorCode, e.Description)
+			// Policy errors do not penalize peer
+			log.Debug("Mempool reject transaction", log.ArgsFromMap(map[string]any{
+				"txid":         tx.ID(),
+				"from peer":    p,
+				"policy error": e.ErrorCode.String(),
+				"description":  e.Description,
+			}))
 			return pubsub.ValidationIgnore
 		case blockchain.RuleError:
 			// Rule errors do
-			log.Debugf("Mempool reject tx %s. Rule error: %s:%s", tx.ID(), e.ErrorCode, e.Description)
+			log.Debug("Mempool reject transaction", log.ArgsFromMap(map[string]any{
+				"txid":        tx.ID(),
+				"from peer":   p,
+				"rule error":  e.ErrorCode.String(),
+				"description": e.Description,
+			}))
 			return pubsub.ValidationReject
 		case blockchain.NotCurrentError:
 			return pubsub.ValidationIgnore
 		case nil:
 			return pubsub.ValidationAccept
 		default:
-			log.Debugf("Mempool reject tx %s. Unknown error: %s", tx.ID(), err)
+			log.Debug("Mempool reject transaction", log.ArgsFromMap(map[string]any{
+				"txid":          tx.ID(),
+				"from peer":     p,
+				"unknown error": err,
+			}))
 			return pubsub.ValidationIgnore
 		}
 	}))
@@ -358,26 +372,41 @@ loop:
 	err = ps.RegisterTopicValidator(BlockTopic, pubsub.ValidatorEx(func(ctx context.Context, p peer.ID, m *pubsub.Message) pubsub.ValidationResult {
 		blk := &blocks.XThinnerBlock{}
 		if err := blk.Deserialize(m.Data); err != nil {
-			log.Errorf("[PUBSUB] xthinner deserialize error: %s", err)
+			log.WithCaller(true).Error("error deserializing xthinner block", log.Args("error", err))
 			return pubsub.ValidationReject
 		}
-		log.Debugf("[PUBSUB] new incoming block: %s", blk.ID())
+		log.WithCaller(true).Trace("Pubsub received new block", log.Args("id", blk.ID()))
 		err := cfg.validateBlock(blk, p)
 		switch e := err.(type) {
 		case blockchain.OrphanBlockError:
 			// Orphans we won't relay (yet) but won't penalize them either.
-			log.Debugf("Recieved orphan block: %s", blk.ID())
+			log.Debug("Received orphan block", log.ArgsFromMap(map[string]any{
+				"id":        blk.ID(),
+				"height":    blk.Header.Height,
+				"from peer": p,
+			}))
 			return pubsub.ValidationIgnore
 		case blockchain.RuleError:
 			// Rule errors do
-			log.Debugf("Block %s rule error: %s:%s", blk.ID(), e.ErrorCode, e.Description)
+			log.Debug("Reject block", log.ArgsFromMap(map[string]any{
+				"id":          blk.ID(),
+				"height":      blk.Header.Height,
+				"from peer":   p,
+				"rule error":  e.ErrorCode.String(),
+				"description": e.Description,
+			}))
 			return pubsub.ValidationReject
 		case blockchain.NotCurrentError:
 			return pubsub.ValidationIgnore
 		case nil:
 			return pubsub.ValidationAccept
 		default:
-			log.Debugf("Block reject %s. Unknown error: %s", blk.ID(), err)
+			log.Debug("Reject block", log.ArgsFromMap(map[string]any{
+				"id":            blk.ID(),
+				"height":        blk.Header.Height,
+				"from peer":     p,
+				"unknown error": err,
+			}))
 			return pubsub.ValidationIgnore
 		}
 	}))
@@ -434,11 +463,11 @@ loop:
 		for {
 			_, err := txSub.Next(context.Background())
 			if errors.Is(err, pubsub.ErrSubscriptionCancelled) {
-				log.Error("Pubsub cancel, tx")
+				log.Debug("Pubsub tx subscription canceled")
 				return
 			}
 			if err != nil {
-				log.Errorf("Pubsub: tx subscription error: %s", err)
+				log.WithCaller(true).Error("Pubsub tx subscription error", log.Args("error", err))
 				continue
 			}
 		}
@@ -452,11 +481,11 @@ loop:
 		for {
 			_, err := blockSub.Next(context.Background())
 			if errors.Is(err, pubsub.ErrSubscriptionCancelled) {
-				log.Error("Pubsub cancel, blk")
+				log.Debug("Pubsub block subscription canceled")
 				return
 			}
 			if err != nil {
-				log.Errorf("Pubsub: block subscription error: %s", err)
+				log.Debug("Pubsub block subscription error", log.Args("error", err))
 				continue
 			}
 		}
@@ -476,10 +505,10 @@ loop:
 	}
 
 	connected := func(_ inet.Network, conn inet.Conn) {
-		log.Debugf("Connected to peer %s", conn.RemotePeer().String())
+		log.Trace(fmt.Sprintf("Connected to peer %s", conn.RemotePeer()))
 	}
 	disconnected := func(_ inet.Network, conn inet.Conn) {
-		log.Debugf("Disconnected from peer %s", conn.RemotePeer().String())
+		log.Trace(fmt.Sprintf("Disconnected from peer %s", conn.RemotePeer()))
 	}
 
 	notifier := &inet.NotifyBundle{
@@ -581,7 +610,10 @@ func (n *Network) BroadcastTransaction(tx *transactions.Transaction) error {
 func (n *Network) IncreaseBanscore(p peer.ID, persistent, transient uint32) {
 	banned, err := n.connGater.IncreaseBanscore(p, persistent, transient)
 	if err != nil {
-		log.Errorf("Error setting banscore for peer %: %s", p, err)
+		log.WithCaller(true).Error("Error setting banscore", log.ArgsFromMap(map[string]any{
+			"peer":  p,
+			"error": err,
+		}))
 	}
 	if banned {
 		n.host.Network().ClosePeer(p) //nolint:errcheck
