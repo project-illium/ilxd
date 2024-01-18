@@ -56,6 +56,7 @@ const (
 	ErrBlockSort
 	ErrRestakeTooEarly
 	ErrInvalidCheckpoint
+	ErrNilHeader
 )
 
 // Map of ErrorCode values back to their constant names for pretty printing.
@@ -77,6 +78,7 @@ var errorCodeStrings = map[ErrorCode]string{
 	ErrBlockSort:              "ErrBlockSort",
 	ErrRestakeTooEarly:        "ErrRestakeTooEarly",
 	ErrInvalidCheckpoint:      "ErrInvalidCheckpoint",
+	ErrNilHeader:              "ErrNilHeader",
 }
 
 // String returns the ErrorCode as a human-readable name.

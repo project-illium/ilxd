@@ -1063,14 +1063,19 @@ func (x *Stake) Execute(args []string) error {
 		return errors.New("commitment to stake must be specified")
 	}
 
+	spinner, err := pterm.DefaultSpinner.Start(provingPhrases[mrand.Intn(len(provingPhrases))])
+	if err != nil {
+		return err
+	}
 	_, err = client.Stake(makeContext(x.opts.AuthToken), &pb.StakeRequest{
 		Commitments: commitments,
 	})
 	if err != nil {
+		spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
 		return err
 	}
 
-	fmt.Println("success")
+	spinner.Success("Stake transaction broadcast successfully")
 	return nil
 }
 

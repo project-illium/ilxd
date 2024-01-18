@@ -186,6 +186,10 @@ out:
 // in the engine until a conflicting block at the same height is finalized. At that point the block
 // will be marked as Rejected.
 func (eng *ConsensusEngine) NewBlock(header *blocks.BlockHeader, isAcceptable bool, callback chan<- Status) {
+	log.WithCaller(true).Trace("New block in consensus engine", log.ArgsFromMap(map[string]any{
+		"id":     header.ID().String(),
+		"height": header.Height,
+	}))
 	headerCpy := proto.Clone(header).(*blocks.BlockHeader)
 	eng.msgChan <- &newBlockMessage{
 		header:       headerCpy,
@@ -210,7 +214,11 @@ func (eng *ConsensusEngine) handleNewBlock(header *blocks.BlockHeader, isAccepta
 	bc.AddNewBlock(blockID, isAcceptable)
 
 	if len(bc.blockVotes) > 1 {
-		log.Debugf("[CONSENSUS] Conflicting blocks at height %d: conflicts %d, block %s", header.Height, len(bc.blockVotes), header.ID())
+		log.Debug("Conflicting block received by consensus engine", log.ArgsFromMap(map[string]any{
+			"id":        header.ID().String(),
+			"height":    header.Height,
+			"conflicts": len(bc.blockVotes),
+		}))
 	}
 
 	eng.callbacks[blockID] = callback
@@ -247,13 +255,19 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 				s.Close()
 				return
 			}
-			log.Debugf("Error reading from avalanche stream: peer: %s, error: %s", remotePeer, err.Error())
+			log.WithCaller(true).Trace("Error reading from avalanche stream", log.ArgsFromMap(map[string]any{
+				"peer":  remotePeer,
+				"error": err,
+			}))
 			s.Reset()
 			return
 		}
 		if err := proto.Unmarshal(msgBytes, req); err != nil {
 			reader.ReleaseMsg(msgBytes)
-			log.Debugf("Error unmarshalling avalanche message: peer: %s, error: %s", remotePeer, err.Error())
+			log.WithCaller(true).Error("Error unmarshalling avalanche message", log.ArgsFromMap(map[string]any{
+				"peer":  remotePeer,
+				"error": err,
+			}))
 			s.Reset()
 			return
 		}
@@ -269,7 +283,10 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 		respMsg := <-respCh
 		err = net.WriteMsg(s, respMsg)
 		if err != nil {
-			log.Errorf("Error writing avalanche stream to peer %d", remotePeer)
+			log.WithCaller(true).Trace("Error writing to avalanche stream", log.ArgsFromMap(map[string]any{
+				"peer":  remotePeer,
+				"error": err,
+			}))
 			s.Reset()
 		}
 		ticker.Reset(time.Minute)
@@ -278,7 +295,7 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 
 func (eng *ConsensusEngine) handleQuery(req *wire.MsgAvaRequest, remotePeer peer.ID, respChan chan *wire.MsgAvaResponse) {
 	if len(req.Heights) == 0 {
-		log.Debugf("Received empty avalanche request from peer %s", remotePeer)
+		log.WithCaller(true).Trace("Received empty avalanche request", log.Args("peer", remotePeer))
 		eng.network.IncreaseBanscore(remotePeer, 30, 0)
 		return
 	}
@@ -358,7 +375,7 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 
 	r, ok := eng.queries[key]
 	if !ok {
-		log.Debugf("Received avalanche response from peer %s with an unknown request ID", p)
+		log.Debug("Received avalanche response with an unknown request ID", log.Args("peer", p))
 		eng.network.IncreaseBanscore(p, 30, 0)
 		return
 	}
@@ -367,14 +384,14 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 	delete(eng.queries, key)
 
 	if r.IsExpired() {
-		log.Debugf("Received avalanche response from peer %s with an expired request", p)
+		log.Debug("Received avalanche response with an expired request", log.Args("peer", p))
 		eng.network.IncreaseBanscore(p, 0, 20)
 		return
 	}
 
 	heights := r.GetHeights()
 	if len(resp.Votes) != len(heights) {
-		log.Debugf("Received avalanche response from peer %s with incorrect number of height votes", p)
+		log.Debug("Received avalanche response with an incorrect number of votes", log.Args("peer", p))
 		eng.network.IncreaseBanscore(p, 30, 0)
 		return
 	}
@@ -391,7 +408,7 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 		}
 
 		if len(resp.Votes[i]) != hash.HashSize {
-			log.Debugf("Received avalanche response from peer %s with incorrect hash len", p)
+			log.Debug("Received avalanche response with an incorrect hash length", log.Args("peer", p))
 			eng.network.IncreaseBanscore(p, 30, 0)
 			continue
 		}

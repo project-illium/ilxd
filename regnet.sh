@@ -36,12 +36,12 @@ if [[ "$1" == "start" ]]; then
     # Check if it is node1 to apply specific flags
     if [[ "$NODE_NUMBER" -eq 1 ]]; then
        # Pass all additional arguments to ilxd
-       ilxd --regtest --regtestval --loglevel=debug --datadir="$HOME/.regnet/${NODE_PREFIX}1" "$@"
+       ilxd --regtest --regtestval --loglevel=trace --datadir="$HOME/.regnet/${NODE_PREFIX}1" "$@"
     else
        LISTEN_PORT=$((9002 + NODE_NUMBER))
        GRPC_PORT=$((5000 + NODE_NUMBER))
        # Pass all additional arguments to ilxd
-       ilxd --regtest --loglevel=debug --listenaddr=/ip4/127.0.0.1/tcp/${LISTEN_PORT} --grpclisten=/ip4/127.0.0.1/tcp/${GRPC_PORT} --datadir="$HOME/.regnet/${NODE_PREFIX}${NODE_NUMBER}" "$@"
+       ilxd --regtest --loglevel=trace --listenaddr=/ip4/127.0.0.1/tcp/${LISTEN_PORT} --grpclisten=/ip4/127.0.0.1/tcp/${GRPC_PORT} --datadir="$HOME/.regnet/${NODE_PREFIX}${NODE_NUMBER}" "$@"
     fi
 
 elif [[ "$1" == "cli" ]]; then

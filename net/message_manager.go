@@ -133,7 +133,10 @@ func (m *messageSenderImpl) SendMessage(ctx context.Context, p peer.ID, pmes pro
 			metrics.SentMessages.M(1),
 			metrics.SentMessageErrors.M(1),
 		)
-		log.Debugw("message failed to open message sender", "error", err, "to", p)
+		log.WithCaller(true).Trace("Failed to open message sender", log.ArgsFromMap(map[string]any{
+			"to":    p,
+			"error": err,
+		}))
 		return err
 	}
 
@@ -142,7 +145,10 @@ func (m *messageSenderImpl) SendMessage(ctx context.Context, p peer.ID, pmes pro
 			metrics.SentMessages.M(1),
 			metrics.SentMessageErrors.M(1),
 		)
-		log.Debugw("message failed", "error", err, "to", p)
+		log.WithCaller(true).Trace("Failed to send message", log.ArgsFromMap(map[string]any{
+			"to":    p,
+			"error": err,
+		}))
 		return err
 	}
 
@@ -250,11 +256,17 @@ func (ms *peerMessageSender) SendMessage(ctx context.Context, pmes proto.Message
 			ms.s = nil
 
 			if retry {
-				log.Debugw("error writing message", "error", err)
+				log.WithCaller(true).Trace("Error writing message", log.ArgsFromMap(map[string]any{
+					"to":    ms.p,
+					"error": err,
+				}))
 				ms.invalidate()
 				return err
 			}
-			log.Debugw("error writing message", "error", err, "retrying", true)
+			log.WithCaller(true).Trace("Error writing message, retrying...", log.ArgsFromMap(map[string]any{
+				"to":    ms.p,
+				"error": err,
+			}))
 			retry = true
 			continue
 		}
@@ -281,11 +293,17 @@ func (ms *peerMessageSender) SendRequest(ctx context.Context, req proto.Message,
 			ms.s = nil
 
 			if retry {
-				log.Debugw("error writing message", "error", err)
+				log.WithCaller(true).Trace("Error writing request", log.ArgsFromMap(map[string]any{
+					"to":    ms.p,
+					"error": err,
+				}))
 				ms.invalidate()
 				return err
 			}
-			log.Debugw("error writing message", "error", err, "retrying", true)
+			log.WithCaller(true).Trace("Error writing request, retrying...", log.ArgsFromMap(map[string]any{
+				"to":    ms.p,
+				"error": err,
+			}))
 			retry = true
 			continue
 		}

@@ -10,7 +10,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/rpc/pb"
 	"github.com/project-illium/ilxd/types"
-	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"math/rand"
@@ -117,20 +116,21 @@ func (s *GrpcServer) UnblockPeer(ctx context.Context, req *pb.UnblockPeerRequest
 
 // SetLogLevel changes the logging level of the node
 func (s *GrpcServer) SetLogLevel(ctx context.Context, req *pb.SetLogLevelRequest) (*pb.SetLogLevelResponse, error) {
-	var logLevelSeverity = map[pb.SetLogLevelRequest_Level]zapcore.Level{
-		pb.SetLogLevelRequest_DEBUG:     zapcore.DebugLevel,
-		pb.SetLogLevelRequest_INFO:      zapcore.InfoLevel,
-		pb.SetLogLevelRequest_WARNING:   zapcore.WarnLevel,
-		pb.SetLogLevelRequest_ERROR:     zapcore.ErrorLevel,
-		pb.SetLogLevelRequest_CRITICAL:  zapcore.DPanicLevel,
-		pb.SetLogLevelRequest_ALERT:     zapcore.PanicLevel,
-		pb.SetLogLevelRequest_EMERGENCY: zapcore.FatalLevel,
+	var logLevelSeverity = map[pb.SetLogLevelRequest_Level]string{
+		pb.SetLogLevelRequest_TRACE:   "TRACE",
+		pb.SetLogLevelRequest_DEBUG:   "DEBUG",
+		pb.SetLogLevelRequest_INFO:    "INFO",
+		pb.SetLogLevelRequest_WARNING: "WARNING",
+		pb.SetLogLevelRequest_ERROR:   "ERROR",
+		pb.SetLogLevelRequest_FATAL:   "FATAL",
 	}
 	level, ok := logLevelSeverity[req.Level]
 	if !ok {
 		return nil, status.Error(codes.InvalidArgument, "unknown log level")
 	}
-	s.setLogLevelFunc(level)
+	if err := s.setLogLevelFunc(level); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	return &pb.SetLogLevelResponse{}, nil
 }
 

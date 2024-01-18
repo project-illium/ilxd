@@ -359,11 +359,11 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		flushMode = FlushNop
 	}
 	if err := vstx.Commit(flushMode); err != nil {
-		log.Errorf("Commit Block: Error flushing validator set: %s", err.Error())
+		log.WithCaller(true).Error("Commit Block: Error flushing validator set", log.Args("error", err))
 	}
 
 	if err := b.accumulatorDB.Commit(accumulator, blk.Header.Height, flushMode); err != nil {
-		log.Errorf("Commit Block: Error flushing accumulator: %s", err.Error())
+		log.WithCaller(true).Error("Commit Block: Error flushing accumulator", log.Args("error", err))
 	}
 
 	// Notify subscribers of new block.

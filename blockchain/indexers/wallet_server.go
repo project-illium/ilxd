@@ -227,12 +227,10 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 				}
 				ul := new(types.LockingScript)
 				if err := ul.Deserialize(serializedLockingScript); err != nil {
-					log.Errorf("Wallet server index error rescanning chain: %s", err)
 					return err
 				}
 				scriptHash, err := ul.Hash()
 				if err != nil {
-					log.Errorf("Wallet server index error rescanning chain: %s", err)
 					return err
 				}
 				if scriptHash.Compare(note.ScriptHash) != 0 {
@@ -429,7 +427,7 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 		acc = blockchain.NewAccumulator()
 		genesisBlk, err := getBlockFunc(0)
 		if err != nil {
-			log.Errorf("Wallet server index error rescanning chain: %s", err)
+			log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 			return err
 		}
 		for _, out := range genesisBlk.Outputs() {
@@ -438,7 +436,7 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 	}
 	if acc == nil {
 		errStr := "accumulator checkpoint is nil"
-		log.Errorf("Wallet server index error rescanning chain: %s", errStr)
+		log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", errStr))
 		return errors.New(errStr)
 	}
 
@@ -454,7 +452,7 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 	for {
 		blk, err := getBlockFunc(height)
 		if err != nil {
-			log.Errorf("Wallet server index error rescanning chain: %s", err)
+			log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 			return err
 		}
 		matches := scanner.ScanOutputs(blk)
@@ -464,45 +462,45 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 				if ok {
 					dbtx, err := ds.NewTransaction(context.Background(), false)
 					if err != nil {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 					commitmentIndex := idx.acc.NumElements()
 					viewKey, err := crypto.MarshalPrivateKey(match.Key)
 					if err != nil {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 					serializedViewKey := hex.EncodeToString(viewKey)
 					dsKey := walletServerTxKeyPrefix + serializedViewKey + "/" + tx.ID().String()
 					if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 
 					var note types.SpendNote
 					if err := note.Deserialize(match.DecryptedNote); err != nil {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 
 					serializedLockingScript, err := dsFetchIndexValueWithTx(dbtx, idx, walletServerLockingScriptPrefix+hex.EncodeToString(viewKey))
 					if err != nil {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 					ul := new(types.LockingScript)
 					if err := ul.Deserialize(serializedLockingScript); err != nil {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 					scriptHash, err := ul.Hash()
 					if err != nil {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 					if scriptHash.Compare(note.ScriptHash) != 0 {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 
@@ -512,7 +510,7 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 					}
 					dsKey = walletServerNullifierKeyPrefix + serializedViewKey + "/" + nullifier.String()
 					if err := dsPutIndexValue(dbtx, idx, dsKey, out.Commitment); err != nil {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 					nullifiers[nullifier] = commitmentWithKey{
@@ -520,7 +518,7 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 						viewKey:    match.Key,
 					}
 					if err := dbtx.Commit(context.Background()); err != nil {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 				}
@@ -530,29 +528,29 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 				if cwk, ok := nullifiers[n]; ok {
 					dbtx, err := ds.NewTransaction(context.Background(), false)
 					if err != nil {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 					viewKey, err := crypto.MarshalPrivateKey(cwk.viewKey)
 					if err != nil {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 					serializedViewKey := hex.EncodeToString(viewKey)
 					dsKey := walletServerTxKeyPrefix + serializedViewKey + "/" + tx.ID().String()
 					if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 
 					dsKey = walletServerNullifierKeyPrefix + serializedViewKey + "/" + n.String()
 					if err := dsDeleteIndexValue(dbtx, idx, dsKey); err != nil {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 
 					if err := dbtx.Commit(context.Background()); err != nil {
-						log.Errorf("Wallet server index error rescanning chain: %s", err)
+						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 					acc.DropProof(cwk.commitment.Bytes())
@@ -610,19 +608,19 @@ func (idx *WalletServerIndex) run(ds repo.Datastore) {
 		case <-staleUserTicker.C:
 			dbtx, err := ds.NewTransaction(context.Background(), true)
 			if err != nil {
-				log.Errorf("Error deleting stale users %s", err)
+				log.WithCaller(true).Error("Wallet server index error deleting stale users", log.Args("error", err))
 				continue
 			}
 			query, err := dsPrefixQueryIndexValue(dbtx, idx, walletServerViewKeyPrefix)
 			if err != nil {
-				log.Errorf("Error deleting stale users %s", err)
+				log.WithCaller(true).Error("Wallet server index error deleting stale users", log.Args("error", err))
 				continue
 			}
 
 			for r := range query.Next() {
 				var lastSeen time.Time
 				if err := lastSeen.UnmarshalBinary(r.Value); err != nil {
-					log.Errorf("Error deleting stale users %s", err)
+					log.WithCaller(true).Error("Wallet server index error deleting stale users", log.Args("error", err))
 					continue
 				}
 				if time.Now().After(lastSeen.Add(staleUserThreshold)) {
@@ -645,25 +643,25 @@ func (idx *WalletServerIndex) run(ds repo.Datastore) {
 					idx.stateMtx.Unlock()
 
 					if err := dsDeleteIndexValue(dbtx, idx, r.Key); err != nil {
-						log.Errorf("Error deleting stale users %s", err)
+						log.WithCaller(true).Error("Wallet server index error deleting stale users", log.Args("error", err))
 						continue
 					}
 
 					dsKey := walletServerLockingScriptPrefix + keyStr
 					if err := dsDeleteIndexValue(dbtx, idx, dsKey); err != nil {
-						log.Errorf("Error deleting stale users %s", err)
+						log.WithCaller(true).Error("Wallet server index error deleting stale users", log.Args("error", err))
 						continue
 					}
 				}
 
 			}
 			if err := dbtx.Commit(context.Background()); err != nil {
-				log.Errorf("Error deleting stale users %s", err)
+				log.WithCaller(true).Error("Wallet server index error deleting stale users", log.Args("error", err))
 			}
 
 		case <-flushTicker.C:
 			if err := idx.flush(ds); err != nil {
-				log.Errorf("Error flushing wallet server index to disk %s", err)
+				log.WithCaller(true).Error("Wallet server index error flushing to disk", log.Args("error", err))
 			}
 		case <-idx.quit:
 			return

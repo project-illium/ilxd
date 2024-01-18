@@ -971,13 +971,12 @@ message SetLogLevelRequest {
     Level level = 1;
 
     enum Level {
-       DEBUG     = 0;
-       INFO      = 1;
-       WARNING   = 2;
-       ERROR     = 3;
-       CRITICAL  = 4;
-       ALERT     = 5;
-       EMERGENCY = 6;
+       TRACE   = 0;
+       DEBUG   = 1;
+       INFO    = 2;
+       WARNING = 3;
+       ERROR   = 4;
+       FATAL   = 5;
     }
 }
 message SetLogLevelResponse {}

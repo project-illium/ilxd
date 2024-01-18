@@ -4,10 +4,14 @@
 
 package consensus
 
-import "go.uber.org/zap"
+import (
+	"github.com/project-illium/logger"
+	"github.com/pterm/pterm"
+)
 
-var log = zap.S()
+var log = logger.DisabledLogger.WithLevel(pterm.LogLevelDisabled)
 
-func UpdateLogger() {
-	log = zap.S()
+// UseLogger uses a specified Logger to output package logging info.
+func UseLogger(logger *logger.Logger) {
+	log = logger
 }

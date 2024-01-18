@@ -63,6 +63,7 @@ func NewConnectionGater(ds repo.Datastore, addrBook peerstore.AddrBook, banDurat
 
 	err := cg.loadRules(context.Background())
 	if err != nil {
+		log.WithCaller(true).Error("Error loading pdstoreds rules", log.Args("error", err))
 		return nil, err
 	}
 
@@ -73,13 +74,11 @@ func (cg *ConnectionGater) loadRules(ctx context.Context) error {
 	// load blocked peers
 	res, err := cg.ds.Query(ctx, query.Query{Prefix: repo.ConnGaterKeyPrefix + keyPeer})
 	if err != nil {
-		log.Errorf("error querying datastore for blocked peers: %s", err)
 		return err
 	}
 
 	for r := range res.Next() {
 		if r.Error != nil {
-			log.Errorf("query result error: %s", r.Error)
 			return err
 		}
 
@@ -89,13 +88,12 @@ func (cg *ConnectionGater) loadRules(ctx context.Context) error {
 		}
 		t := time.Time{}
 		if err = t.GobDecode(r.Entry.Value); err != nil {
-			log.Errorf("time deserialization error: %s", r.Error)
 			return err
 		}
 		cg.blockedPeers[p] = t
 		time.AfterFunc(time.Until(t), func() {
 			if err := cg.UnblockPeer(p); err != nil {
-				log.Errorf("error unblocking peer after expiration: %s", err)
+				log.WithCaller(true).Error("Error unblocking peer after expiration", log.Args("error", err))
 			}
 		})
 	}
@@ -103,26 +101,23 @@ func (cg *ConnectionGater) loadRules(ctx context.Context) error {
 	// load blocked addrs
 	res, err = cg.ds.Query(ctx, query.Query{Prefix: repo.ConnGaterKeyPrefix + keyAddr})
 	if err != nil {
-		log.Errorf("error querying datastore for blocked addrs: %s", err)
 		return err
 	}
 
 	for r := range res.Next() {
 		if r.Error != nil {
-			log.Errorf("query result error: %s", r.Error)
 			return err
 		}
 
 		ip := net.ParseIP(path.Base(r.Key))
 		t := time.Time{}
 		if err = t.GobDecode(r.Entry.Value); err != nil {
-			log.Errorf("time deserialization error: %s", r.Error)
 			return err
 		}
 		cg.blockedAddrs[ip.String()] = t
 		time.AfterFunc(time.Until(t), func() {
 			if err := cg.UnblockAddr(ip); err != nil {
-				log.Errorf("error unblocking addr after expiration: %s", err)
+				log.WithCaller(true).Error("Error unblocking peer after expiration", log.Args("error", err))
 			}
 		})
 	}
@@ -146,11 +141,18 @@ func (cg *ConnectionGater) IncreaseBanscore(p peer.ID, persistent, transient uin
 		cg.scores[p] = banscore
 	}
 	score := banscore.Increase(persistent, transient)
-	log.Infof("Increased peer %s banscore to %d, threshold %d", p, score, cg.maxBanscore)
+	log.Info("Increased peer banscore", log.ArgsFromMap(map[string]any{
+		"peer":      p,
+		"score":     score,
+		"threshold": cg.maxBanscore,
+	}))
 	cg.Unlock()
 	banned := score > cg.maxBanscore
 	if banned {
-		log.Infof("Banning peer %s for %s", p, cg.banDuration)
+		log.Info("Banning peer", log.ArgsFromMap(map[string]any{
+			"peer":     p,
+			"duration": cg.banDuration,
+		}))
 		if err := cg.BlockPeer(p); err != nil {
 			return false, err
 		}
@@ -190,7 +192,7 @@ func (cg *ConnectionGater) BlockPeer(p peer.ID) error {
 	if cg.ds != nil {
 		err := cg.ds.Put(context.Background(), datastore.NewKey(repo.ConnGaterKeyPrefix+keyPeer+p.String()), b)
 		if err != nil {
-			log.Errorf("error writing blocked peer to datastore: %s", err)
+			log.WithCaller(true).Error("Error writing blocked peer to datastore", log.Args("error", err))
 			return err
 		}
 	}
@@ -201,7 +203,7 @@ func (cg *ConnectionGater) BlockPeer(p peer.ID) error {
 
 	time.AfterFunc(cg.banDuration, func() {
 		if err := cg.UnblockPeer(p); err != nil {
-			log.Errorf("error unblocking peer after expiration: %s", err)
+			log.WithCaller(true).Error("Error unblocking peer after expiration", log.Args("error", err))
 		}
 	})
 
@@ -213,7 +215,7 @@ func (cg *ConnectionGater) UnblockPeer(p peer.ID) error {
 	if cg.ds != nil {
 		err := cg.ds.Delete(context.Background(), datastore.NewKey(repo.ConnGaterKeyPrefix+keyPeer+p.String()))
 		if err != nil {
-			log.Errorf("error deleting blocked peer from datastore: %s", err)
+			log.WithCaller(true).Error("Error deleting blocked peer from datastore", log.Args("error", err))
 			return err
 		}
 	}
@@ -230,6 +232,7 @@ func (cg *ConnectionGater) UnblockPeer(p peer.ID) error {
 				continue
 			}
 			if err := cg.UnblockAddr(ip); err != nil {
+				log.WithCaller(true).Error("Error unblocking ip addr after expiration", log.Args("error", err))
 				return err
 			}
 		}
@@ -262,7 +265,7 @@ func (cg *ConnectionGater) BlockAddr(ip net.IP) error {
 	if cg.ds != nil {
 		err := cg.ds.Put(context.Background(), datastore.NewKey(repo.ConnGaterKeyPrefix+keyAddr+ip.String()), b)
 		if err != nil {
-			log.Errorf("error writing blocked addr to datastore: %s", err)
+			log.WithCaller(true).Error("Error writing blocked addr to datastore", log.Args("error", err))
 			return err
 		}
 	}
@@ -273,7 +276,7 @@ func (cg *ConnectionGater) BlockAddr(ip net.IP) error {
 	cg.blockedAddrs[ip.String()] = banExpiration
 	time.AfterFunc(cg.banDuration, func() {
 		if err := cg.UnblockAddr(ip); err != nil {
-			log.Errorf("error unblocking addr after expiration: %s", err)
+			log.WithCaller(true).Error("Error unblocking ip addr after expiration", log.Args("error", err))
 		}
 	})
 
@@ -285,7 +288,7 @@ func (cg *ConnectionGater) UnblockAddr(ip net.IP) error {
 	if cg.ds != nil {
 		err := cg.ds.Delete(context.Background(), datastore.NewKey(repo.ConnGaterKeyPrefix+keyAddr+ip.String()))
 		if err != nil {
-			log.Errorf("error deleting blocked addr from datastore: %s", err)
+			log.WithCaller(true).Error("Error writing blocked addr from datastore", log.Args("error", err))
 			return err
 		}
 	}
@@ -330,7 +333,7 @@ func (cg *ConnectionGater) InterceptAddrDial(p peer.ID, a ma.Multiaddr) (allow b
 
 	ip, err := manet.ToIP(a)
 	if err != nil {
-		log.Warnf("error converting multiaddr to IP addr: %s", err)
+		log.WithCaller(true).Error("Error converting multiaddr to ip addr", log.Args("error", err))
 		return true
 	}
 
@@ -346,7 +349,7 @@ func (cg *ConnectionGater) InterceptAccept(cma network.ConnMultiaddrs) (allow bo
 
 	ip, err := manet.ToIP(a)
 	if err != nil {
-		log.Warnf("error converting multiaddr to IP addr: %s", err)
+		log.WithCaller(true).Error("Error converting multiaddr to ip addr", log.Args("error", err))
 		return true
 	}
 

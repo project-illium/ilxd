@@ -112,15 +112,15 @@ func (pds *Peerstoreds) run() {
 		select {
 		case <-cacheTicker.C:
 			if err := pds.cachePeerAddrs(); err != nil {
-				log.Errorf("Error caching peerstore addrs: %s", err)
+				log.WithCaller(true).Error("Error caching peerstore addrs", log.Args("error", err))
 			}
 		case <-gsTicker.C:
 			if err := pds.garbageCollect(); err != nil {
-				log.Errorf("Error garbage collecting peerstore addrs: %s", err)
+				log.WithCaller(true).Error("Error garbage collecting peerstore addrs", log.Args("error", err))
 			}
 		case <-pds.done:
 			if err := pds.garbageCollect(); err != nil {
-				log.Errorf("Error garbage collecting peerstore addrs: %s", err)
+				log.WithCaller(true).Error("Error garbage collecting peerstore addrs", log.Args("error", err))
 			}
 			return
 		}
