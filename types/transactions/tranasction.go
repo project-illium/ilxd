@@ -128,6 +128,23 @@ func (tx *Transaction) Nullifiers() []types.Nullifier {
 	return nullifiers
 }
 
+// Type returns the transaction type as a string
+func (tx *Transaction) Type() string {
+	switch tx.GetTx().(type) {
+	case *Transaction_StandardTransaction:
+		return "standard"
+	case *Transaction_CoinbaseTransaction:
+		return "coinbase"
+	case *Transaction_MintTransaction:
+		return "mint"
+	case *Transaction_TreasuryTransaction:
+		return "treasury"
+	case *Transaction_StakeTransaction:
+		return "stake"
+	}
+	return "unknown"
+}
+
 func (tx *Transaction) Serialize() ([]byte, error) {
 	return proto.Marshal(tx)
 }

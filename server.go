@@ -605,6 +605,10 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 				s.coinbasesToStake[tx.ID()] = struct{}{}
 			}
 			s.autoStakeLock.Unlock()
+			log.Info("Broadcasting coinbase transaction for self", log.ArgsFromMap(map[string]any{
+				"txid":      tx.ID().String(),
+				"new coins": uint64(validator.UnclaimedCoins),
+			}))
 			if err := s.submitTransaction(tx); err != nil {
 				log.WithCaller(true).Error("Error submitting auto coinbase transaction",
 					log.Args("error", err))
