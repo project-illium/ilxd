@@ -1040,6 +1040,8 @@ func printSplashScreen() {
 }
 
 func (s *Server) printListenAddrs() {
+	fmt.Println()
+	fmt.Print("\033[A\033[K")
 	log.Info(fmt.Sprintf("PeerID: %s", s.network.Host().ID().String()))
 	var lisAddrs []string
 	ifaceAddrs := s.network.Host().Addrs()
