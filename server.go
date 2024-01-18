@@ -598,15 +598,14 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 				log.Errorf("Error building auto coinbase transaction: %s", err)
 				return
 			}
+			s.autoStakeLock.Lock()
+			if s.autoStake {
+				s.coinbasesToStake[tx.ID()] = struct{}{}
+			}
+			s.autoStakeLock.Unlock()
 			if err := s.submitTransaction(tx); err != nil {
 				log.Errorf("Error submitting auto coinbase transaction: %s", err)
 				return
-			}
-
-			s.autoStakeLock.RLock()
-			defer s.autoStakeLock.RUnlock()
-			if s.autoStake {
-				s.coinbasesToStake[tx.ID()] = struct{}{}
 			}
 		}
 	}
