@@ -39,7 +39,12 @@ type mockNode struct {
 func generateMockNetwork(numNodes, numBlocks int) (*mockNetwork, error) {
 	mn := mocknet.New()
 
-	testHarness, err := harness.NewTestHarness(harness.DefaultOptions(), harness.Pregenerate(numBlocks))
+	f, err := harness.BlocksData.Open("blocks/blocks.dat")
+	if err != nil {
+		return nil, err
+	}
+
+	testHarness, err := harness.NewTestHarness(harness.DefaultOptions(), harness.LoadBlocks(f, numBlocks))
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +123,7 @@ func TestSyncFromChooser(t *testing.T) {
 	err = harness2.GenerateBlocks(2)
 	assert.NoError(t, err)
 
-	choiceID, err := harness2.Blockchain().GetBlockIDByHeight(1001)
+	choiceID, err := harness2.Blockchain().GetBlockIDByHeight(1000)
 	assert.NoError(t, err)
 
 	// Add more nodes following chain 2
@@ -187,7 +192,7 @@ func TestSyncWithNodesAtDifferentHeights(t *testing.T) {
 	assert.NoError(t, err)
 	harness2.GenerateBlocks(1)
 
-	choiceID, err := harness2.Blockchain().GetBlockIDByHeight(1001)
+	choiceID, err := harness2.Blockchain().GetBlockIDByHeight(1000)
 	assert.NoError(t, err)
 
 	// Add more nodes following chain 2
@@ -249,7 +254,7 @@ func TestSyncWithNodesAtDifferentHeights(t *testing.T) {
 }
 
 func TestSync(t *testing.T) {
-	net, err := generateMockNetwork(20, 25000)
+	net, err := generateMockNetwork(20, 21000)
 	assert.NoError(t, err)
 
 	t.Run("sync when all nodes agree", func(t *testing.T) {
@@ -320,9 +325,12 @@ func TestSync(t *testing.T) {
 	})
 
 	t.Run("sync with chain fork", func(t *testing.T) {
-		// The extension option creates a new chain that forks at block 15000 and where
-		// the fork has a worse chain score.
-		harness2, err := harness.NewTestHarness(harness.DefaultOptions(), harness.Extension(true))
+		f, err := harness.BlocksData.Open("blocks/blocks.dat")
+		assert.NoError(t, err)
+		f2, err := harness.Blocks2Data.Open("blocks/blocks2.dat")
+		assert.NoError(t, err)
+
+		harness2, err := harness.NewTestHarness(harness.DefaultOptions(), harness.LoadBlocks(f, 15000), harness.LoadBlocks(f2, 6000))
 		assert.NoError(t, err)
 
 		// Add more nodes following chain 2

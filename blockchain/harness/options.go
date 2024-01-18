@@ -12,6 +12,7 @@ import (
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types/transactions"
+	"io"
 	"os"
 )
 
@@ -85,7 +86,7 @@ func SpendKey(privKey crypto.PrivKey) Option {
 
 // LoadBlocks loads the requested number of blocks from the file
 // instead of creating a new genesis block.
-func LoadBlocks(f *os.File, nBlocks int) Option {
+func LoadBlocks(f io.ReadCloser, nBlocks int) Option {
 	return func(cfg *config) error {
 		cfg.blockFiles = append(cfg.blockFiles, &blockFile{
 			f:       f,

@@ -41,7 +41,7 @@ func TestChainService(t *testing.T) {
 	}...)
 	assert.NoError(t, err)
 
-	testHarness1, err := harness.NewTestHarness(harness.DefaultOptions(), harness.Pregenerate(0))
+	testHarness1, err := harness.NewTestHarness(harness.DefaultOptions())
 	assert.NoError(t, err)
 
 	err = testHarness1.GenerateBlocks(10)
@@ -66,7 +66,7 @@ func TestChainService(t *testing.T) {
 	}...)
 	assert.NoError(t, err)
 
-	testHarness2, err := harness.NewTestHarness(harness.DefaultOptions(), harness.Pregenerate(0))
+	testHarness2, err := harness.NewTestHarness(harness.DefaultOptions())
 	assert.NoError(t, err)
 
 	err = testHarness2.GenerateBlocks(10)

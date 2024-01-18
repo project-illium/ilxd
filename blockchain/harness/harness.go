@@ -17,6 +17,7 @@ import (
 	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/ilxd/zk/circparams"
 	"google.golang.org/protobuf/proto"
+	"io"
 	"os"
 )
 
@@ -30,7 +31,7 @@ type SpendableNote struct {
 }
 
 type blockFile struct {
-	f       *os.File
+	f       io.ReadCloser
 	nBlocks int
 }
 
@@ -53,17 +54,17 @@ type TestHarness struct {
 	cfg            *config
 }
 
-// blocksData is a file containing 21000 blocks
+// BlocksData is a file containing 21000 blocks
 //
 //go:embed blocks/blocks.dat
-var blocksData embed.FS
+var BlocksData embed.FS
 
-// blocks2Data is a file containing 6000 blocks
+// Blocks2Data is a file containing 6000 blocks
 // extending the chain found in blocks.dat starting
 // at block 15000
 //
 //go:embed blocks/blocks2.dat
-var blocks2Data embed.FS
+var Blocks2Data embed.FS
 
 // NewTestHarness returns a new TestHarness with the
 // configured options.
@@ -129,7 +130,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 				}
 
 				if blk.Header.Height == 0 {
-					cfg.params.GenesisBlock = &blk
+					params.GenesisBlock = &blk
 					harness.chain, err = blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(&params), blockchain.Verifier(harness.verifier))
 					if err != nil {
 						return nil, err
@@ -409,6 +410,10 @@ func (h *TestHarness) Clone() (*TestHarness, error) {
 		timeSource:     h.timeSource,
 		verifier:       h.verifier,
 		prover:         h.prover,
+		cfg: &config{
+			networkKey: h.cfg.networkKey,
+			spendKey:   h.cfg.spendKey,
+		},
 	}
 
 	chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(h.chain.Params()), blockchain.Verifier(h.verifier))
