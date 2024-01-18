@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 	"net/http"
 )
 
@@ -96,11 +97,21 @@ func (i *interceptor) interceptStreaming(srv interface{}, ss grpc.ServerStream, 
 
 	err = handler(srv, ss)
 	if err != nil && ok {
-		log.Error("Streaming gRPC error", log.ArgsFromMap(map[string]any{
-			"method": info.FullMethod,
-			"addr":   p.Addr.String(),
-			"error":  err,
-		}))
+		st, ok := status.FromError(err)
+		if ok {
+			log.Error("Streaming gRPC error", log.ArgsFromMap(map[string]any{
+				"method":     info.FullMethod,
+				"addr":       p.Addr.String(),
+				"error code": st.Code().String(),
+				"desc":       st.Message(),
+			}))
+		} else {
+			log.Error("Streaming gRPC error", log.ArgsFromMap(map[string]any{
+				"method": info.FullMethod,
+				"addr":   p.Addr.String(),
+				"error":  err,
+			}))
+		}
 	}
 	return err
 }
@@ -121,11 +132,21 @@ func (i *interceptor) interceptUnary(ctx context.Context, req interface{}, info 
 
 	resp, err = handler(ctx, req)
 	if err != nil && ok {
-		log.Error("Unary gRPC error", log.ArgsFromMap(map[string]any{
-			"method": info.FullMethod,
-			"addr":   p.Addr.String(),
-			"error":  err,
-		}))
+		st, ok := status.FromError(err)
+		if ok {
+			log.Error("Unary gRPC error", log.ArgsFromMap(map[string]any{
+				"method":     info.FullMethod,
+				"addr":       p.Addr.String(),
+				"error code": st.Code().String(),
+				"desc":       st.Message(),
+			}))
+		} else {
+			log.Error("Unary gRPC error", log.ArgsFromMap(map[string]any{
+				"method": info.FullMethod,
+				"addr":   p.Addr.String(),
+				"error":  err,
+			}))
+		}
 	}
 	return resp, err
 }

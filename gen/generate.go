@@ -146,7 +146,7 @@ func (g *BlockGenerator) eventLoop() {
 }
 
 func (g *BlockGenerator) generateBlock() error {
-	underlimit, err := g.chain.IsProducerUnderLimit(g.ownPeerID)
+	underlimit, current, max, err := g.chain.IsProducerUnderLimit(g.ownPeerID)
 	if err != nil {
 		return err
 	}
@@ -157,7 +157,10 @@ func (g *BlockGenerator) generateBlock() error {
 	g.lastHeight = height
 	if !underlimit {
 		if height > lastHeight {
-			log.Warn("Block generator over limit")
+			log.Warn("Block generator over limit", log.ArgsFromMap(map[string]any{
+				"epoch blocks": current,
+				"limit":        max,
+			}))
 		}
 		return nil
 	}

@@ -703,15 +703,15 @@ func (b *Blockchain) Validators() []*Validator {
 }
 
 // IsProducerUnderLimit returns whether the given validator is currently under the block production limit.
-func (b *Blockchain) IsProducerUnderLimit(validatorID peer.ID) (bool, error) {
+func (b *Blockchain) IsProducerUnderLimit(validatorID peer.ID) (bool, uint32, uint32, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
 
 	current, max, err := b.validatorSet.BlockProductionLimit(validatorID)
 	if err != nil {
-		return false, err
+		return false, 0, 0, err
 	}
-	return current < max, nil
+	return current < max, current, max, nil
 }
 
 func (b *Blockchain) isInitialized() (bool, error) {

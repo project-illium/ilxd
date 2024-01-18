@@ -625,7 +625,7 @@ func (vs *ValidatorSet) BlockProductionLimit(validatorID peer.ID) (uint32, uint3
 	if expectedBlocks < 1 {
 		expectedBlocks = 1
 	}
-	return val.EpochBlocks, blockProductionLimit(float64(vs.EpochBlocks), expectedBlocks/float64(vs.EpochBlocks)), nil
+	return val.EpochBlocks, blockProductionLimit(float64(vs.EpochBlocks+1), expectedBlocks/float64(vs.EpochBlocks+1)), nil
 }
 
 // Flush flushes changes from the memory cache to disk.

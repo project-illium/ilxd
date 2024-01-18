@@ -243,6 +243,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		walletlib.Params(netParams),
 		walletlib.FeePerKB(policy.GetMinFeePerKilobyte()),
 		walletlib.BlockchainSource(s.makeBlockchainClient(chain)),
+		walletlib.Logger(log),
 	}
 	if config.WalletSeed != "" {
 		walletOpts = append(walletOpts, walletlib.MnemonicSeed(config.WalletSeed))
