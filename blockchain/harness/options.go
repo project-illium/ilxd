@@ -139,9 +139,7 @@ type config struct {
 	genesisOutputs []*transactions.Output
 	writeToFile    *os.File
 	blockFiles     []*blockFile
-	readBlocks     int
 	initialCoins   uint64
-	nBlocks        int
 	nTxsPerBlock   int
 }
 

@@ -14,7 +14,7 @@ import (
 )
 
 func TestBlockchain_CalcChainScore(t *testing.T) {
-	testHarness, err := harness.NewTestHarness(harness.DefaultOptions(), harness.Pregenerate(0))
+	testHarness, err := harness.NewTestHarness(harness.DefaultOptions())
 	assert.NoError(t, err)
 
 	assert.NoError(t, testHarness.GenerateBlocks(10))
