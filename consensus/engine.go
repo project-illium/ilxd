@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Project Illium
+// Copyright (c) 2024 Project Illium
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
 
@@ -186,7 +186,7 @@ out:
 // in the engine until a conflicting block at the same height is finalized. At that point the block
 // will be marked as Rejected.
 func (eng *ConsensusEngine) NewBlock(header *blocks.BlockHeader, isAcceptable bool, callback chan<- Status) {
-	log.WithCaller(true).Trace("New block in consensus engine", log.ArgsFromMap(map[string]any{
+	log.WithCaller(true).Trace("Consensus engine new block", log.ArgsFromMap(map[string]any{
 		"id":     header.ID().String(),
 		"height": header.Height,
 	}))

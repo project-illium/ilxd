@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Project Illium
+// Copyright (c) 2024 Project Illium
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
 
@@ -7,8 +7,8 @@ package repo
 import (
 	"context"
 	"crypto/rand"
-	datastore "github.com/ipfs/go-datastore"
-	crypto "github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/ipfs/go-datastore"
+	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
 func HasNetworkKey(ds Datastore) (bool, error) {

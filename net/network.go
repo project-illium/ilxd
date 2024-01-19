@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Project Illium
+// Copyright (c) 2024 Project Illium
 // Use of this source code is governed by an MIT
 // license that can be found in the LICENSE file.
 
@@ -375,7 +375,7 @@ loop:
 			log.WithCaller(true).Error("error deserializing xthinner block", log.Args("error", err))
 			return pubsub.ValidationReject
 		}
-		log.WithCaller(true).Trace("Pubsub received new block", log.Args("id", blk.ID().String()))
+		log.WithCaller(true).Trace("Pubsub new block", log.Args("id", blk.ID().String()))
 		err := cfg.validateBlock(blk, p)
 		switch e := err.(type) {
 		case blockchain.OrphanBlockError:
