@@ -256,8 +256,9 @@ func (x *GetCompressedBlock) Execute(args []string) error {
 }
 
 type GetTransaction struct {
-	Txid string `short:"i" long:"id" description:"Txid to look up"`
-	opts *options
+	Txid    string `short:"i" long:"id" description:"Txid to look up"`
+	Concise bool   `short:"c" long:"concise" description:"Return the transaction without the proof"`
+	opts    *options
 }
 
 func (x *GetTransaction) Execute(args []string) error {
@@ -276,6 +277,21 @@ func (x *GetTransaction) Execute(args []string) error {
 	})
 	if err != nil {
 		return err
+	}
+
+	if x.Concise {
+		switch tx := resp.Tx.GetTx().(type) {
+		case *transactions.Transaction_StandardTransaction:
+			tx.StandardTransaction.Proof = nil
+		case *transactions.Transaction_MintTransaction:
+			tx.MintTransaction.Proof = nil
+		case *transactions.Transaction_StakeTransaction:
+			tx.StakeTransaction.Proof = nil
+		case *transactions.Transaction_CoinbaseTransaction:
+			tx.CoinbaseTransaction.Proof = nil
+		case *transactions.Transaction_TreasuryTransaction:
+			tx.TreasuryTransaction.Proof = nil
+		}
 	}
 
 	out, err := json.MarshalIndent(resp.Tx, "", "    ")
