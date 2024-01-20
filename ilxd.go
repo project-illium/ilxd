@@ -25,6 +25,7 @@ func main() {
 	parser.AddGroup("Node Options", "Configuration options for the node", &emptyCfg)
 	if _, err := parser.Parse(); err != nil {
 		log.WithCaller(true).Fatal("Failed to configure parser", log.Args("error", err))
+		return
 	}
 
 	// Load the config file. There are three steps to this:
