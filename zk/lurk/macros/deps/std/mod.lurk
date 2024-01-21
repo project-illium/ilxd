@@ -1,4 +1,4 @@
-;; module crypto uses
+;; module crypto contains cryptographic functions
 !(module crypto (
         ;; checksig verifies the signature covering the sighash against
         ;; the provided public key. This function uses the Nova signature
@@ -42,6 +42,13 @@
                           )))
                          (encrypt-chunk plaintext (cons nonce nil) 0))
         ))
+
+       ;; sha256 returns the sha256 hash of the input.
+       ;; The two most significant bits of the output will be
+       ;; set to zero.
+       !(defun sha256 (x) (
+               (eval (cons 'coproc_sha256 (cons x nil)))
+       ))
 ))
 
 ;; module bitwise contains functions for bitwise operations
