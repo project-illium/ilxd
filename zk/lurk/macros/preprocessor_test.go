@@ -216,7 +216,7 @@ func TestWithStandardLib(t *testing.T) {
 	assert.NoError(t, err)
 
 	lurkProgram := `!(defun my-func (y) (
-				!(import std/crypto)
+				!(import std/crypto/checksig)
 				(checksig 10)
 			))`
 	lurkProgram, err = mp.Preprocess(lurkProgram)
