@@ -6,7 +6,6 @@ package macros_test
 
 import (
 	"errors"
-	"fmt"
 	"github.com/project-illium/ilxd/zk/lurk/macros"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -209,7 +208,6 @@ func TestCircularImports(t *testing.T) {
 
 	_, err = mp.Preprocess(lurkProgram)
 	assert.Error(t, err)
-	fmt.Println(err)
 	assert.True(t, errors.Is(err, macros.ErrCircularImports))
 }
 
@@ -218,7 +216,7 @@ func TestWithStandardLib(t *testing.T) {
 	assert.NoError(t, err)
 
 	lurkProgram := `!(defun my-func (y) (
-				!(import std/crypto/checksig)
+				!(import std/crypto)
 				(checksig 10)
 			))`
 	lurkProgram, err = mp.Preprocess(lurkProgram)

@@ -27,8 +27,8 @@
         ;; Each chunk of the plaintext is xored with a chunk key derived from the key, nonce, and chunk index.
         ;; The return is a list with the first element being the nonce.
         !(defun encrypt (plaintext key nonce) (
-                !(import bitwise/xor)
-                !(import collections/list-append)
+                !(import std/bitwise/xor)
+                !(import std/collections/list-append)
                 (letrec ((encrypt-chunk (lambda (plaintext ciphertext i)
                                      (let ((chunk (car plaintext))
                                            (chunk-key (num (commit (cons key (cons nonce (cons i nil)))))))
@@ -73,13 +73,13 @@
 
         ;; shl shifts the number a, n bits to the left.
         !(defun shl (a, n) (
-                !(import math/pow)
+                !(import std/math/pow)
                 (* a (pow 2 n))
         ))
 
         ;; shr shifts the number a, n bits to the right.
         !(defun shr (a, n) (
-                !(import math/pow)
+                !(import std/math/pow)
                 (/ a (pow 2 n))
         ))
 ))

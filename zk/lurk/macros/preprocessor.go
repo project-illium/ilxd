@@ -101,7 +101,9 @@ var pubOutMap = map[string]string{
 func loadFilesFromFS(fileSystem fs.FS, directory string) ([]string, error) {
 	dirEntries, err := fs.ReadDir(fileSystem, directory)
 	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var fileContents []string
@@ -120,7 +122,6 @@ func loadFilesFromFS(fileSystem fs.FS, directory string) ([]string, error) {
 func extractModule(files []string, moduleName string) (string, error) {
 	moduleCount := 0
 	moduleContent := ""
-
 	for _, content := range files {
 		p := NewParser(content)
 		for p.Peek() != 0 {
