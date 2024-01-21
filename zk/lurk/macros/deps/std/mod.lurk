@@ -1,3 +1,4 @@
+;; module crypto uses
 !(module crypto (
         ;; checksig verifies the signature covering the sighash against
         ;; the provided public key. This function uses the Nova signature
@@ -14,6 +15,65 @@
         ;; malformatted.
         !(defun checksig (sig pubkey sighash) (
                 (eval (cons 'coproc_checksig (cons (car sig) (cons (car (cdr sig)) (cons (car (cdr (cdr sig))) (cons (car pubkey) (cons (car (cdr pubkey)) (cons sighash nil))))))))
+        ))
+
+        ;; encrypt implements a basic stream cipher.
+        ;;
+        ;; plaintext  - list of elements, the byte representation of each element will be encrypted
+        ;; key        - the encryption key to use encrypt the data
+        ;; nonce      - a random number. This MUST be unique for each call to encrypt. Reusing the
+        ;;              a nonce will make the it trivial to break ciphertext.
+        ;;
+        ;; Each chunk of the plaintext is xored with a chunk key derived from the key, nonce, and chunk index.
+        ;; The return is a list with the first element being the nonce.
+        !(defun encrypt (plaintext key nonce) (
+                !(import bitwise/xor)
+                !(import collections/list-append)
+                (letrec ((encrypt-chunk (lambda (plaintext ciphertext i)
+                                     (let ((chunk (car plaintext))
+                                           (chunk-key (num (commit (cons key (cons nonce (cons i nil)))))))
+
+                                           (if chunk
+                                               (encrypt-chunk (cdr plaintext) (list-append ciphertext (xor chunk chunk-key)) (+ i 1))
+                                               ciphertext
+                                           )
+                                     )
+
+                          )))
+                         (encrypt-chunk plaintext (cons nonce nil) 0))
+        ))
+))
+
+;; module bitwise contains functions for bitwise operations
+!(module bitwise (
+        ;; and computes a bitwise and. The two most significant
+        ;; bits of the output will be set to zero.
+        !(defun and (a b) (
+                (eval (cons 'coproc_and (cons a (cons b nil))))
+        ))
+
+        ;; or computes a bitwise or. The two most significant
+        ;; bits of the output will be set to zero.
+        !(defun or (a b) (
+                (eval (cons 'coproc_or (cons a (cons b nil))))
+        ))
+
+        ;; xor computes a bitwise xor. The two most significant
+        ;; bits of the output will be set to zero.
+        !(defun xor (a b) (
+                (eval (cons 'coproc_xor (cons a (cons b nil))))
+        ))
+
+        ;; shl shifts the number a, n bits to the left.
+        !(defun shl (a, n) (
+                !(import math/pow)
+                (* a (pow 2 n))
+        ))
+
+        ;; shr shifts the number a, n bits to the right.
+        !(defun shr (a, n) (
+                !(import math/pow)
+                (/ a (pow 2 n))
         ))
 ))
 
@@ -47,6 +107,8 @@
             (num (commit (cons script-hash (cons amount (cons asset-id (cons salt (cons state nil)))))))))
 ))
 
+;; module collections contains some functions for interacting
+;; with lists and maps.
 !(module collections (
         ;; nth returns the item at the given index from
         ;; the list or nil if the index doesn't exist.
@@ -54,4 +116,27 @@
             (if (= idx 0)
                 (car plist)
                 (nth (- idx 1) (cdr plist)))))
+
+       ;; list-append appends an element to the end of the list
+       ;; This is much less efficient than prepending.
+       !(defun list-append (lst element) (
+          (if lst
+              (cons (car lst) (list-append (cdr lst) element))
+              !(list element))))
+))
+
+;; module math provides basic mathematical functions
+!(module math (
+       ;; pow returns x**y, the base-x exponential of y
+       !(defun pow (base exponent) (
+            (if (= exponent 0)
+                1
+                (* base (pow base (- exponent 1))))))
+
+       ;; mod returns the remainder of a / b
+       !(defun mod (a b) (
+             (if (<= b 0)
+                 nil ;; modulus must be positive
+                 (let ((quotient (/ a b)))
+                    (- a (* quotient b))))))
 ))
