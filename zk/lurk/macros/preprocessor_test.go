@@ -218,8 +218,8 @@ func TestWithStandardLib(t *testing.T) {
 	assert.NoError(t, err)
 
 	lurkProgram := `!(defun my-func (y) (
-				!(import std/crypto)
-				(check-sig 10)
+				!(import std/crypto/checksig)
+				(checksig 10)
 			))`
 	lurkProgram, err = mp.Preprocess(lurkProgram)
 	assert.NoError(t, err)
@@ -227,6 +227,6 @@ func TestWithStandardLib(t *testing.T) {
 	lurkProgram = strings.ReplaceAll(lurkProgram, "\t", "")
 	lurkProgram = strings.Join(strings.Fields(lurkProgram), " ")
 	assert.True(t, macros.IsValidLurk(lurkProgram))
-	expected := `(letrec ((my-func (lambda (y) (letrec ((checksig (lambda (sig pubkey sighash) (eval (cons 'coproc_checksig (cons (car sig) (cons (car (cdr sig)) (cons (car (cdr (cdr sig))) (cons (car pubkey) (cons (car (cdr pubkey)) (cons sighash nil)))))))) )))(check-sig 10))))))`
+	expected := `(letrec ((my-func (lambda (y) (letrec ((checksig (lambda (sig pubkey sighash) (eval (cons 'coproc_checksig (cons (car sig) (cons (car (cdr sig)) (cons (car (cdr (cdr sig))) (cons (car pubkey) (cons (car (cdr pubkey)) (cons sighash nil)))))))) )))(checksig 10))))))`
 	assert.Equal(t, expected, lurkProgram)
 }
