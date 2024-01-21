@@ -111,12 +111,14 @@ func (sm *SyncManager) Start() {
 
 	// Sync up to the checkpoints if we're not already past them.
 	if len(sm.params.Checkpoints) > 0 && startheight < sm.params.Checkpoints[len(sm.params.Checkpoints)-1].Height {
+		log.WithCaller(true).Trace("Syncing to checkpoints", log.Args("start height", startheight))
 		sm.syncToCheckpoints(startheight)
 	}
 
 	// Before we start we want to do a large peer query to see if there
 	// are any forks out there. If there are, we will sort the peers into
 	// buckets depending on which fork they are on.
+	log.WithCaller(true).Trace("Waiting for enough peers to start sync")
 	sm.waitForPeers()
 	for {
 		err := sm.populatePeerBuckets()
@@ -130,6 +132,10 @@ func (sm *SyncManager) Start() {
 		}
 		break
 	}
+	log.WithCaller(true).Trace("Starting sync", log.ArgsFromMap(map[string]any{
+		"peers":   len(sm.network.Host().Network().Peers()),
+		"buckets": len(sm.buckets),
+	}))
 
 	// Now we can continue to sync the rest of the chain.
 syncLoop:
@@ -152,6 +158,12 @@ syncLoop:
 		// the subset that we query. This will ensure that, if there is a
 		// fork, we will encounter it as we sync forward.
 		bestID, height, _ := sm.chain.BestBlock()
+		log.WithCaller(true).Trace("Syncing blocks", log.ArgsFromMap(map[string]any{
+			"current height": height,
+			"to height":      height + lookaheadSize,
+			"current tip":    bestID.String(),
+		}))
+
 		blockMap, err := sm.queryPeersForBlockID(height + lookaheadSize)
 		if err != nil {
 			time.Sleep(time.Second * 10)
@@ -164,6 +176,11 @@ syncLoop:
 			// All peers agree on the blockID at the requested height. This is good.
 			// We'll just sync up to this height.
 			for blockID, p := range blockMap {
+				log.WithCaller(true).Trace("All query peers in agreement", log.ArgsFromMap(map[string]any{
+					"height":  height + lookaheadSize,
+					"blockID": blockID.String(),
+				}))
+
 				err := sm.syncBlocks(p, height+1, height+lookaheadSize, bestID, blockID, sm.behavorFlag)
 				if err != nil {
 					log.Debug("Error syncing blocks", log.ArgsFromMap(map[string]any{
@@ -186,6 +203,10 @@ syncLoop:
 				log.Debug("Error find fork point", log.Args("error", err))
 				continue
 			}
+			log.WithCaller(true).Trace("Query peers not in agreement", log.ArgsFromMap(map[string]any{
+				"forkHeight": forkHeight,
+				"forkBlock":  forkBlock.String(),
+			}))
 
 			// Step two is sync up to fork point.
 			if forkHeight > height {
@@ -248,6 +269,10 @@ syncLoop:
 				bestID    types.ID
 			)
 			if tipOfChain {
+				log.WithCaller(true).Trace("Fork is near the tip of chain. Using consensus chooser.", log.ArgsFromMap(map[string]any{
+					"forkHeight": forkHeight,
+					"forkBlock":  forkBlock.String(),
+				}))
 				bestID, err = sm.consensuChooser(firstBlocks)
 				if err != nil {
 					log.WithCaller(true).Error("Sync error choosing between tips", log.Args("error", err))
@@ -262,6 +287,7 @@ syncLoop:
 					}
 				}
 			}
+			log.WithCaller(true).Trace("Selected best chain", log.Args("bestID", bestID.String()))
 			// And ban the nodes on bad fork
 			if len(firstBlocks) > 1 {
 				for blockID, p := range blockMap {

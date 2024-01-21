@@ -673,13 +673,26 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 		//
 		// Let's download the txid list from the peer and figure out which it is.
 		if blockchain.ErrorIs(err, blockchain.ErrInvalidTxRoot) {
+			log.WithCaller(true).Trace("Block merkle root is invalid. Requesting txids.", log.ArgsFromMap(map[string]any{
+				"peer": relayingPeer,
+				"id":   blk.ID().String(),
+			}))
 			blk, err := s.fetchBlockTxids(blk, relayingPeer)
 			if err != nil {
+				log.WithCaller(true).Trace("Peer failed to serve txids after bad merkle root", log.ArgsFromMap(map[string]any{
+					"peer": relayingPeer,
+					"id":   blk.ID().String(),
+				}))
 				s.network.IncreaseBanscore(relayingPeer, 34, 0)
 
 				for _, pid := range s.network.Host().Network().Peers() {
 					blk, err = s.fetchBlockTxids(blk, pid)
 					if err == nil {
+						log.WithCaller(true).Trace("Xthinner other peer provided block txids", log.ArgsFromMap(map[string]any{
+							"bad peer":  relayingPeer,
+							"good peer": pid,
+							"id":        blk.ID().String(),
+						}))
 						return s.processBlock(blk, relayingPeer, true)
 					}
 				}
@@ -801,6 +814,10 @@ func (s *Server) decodeXthinner(xThinnerBlk *blocks.XThinnerBlock, relayingPeer 
 	<-s.ready
 	blk, missing := s.mempool.DecodeXthinner(xThinnerBlk)
 	if len(missing) > 0 {
+		log.WithCaller(true).Trace("Xthinner decode missing transaction", log.ArgsFromMap(map[string]any{
+			"peer":    relayingPeer,
+			"missing": missing,
+		}))
 		txs, err := s.chainService.GetBlockTxs(relayingPeer, xThinnerBlk.ID(), missing)
 		if err == nil {
 			for i, tx := range txs {
@@ -808,6 +825,10 @@ func (s *Server) decodeXthinner(xThinnerBlk *blocks.XThinnerBlock, relayingPeer 
 			}
 			return blk, nil
 		} else {
+			log.WithCaller(true).Trace("Xthinner peer failed to serve block txs", log.ArgsFromMap(map[string]any{
+				"peer":  relayingPeer,
+				"error": err,
+			}))
 			s.network.IncreaseBanscore(relayingPeer, 34, 0)
 		}
 
@@ -817,6 +838,10 @@ func (s *Server) decodeXthinner(xThinnerBlk *blocks.XThinnerBlock, relayingPeer 
 				for i, tx := range txs {
 					blk.Transactions[missing[i]] = tx
 				}
+				log.WithCaller(true).Trace("Xthinner other peer provided missed tx", log.ArgsFromMap(map[string]any{
+					"good peer": pid,
+					"bad peer":  relayingPeer,
+				}))
 				return blk, nil
 			}
 			// We won't increase the ban score for these peers as they didn't send
