@@ -249,23 +249,23 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	}
 
 	accumulator := b.accumulatorDB.Accumulator()
-	blockCointainsOutputs := false
-	treasuryWidthdrawl := types.Amount(0)
+	blockContainsOutputs := false
+	treasuryWidthdraw := types.Amount(0)
 	for _, tx := range blk.Transactions {
 		for _, out := range tx.Outputs() {
 			accumulator.Insert(out.Commitment, false)
-			blockCointainsOutputs = true
+			blockContainsOutputs = true
 		}
 		if treasuryTx, ok := tx.Tx.(*transactions.Transaction_TreasuryTransaction); ok {
-			treasuryWidthdrawl += types.Amount(treasuryTx.TreasuryTransaction.Amount)
+			treasuryWidthdraw += types.Amount(treasuryTx.TreasuryTransaction.Amount)
 		}
 	}
-	if treasuryWidthdrawl > 0 {
-		if err := dsDebitTreasury(dbtx, treasuryWidthdrawl); err != nil {
+	if treasuryWidthdraw > 0 {
+		if err := dsDebitTreasury(dbtx, treasuryWidthdraw); err != nil {
 			return err
 		}
 	}
-	if blockCointainsOutputs {
+	if blockContainsOutputs {
 		if err := b.txoRootSet.AddRoot(dbtx, accumulator.Root()); err != nil {
 			return err
 		}
@@ -344,7 +344,7 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	}
 	// Now that we know the disk updated correctly we can update the cache. Ideally this would
 	// be done in a commit hook, but that's a bigger change to the db interface.
-	if blockCointainsOutputs {
+	if blockContainsOutputs {
 		b.txoRootSet.UpdateCache(accumulator.Root())
 	}
 
