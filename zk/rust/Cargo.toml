@@ -18,9 +18,9 @@ flate2 = "1.0.26"
 hex = "0.4.3"
 itertools = "0.11"
 lazy_static = "1.4.0"
-lurk = { git = "https://github.com/lurk-lab/lurk-rs.git", branch = "main" }
+lurk = { git = "https://github.com/lurk-lab/lurk-rs.git", branch = "main"}
 lurk-macros = "0.2.0"
-nova = { git = "https://github.com/lurk-lab/arecibo", branch = "dev", package = "arecibo" }
+nova = { git = "https://github.com/lurk-lab/arecibo", branch = "dev", package = "arecibo", default-features = false}
 num-bigint = { version = "0.4", features = ["serde", "rand"] }
 once_cell = "1.19.0"
 openssl = { version = "0.10", features = ["vendored"] }
