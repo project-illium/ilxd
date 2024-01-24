@@ -9,7 +9,7 @@ package crypto
 
 /*
 #cgo linux CFLAGS: -Irust/target/release -Irust-target-release-crypto
-#cgo linux LDFLAGS: -Lrust/target/release -Lrust-target-release-crypto -l:libillium_crypto.a -ldl -lpthread -lgcc_s -lc -lm -lssl -lcrypto -lstdc++ -L/usr/local/cuda/lib64 -L/usr/local/cuda/targets/x86_64-linux/lib -lcudart
+#cgo linux LDFLAGS: -Lrust/target/release -Lrust-target-release-crypto -l:libillium_crypto.a -ldl -lpthread -lgcc_s -lc -lm -lssl -lcrypto -lstdc++
 #cgo windows CFLAGS: -Irust/target/release
 #cgo windows LDFLAGS: -Lrust/target/release -l:illium_crypto.lib
 #cgo darwin CFLAGS: -Irust/target/release -Irust/target/x86_64-apple-darwin/release

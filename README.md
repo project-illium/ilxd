@@ -32,7 +32,7 @@ a production environment please checkout a release tag.
 
 Make sure you have the required dependencies:
 ```go
-$ apt-get install curl wget build-essential pkg-config libssl-dev nvidia-cuda-toolkit
+$ apt-get install curl wget build-essential pkg-config libssl-dev
 ```
 
 Ilxd requires both Go and Rust to be installed on your system. You'll need to use the makefile to install it as it will
