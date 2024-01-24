@@ -22,12 +22,18 @@ build: rust-bindings
 
 .PHONY: rust-bindings
 rust-bindings:
+ifdef CUDA
+	@cd crypto/rust && cargo build --release
+	cd ../..
+	@cd zk/rust && cargo build --release --features cuda
+else
 	export CUDA_PATH=
 	export NVCC=off
 	export EC_GPU_FRAMEWORK=none
 	@cd crypto/rust && cargo build --release
 	cd ../..
 	@cd zk/rust && cargo build --release
+endif
 
 clean:
 	cd zk/rust && cargo clean

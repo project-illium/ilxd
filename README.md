@@ -52,6 +52,14 @@ export PATH=$PATH:/usr/local/go/bin
 export PATH=$PATH:$GOPATH/bin
 ```
 
+### GPU Acceleration
+If you have an Nvidia GPU with the `nvidia-cuda-toolkit` installed you can make use of GPU acceleration to speed up the proving
+and verifying time.
+
+```
+$ CUDA=1 make install
+```
+
 ### Usage
 Vist [docs.illium.org](https://docs.illium.org/docs/node/running_a_node) for a comprehensive guide to running a node.
 
