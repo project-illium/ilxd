@@ -47,7 +47,7 @@ jobs:
           - platform: linux
             os: ubuntu-latest
             goarch: 'amd64'
-            image: nvidia/cuda:12.3.0-devel-ubuntu20.04
+            image: null
           - platform : darwin
             os: macos-latest
             goarch: 'amd64'
@@ -65,10 +65,10 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y curl wget build-essential pkg-config libssl-dev zip
-          ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime
-          dpkg-reconfigure --frontend noninteractive tzdata
+          sudo apt-get update
+          sudo apt-get install -y curl wget build-essential pkg-config libssl-dev zip
+          sudo ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime
+          sudo dpkg-reconfigure --frontend noninteractive tzdata
 
       - name: Set up Go
         uses: actions/setup-go@v2

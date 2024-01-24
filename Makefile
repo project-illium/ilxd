@@ -18,7 +18,11 @@ endif
 
 .PHONY: build
 build: rust-bindings
+ifdef CUDA
+	go build -tags=cuda $(ARGS) *.go
+else
 	go build $(ARGS) *.go
+endif
 
 .PHONY: rust-bindings
 rust-bindings:
