@@ -16,10 +16,13 @@ use lurk::{
     field::LurkField,
     lem::{
         eval::{evaluate, evaluate_simple, make_cprocs_funcs_from_lang, make_eval_step_from_config, EvalConfig},
-        multiframe::MultiFrame,
         store::Store,
     },
-    proof::{supernova::{SuperNovaProver, PublicParams, Proof}, Prover, RecursiveSNARKTrait},
+    proof::{
+        supernova::{SuperNovaProver, PublicParams, Proof},
+        nova::C1LEM,
+        RecursiveSNARKTrait
+    },
     public_parameters::{
         instance::{Instance, Kind},
         supernova_public_params,
@@ -252,13 +255,13 @@ pub extern "C" fn eval_ffi(
     }
 }
 
-static PUBLIC_PARAMS: OnceCell<Arc<PublicParams<Fr, MultiFrame<'static, Fr, MultiCoproc<Fr>>>>> = OnceCell::new();
+static PUBLIC_PARAMS: OnceCell<Arc<PublicParams<Fr, C1LEM<'static, Fr, MultiCoproc<Fr>>>>> = OnceCell::new();
 
-fn get_public_params() -> Arc<PublicParams<Fr, MultiFrame<'static, Fr, MultiCoproc<Fr>>>> {
+fn get_public_params() -> Arc<PublicParams<Fr, C1LEM<'static, Fr, MultiCoproc<Fr>>>> {
     PUBLIC_PARAMS.get_or_init(|| Arc::new(create_public_params())).clone()
 }
 
-fn create_public_params() -> PublicParams<Fr, MultiFrame<'static, Fr, MultiCoproc<Fr>>> {
+fn create_public_params() -> PublicParams<Fr, C1LEM<'static, Fr, MultiCoproc<Fr>>> {
     let cproc_sym_and = user_sym("coproc_and");
     let cproc_sym_or = user_sym("coproc_or");
     let cproc_sym_xor = user_sym("coproc_xor");
@@ -323,7 +326,7 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
 
     let pp = get_public_params();
 
-    let (proof, _z0, zi, _num_steps) = supernova_prover.prove(&pp, &frames, store)?;
+    let (proof, _z0, zi, _num_steps) = supernova_prover.prove_from_frames(&pp, &frames, store)?;
     let compressed_proof = proof.compress(&pp).unwrap();
 
     let mut ret_tag = zi[0].to_bytes();
@@ -376,7 +379,7 @@ fn verify_proof(
 
     let pp = get_public_params();
     let decoder = ZlibDecoder::new(&proof[..]);
-    let decompressed_proof: Proof<Fr, MultiCoproc<Fr>> = bincode::deserialize_from(decoder)?;
+    let decompressed_proof: Proof<Fr, C1LEM<Fr, MultiCoproc<Fr>>> = bincode::deserialize_from(decoder)?;
     let res = decompressed_proof.verify(&pp, &z0, &zi)?;
     Ok(res)
 }
