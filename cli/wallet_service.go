@@ -1072,7 +1072,7 @@ func (x *Stake) Execute(args []string) error {
 	})
 	if err != nil {
 		spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
-		return err
+		return nil
 	}
 
 	spinner.Success("Stake transaction broadcast successfully")
@@ -1131,8 +1131,9 @@ func (x *Spend) Execute(args []string) error {
 	}
 	if x.SpendAll {
 		resp, err := client.SweepWallet(makeContext(x.opts.AuthToken), &pb.SweepWalletRequest{
-			ToAddress:      x.Address,
-			FeePerKilobyte: x.FeePerKB,
+			ToAddress:        x.Address,
+			FeePerKilobyte:   x.FeePerKB,
+			InputCommitments: commitments,
 		})
 		if err != nil {
 			spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))

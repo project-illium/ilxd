@@ -975,7 +975,11 @@ func (s *GrpcServer) SweepWallet(ctx context.Context, req *pb.SweepWalletRequest
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	txid, err := s.wallet.SweepWallet(addr, types.Amount(req.FeePerKilobyte))
+	commitments := make([]types.ID, 0, len(req.InputCommitments))
+	for _, c := range req.InputCommitments {
+		commitments = append(commitments, types.NewID(c))
+	}
+	txid, err := s.wallet.SweepWallet(addr, types.Amount(req.FeePerKilobyte), commitments...)
 	if err != nil {
 		return nil, err
 	}
