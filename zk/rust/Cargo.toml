@@ -36,7 +36,7 @@ threadpool = "1.8.1"
 
 [features]
 default = []
-cuda = ["lurk/cuda"]
+cuda = ["lurk/cuda", "nova/cuda"]
 
 [patch.crates-io]
 # This is needed to ensure halo2curves, which imports pasta-curves, uses the *same* traits in bn256_grumpkin

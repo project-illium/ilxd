@@ -9,7 +9,7 @@ package zk
 
 /*
 #cgo linux CFLAGS: -Irust/target/release -Irust-target-release-zk
-#cgo linux LDFLAGS: -Lrust/target/release -Lrust-target-release-zk -l:libillium_zk.a -ldl -lpthread -lgcc_s -lc -lm -lssl -lcrypto -lstdc++ -L/usr/local/cuda/lib64 -L/usr/local/cuda/targets/x86_64-linux/lib -lcudart -lcuda
+#cgo linux LDFLAGS: -Lrust/target/release -Lrust-target-release-zk -l:libillium_zk.a -ldl -lpthread -lgcc_s -lc -lm -lssl -lcrypto -lstdc++ -L/usr/local/cuda-12.2/lib64 -L/usr/local/cuda/lib64 -L/usr/local/cuda/targets/x86_64-linux/lib -lcudart -lcuda
 #cgo windows CFLAGS: -Irust/target/release
 #cgo windows LDFLAGS: -Lrust/target/release -l:libillium_zk.lib
 #cgo darwin CFLAGS: -Irust/target/release -Irust/target/x86_64-apple-darwin/release
