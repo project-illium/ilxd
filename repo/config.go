@@ -212,10 +212,48 @@ func LoadConfig() (*Config, error) {
 		if err != nil || len(addrs) == 0 {
 			return nil, errors.New("error determining local host for grpc server")
 		}
-		ma, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", addrs[0], defaultGrpcPort))
-		if err != nil {
-			return nil, err
+		
+		// Default port
+		grpcPort := defaultGrpcPort
+
+		// Find an unused port
+		for {    
+			ln, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
+			if err != nil {
+				grpcPort++
+			} else {
+				ln.Close()
+				break
+			}
 		}
+
+		// Check the type of the IP address and format the multiaddress accordingly
+		var ma multiaddr.Multiaddr
+		for _, addr := range addrs {
+			ip := net.ParseIP(addr)
+			if ip != nil {
+				if ip.To4() != nil {
+					// IPv4 address
+					ma, err = multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", ip.String(), grpcPort))
+				} else {
+					// IPv6 address
+					ma, err = multiaddr.NewMultiaddr(fmt.Sprintf("/ip6/%s/tcp/%d", ip.String(), grpcPort))
+				}
+
+				if err != nil {
+					fmt.Println("Error creating multiaddr:", err)
+					continue
+				}
+
+				// Successfully created multiaddr, break out of the loop
+				break
+			}
+		}
+
+		if ma == nil {
+			return nil, errors.New("failed to create multiaddr for any local address")
+		}
+
 		cfg.RPCOpts.GrpcListener = ma.String()
 	}
 
