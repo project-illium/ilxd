@@ -45,10 +45,9 @@ $ make install
 ```
 This command builds both `ilxd` and `ilxcli`. The binaries will be put in `$GOPATH/bin`.
 
-To put this directory in your path add these lines to your `/etc/profile` (for a system-wide installation) or `$HOME/.profile`:
+To put this directory in your path add this line to your `/etc/profile` (for a system-wide installation) or `$HOME/.profile`:
 
 ```
-export PATH=$PATH:/usr/local/go/bin
 export PATH=$PATH:$GOPATH/bin
 ```
 

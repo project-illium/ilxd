@@ -42,3 +42,7 @@ endif
 clean:
 	cd zk/rust && cargo clean
 	cd crypto/rust && cargo clean
+
+update:
+	cd zk/rust && cargo update
+	cd crypto/rust && cargo update
