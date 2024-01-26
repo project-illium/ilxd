@@ -209,6 +209,9 @@ func LoadConfig() (*Config, error) {
 	// Default RPC to listen on localhost only.
 	if cfg.RPCOpts.GrpcListener == "" {
 		addrs, err := net.LookupHost("localhost")
+		if err != nil || len(addrs) == 0 {
+			return nil, errors.New("error determining local host for grpc server")
+		}
 		
 		// Default port
 		grpcPort := defaultGrpcPort
