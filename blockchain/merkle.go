@@ -13,31 +13,15 @@ import (
 )
 
 // TransactionsMerkleRoot returns the merkle root for the transactions in a block.
-// It is the root of two separate merkle trees - The UID tree and WID tree.
-//
-//	              root = h(uid_root + wid_root)
-//		        /                           \
-//		  uid_root                        wid_root
-//
-// A UID is the hash of each transaction with the transaction's proof set to nil.
-// A WID is the hash of the transactions' proof.
-//
-// By committing the transaction in two separate pieces it makes it possible to
-// build nodes that only download the transaction without the proof and validate
-// an aggregate proof later, while still ensuring the full transaction data is
-// committed.
+// It is computed as the root hash of a merkle tree build from the block txids.
 func TransactionsMerkleRoot(txs []*transactions.Transaction) types.ID {
-	uids := make([]types.ID, len(txs))
-	wids := make([]types.ID, len(txs))
+	txids := make([]types.ID, len(txs))
 	for i, tx := range txs {
-		uids[i] = tx.UID().Clone()
-		wids[i] = tx.WID().Clone()
+		txids[i] = tx.ID().Clone()
 	}
-	left := BuildMerkleTreeStore(uids)
-	right := BuildMerkleTreeStore(wids)
+	hashes := BuildMerkleTreeStore(txids)
 
-	root := hash.HashMerkleBranches(left[len(left)-1], right[len(right)-1])
-	return types.NewID(root)
+	return types.NewID(hashes[len(hashes)-1])
 }
 
 // nextPowerOfTwo returns the next highest power of two from a given number if

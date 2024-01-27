@@ -74,6 +74,18 @@ func TestNewTestHarness(t *testing.T) {
 }
 
 /*func TestTestHarness_GenerateBlocksDat(t *testing.T) {
+	f1, err := os.Create("blocks/blocks.dat")
+	assert.NoError(t, err)
+
+	h1, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(1), WriteToFile(f1))
+	assert.NoError(t, err)
+
+	err = h1.GenerateBlocks(21000)
+	assert.NoError(t, err)
+
+	h1.Close()
+	f1.Close()
+
 	b1, err := os.Open("blocks/blocks.dat")
 	assert.NoError(t, err)
 
@@ -199,14 +211,4 @@ func TestNewTestHarness(t *testing.T) {
 
 	h2.Close()
 
-}
-
-func TestTestHarness_Blockchain(t *testing.T) {
-	f, err := BlocksData.Open("blocks/blocks.dat")
-	assert.NoError(t, err)
-
-	h2, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(1), LoadBlocks(f, 6))
-	assert.NoError(t, err)
-	err = h2.GenerateBlocks(1)
-	assert.NoError(t, err)
 }*/

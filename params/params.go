@@ -26,6 +26,8 @@ type Checkpoint struct {
 	Height  uint32
 }
 
+// NetworkParams holds configuration information for different
+// networks.
 type NetworkParams struct {
 	// Name is a human-readable string to identify the params
 	Name string

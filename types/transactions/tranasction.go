@@ -53,14 +53,17 @@ func (tx *Transaction) ID() types.ID {
 	if len(tx.cachedTxid) > 0 {
 		return types.NewID(tx.cachedTxid)
 	}
-	ser, _ := tx.Serialize()
-	id := types.NewIDFromData(ser)
+	id := types.NewIDFromData(append(tx.UID().Bytes(), tx.WID().Bytes()...))
 	tx.cachedTxid = id.Bytes()
 	return id
 }
 
 func (tx *Transaction) CacheTxid(txid types.ID) {
 	tx.cachedTxid = txid.Bytes()
+}
+
+func (tx *Transaction) CacheWid(wid types.ID) {
+	tx.cachedWid = wid.Bytes()
 }
 
 func (tx *Transaction) UID() types.ID {
@@ -82,6 +85,9 @@ func (tx *Transaction) UID() types.ID {
 }
 
 func (tx *Transaction) WID() types.ID {
+	if len(tx.cachedWid) > 0 {
+		return types.NewID(tx.cachedWid)
+	}
 	var proof []byte
 	switch t := tx.GetTx().(type) {
 	case *Transaction_StandardTransaction:
