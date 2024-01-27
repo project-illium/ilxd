@@ -129,6 +129,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	var netParams *params.NetworkParams
 	if config.Testnet {
 		netParams = &params.Testnet1Params
+		return nil, errors.New("the testnet is not yet live. use --alpha or --regtest")
 	} else if config.Alphanet {
 		netParams = &params.AlphanetParams
 	} else if config.Regtest {
@@ -138,6 +139,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		}
 	} else {
 		netParams = &params.MainnetParams
+		return nil, errors.New("the mainnet is not yet live. use --alpha or --regtest")
 	}
 
 	var (
