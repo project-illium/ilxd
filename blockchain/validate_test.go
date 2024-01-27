@@ -509,7 +509,7 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
-								Ciphertext: bytes.Repeat([]byte{0x11}, CiphertextLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -519,7 +519,7 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
-								Ciphertext: make([]byte, CiphertextLen),
+								Ciphertext: bytes.Repeat([]byte{0x11}, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -796,19 +796,6 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
-								Ciphertext: bytes.Repeat([]byte{0x01}, CiphertextLen),
-							},
-						},
-						Asset_ID:   hash.HashFunc(mintRawPubkey),
-						MintKey:    mintKeyBytes,
-						Nullifiers: [][]byte{nullifier[:]},
-						TxoRoot:    txoRoot[:],
-					}),
-					transactions.WrapTransaction(&transactions.MintTransaction{
-						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
-						Outputs: []*transactions.Output{
-							{
-								Commitment: make([]byte, types.CommitmentLen),
 								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
@@ -816,6 +803,19 @@ func TestValidateBlock(t *testing.T) {
 						TxoRoot:    txoRoot[:],
 						Asset_ID:   hash.HashFunc(mintRawPubkey),
 						MintKey:    mintKeyBytes,
+					}),
+					transactions.WrapTransaction(&transactions.MintTransaction{
+						Type: transactions.MintTransaction_VARIABLE_SUPPLY,
+						Outputs: []*transactions.Output{
+							{
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: bytes.Repeat([]byte{0x01}, CiphertextLen),
+							},
+						},
+						Asset_ID:   hash.HashFunc(mintRawPubkey),
+						MintKey:    mintKeyBytes,
+						Nullifiers: [][]byte{nullifier[:]},
+						TxoRoot:    txoRoot[:],
 					}),
 				}
 
@@ -1133,7 +1133,7 @@ func TestValidateBlock(t *testing.T) {
 			block: func(blk *blocks.Block) (*blocks.Block, error) {
 				blk.Transactions = []*transactions.Transaction{
 					transactions.WrapTransaction(&transactions.TreasuryTransaction{
-						Amount: 8000,
+						Amount: 3000,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -1143,7 +1143,7 @@ func TestValidateBlock(t *testing.T) {
 						ProposalHash: make([]byte, 32),
 					}),
 					transactions.WrapTransaction(&transactions.TreasuryTransaction{
-						Amount: 3000,
+						Amount: 8000,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
