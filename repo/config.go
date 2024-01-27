@@ -212,12 +212,12 @@ func LoadConfig() (*Config, error) {
 		if err != nil || len(addrs) == 0 {
 			return nil, errors.New("error determining local host for grpc server")
 		}
-		
+
 		// Default port
 		grpcPort := defaultGrpcPort
 
 		// Find an unused port
-		for {    
+		for {
 			ln, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
 			if err != nil {
 				grpcPort++

@@ -658,7 +658,8 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 		//
 		// The proofs and signatures are added to the proof and sig caches so the
 		// blockchain will not double validate them.
-		if !sm.behavorFlag.HasFlag(blockchain.BFNoValidation) && !sm.behavorFlag.HasFlag(blockchain.BFFastAdd) {
+		if !sm.behavorFlag.HasFlag(blockchain.BFNoValidation) && !sm.behavorFlag.HasFlag(blockchain.BFFastAdd) &&
+			!flags.HasFlag(blockchain.BFFastAdd) && !flags.HasFlag(blockchain.BFNoValidation) {
 			toValidate := make([]*transactions.Transaction, 0, len(blks))
 			for _, blk := range blks {
 				toValidate = append(toValidate, blk.Transactions...)

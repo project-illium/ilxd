@@ -638,7 +638,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 
 	switch err.(type) {
 	case blockchain.OrphanBlockError:
-		// An orphan is a block's whose height is greater than
+		// An orphan is a block whose height is greater than
 		// our current blockchain tip. It might be valid, but
 		// we can't validate it until we connect the parent.
 		// We'll store it in memory and will circle back after
@@ -659,6 +659,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 			s.syncManager.IsCurrent() &&
 			time.Now().After(tipTimstamp.Add(time.Minute*5)) {
 
+			log.Warn("Restarting sync manager due to large number of orphans")
 			s.generator.Close()
 			s.syncManager.Close()
 			s.syncManager.Start()
