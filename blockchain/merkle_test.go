@@ -100,45 +100,25 @@ func TestTransactionsMerkleRoot(t *testing.T) {
 	d7 := transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 7, Proof: []byte{0x07}})
 	d8 := transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 8, Proof: []byte{0x08}})
 
-	u1 := d1.UID()
-	u2 := d2.UID()
-	u3 := d3.UID()
-	u4 := d4.UID()
-	u5 := d5.UID()
-	u6 := d6.UID()
-	u7 := d7.UID()
-	u8 := d8.UID()
+	id1 := d1.ID()
+	id2 := d2.ID()
+	id3 := d3.ID()
+	id4 := d4.ID()
+	id5 := d5.ID()
+	id6 := d6.ID()
+	id7 := d7.ID()
+	id8 := d8.ID()
 
-	w1 := d1.WID()
-	w2 := d2.WID()
-	w3 := d3.WID()
-	w4 := d4.WID()
-	w5 := d5.WID()
-	w6 := d6.WID()
-	w7 := d7.WID()
-	w8 := d8.WID()
-
-	u12 := hash.HashMerkleBranches(u1[:], u2[:])
-	u34 := hash.HashMerkleBranches(u3[:], u4[:])
-	u56 := hash.HashMerkleBranches(u5[:], u6[:])
-	u78 := hash.HashMerkleBranches(u7[:], u8[:])
+	u12 := hash.HashMerkleBranches(id1[:], id2[:])
+	u34 := hash.HashMerkleBranches(id3[:], id4[:])
+	u56 := hash.HashMerkleBranches(id5[:], id6[:])
+	u78 := hash.HashMerkleBranches(id7[:], id8[:])
 
 	u1234 := hash.HashMerkleBranches(u12, u34)
 	u5678 := hash.HashMerkleBranches(u56, u78)
 
-	u12345678 := hash.HashMerkleBranches(u1234, u5678)
+	root := hash.HashMerkleBranches(u1234, u5678)
 
-	w12 := hash.HashMerkleBranches(w1[:], w2[:])
-	w34 := hash.HashMerkleBranches(w3[:], w4[:])
-	w56 := hash.HashMerkleBranches(w5[:], w6[:])
-	w78 := hash.HashMerkleBranches(w7[:], w8[:])
-
-	w1234 := hash.HashMerkleBranches(w12, w34)
-	w5678 := hash.HashMerkleBranches(w56, w78)
-
-	w12345678 := hash.HashMerkleBranches(w1234, w5678)
-
-	root := hash.HashMerkleBranches(u12345678, w12345678)
 	merkleRoot := TransactionsMerkleRoot([]*transactions.Transaction{d1, d2, d3, d4, d5, d6, d7, d8})
 	assert.EqualValues(t, root, merkleRoot[:])
 }
