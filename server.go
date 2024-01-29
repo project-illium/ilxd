@@ -173,7 +173,9 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	}
 
 	// Setup up badger datastore
-	ds, err := badger.NewDatastore(config.DataDir, &badger.DefaultOptions)
+	badgerOpts := &badger.DefaultOptions
+	badgerOpts.MaxTableSize = 256 << 20
+	ds, err := badger.NewDatastore(config.DataDir, badgerOpts)
 	if err != nil {
 		return nil, err
 	}
