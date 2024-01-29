@@ -10,7 +10,7 @@ require (
 	github.com/improbable-eng/grpc-web v0.15.0
 	github.com/ipfs/go-cid v0.4.1
 	github.com/ipfs/go-datastore v0.6.0
-	github.com/ipfs/go-ds-badger v0.3.0
+	github.com/ipfs/go-ds-badger4 v0.1.5
 	github.com/ipfs/go-log v1.0.5
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99
 	github.com/jessevdk/go-flags v1.5.0
@@ -22,7 +22,7 @@ require (
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/nixberg/chacha-rng-go v0.1.0
 	github.com/project-illium/logger v0.0.0-20240118200101-2fb0847599c9
-	github.com/project-illium/walletlib v0.0.0-20240126161939-bbb2fa5aac8d
+	github.com/project-illium/walletlib v0.0.0-20240129153136-170f0f8cb7be
 	github.com/project-illium/weightedrand/v2 v2.1.0
 	github.com/pterm/pterm v0.12.75
 	github.com/stretchr/testify v1.8.4
@@ -38,11 +38,9 @@ require (
 	atomicgo.dev/cursor v0.2.0 // indirect
 	atomicgo.dev/keyboard v0.2.9 // indirect
 	atomicgo.dev/schedule v0.1.0 // indirect
-	github.com/AndreasBriese/bbloom v0.0.0-20190825152654-46b345b51c96 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.0 // indirect
-	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/containerd/console v1.0.3 // indirect
@@ -52,8 +50,8 @@ require (
 	github.com/dchest/siphash v1.2.2 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
-	github.com/dgraph-io/badger v1.6.2 // indirect
-	github.com/dgraph-io/ristretto v0.0.2 // indirect
+	github.com/dgraph-io/badger/v4 v4.2.0 // indirect
+	github.com/dgraph-io/ristretto v0.1.1 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/elastic/gosigar v0.14.2 // indirect
@@ -65,8 +63,12 @@ require (
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang/glog v1.1.0 // indirect
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/golang/snappy v0.0.3 // indirect
+	github.com/google/flatbuffers v1.12.1 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/pprof v0.0.0-20230821062121-407c9e7a662f // indirect
 	github.com/google/uuid v1.3.0 // indirect

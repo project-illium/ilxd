@@ -36,6 +36,7 @@ const (
 	DefaultMinimumStake   = 1000000
 	DefaultMaxMessageSize = 1 << 23 // 8 MiB
 	DefaultSoftLimit      = 1 << 20 // 1 MiB
+	DefaultDBCache        = 256 << 20
 
 	DefaultMaxBanscore = 100
 	DefaultBanDuration = time.Hour * 24
@@ -69,6 +70,7 @@ type Config struct {
 	DropTxIndex        bool          `long:"droptxindex" description:"Delete the tx index from the database"`
 	WSIndex            bool          `long:"wsindex" description:"Enable the wallet server index to serve lite wallets"`
 	DropWSIndex        bool          `long:"dropwsindex" description:"Delete the wallet server index from the database"`
+	DBCache            int64         `long:"dbcache" description:"The maximum size, in bytes, of the database memory cache"`
 	MaxBanscore        uint32        `long:"maxbanscore" description:"The maximum ban score a peer is allowed to have before getting banned" default:"100"`
 	BanDuration        time.Duration `long:"banduration" description:"The duration for which banned peers are banned for" default:"24h"`
 	WalletSeed         string        `long:"walletseed" description:"A mnemonic seed to initialize the node with. This can only be used on first startup."`
@@ -282,6 +284,9 @@ func LoadConfig() (*Config, error) {
 	}
 	if cfg.Policy.MaxMessageSize == 0 {
 		cfg.Policy.MaxMessageSize = DefaultMaxMessageSize
+	}
+	if cfg.DBCache == 0 {
+		cfg.DBCache = DefaultDBCache
 	}
 
 	return &cfg, nil

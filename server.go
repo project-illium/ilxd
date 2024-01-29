@@ -11,7 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ipfs/go-datastore"
-	badger "github.com/ipfs/go-ds-badger"
+	badger "github.com/ipfs/go-ds-badger4"
 	golog "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -173,7 +173,9 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	}
 
 	// Setup up badger datastore
-	ds, err := badger.NewDatastore(config.DataDir, &badger.DefaultOptions)
+	badgerOpts := &badger.DefaultOptions
+	badgerOpts.WithMemTableSize(config.DBCache)
+	ds, err := badger.NewDatastore(config.DataDir, badgerOpts)
 	if err != nil {
 		return nil, err
 	}
