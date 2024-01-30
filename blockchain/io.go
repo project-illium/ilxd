@@ -608,3 +608,75 @@ func dsFetchPrunedFlag(ds repo.Datastore) (bool, error) {
 	}
 	return !errors.Is(err, datastore.ErrNotFound), nil
 }
+
+// The database implementation limits the number of put operations in
+// a transaction as well as the size of the transaction (in bytes).
+//
+// This function computes an estimate for those limits for a block
+// so we can make sure we can actually connect the block to the chain.
+//
+// These limits are high enough that we aren't likely to hit them any
+// time in the near future, and the soft limit would need to be raised
+// to hit them, but they do serve as a hard limit on the number of
+// transactions that can fit in a block.
+//
+// If we every get to the point where we are threatening to hit these
+// limits we should revisit the database implementation and find
+// a solution that doesn't impose these limits.
+func datastoreTxnLimits(blk *blocks.Block, bannedNullifiers int) (int, int, error) {
+	// Database ops
+	// ============
+	// dsPutBlock: 2
+	// dsPutBlockIDFromHeight: 1
+	// dsPutBlockIndexState: 1
+	// dsDebitTreasury: 1
+	// dsPutTxoSetRoot: 1
+	// dsIncrementCurrentSupply: 1
+	// dsCreditTreasury: 1
+	// dsPutAccumulatorCheckpoint: 1
+	// dsDeleteBlockIDFromHeight: 1
+	// dsDeleteBlock: 2
+	// dsPutIndexerHeight: 2
+	baseOpCount := 14
+
+	outputs := len(blk.Outputs())
+	nullifiers := len(blk.Nullifiers())
+	txs := len(blk.Transactions)
+
+	opCount := baseOpCount + (outputs * 2) + (nullifiers * 3) + txs + bannedNullifiers + 1000 //buffer
+
+	// Txn size
+	// ==========
+	// dsPutBlock: 76 + 79 + len(blk) + 24
+	// dsPutBlockIDFromHeight: 30 + 32 + 12
+	// dsPutBlockIndexState: 16 + 38 + 12
+	// dsDebitTreasury: 14 + 8 + 12
+	// dsPutTxoSetRoot: 78 + 0 + 12
+	// dsIncrementCurrentSupply: 16 + 8 + 12
+	// dsCreditTreasury: 14 + 8 + 12
+	// dsDeleteBlockIDFromHeight: 30 + 0 + 12
+	// dsDeleteBlock: 76 + 79 + 0 + 0 + 24
+	// dsPutAccumulatorCheckpoint: 38 + 2187 + 12
+
+	// (dsPutIndexerHeight: 70 + 4 + 12) x 2
+	// (dsPutTxid: 127 + 4 + 12) x txs
+	// (dsPutNullifier: 80 + 0 + 12) x nulliifers
+	// (dsPutNullifier: 80 + 0 + 12) x banned nullifiers
+	// (dsIdxPutOutgoing: 203 + 0 + 12 + 210 + 0 + 12) x nullifiers
+	// (dsIdxPutIncoming: 203 + 0 + 12 + 210 + 0 + 12) x outputs
+	ser, err := blk.Serialize()
+	if err != nil {
+		return 0, 0, err
+	}
+
+	size := 3146 + len(ser)
+	size += 143 * len(blk.Transactions)
+	size += 437 * len(blk.Outputs())
+	size += 529 + len(blk.Nullifiers())
+	size += bannedNullifiers * 92
+
+	// buffer
+	size += 10000
+
+	return opCount, size, nil
+}
