@@ -172,23 +172,3 @@ func finalizeAndSignBlock(blk *blocks.Block, privKey crypto.PrivKey) error {
 	blk.Header.Signature = sig
 	return nil
 }
-
-/*
-	n := float64(1<<60) * 0.8 // total number of coins
-
-	periods := float64(520)
-	w_0 := (n / periods) * 4.9
-	w_520 := (1 << 60) * 0.000379
-
-	r := math.Pow((w_520 / w_0), (1 / periods))
-
-	total := float64(0)
-	for i := float64(0); i < periods; i++ {
-		w_i := w_0 * math.Pow(r, i)
-		total += w_i
-		fmt.Println(w_i)
-	}
-	fmt.Println()
-	fmt.Println(w_520)
-	fmt.Println(total / (1 << 60) * .8)
-*/

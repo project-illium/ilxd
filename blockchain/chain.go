@@ -214,7 +214,7 @@ func (b *Blockchain) CheckConnectBlock(blk *blocks.Block) error {
 	if size > dsMaxBatchSize {
 		return ruleError(ErrMaxBlockSize, "block exceeds max database transaction size")
 	}
-	
+
 	return b.validateBlock(blk, BFNone)
 }
 
