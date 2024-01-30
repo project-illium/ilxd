@@ -25,6 +25,7 @@ const (
 	pruneDepth                    = 10
 	dsMaxBatchCount               = 419430
 	dsMaxBatchSize                = 40265318
+	dsValueThreshold              = 65500
 )
 
 type flushMode uint8
@@ -213,7 +214,7 @@ func (b *Blockchain) CheckConnectBlock(blk *blocks.Block) error {
 	if size > dsMaxBatchSize {
 		return ruleError(ErrMaxBlockSize, "block exceeds max database transaction size")
 	}
-
+	
 	return b.validateBlock(blk, BFNone)
 }
 

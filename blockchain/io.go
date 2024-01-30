@@ -7,8 +7,10 @@ package blockchain
 import (
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/dgraph-io/badger"
 	datastore "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -18,6 +20,7 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"math"
 )
 
 func serializeValidator(v *Validator) ([]byte, error) {
@@ -612,8 +615,10 @@ func dsFetchPrunedFlag(ds repo.Datastore) (bool, error) {
 // The database implementation limits the number of put operations in
 // a transaction as well as the size of the transaction (in bytes).
 //
-// This function computes an estimate for those limits for a block
+// This function computes an estimate for those limits for a block,
 // so we can make sure we can actually connect the block to the chain.
+// It computes the ops and size assuming all execution paths are used
+// even if not all are.
 //
 // These limits are high enough that we aren't likely to hit them any
 // time in the near future, and the soft limit would need to be raised
@@ -624,59 +629,104 @@ func dsFetchPrunedFlag(ds repo.Datastore) (bool, error) {
 // limits we should revisit the database implementation and find
 // a solution that doesn't impose these limits.
 func datastoreTxnLimits(blk *blocks.Block, bannedNullifiers int) (int, int, error) {
-	// Database ops
-	// ============
-	// dsPutBlock: 2
-	// dsPutBlockIDFromHeight: 1
-	// dsPutBlockIndexState: 1
-	// dsDebitTreasury: 1
-	// dsPutTxoSetRoot: 1
-	// dsIncrementCurrentSupply: 1
-	// dsCreditTreasury: 1
-	// dsPutAccumulatorCheckpoint: 1
-	// dsDeleteBlockIDFromHeight: 1
-	// dsDeleteBlock: 2
-	// dsPutIndexerHeight: 2
-	baseOpCount := 14
-
-	outputs := len(blk.Outputs())
-	nullifiers := len(blk.Nullifiers())
-	txs := len(blk.Transactions)
-
-	opCount := baseOpCount + (outputs * 2) + (nullifiers * 3) + txs + bannedNullifiers + 1000 //buffer
-
-	// Txn size
-	// ==========
-	// dsPutBlock: 76 + 79 + len(blk) + 24
-	// dsPutBlockIDFromHeight: 30 + 32 + 12
-	// dsPutBlockIndexState: 16 + 38 + 12
-	// dsDebitTreasury: 14 + 8 + 12
-	// dsPutTxoSetRoot: 78 + 0 + 12
-	// dsIncrementCurrentSupply: 16 + 8 + 12
-	// dsCreditTreasury: 14 + 8 + 12
-	// dsDeleteBlockIDFromHeight: 30 + 0 + 12
-	// dsDeleteBlock: 76 + 79 + 0 + 0 + 24
-	// dsPutAccumulatorCheckpoint: 38 + 2187 + 12
-
-	// (dsPutIndexerHeight: 70 + 4 + 12) x 2
-	// (dsPutTxid: 127 + 4 + 12) x txs
-	// (dsPutNullifier: 80 + 0 + 12) x nulliifers
-	// (dsPutNullifier: 80 + 0 + 12) x banned nullifiers
-	// (dsIdxPutOutgoing: 203 + 0 + 12 + 210 + 0 + 12) x nullifiers
-	// (dsIdxPutIncoming: 203 + 0 + 12 + 210 + 0 + 12) x outputs
-	ser, err := blk.Serialize()
+	txn := dbTxLimitCounter{}
+	serializedHeader, err := blk.Header.Serialize()
+	if err != nil {
+		return 0, 0, err
+	}
+	txns := &pb.DBTxs{
+		Transactions: blk.Transactions,
+	}
+	serializedTxs, err := proto.Marshal(txns)
+	if err != nil {
+		return 0, 0, err
+	}
+	serializedNode, err := serializeBlockNode(&blockNode{
+		blockID:   types.ID{},
+		height:    0,
+		timestamp: 0,
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+	accumulator := NewAccumulator()
+	accumulator.acc = make([][]byte, 64)
+	for i := range accumulator.acc {
+		accumulator.acc[i] = make([]byte, 32)
+	}
+	serializedAccumulator, err := SerializeAccumulator(accumulator)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	size := 3146 + len(ser)
-	size += 143 * txs
-	size += 437 * outputs
-	size += 529 + nullifiers
-	size += 92 * bannedNullifiers
+	id := types.ID{}
+	maxU32 := math.MaxUint32
+	fourBytes := make([]byte, 4)
+	eightBytes := make([]byte, 8)
+	serializedViewKey := hex.EncodeToString(make([]byte, 72))
 
-	// buffer
-	size += 10000
+	txn.Put(datastore.NewKey(repo.BlockKeyPrefix+blk.ID().String()), serializedHeader)
+	txn.Put(datastore.NewKey(repo.BlockTxsKeyPrefix+blk.ID().String()), serializedTxs)
+	txn.Put(datastore.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", maxU32)), id[:])
+	txn.Put(datastore.NewKey(repo.BlockIndexStateKey), serializedNode)
+	txn.Put(datastore.NewKey(repo.TreasuryBalanceKey), fourBytes)
+	txn.Put(datastore.NewKey(repo.TxoRootKeyPrefix+id.String()), []byte{})
+	txn.Put(datastore.NewKey(repo.CoinSupplyKey), eightBytes)
+	txn.Put(datastore.NewKey(repo.TreasuryBalanceKey), eightBytes)
+	txn.Put(datastore.NewKey(repo.AccumulatorCheckpointKey+fmt.Sprintf("%010d", maxU32)), serializedAccumulator)
+	txn.Delete(datastore.NewKey(repo.BlockByHeightKeyPrefix + fmt.Sprintf("%010d", maxU32)))
+	txn.Delete(datastore.NewKey(repo.BlockKeyPrefix + id.String()))
+	txn.Delete(datastore.NewKey(repo.BlockTxsKeyPrefix + id.String()))
+	txn.Put(datastore.NewKey(repo.IndexerHeightKeyPrefix+repo.TxIndexKey), fourBytes)
+	txn.Put(datastore.NewKey(repo.IndexerHeightKeyPrefix+repo.WalletServerIndexKey), fourBytes)
+	for range blk.Outputs() {
+		dsKey := repo.WalletServerTxKeyPrefix + serializedViewKey + "/" + id.String()
+		txn.Put(datastore.NewKey(repo.IndexKeyPrefix+repo.WalletServerIndexKey+"/"+dsKey), nil)
+		dsKey = repo.WalletServerNullifierKeyPrefix + serializedViewKey + "/" + id.String()
+		txn.Put(datastore.NewKey(repo.IndexKeyPrefix+repo.WalletServerIndexKey+"/"+dsKey), id.Bytes())
+	}
+	for range blk.Nullifiers() {
+		txn.Put(datastore.NewKey(repo.NullifierKeyPrefix+id.String()), id.Bytes())
+		dsKey := repo.WalletServerTxKeyPrefix + serializedViewKey + "/" + id.String()
+		txn.Put(datastore.NewKey(repo.IndexKeyPrefix+repo.WalletServerIndexKey+"/"+dsKey), nil)
+		dsKey = repo.WalletServerNullifierKeyPrefix + serializedViewKey + "/" + id.String()
+		txn.Delete(datastore.NewKey(repo.IndexKeyPrefix + repo.WalletServerIndexKey + "/" + dsKey))
+	}
+	for i := 0; i < bannedNullifiers; i++ {
+		txn.Put(datastore.NewKey(repo.NullifierKeyPrefix+id.String()), id.Bytes())
+	}
+	for range blk.Transactions {
+		txn.Put(datastore.NewKey(repo.IndexKeyPrefix+repo.TxIndexKey+"/"+id.String()), make([]byte, 36))
+	}
+	// Add a buffer just in case
+	return txn.count + 10, txn.size + 500, nil
+}
 
-	return opCount, size, nil
+type dbTxLimitCounter struct {
+	count int
+	size  int
+}
+
+func (txn *dbTxLimitCounter) Put(key datastore.Key, value []byte) {
+	e := badger.Entry{
+		Key:   key.Bytes(),
+		Value: value,
+	}
+	txn.count++
+	txn.size += estimateSize(e, dsValueThreshold) + 10
+}
+
+func (txn *dbTxLimitCounter) Delete(key datastore.Key) {
+	e := badger.Entry{
+		Key: key.Bytes(),
+	}
+	txn.count++
+	txn.size += estimateSize(e, dsValueThreshold) + 10
+}
+
+func estimateSize(e badger.Entry, threshold int) int {
+	if len(e.Value) < threshold {
+		return len(e.Key) + len(e.Value) + 2 // Meta, UserMeta
+	}
+	return len(e.Key) + 12 + 2 // 12 for ValuePointer, 2 for metas.
 }

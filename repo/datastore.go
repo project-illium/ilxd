@@ -53,6 +53,23 @@ const (
 	PrunedBlockchainDatastoreKey = "/ilxd/pruned/"
 	// CachedAddrInfoDatastoreKey is the datastore key used to persist addrinfos from the peerstore.
 	CachedAddrInfoDatastoreKey = "/ilxd/peerstore/addrinfo/"
+
+	// TxIndexKey is the datastore key for the transaction index.
+	TxIndexKey = "txindex"
+	// WalletServerIndexKey is the datastore key for the wallet server index.
+	WalletServerIndexKey = "walletserverindex"
+	// WalletServerAccumulatorKey is the accumulator key used by the wallet server index.
+	WalletServerAccumulatorKey = "accumulator"
+	// WalletServerBestBlockKey is the best block key used by the wallet server index.
+	WalletServerBestBlockKey = "bestblockid"
+	// WalletServerViewKeyPrefix is the view key prefix used by the wallet server index.
+	WalletServerViewKeyPrefix = "viewkey/"
+	// WalletServerLockingScriptPrefix is the locking script prefix used by the wallet server index.
+	WalletServerLockingScriptPrefix = "lockingscript/"
+	// WalletServerNullifierKeyPrefix is the nullifier key prefix used by the wallet server index.
+	WalletServerNullifierKeyPrefix = "nullifier/"
+	// WalletServerTxKeyPrefix is the tx key prefix used by the wallet server index.
+	WalletServerTxKeyPrefix = "tx/"
 )
 
 type Datastore interface {

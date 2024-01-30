@@ -19,10 +19,7 @@ import (
 
 var _ Indexer = (*TxIndex)(nil)
 
-const (
-	txIndexKey  = "txindex"
-	TxIndexName = "transaction index"
-)
+const TxIndexName = "transaction index"
 
 // TxIndex is and implementation of the Indexer which indexes
 // transactions by their ID and maps them to the location of
@@ -38,7 +35,7 @@ func NewTxIndex() *TxIndex {
 
 // Key returns the key of the index as a string.
 func (idx *TxIndex) Key() string {
-	return txIndexKey
+	return repo.TxIndexKey
 }
 
 // Name returns the human-readable name of the index.
