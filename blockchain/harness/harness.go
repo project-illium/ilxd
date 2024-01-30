@@ -180,7 +180,7 @@ func NewTestHarness(opts ...Option) (*TestHarness, error) {
 		harness.spendableNotes[nullifier] = spendableNote
 		harness.timeSource = genesis.Header.Timestamp + 300
 
-		chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Params(&params), blockchain.Verifier(harness.verifier))
+		chain, err := blockchain.NewBlockchain(blockchain.DefaultOptions(), blockchain.Datastore(cfg.datastore), blockchain.Params(&params), blockchain.Verifier(harness.verifier))
 		if err != nil {
 			return nil, err
 		}

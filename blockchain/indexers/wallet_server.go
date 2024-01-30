@@ -44,14 +44,7 @@ type Subscription struct {
 }
 
 const (
-	walletServerAccumulatorKey      = "accumulator"
-	walletServerBestBlockKey        = "bestblockid"
-	walletServerViewKeyPrefix       = "viewkey/"
-	walletServerLockingScriptPrefix = "lockingscript/"
-	walletServerNullifierKeyPrefix  = "nullifier/"
-	walletServerTxKeyPrefix         = "tx/"
-	walletServerIndexKey            = "walletserverindex"
-	WalletServerIndexName           = "wallet server index"
+	walletServerIndexName = "wallet server index"
 )
 
 type commitmentWithKey struct {
@@ -81,7 +74,7 @@ func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 	if err != nil {
 		return nil, err
 	}
-	query, err := dsPrefixQueryIndexValue(dbtx, &WalletServerIndex{}, walletServerViewKeyPrefix)
+	query, err := dsPrefixQueryIndexValue(dbtx, &WalletServerIndex{}, repo.WalletServerViewKeyPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +100,7 @@ func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 	}
 	query.Close()
 
-	query, err = dsPrefixQueryIndexValue(dbtx, &WalletServerIndex{}, walletServerNullifierKeyPrefix)
+	query, err = dsPrefixQueryIndexValue(dbtx, &WalletServerIndex{}, repo.WalletServerNullifierKeyPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +139,7 @@ func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 	if err == datastore.ErrNotFound {
 		acc = blockchain.NewAccumulator()
 	} else if height > 0 {
-		accBytes, err := dsFetchIndexValue(ds, &WalletServerIndex{}, walletServerAccumulatorKey)
+		accBytes, err := dsFetchIndexValue(ds, &WalletServerIndex{}, repo.WalletServerAccumulatorKey)
 		if err != nil {
 			return nil, err
 		}
@@ -158,7 +151,7 @@ func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 		return nil, err
 	}
 
-	bestBlock, err := dsFetchIndexValue(ds, &WalletServerIndex{}, walletServerBestBlockKey)
+	bestBlock, err := dsFetchIndexValue(ds, &WalletServerIndex{}, repo.WalletServerBestBlockKey)
 	if err != nil && err != datastore.ErrNotFound {
 		return nil, err
 	} else if err == datastore.ErrNotFound {
@@ -182,12 +175,12 @@ func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 
 // Key returns the key of the index as a string.
 func (idx *WalletServerIndex) Key() string {
-	return walletServerIndexKey
+	return repo.WalletServerIndexKey
 }
 
 // Name returns the human-readable name of the index.
 func (idx *WalletServerIndex) Name() string {
-	return WalletServerIndexName
+	return walletServerIndexName
 }
 
 // ConnectBlock is called when a block is connected to the chain.
@@ -211,7 +204,7 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 					return err
 				}
 				serializedViewKey := hex.EncodeToString(viewKey)
-				dsKey := walletServerTxKeyPrefix + serializedViewKey + "/" + tx.ID().String()
+				dsKey := repo.WalletServerTxKeyPrefix + serializedViewKey + "/" + tx.ID().String()
 				if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
 					return err
 				}
@@ -221,7 +214,7 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 					continue
 				}
 
-				serializedLockingScript, err := dsFetchIndexValueWithTx(dbtx, idx, walletServerLockingScriptPrefix+hex.EncodeToString(viewKey))
+				serializedLockingScript, err := dsFetchIndexValueWithTx(dbtx, idx, repo.WalletServerLockingScriptPrefix+hex.EncodeToString(viewKey))
 				if err != nil {
 					continue
 				}
@@ -241,7 +234,7 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 				if err != nil {
 					return err
 				}
-				dsKey = walletServerNullifierKeyPrefix + serializedViewKey + "/" + nullifier.String()
+				dsKey = repo.WalletServerNullifierKeyPrefix + serializedViewKey + "/" + nullifier.String()
 				if err := dsPutIndexValue(dbtx, idx, dsKey, out.Commitment); err != nil {
 					continue
 				}
@@ -274,12 +267,12 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 					continue
 				}
 				serializedViewKey := hex.EncodeToString(viewKey)
-				dsKey := walletServerTxKeyPrefix + serializedViewKey + "/" + tx.ID().String()
+				dsKey := repo.WalletServerTxKeyPrefix + serializedViewKey + "/" + tx.ID().String()
 				if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
 					continue
 				}
 
-				dsKey = walletServerNullifierKeyPrefix + serializedViewKey + "/" + n.String()
+				dsKey = repo.WalletServerNullifierKeyPrefix + serializedViewKey + "/" + n.String()
 				if err := dsDeleteIndexValue(dbtx, idx, dsKey); err != nil {
 					continue
 				}
@@ -323,14 +316,14 @@ func (idx *WalletServerIndex) GetTransactionsIDs(ds repo.Datastore, viewKey cryp
 		return nil, err
 	}
 
-	_, err = dsFetchIndexValue(ds, idx, walletServerViewKeyPrefix+hex.EncodeToString(key))
+	_, err = dsFetchIndexValue(ds, idx, repo.WalletServerViewKeyPrefix+hex.EncodeToString(key))
 	if err != nil && err != datastore.ErrNotFound {
 		return nil, err
 	} else if err == datastore.ErrNotFound {
 		return nil, errors.New("view key not registered")
 	}
 
-	query, err := dsPrefixQueryIndexValue(dbtx, &WalletServerIndex{}, walletServerTxKeyPrefix+hex.EncodeToString(key))
+	query, err := dsPrefixQueryIndexValue(dbtx, &WalletServerIndex{}, repo.WalletServerTxKeyPrefix+hex.EncodeToString(key))
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +345,7 @@ func (idx *WalletServerIndex) GetTransactionsIDs(ds repo.Datastore, viewKey cryp
 		return nil, err
 	}
 
-	if err := dsPutIndexValue(dbtx, idx, walletServerViewKeyPrefix+hex.EncodeToString(key), timeBytes); err != nil {
+	if err := dsPutIndexValue(dbtx, idx, repo.WalletServerViewKeyPrefix+hex.EncodeToString(key), timeBytes); err != nil {
 		return nil, err
 	}
 
@@ -404,11 +397,11 @@ func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey crypto.
 		return err
 	}
 
-	if err := dsPutIndexValue(dbtx, idx, walletServerViewKeyPrefix+hex.EncodeToString(ser), timeBytes); err != nil {
+	if err := dsPutIndexValue(dbtx, idx, repo.WalletServerViewKeyPrefix+hex.EncodeToString(ser), timeBytes); err != nil {
 		return err
 	}
 
-	if err := dsPutIndexValue(dbtx, idx, walletServerLockingScriptPrefix+hex.EncodeToString(ser), serializedLockingScript); err != nil {
+	if err := dsPutIndexValue(dbtx, idx, repo.WalletServerLockingScriptPrefix+hex.EncodeToString(ser), serializedLockingScript); err != nil {
 		return err
 	}
 
@@ -472,7 +465,7 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 						return err
 					}
 					serializedViewKey := hex.EncodeToString(viewKey)
-					dsKey := walletServerTxKeyPrefix + serializedViewKey + "/" + tx.ID().String()
+					dsKey := repo.WalletServerTxKeyPrefix + serializedViewKey + "/" + tx.ID().String()
 					if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
 						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
@@ -484,7 +477,7 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 						return err
 					}
 
-					serializedLockingScript, err := dsFetchIndexValueWithTx(dbtx, idx, walletServerLockingScriptPrefix+hex.EncodeToString(viewKey))
+					serializedLockingScript, err := dsFetchIndexValueWithTx(dbtx, idx, repo.WalletServerLockingScriptPrefix+hex.EncodeToString(viewKey))
 					if err != nil {
 						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
@@ -508,7 +501,7 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 					if err != nil {
 						return err
 					}
-					dsKey = walletServerNullifierKeyPrefix + serializedViewKey + "/" + nullifier.String()
+					dsKey = repo.WalletServerNullifierKeyPrefix + serializedViewKey + "/" + nullifier.String()
 					if err := dsPutIndexValue(dbtx, idx, dsKey, out.Commitment); err != nil {
 						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
@@ -537,13 +530,13 @@ func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.Pr
 						return err
 					}
 					serializedViewKey := hex.EncodeToString(viewKey)
-					dsKey := walletServerTxKeyPrefix + serializedViewKey + "/" + tx.ID().String()
+					dsKey := repo.WalletServerTxKeyPrefix + serializedViewKey + "/" + tx.ID().String()
 					if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
 						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
 					}
 
-					dsKey = walletServerNullifierKeyPrefix + serializedViewKey + "/" + n.String()
+					dsKey = repo.WalletServerNullifierKeyPrefix + serializedViewKey + "/" + n.String()
 					if err := dsDeleteIndexValue(dbtx, idx, dsKey); err != nil {
 						log.WithCaller(true).Error("Wallet server index error rescanning chain", log.Args("error", err))
 						return err
@@ -611,7 +604,7 @@ func (idx *WalletServerIndex) run(ds repo.Datastore) {
 				log.WithCaller(true).Error("Wallet server index error deleting stale users", log.Args("error", err))
 				continue
 			}
-			query, err := dsPrefixQueryIndexValue(dbtx, idx, walletServerViewKeyPrefix)
+			query, err := dsPrefixQueryIndexValue(dbtx, idx, repo.WalletServerViewKeyPrefix)
 			if err != nil {
 				log.WithCaller(true).Error("Wallet server index error deleting stale users", log.Args("error", err))
 				continue
@@ -647,7 +640,7 @@ func (idx *WalletServerIndex) run(ds repo.Datastore) {
 						continue
 					}
 
-					dsKey := walletServerLockingScriptPrefix + keyStr
+					dsKey := repo.WalletServerLockingScriptPrefix + keyStr
 					if err := dsDeleteIndexValue(dbtx, idx, dsKey); err != nil {
 						log.WithCaller(true).Error("Wallet server index error deleting stale users", log.Args("error", err))
 						continue
@@ -685,10 +678,10 @@ func (idx *WalletServerIndex) flush(ds repo.Datastore) error {
 	if err != nil {
 		return err
 	}
-	if err := dsPutIndexValue(dbtx, idx, walletServerAccumulatorKey, ser); err != nil {
+	if err := dsPutIndexValue(dbtx, idx, repo.WalletServerAccumulatorKey, ser); err != nil {
 		return err
 	}
-	if err := dsPutIndexValue(dbtx, idx, walletServerBestBlockKey, append(heightBytes, idx.bestBlockID.Bytes()...)); err != nil {
+	if err := dsPutIndexValue(dbtx, idx, repo.WalletServerBestBlockKey, append(heightBytes, idx.bestBlockID.Bytes()...)); err != nil {
 		return err
 	}
 	if err := dsPutIndexerHeight(dbtx, idx, idx.bestBlockHeight); err != nil {

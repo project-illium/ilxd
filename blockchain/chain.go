@@ -23,6 +23,9 @@ import (
 const (
 	accumulatorCheckpointInterval = 100000
 	pruneDepth                    = 10
+	dsMaxBatchCount               = 419430
+	dsMaxBatchSize                = 40265318
+	dsValueThreshold              = 65500
 )
 
 type flushMode uint8
@@ -194,6 +197,22 @@ func (b *Blockchain) CheckConnectBlock(blk *blocks.Block) error {
 
 	if err := b.checkBlockContext(blk.Header); err != nil {
 		return err
+	}
+
+	bannedNullifiers, err := b.validatorSet.ComputeBannedNullifiers(blk)
+	if err != nil {
+		return err
+	}
+
+	ops, size, err := datastoreTxnLimits(blk, bannedNullifiers)
+	if err != nil {
+		return err
+	}
+	if ops > dsMaxBatchCount {
+		return ruleError(ErrMaxBlockSize, "block exceeds max database transaction ops")
+	}
+	if size > dsMaxBatchSize {
+		return ruleError(ErrMaxBlockSize, "block exceeds max database transaction size")
 	}
 
 	return b.validateBlock(blk, BFNone)

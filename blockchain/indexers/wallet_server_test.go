@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
 	icrypto "github.com/project-illium/ilxd/crypto"
+	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
@@ -43,7 +44,7 @@ func TestWalletServerIndex(t *testing.T) {
 	err = idx.RegisterViewKey(ds, viewKey, ul.Serialize())
 	assert.NoError(t, err)
 
-	_, err = dsFetchIndexValue(ds, &WalletServerIndex{}, walletServerViewKeyPrefix+hex.EncodeToString(privKeyBytes))
+	_, err = dsFetchIndexValue(ds, &WalletServerIndex{}, repo.WalletServerViewKeyPrefix+hex.EncodeToString(privKeyBytes))
 	assert.NoError(t, err)
 
 	// Create a block which pays the viewkey and insert it into the index
@@ -155,7 +156,7 @@ func TestWalletServerIndex(t *testing.T) {
 	assert.Len(t, proofs, 0)
 	assert.Len(t, idx.nullifiers, 0)
 
-	_, err = dsFetchIndexValue(ds, idx, walletServerNullifierKeyPrefix+string(privKeyBytes)+"/"+nullifier.String())
+	_, err = dsFetchIndexValue(ds, idx, repo.WalletServerNullifierKeyPrefix+string(privKeyBytes)+"/"+nullifier.String())
 	assert.Error(t, err)
 	sub.Close()
 

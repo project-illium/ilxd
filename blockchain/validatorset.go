@@ -628,6 +628,31 @@ func (vs *ValidatorSet) BlockProductionLimit(validatorID peer.ID) (uint32, uint3
 	return val.EpochBlocks, blockProductionLimit(float64(vs.EpochBlocks+1), expectedBlocks/float64(vs.EpochBlocks+1)), nil
 }
 
+// ComputeBannedNullifiers computes the number of nullifiers that would be banned
+// if this block were connected to the chain. This is needed for computing database
+// limits.
+func (vs *ValidatorSet) ComputeBannedNullifiers(blk *blocks.Block) (int, error) {
+	banned := 0
+	producerID, err := peer.IDFromBytes(blk.Header.Producer_ID)
+	if err != nil {
+		return 0, err
+	}
+	blockProducer, ok := vs.validators[producerID]
+	if ok {
+		expectedBlocks := blockProducer.ExpectedBlocks
+		if expectedBlocks < 1 {
+			expectedBlocks = 1
+		}
+		maxBlocks := blockProductionLimit(float64(vs.EpochBlocks+1), expectedBlocks/float64(vs.EpochBlocks+1))
+		if blockProducer.EpochBlocks > maxBlocks {
+			if blockProducer.Strikes+1 >= maxStrikes {
+				banned = len(blockProducer.Nullifiers)
+			}
+		}
+	}
+	return banned, nil
+}
+
 // Flush flushes changes from the memory cache to disk.
 //
 // This method is safe for concurrent access.
