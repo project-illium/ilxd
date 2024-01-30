@@ -670,10 +670,10 @@ func datastoreTxnLimits(blk *blocks.Block, bannedNullifiers int) (int, int, erro
 	}
 
 	size := 3146 + len(ser)
-	size += 143 * len(blk.Transactions)
-	size += 437 * len(blk.Outputs())
-	size += 529 + len(blk.Nullifiers())
-	size += bannedNullifiers * 92
+	size += 143 * txs
+	size += 437 * outputs
+	size += 529 + nullifiers
+	size += 92 * bannedNullifiers
 
 	// buffer
 	size += 10000
