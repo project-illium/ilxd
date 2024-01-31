@@ -97,7 +97,7 @@ func TestGenerator(t *testing.T) {
 		},
 		Nullifiers: [][]byte{nullifier[:]},
 		TxoRoot:    root[:],
-		Fee:        90000,
+		Fee:        120000,
 		Proof:      make([]byte, 11000),
 	}
 
