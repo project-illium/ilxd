@@ -5,7 +5,6 @@
 package policy
 
 import (
-	"github.com/project-illium/ilxd/mempool"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -118,7 +117,7 @@ func (p *Policy) IsAcceptableBlock(blk *blocks.Block) (bool, error) {
 		return false, nil
 	}
 	for _, tx := range blk.Transactions {
-		fpkb, isFeePayer, err := mempool.CalcFeePerKilobyte(tx)
+		fpkb, isFeePayer, err := CalcFeePerKilobyte(tx)
 		if err != nil {
 			return false, err
 		}
@@ -145,4 +144,26 @@ func (p *Policy) IsAcceptableBlock(blk *blocks.Block) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+func CalcFeePerKilobyte(tx *transactions.Transaction) (types.Amount, bool, error) {
+	var fee uint64
+	switch t := tx.GetTx().(type) {
+	case *transactions.Transaction_CoinbaseTransaction,
+		*transactions.Transaction_TreasuryTransaction,
+		*transactions.Transaction_StakeTransaction:
+		return 0, false, nil
+	case *transactions.Transaction_StandardTransaction:
+		fee = t.StandardTransaction.Fee
+	case *transactions.Transaction_MintTransaction:
+		fee = t.MintTransaction.Fee
+	}
+
+	size, err := tx.SerializedSize()
+	if err != nil {
+		return 0, false, err
+	}
+	kbs := float64(size) / 1000
+
+	return types.Amount(float64(fee) / kbs), true, nil
 }

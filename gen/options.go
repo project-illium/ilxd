@@ -8,6 +8,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/mempool"
+	"github.com/project-illium/ilxd/policy"
 	"github.com/project-illium/ilxd/types/blocks"
 	"time"
 )
@@ -39,6 +40,17 @@ func Blockchain(chain *blockchain.Blockchain) Option {
 func BroadcastFunc(f func(blk *blocks.XThinnerBlock) error) Option {
 	return func(cfg *config) error {
 		cfg.broadcastFunc = f
+		return nil
+	}
+}
+
+// Policy holds the node's policy settings. It's used to
+// access the blocksize soft limit.
+//
+// This cannot be nil.
+func Policy(p *policy.Policy) Option {
+	return func(cfg *config) error {
+		cfg.policy = p
 		return nil
 	}
 }
@@ -81,6 +93,7 @@ func PrivateKey(key crypto.PrivKey) Option {
 type config struct {
 	privKey       crypto.PrivKey
 	mpool         *mempool.Mempool
+	policy        *policy.Policy
 	tickInterval  time.Duration
 	chain         *blockchain.Blockchain
 	broadcastFunc func(blk *blocks.XThinnerBlock) error
@@ -95,6 +108,9 @@ func (cfg *config) validate() error {
 	}
 	if cfg.mpool == nil {
 		return AssertError("NewBlockGenerator: mempool cannot be nil")
+	}
+	if cfg.policy == nil {
+		return AssertError("NewBlockGenerator: policy cannot be nil")
 	}
 	if cfg.chain == nil {
 		return AssertError("NewBlockGenerator: WeightedChooser cannot be nil")

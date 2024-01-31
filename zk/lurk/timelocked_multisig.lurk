@@ -11,7 +11,7 @@
 ;; public keys. For example: (1 0 1). A one means the signature should be validated
 ;; against the public key at that index.
 ;;
-;; Where each sig is a list of (sig-rx sig-ry, sig-s).
+;; Where each sig is a list of (sig-rx sig-ry sig-s).
 ;;
 ;; The timelock precision is hardcoded to 600 seconds (10 minutes) this means a transaction
 ;; will only be valid for 10 minutes after it is signed. Feel free to adjust this value

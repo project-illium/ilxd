@@ -321,8 +321,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		mempool.ProofCache(proofCache),
 		mempool.Params(netParams),
 		mempool.BlockchainView(chain),
-		mempool.MinStake(policy.GetMinStake()),
-		mempool.FeePerKilobyte(policy.GetMinFeePerKilobyte()),
+		mempool.Policy(policy),
 		mempool.Verifier(verifier),
 	}
 
@@ -405,6 +404,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		gen.Blockchain(chain),
 		gen.PrivateKey(privKey),
 		gen.Mempool(mpool),
+		gen.Policy(policy),
 		gen.BroadcastFunc(network.BroadcastBlock),
 	}...)
 	if err != nil {
