@@ -13,7 +13,7 @@
 ;; public keys. For example: (1 0 1). A one means the signature should be validated
 ;; against the public key at that index.
 ;;
-;; Where each sig is a list of (sig-rx sig-ry, sig-s).
+;; Where each sig is a list of (sig-rx sig-ry sig-s).
 (lambda (locking-params unlocking-params input-index private-params public-params)
         !(import std/crypto/checksig)
         !(import std/collections/nth)

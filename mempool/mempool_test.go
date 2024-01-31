@@ -495,7 +495,7 @@ func TestMempool(t *testing.T) {
 			name: "stake below minimum",
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Validator_ID: valBytes,
-				Amount:       uint64(m.cfg.minStake - 1),
+				Amount:       uint64(m.cfg.policy.GetMinStake() - 1),
 				Nullifier:    randomBytes(),
 				TxoRoot:      txoRoot[:],
 				Proof:        make([]byte, 1000),
@@ -518,7 +518,7 @@ func TestMempool(t *testing.T) {
 			name: "valid stake transaction",
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Validator_ID: valBytes,
-				Amount:       uint64(m.cfg.minStake),
+				Amount:       uint64(m.cfg.policy.GetMinStake()),
 				Nullifier:    randomBytes(),
 				TxoRoot:      txoRoot[:],
 				Proof:        make([]byte, 1000),
@@ -541,7 +541,7 @@ func TestMempool(t *testing.T) {
 			name: "valid stake replacement",
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Validator_ID: val2Bytes,
-				Amount:       uint64(m.cfg.minStake),
+				Amount:       uint64(m.cfg.policy.GetMinStake()),
 				Nullifier:    nullifier4[:],
 				TxoRoot:      txoRoot[:],
 				Proof:        make([]byte, 1000),
@@ -564,7 +564,7 @@ func TestMempool(t *testing.T) {
 			name: "invalid stake replacement",
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Validator_ID: val2Bytes,
-				Amount:       uint64(m.cfg.minStake),
+				Amount:       uint64(m.cfg.policy.GetMinStake()),
 				Nullifier:    nullifier3[:],
 				TxoRoot:      txoRoot[:],
 				Proof:        make([]byte, 1000),
@@ -587,7 +587,7 @@ func TestMempool(t *testing.T) {
 			name: "stake nullifier already in pool",
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Validator_ID: valBytes,
-				Amount:       uint64(m.cfg.minStake),
+				Amount:       uint64(m.cfg.policy.GetMinStake()),
 				Nullifier:    nullifier1,
 				TxoRoot:      txoRoot[:],
 				Proof:        make([]byte, 1000),
@@ -610,7 +610,7 @@ func TestMempool(t *testing.T) {
 			name: "stake nullifier already in set",
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Validator_ID: valBytes,
-				Amount:       uint64(m.cfg.minStake),
+				Amount:       uint64(m.cfg.policy.GetMinStake()),
 				Nullifier:    nullifier2[:],
 				TxoRoot:      txoRoot[:],
 				Proof:        make([]byte, 1000),
@@ -633,7 +633,7 @@ func TestMempool(t *testing.T) {
 			name: "stake txo root not in set",
 			tx: transactions.WrapTransaction(&transactions.StakeTransaction{
 				Validator_ID: valBytes,
-				Amount:       uint64(m.cfg.minStake),
+				Amount:       uint64(m.cfg.policy.GetMinStake()),
 				Nullifier:    randomBytes(),
 				TxoRoot:      txoRoot2[:],
 				Proof:        make([]byte, 1000),
@@ -750,29 +750,6 @@ func newMockBlockchainView() *mockBlockchainView {
 		nullifiers:      make(map[types.Nullifier]bool),
 		validators:      make(map[peer.ID]*blockchain.Validator),
 	}
-}
-
-func TestFeePerKilobyte(t *testing.T) {
-	tx := transactions.WrapTransaction(&transactions.StandardTransaction{
-		Outputs: []*transactions.Output{
-			{
-				Commitment: make([]byte, types.CommitmentLen),
-				Ciphertext: make([]byte, blockchain.CiphertextLen),
-			},
-		},
-		Nullifiers: [][]byte{make([]byte, 32)},
-		TxoRoot:    make([]byte, 32),
-		Fee:        20000,
-		Proof:      make([]byte, 1000),
-	})
-	size, err := tx.SerializedSize()
-	assert.NoError(t, err)
-	kbs := float64(size) / 1000
-
-	fpkb, ok, err := CalcFeePerKilobyte(tx)
-	assert.True(t, ok)
-	assert.NoError(t, err)
-	assert.Equal(t, types.Amount(float64(tx.GetStandardTransaction().Fee)/kbs), fpkb)
 }
 
 func randomID() types.ID {

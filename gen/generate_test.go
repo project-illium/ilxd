@@ -9,6 +9,8 @@ import (
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/blockchain/harness"
 	"github.com/project-illium/ilxd/mempool"
+	"github.com/project-illium/ilxd/policy"
+	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -46,6 +48,7 @@ func TestGenerator(t *testing.T) {
 		Mempool(mpool),
 		BroadcastFunc(broadcast),
 		PrivateKey(sk),
+		Policy(policy.NewPolicy(repo.DefaultFeePerKilobyte, repo.DefaultMinimumStake, repo.DefaultSoftLimit)),
 		tickInterval(time.Millisecond),
 	)
 	assert.NoError(t, err)
@@ -73,7 +76,7 @@ func TestGenerator(t *testing.T) {
 		Nullifier:    nullifier[:],
 		TxoRoot:      root[:],
 		Signature:    nil,
-		Proof:        make([]byte, 8000),
+		Proof:        make([]byte, 11000),
 	}
 
 	sigHash, err := stakeTx.SigHash()
@@ -94,8 +97,8 @@ func TestGenerator(t *testing.T) {
 		},
 		Nullifiers: [][]byte{nullifier[:]},
 		TxoRoot:    root[:],
-		Fee:        90000,
-		Proof:      make([]byte, 8000),
+		Fee:        120000,
+		Proof:      make([]byte, 11000),
 	}
 
 	err = mpool.ProcessTransaction(transactions.WrapTransaction(transferTx))

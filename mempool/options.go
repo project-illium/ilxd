@@ -7,6 +7,7 @@ package mempool
 import (
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/params"
+	"github.com/project-illium/ilxd/policy"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/zk"
@@ -25,8 +26,7 @@ const (
 func DefaultOptions() Option {
 	return func(cfg *config) error {
 		cfg.params = &params.RegestParams
-		cfg.fpkb = repo.DefaultFeePerKilobyte
-		cfg.minStake = repo.DefaultMinimumStake
+		cfg.policy = policy.NewPolicy(repo.DefaultFeePerKilobyte, repo.DefaultMinimumStake, repo.DefaultSoftLimit)
 		cfg.sigCache = blockchain.NewSigCache(defaultSigCacheSize)
 		cfg.proofCache = blockchain.NewProofCache(defaultProofCacheSize)
 		cfg.treasuryWhitelist = make(map[types.ID]bool)
@@ -70,22 +70,11 @@ func Verifier(verifier zk.Verifier) Option {
 	}
 }
 
-// FeePerKilobyte is the minimum fee per byte to use when admitting
-// transactions into the mempool. By extension the node will only
-// relay transactions with a fee above this level as well.
-func FeePerKilobyte(fpkb types.Amount) Option {
+// Policy holds a pointer to the node's policy settings which
+// manages the feePerByte and minStake settings.
+func Policy(p *policy.Policy) Option {
 	return func(cfg *config) error {
-		cfg.fpkb = fpkb
-		return nil
-	}
-}
-
-// MinStake is the minimum amount of stake that a stake transaction
-// must post to be admitted into the mempool. By extension the node
-// will only relay transactions with a stake above this level as well.
-func MinStake(minStake types.Amount) Option {
-	return func(cfg *config) error {
-		cfg.minStake = minStake
+		cfg.policy = p
 		return nil
 	}
 }
@@ -139,8 +128,7 @@ func ProofCache(proofCache *blockchain.ProofCache) Option {
 type config struct {
 	params            *params.NetworkParams
 	chainView         ChainView
-	fpkb              types.Amount
-	minStake          types.Amount
+	policy            *policy.Policy
 	sigCache          *blockchain.SigCache
 	proofCache        *blockchain.ProofCache
 	verifier          zk.Verifier
@@ -154,6 +142,9 @@ func (cfg *config) validate() error {
 	}
 	if cfg.chainView == nil {
 		return AssertError("NewMempool: chainview cannot be nil")
+	}
+	if cfg.policy == nil {
+		return AssertError("NewMempool: policy cannot be nil")
 	}
 	if cfg.params == nil {
 		return AssertError("NewMempool: params cannot be nil")

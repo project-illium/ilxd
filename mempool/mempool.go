@@ -7,6 +7,7 @@ package mempool
 import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
+	"github.com/project-illium/ilxd/policy"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"google.golang.org/protobuf/proto"
@@ -117,11 +118,11 @@ func (m *Mempool) ProcessTransaction(tx *transactions.Transaction) error {
 		return err
 	}
 
-	fpkb, isFeePayer, err := CalcFeePerKilobyte(tx)
+	fpkb, isFeePayer, err := policy.CalcFeePerKilobyte(tx)
 	if err != nil {
 		return err
 	}
-	if isFeePayer && fpkb < m.cfg.fpkb {
+	if isFeePayer && fpkb < m.cfg.policy.GetMinFeePerKilobyte() {
 		return policyError(ErrFeeTooLow, "transaction fee is below policy minimum")
 	}
 
@@ -312,7 +313,7 @@ func (m *Mempool) validateTransaction(tx *transactions.Transaction) error {
 			m.nullifiers[types.NewNullifier(n)] = t.MintTransaction.ID()
 		}
 	case *transactions.Transaction_StakeTransaction:
-		if types.Amount(t.StakeTransaction.Amount) < m.cfg.minStake {
+		if types.Amount(t.StakeTransaction.Amount) < m.cfg.policy.GetMinStake() {
 			return policyError(ErrMinStake, "stake amount below policy minimum")
 		}
 		if _, ok := m.nullifiers[types.NewNullifier(t.StakeTransaction.Nullifier)]; ok {
@@ -376,26 +377,4 @@ func (m *Mempool) validateTransaction(tx *transactions.Transaction) error {
 		"type": tx.Type(),
 	}))
 	return nil
-}
-
-func CalcFeePerKilobyte(tx *transactions.Transaction) (types.Amount, bool, error) {
-	var fee uint64
-	switch t := tx.GetTx().(type) {
-	case *transactions.Transaction_CoinbaseTransaction,
-		*transactions.Transaction_TreasuryTransaction,
-		*transactions.Transaction_StakeTransaction:
-		return 0, false, nil
-	case *transactions.Transaction_StandardTransaction:
-		fee = t.StandardTransaction.Fee
-	case *transactions.Transaction_MintTransaction:
-		fee = t.MintTransaction.Fee
-	}
-
-	size, err := tx.SerializedSize()
-	if err != nil {
-		return 0, false, err
-	}
-	kbs := float64(size) / 1000
-
-	return types.Amount(float64(fee) / kbs), true, nil
 }

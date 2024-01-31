@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/mempool"
+	"github.com/project-illium/ilxd/policy"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -21,6 +22,16 @@ const (
 	BlockGenerationInterval          = time.Second
 	BlockVersion                     = 1
 	MinAllowableTimeBetweenDupBlocks = time.Minute * 2
+	serializedHeaderSize             = 184
+
+	// This is the number of extra bytes protobuf uses to
+	// append a tx to the block. Not all transactions use
+	// four bytes, but this is the maximum it would use if
+	// the transaction was at the max size of 1MB.
+	// If we want to be a little less lazy we could compute
+	// the actual number per tx, but the extra bytes that
+	// would fit under the soft limit would be tiny.
+	txProtobufExtraBytes = 4
 )
 
 type BlockGenerator struct {
@@ -30,6 +41,7 @@ type BlockGenerator struct {
 	lastGenHeight  uint32
 	lastGenTime    time.Time
 	mpool          *mempool.Mempool
+	policy         *policy.Policy
 	tickInterval   time.Duration
 	chain          *blockchain.Blockchain
 	broadcast      func(blk *blocks.XThinnerBlock) error
@@ -72,6 +84,7 @@ func NewBlockGenerator(opts ...Option) (*BlockGenerator, error) {
 		mpool:          cfg.mpool,
 		tickInterval:   cfg.tickInterval,
 		chain:          cfg.chain,
+		policy:         cfg.policy,
 		broadcast:      cfg.broadcastFunc,
 
 		activeMtx:     sync.RWMutex{},
@@ -198,6 +211,8 @@ func (g *BlockGenerator) generateBlock() error {
 			checkNullifiers[types.NewNullifier(stake.Nullifier)] = true
 		}
 	}
+
+	blockSize := serializedHeaderSize
 	for txid, tx := range txs {
 		switch t := tx.Tx.(type) {
 		case *transactions.Transaction_StandardTransaction:
@@ -230,6 +245,15 @@ func (g *BlockGenerator) generateBlock() error {
 	}
 	blk.Transactions = make([]*transactions.Transaction, 0, len(txs))
 	for _, tx := range txs {
+		txSize, err := tx.SerializedSize()
+		if err != nil {
+			return err
+		}
+		blockSize += txSize + txProtobufExtraBytes
+
+		if uint32(blockSize) > g.policy.GetBlocksizeSoftLimit() {
+			break
+		}
 		blk.Transactions = append(blk.Transactions, tx)
 	}
 
