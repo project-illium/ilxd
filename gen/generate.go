@@ -23,7 +23,15 @@ const (
 	BlockVersion                     = 1
 	MinAllowableTimeBetweenDupBlocks = time.Minute * 2
 	serializedHeaderSize             = 184
-	txProtobufExtraBytes             = 2
+
+	// This is the number of extra bytes protobuf uses to
+	// append a tx to the block. Not all transactions use
+	// four bytes, but this is the maximum it would use if
+	// the transaction was at the max size of 1MB.
+	// If we want to be a little less lazy we could compute
+	// the actual number per tx, but the extra bytes that
+	// would fit under the soft limit would be tiny.
+	txProtobufExtraBytes = 4
 )
 
 type BlockGenerator struct {
