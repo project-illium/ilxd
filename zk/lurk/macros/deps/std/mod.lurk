@@ -5,7 +5,7 @@
         ;; algorithm with the Vesta Curve.
         ;;
         ;; sig       - (cons sig-rx (cons sig-ry (cons sig-s nil)))
-        ;; pubkey    - (cons pubkey-x pubkey-y)
+        ;; pubkey    - (cons pubkey-x (cons pubkey-y nil))
         ;; sighash   - blake2s-hash
         ;;
         ;; return t or nil
