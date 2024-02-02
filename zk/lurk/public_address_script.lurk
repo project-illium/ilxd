@@ -1,0 +1,97 @@
+;; This script is a public address script. It enforces a covenant that
+;; requires that if this input is sending coins to a **public** address
+;; the private data for that output must be put in the output's ciphertext
+;; field **in the clear**.
+;;
+;; If it's sending coins to a private address no covenants are enforced
+;; and the output can be encrypted like normal.
+;;
+;; To achieve this we need to use the script in a somewhat unconventional
+;; way. Normally the output script-hash would be computed as:
+;;
+;; script-hash = hash(script-commitment, locking-params...)
+;;
+;; Where the locking-params would be public key that is unique to the user.
+;; However, the presence of a pseudo-random public key in the preimage makes the
+;; script-hash unpredictable and we would not be able to identify public
+;; outputs. This is normally a desirable feature for private outputs, but not
+;; for public ones.
+;;
+;; So instead we are going to compute the script-hash as:
+
+;; script-hash = hash(script-commitment, nil)
+;;
+;; And put the hash of the locking-params in the output's state field. This
+;; makes the script-hash uniform and predictable and still allows us to commit
+;; to a set of locking-params.
+;;
+;; Since we want to offer flexibility in this script we also make it a multisig
+;; script, where the locking-params is:
+;;
+;; <threshold> <pubkey1-x> <pubkey1-y> <pubkey2-x> <pubkey2-y> ...
+;;
+;; The hash of these locking-params will be put in the public address and the
+;; sender is required to put this hash in the private output state field and
+;; put the full private output (formatted as a list) in the ciphertext field.
+;;
+;; The recipient can verify the output is theirs and is formatted correctly by
+;; inspecting the ciphertext field and ensuring it hashes to the output-commitment.
+;;
+;; The unlocking-params must take the form:
+;;
+;; <locking-params> <key-selector> <sig1> <sig2> ...
+;;
+;; Where the key-selector and sigs are formatted the same as in the multisig
+;; scripts.
+(lambda (locking-params unlocking-params input-index private-params public-params)
+    !(import std/inputs/script-hash)
+
+    !(def input-script-hash (script-hash !(param priv-in input-index)))
+    !(def locking-params (car unlocking-params))
+    !(def threshold (car locking-params))
+    !(def key-selector (car (cdr unlocking-params)))
+    !(def pubkeys (cdr locking-params))
+    !(def signatures (cdr (cdr unlocking-params)))
+    !(def sighash !(param sighash))
+
+    ;; validate-sigs validates a normal multisig script. This can be
+    ;; a 1 of 1 if multiple signatures are not needed.
+    !(defun validate-sigs (selector sigs keys valid-sigs) (
+            (if (car selector)
+                (if (= (car selector) 1)
+                    (if (checksig (car sigs) (cons (car keys) (cons (car (cdr keys)) nil)) sighash)
+                        (validate-sigs (cdr selector) (cdr sigs) (cdr (cdr keys)) (+ valid-sigs 1))
+                        nil
+                    )
+                    (validate-sigs (cdr selector) sigs (cdr (cdr keys)) valid-sigs)
+                )
+                (>= valid-sigs threshold)
+            )
+    ))
+
+    ;; validate-outputs loops through the transaction's outputs and makes
+    ;; sure that if an output is a "public" output, as identified by the
+    ;; script-hash, that the private output data is put in the ciphertext
+    ;; field in the clear.
+    !(defun validate-outputs (outputs idx) (
+          (if outputs
+              (if (= input-script-hash (car (car outputs)))
+                  (if (eq !(param priv-out idx) !(param pub-out idx ciphertext))
+                      (cdr outputs (+ idx 1)) ;; Looks good. Continue to next output.
+                      nil ;; The ciphertext does not equal the private output. Return nil.
+                  )
+                  (cdr outputs (+ idx 1)) ;; This is not a public output, we don't need to validate it.
+              )
+              t ;; We've looped through all the outputs without error
+          )
+    ))
+
+    ;; The provided locking-params hashes to the commitment found in the input state
+    !(assert (= (num (commit locking-params)) !(param priv-in input-index state)))
+
+    ;; Public outputs disclose their private data
+    !(assert (validate-outputs (cdr private-params) 0))
+
+    ;; Signatures are valid
+    (validate-sigs key-selector signatures pubkeys 0)
+)
