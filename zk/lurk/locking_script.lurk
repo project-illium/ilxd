@@ -1,0 +1,65 @@
+;; This is the function signature for the locking script. It can be used as a
+;; template for writing custom locking scripts and smart contracts.
+;;
+;; It should return 't' (or any non-nil value) if terms and met and the coins are
+;; meant to be unlocked and 'nil' if the validation has failed.
+;;
+;; Let's walk through the parameters.
+;; Recall that in illium a user address computed as:
+;; address = serialize(commit(scriptCommitment, lockingParams...), viewKey)
+;;
+;; The 'locking-params' below is the same parameters found in the address.
+;; For a basic locking script this may just be a single public key.
+;;
+;; The 'scriptCommitment' (above) is the poseidon hash commitment of this
+;; lurk function. When transactions are validated the prover provides this
+;; function and it's validated against the scriptCommitment prior to
+;; execution.
+;;
+;; 'unlocking-params' are the private, user-supplied parameters used to
+;; make this function return True. If this were a basic locking script
+;; this would likely be a digital signature that validates against the
+;; public key found in `locking-params`.
+;;
+;; `input-index` is the position of this script in the transaction's list
+;; of inputs. This is the index currently being validated.
+;;
+;; The following is a detailed view of the parameters
+;;
+;; locking-params (type list): The list of parameters committed to in the script-hash.
+;; unlocking-params (type list): A list of unlocking parameters provided when creating the transaction's proof and spending the utxo. If the unlocking parameters make the function return True, the funds can move.
+;; input-index (type num): The index of the input in the transaction currently being evaluated.
+;; private-params (type cons): A cons cell containing two elements ― a list of private-inputs and a list of private-outputs.
+;;     private-input (type list):
+;;         amount (type num): The amount of coins or tokens of this utxo.
+;;         asset-id (type num): The asset ID of the utxo.
+;;         salt (type num): The utxo's salt field.
+;;         state (type list): The utxo's state field.
+;;         commitment-index (type num): The index of the utxo in the transaction output commitment set.
+;;         inclusion-proof (type list): A list of (num, bool) cons cells representing the inclusion proof linking the output commitment to the transaction's merkle root.
+;;         script (type lambda): The script being executed.
+;;         locking-params (type list): The locking-params for the input.
+;;         unlocking-params (type list): The unlocking-params for the input.
+;;     private-output (type list):
+;;         script-hash (type num): The output's script-hash.
+;;         amount (type num): The output's amount.
+;;         asset-id (type num): The asset ID of the output.
+;;         salt (type num): The output's salt field.
+;;         state (type list): The output's state field.
+;; public-params (type list): A list of public parameters. These are all pulled from the body of the transaction as seen by the network.
+;;     sighash (type num): The transaction's sighash.
+;;     nullifiers (type list): A list of num nullifiers from the transaction.
+;;     txo-root (type num): The tranaction's txo-root.
+;;     fee (type num): The fee paid by the transaction.
+;;     mint-id (type num): If this is a token mint transaction, this is the ID of the token being minted. It will be nil otherwise.
+;;     mint-amount (type num): This is the amount of tokens being minted if this is a token mint transaction.
+;;     public-outputs (type list): A list of cons cells of format (num, list) representing the output commitment and ciphertext respectively. Note that each 32-byte chunk of ciphertext has the two most significant bits set to zero to fit within the the max field element size.
+;;     locktime (type num): The transaction's locktime field.
+;;     locktime-precision (type num): The transaction's locktime precision field.
+;;
+;; The private and public params are there just for you to inspect, if you wish,
+;; and make a decision to unlock or not, in part, based on what data the transaction
+;; contains.
+(lambda (locking-params unlocking-params input-index private-params public-params)
+    ;; returns t or nil
+)
