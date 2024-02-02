@@ -87,7 +87,7 @@
     ))
 
     ;; The provided locking-params hashes to the commitment found in the input state
-    !(assert (= (num (commit locking-params)) !(param priv-in input-index state)))
+    !(assert (= (num (commit locking-params)) (car !(param priv-in input-index state))))
 
     ;; Public outputs disclose their private data
     !(assert (validate-outputs (cdr private-params) 0))
