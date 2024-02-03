@@ -122,6 +122,9 @@ func deserializeData(ser []byte) ([][]byte, error) {
 }
 
 func buildLurkExpression[T any](elems []T) (string, error) {
+	if len(elems) == 0 {
+		return "nil", nil
+	}
 	expr := ""
 	for _, elem := range elems {
 		switch e := any(elem).(type) {
