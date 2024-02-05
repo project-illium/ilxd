@@ -255,13 +255,13 @@ pub extern "C" fn eval_ffi(
     }
 }
 
-static PUBLIC_PARAMS: OnceCell<Arc<PublicParams<Fr, C1LEM<'static, Fr, MultiCoproc<Fr>>>>> = OnceCell::new();
+static PUBLIC_PARAMS: OnceCell<Arc<PublicParams<Fr>>> = OnceCell::new();
 
-fn get_public_params() -> Arc<PublicParams<Fr, C1LEM<'static, Fr, MultiCoproc<Fr>>>> {
+fn get_public_params() -> Arc<PublicParams<Fr>> {
     PUBLIC_PARAMS.get_or_init(|| Arc::new(create_public_params())).clone()
 }
 
-fn create_public_params() -> PublicParams<Fr, C1LEM<'static, Fr, MultiCoproc<Fr>>> {
+fn create_public_params() -> PublicParams<Fr> {
     let cproc_sym_and = user_sym("coproc_and");
     let cproc_sym_or = user_sym("coproc_or");
     let cproc_sym_xor = user_sym("coproc_xor");
