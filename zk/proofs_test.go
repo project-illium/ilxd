@@ -7,7 +7,9 @@ package zk_test
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
+	lcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params/hash"
@@ -169,7 +171,7 @@ func TestTransactionProofValidation(t *testing.T) {
 		ExpectedTag    zk.Tag
 		ExpectedOutput []byte
 	}{
-		/*{
+		{
 			Name: "standard/mint 1 input, 1 output valid",
 			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(1, 1, defaultOpts())
@@ -1241,11 +1243,10 @@ func TestTransactionProofValidation(t *testing.T) {
 			},
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
-		},*/
+		},
 		{
 			Name: "public address valid",
 			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				fmt.Println(zk.PublicAddressScript())
 				sk1, pk1, err := crypto.GenerateNovaKey(rand.Reader)
 				if err != nil {
 					return nil, nil, nil, err
