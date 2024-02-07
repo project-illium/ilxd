@@ -91,11 +91,11 @@ func (s *SpendNote) ToPublicCiphertext() ([]byte, error) {
 func (s *SpendNote) Deserialize(ser []byte) error {
 	if len(ser) == 32*5 {
 		copy(s.ScriptHash[:], ser[:ScriptHashLen])
-		copy(s.AssetID[:], ser[ScriptHashLen+AmountLen:ScriptHashLen+AmountLen+AssetIDLen])
-		copy(s.Salt[:], ser[ScriptHashLen+AmountLen+AssetIDLen:ScriptHashLen+AssetIDLen+SaltLen])
+		copy(s.AssetID[:], ser[ScriptHashLen+AmountLen+AmountPad:ScriptHashLen+AmountLen+AmountPad+AssetIDLen])
+		copy(s.Salt[:], ser[ScriptHashLen+AmountLen+AmountPad+AssetIDLen:ScriptHashLen+AmountLen+AmountPad+AssetIDLen+SaltLen])
 		s.State = make(State, 1)
 		s.State[0] = make([]byte, 32)
-		copy(s.State[0], ser[ScriptHashLen+AmountLen+AssetIDLen+SaltLen:])
+		copy(s.State[0], ser[ScriptHashLen+AmountLen+AmountPad+AssetIDLen+SaltLen:])
 		s.Amount = Amount(binary.BigEndian.Uint64(ser[ScriptHashLen+AmountPad : ScriptHashLen+AmountPad+AmountLen]))
 		return nil
 	}
