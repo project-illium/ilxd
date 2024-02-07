@@ -110,12 +110,22 @@ service WalletService {
     rpc GetAddress(GetAddressRequest) returns (GetAddressResponse) {}
 
     // GetTimelockedAddress returns a timelocked address that cannot be spent
-    // from until the given timelock has passed. The private key used for this
-    // address is the same as the wallet's most recent spend key used in a basic
-    // address. This implies the key can be derived from seed, however the wallet
-    // will not detect incoming payments to this address unless the timelock is
-    // included in the utxo's state field.
+    // from until the given timelock has passed.
+    //
+    // The private key used for this address is the same as the wallet's most
+    // recent spend key used in a basic address. This implies the key can be
+    // derived from seed, however the wallet will not detect incoming payments
+    // to this address unless the timelock is included in the utxo's state field.
     rpc GetTimelockedAddress(GetTimelockedAddressRequest) returns (GetTimelockedAddressResponse) {}
+
+    // GetPublicAddress returns a public address for the wallet. This address type
+    // requires that the private output data that is normally encrypted with the
+    // recipient's view key be put in the transaction in the clear.
+    //
+    // The private key used for this address is the same as the wallet's most
+    // recent spend key used in a basic address. This implies the key can be
+    // derived from seed.
+    rpc GetPublicAddress(GetPublicAddressRequest) returns (GetPublicAddressResponse) {}
 
     // GetAddresses returns all the addresses create by the wallet.
     rpc GetAddresses(GetAddressesRequest) returns (GetAddressesResponse) {}
@@ -611,6 +621,13 @@ message GetTimelockedAddressRequest {
 }
 message GetTimelockedAddressResponse {
     // The resulting timelocked address
+    string address = 1;
+}
+
+message GetPublicAddressRequest {}
+message GetPublicAddressResponse {
+    // A public address built from the
+    // most recent spend key in the wallet.
     string address = 1;
 }
 

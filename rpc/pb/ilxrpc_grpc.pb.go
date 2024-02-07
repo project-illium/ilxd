@@ -1058,12 +1058,21 @@ type WalletServiceClient interface {
 	// GetAddress returns the most recent address of the wallet.
 	GetAddress(ctx context.Context, in *GetAddressRequest, opts ...grpc.CallOption) (*GetAddressResponse, error)
 	// GetTimelockedAddress returns a timelocked address that cannot be spent
-	// from until the given timelock has passed. The private key used for this
-	// address is the same as the wallet's most recent spend key used in a basic
-	// address. This implies the key can be derived from seed, however the wallet
-	// will not detect incoming payments to this address unless the timelock is
-	// included in the utxo's state field.
+	// from until the given timelock has passed.
+	//
+	// The private key used for this address is the same as the wallet's most
+	// recent spend key used in a basic address. This implies the key can be
+	// derived from seed, however the wallet will not detect incoming payments
+	// to this address unless the timelock is included in the utxo's state field.
 	GetTimelockedAddress(ctx context.Context, in *GetTimelockedAddressRequest, opts ...grpc.CallOption) (*GetTimelockedAddressResponse, error)
+	// GetPublicAddress returns a public address for the wallet. This address type
+	// requires that the private output data that is normally encrypted with the
+	// recipient's view key be put in the transaction in the clear.
+	//
+	// The private key used for this address is the same as the wallet's most
+	// recent spend key used in a basic address. This implies the key can be
+	// derived from seed.
+	GetPublicAddress(ctx context.Context, in *GetPublicAddressRequest, opts ...grpc.CallOption) (*GetPublicAddressResponse, error)
 	// GetAddresses returns all the addresses create by the wallet.
 	GetAddresses(ctx context.Context, in *GetAddressesRequest, opts ...grpc.CallOption) (*GetAddressesResponse, error)
 	// GetAddressInfo returns additional metadata about an address.
@@ -1186,6 +1195,15 @@ func (c *walletServiceClient) GetAddress(ctx context.Context, in *GetAddressRequ
 func (c *walletServiceClient) GetTimelockedAddress(ctx context.Context, in *GetTimelockedAddressRequest, opts ...grpc.CallOption) (*GetTimelockedAddressResponse, error) {
 	out := new(GetTimelockedAddressResponse)
 	err := c.cc.Invoke(ctx, "/pb.WalletService/GetTimelockedAddress", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *walletServiceClient) GetPublicAddress(ctx context.Context, in *GetPublicAddressRequest, opts ...grpc.CallOption) (*GetPublicAddressResponse, error) {
+	out := new(GetPublicAddressResponse)
+	err := c.cc.Invoke(ctx, "/pb.WalletService/GetPublicAddress", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1496,12 +1514,21 @@ type WalletServiceServer interface {
 	// GetAddress returns the most recent address of the wallet.
 	GetAddress(context.Context, *GetAddressRequest) (*GetAddressResponse, error)
 	// GetTimelockedAddress returns a timelocked address that cannot be spent
-	// from until the given timelock has passed. The private key used for this
-	// address is the same as the wallet's most recent spend key used in a basic
-	// address. This implies the key can be derived from seed, however the wallet
-	// will not detect incoming payments to this address unless the timelock is
-	// included in the utxo's state field.
+	// from until the given timelock has passed.
+	//
+	// The private key used for this address is the same as the wallet's most
+	// recent spend key used in a basic address. This implies the key can be
+	// derived from seed, however the wallet will not detect incoming payments
+	// to this address unless the timelock is included in the utxo's state field.
 	GetTimelockedAddress(context.Context, *GetTimelockedAddressRequest) (*GetTimelockedAddressResponse, error)
+	// GetPublicAddress returns a public address for the wallet. This address type
+	// requires that the private output data that is normally encrypted with the
+	// recipient's view key be put in the transaction in the clear.
+	//
+	// The private key used for this address is the same as the wallet's most
+	// recent spend key used in a basic address. This implies the key can be
+	// derived from seed.
+	GetPublicAddress(context.Context, *GetPublicAddressRequest) (*GetPublicAddressResponse, error)
 	// GetAddresses returns all the addresses create by the wallet.
 	GetAddresses(context.Context, *GetAddressesRequest) (*GetAddressesResponse, error)
 	// GetAddressInfo returns additional metadata about an address.
@@ -1602,6 +1629,9 @@ func (UnimplementedWalletServiceServer) GetAddress(context.Context, *GetAddressR
 }
 func (UnimplementedWalletServiceServer) GetTimelockedAddress(context.Context, *GetTimelockedAddressRequest) (*GetTimelockedAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTimelockedAddress not implemented")
+}
+func (UnimplementedWalletServiceServer) GetPublicAddress(context.Context, *GetPublicAddressRequest) (*GetPublicAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPublicAddress not implemented")
 }
 func (UnimplementedWalletServiceServer) GetAddresses(context.Context, *GetAddressesRequest) (*GetAddressesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAddresses not implemented")
@@ -1765,6 +1795,24 @@ func _WalletService_GetTimelockedAddress_Handler(srv interface{}, ctx context.Co
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(WalletServiceServer).GetTimelockedAddress(ctx, req.(*GetTimelockedAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WalletService_GetPublicAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPublicAddressRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).GetPublicAddress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.WalletService/GetPublicAddress",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).GetPublicAddress(ctx, req.(*GetPublicAddressRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2283,6 +2331,10 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTimelockedAddress",
 			Handler:    _WalletService_GetTimelockedAddress_Handler,
+		},
+		{
+			MethodName: "GetPublicAddress",
+			Handler:    _WalletService_GetPublicAddress_Handler,
 		},
 		{
 			MethodName: "GetAddresses",

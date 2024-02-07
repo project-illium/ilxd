@@ -69,17 +69,35 @@ func (s *GrpcServer) GetAddress(ctx context.Context, req *pb.GetAddressRequest) 
 }
 
 // GetTimelockedAddress returns a timelocked address that cannot be spent
-// from until the given timelock has passed. The private key used for this
-// address is the same as the wallet's most recent spend key used in a basic
-// address. This implies the key can be derived from seed, however the wallet
-// will not detect incoming payments to this address unless the timelock is
-// included in the utxo's state field.
+// from until the given timelock has passed.
+//
+// The private key used for this address is the same as the wallet's most
+// recent spend key used in a basic address. This implies the key can be
+// derived from seed, however the wallet will not detect incoming payments
+// to this address unless the timelock is included in the utxo's state field.
 func (s *GrpcServer) GetTimelockedAddress(ctx context.Context, req *pb.GetTimelockedAddressRequest) (*pb.GetTimelockedAddressResponse, error) {
 	addr, err := s.wallet.TimelockedAddress(time.Unix(req.LockUntil, 0))
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &pb.GetTimelockedAddressResponse{
+		Address: addr.String(),
+	}, nil
+}
+
+// GetPublicAddress returns a public address for the wallet. This address type
+// requires that the private output data that is normally encrypted with the
+// recipient's view key be put in the transaction in the clear.
+//
+// The private key used for this address is the same as the wallet's most
+// recent spend key used in a basic address. This implies the key can be
+// derived from seed.
+func (s *GrpcServer) GetPublicAddress(ctx context.Context, req *pb.GetPublicAddressRequest) (*pb.GetPublicAddressResponse, error) {
+	addr, err := s.wallet.PublicAddress()
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &pb.GetPublicAddressResponse{
 		Address: addr.String(),
 	}, nil
 }

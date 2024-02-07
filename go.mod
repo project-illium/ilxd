@@ -5,6 +5,7 @@ go 1.21
 require (
 	filippo.io/edwards25519 v1.0.0
 	github.com/cenkalti/backoff/v4 v4.2.0
+	github.com/dgraph-io/badger v1.6.2
 	github.com/gcash/bchutil v0.0.0-20210113190856-6ea28dff4000
 	github.com/go-test/deep v1.1.0
 	github.com/improbable-eng/grpc-web v0.15.0
@@ -22,7 +23,7 @@ require (
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/nixberg/chacha-rng-go v0.1.0
 	github.com/project-illium/logger v0.0.0-20240118200101-2fb0847599c9
-	github.com/project-illium/walletlib v0.0.0-20240126170949-e2d74d17355d
+	github.com/project-illium/walletlib v0.0.0-20240207195743-85ecc7d3d0e6
 	github.com/project-illium/weightedrand/v2 v2.1.0
 	github.com/pterm/pterm v0.12.75
 	github.com/stretchr/testify v1.8.4
@@ -52,7 +53,6 @@ require (
 	github.com/dchest/siphash v1.2.2 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
-	github.com/dgraph-io/badger v1.6.2 // indirect
 	github.com/dgraph-io/ristretto v0.0.2 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
