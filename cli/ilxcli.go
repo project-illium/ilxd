@@ -109,6 +109,7 @@ func main() {
 	parser.AddCommand("getwalletseed", "Returns the mnemonic seed for the wallet", "Returns the mnemonic seed for the wallet. If the wallet seed has been deleted, an error will be returned.", &GetWalletSeed{opts: &opts})
 	parser.AddCommand("getaddress", "Returns the most recent address of the wallet", "Returns the most recent address of the wallet", &GetAddress{opts: &opts})
 	parser.AddCommand("gettimelockedaddress", "Returns an address which locks coins until the provided timestamp", "Returns a timelocked address based on the wallet's most recent private key. Coins sent to this address will be locked until the provided timestamp.", &GetTimelockedAddress{opts: &opts})
+	parser.AddCommand("getpublicaddress", "Returns the most recent public address of the wallet", "Returns a public address built from the wallet's most recent private key.", &GetPublicAddress{opts: &opts})
 	parser.AddCommand("getaddresses", "Returns all the addresses created by this wallet", "Returns all the addresses created by this wallet", &GetAddresses{opts: &opts})
 	parser.AddCommand("getaddrinfo", "Returns info about the given address", "Returns info about the given address", &GetAddrInfo{opts: &opts})
 	parser.AddCommand("getnewaddress", "Generates a new address and returns it", "Generates a new address and returns it. Both a new spend key and view key will be derived from the mnemonic seed.", &GetNewAddress{opts: &opts})

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
-	"strconv"
 	"strings"
 )
 
@@ -95,7 +94,7 @@ var outputMap = map[string]string{
 
 var pubOutMap = map[string]string{
 	"commitment": "(car %s)",
-	"ciphertext": "(car (cdr %s))",
+	"ciphertext": "(cdr %s)",
 }
 
 func loadFilesFromFS(fileSystem fs.FS, directory string) ([]string, error) {
@@ -382,18 +381,7 @@ func macroExpandParam(lurkProgram string) string {
 					p.Consume()
 				}
 				index := p.input[indexStart:p.pos]
-				idx, err := strconv.Atoi(index)
-				if err != nil {
-					return ""
-				}
-				expr := "(car "
-				for i := 0; i < idx; i++ {
-					expr += "(cdr "
-				}
-				result += fmt.Sprintf("%s(car (cdr public-params))", expr)
-				for i := 0; i < idx+1; i++ {
-					result += ")"
-				}
+				result += fmt.Sprintf("(nth %s (car (cdr public-params)))", index)
 			} else if paramName == "priv-in" {
 				// Skip over potential whitespace
 				for p.Peek() == ' ' {
@@ -404,18 +392,7 @@ func macroExpandParam(lurkProgram string) string {
 					p.Consume()
 				}
 				index := p.input[indexStart:p.pos]
-				idx, err := strconv.Atoi(index)
-				if err != nil {
-					return ""
-				}
-				expr := "(car "
-				for i := 0; i < idx; i++ {
-					expr += "(cdr "
-				}
-				resultExp := fmt.Sprintf("%s(car private-params)", expr)
-				for i := 0; i < idx+1; i++ {
-					resultExp += ")"
-				}
+				resultExp := fmt.Sprintf("(nth %s (car private-params))", index)
 
 				if p.Peek() == ' ' {
 					// Consume whitespace and then check for sub-param
@@ -444,19 +421,7 @@ func macroExpandParam(lurkProgram string) string {
 					p.Consume()
 				}
 				index := p.input[indexStart:p.pos]
-				idx, err := strconv.Atoi(index)
-				if err != nil {
-					return ""
-				}
-				expr := "(car "
-				for i := 0; i < idx; i++ {
-					expr += "(cdr "
-				}
-				resultExp := fmt.Sprintf("%s(car (cdr private-params))", expr)
-				//resultExp := fmt.Sprintf("%s(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params))))))))", expr)
-				for i := 0; i < idx+1; i++ {
-					resultExp += ")"
-				}
+				resultExp := fmt.Sprintf("(nth %s (cdr private-params))", index)
 
 				if p.Peek() == ' ' {
 					// Consume whitespace and then check for sub-param
@@ -484,19 +449,7 @@ func macroExpandParam(lurkProgram string) string {
 					p.Consume()
 				}
 				index := p.input[indexStart:p.pos]
-				idx, err := strconv.Atoi(index)
-				if err != nil {
-					return ""
-				}
-				expr := "(car "
-				for i := 0; i < idx; i++ {
-					expr += "(cdr "
-				}
-				//resultExp := fmt.Sprintf("%s(car (cdr private-params))", expr)
-				resultExp := fmt.Sprintf("%s(car (cdr (cdr (cdr (cdr (cdr (cdr (cdr public-params))))))))", expr)
-				for i := 0; i < idx+1; i++ {
-					resultExp += ")"
-				}
+				resultExp := fmt.Sprintf("(nth %s (car (cdr (cdr (cdr (cdr (cdr (cdr public-params))))))))", index)
 
 				if p.Peek() == ' ' {
 					// Consume whitespace and then check for sub-param

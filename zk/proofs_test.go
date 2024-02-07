@@ -1244,6 +1244,92 @@ func TestTransactionProofValidation(t *testing.T) {
 			ExpectedTag:    zk.TagNil,
 			ExpectedOutput: zk.OutputFalse,
 		},
+		{
+			Name: "public address valid",
+			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
+				sk1, pk1, err := crypto.GenerateNovaKey(rand.Reader)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				_, pk2, err := crypto.GenerateNovaKey(rand.Reader)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				pk1X, pk1Y := pk1.(*crypto.NovaPublicKey).ToXY()
+				pk2X, pk2Y := pk2.(*crypto.NovaPublicKey).ToXY()
+
+				lockingParams := fmt.Sprintf("(cons 1 (cons 0x%x (cons 0x%x nil)))", pk1X, pk1Y)
+				lpHash, err := zk.LurkCommit(lockingParams)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+
+				lockingParams2 := fmt.Sprintf("(cons 1 (cons 0x%x (cons 0x%x nil)))", pk2X, pk2Y)
+				lpHash2, err := zk.LurkCommit(lockingParams2)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+
+				lockingScript := types.LockingScript{
+					ScriptCommitment: types.NewID(zk.PublicAddressScriptCommitment()),
+					LockingParams:    nil,
+				}
+
+				scriptHash, err := lockingScript.Hash()
+				if err != nil {
+					return nil, nil, nil, err
+				}
+
+				opts := defaultOpts()
+				opts.inScriptCommitments = map[int]types.ID{0: types.NewID(zk.PublicAddressScriptCommitment())}
+				opts.inLockingParams = map[int][][]byte{0: nil}
+				opts.inState = map[int]types.State{0: types.State{lpHash}}
+
+				priv, pub, err := generateTxParams(1, 1, opts)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+
+				sig, err := sk1.Sign(pub.SigHash.Bytes())
+				if err != nil {
+					return nil, nil, nil, err
+				}
+
+				sigRx, sigRy, sigS := crypto.UnmarshalSignature(sig)
+
+				priv.Inputs[0].Script = zk.PublicAddressScript()
+				priv.Inputs[0].LockingParams = nil
+				priv.Inputs[0].UnlockingParams = fmt.Sprintf("(cons %s (cons (cons 1 nil) (cons (cons 0x%x (cons 0x%x (cons 0x%x nil))) nil)))", lockingParams, sigRx, sigRy, sigS)
+
+				priv.Outputs[0].ScriptHash = scriptHash
+				priv.Outputs[0].State = types.State{lpHash2}
+
+				outNote := types.SpendNote{
+					ScriptHash: scriptHash,
+					Amount:     priv.Outputs[0].Amount,
+					AssetID:    priv.Outputs[0].AssetID,
+					Salt:       priv.Outputs[0].Salt,
+					State:      priv.Outputs[0].State,
+				}
+
+				outCommitment, err := outNote.Commitment()
+				if err != nil {
+					return nil, nil, nil, err
+				}
+
+				ser, err := outNote.ToPublicCiphertext()
+				if err != nil {
+					return nil, nil, nil, err
+				}
+
+				pub.Outputs[0].Commitment = outCommitment
+				pub.Outputs[0].CipherText = ser
+
+				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
+			},
+			ExpectedTag:    zk.TagSym,
+			ExpectedOutput: zk.OutputTrue,
+		},
 	}
 
 	for _, test := range tests {
@@ -1264,6 +1350,7 @@ type options struct {
 	outAssets           map[int]types.ID
 	inAmounts           map[int]types.Amount
 	outAmounts          map[int]types.Amount
+	inState             map[int]types.State
 	inScriptCommitments map[int]types.ID
 	inLockingParams     map[int][][]byte
 }
@@ -1274,6 +1361,7 @@ func defaultOpts() *options {
 		outAssets:           make(map[int]types.ID),
 		inAmounts:           make(map[int]types.Amount),
 		outAmounts:          make(map[int]types.Amount),
+		inState:             make(map[int]types.State),
 		inScriptCommitments: make(map[int]types.ID),
 		inLockingParams:     make(map[int][][]byte),
 	}
@@ -1425,6 +1513,10 @@ func generateTxParams(numInputs, numOutputs int, opts *options) (*circparams.Sta
 		assetID, ok := opts.inAssets[i]
 		if ok {
 			note.AssetID = assetID
+		}
+		state, ok := opts.inState[i]
+		if ok {
+			note.State = state
 		}
 
 		commitment, err := note.Commitment()

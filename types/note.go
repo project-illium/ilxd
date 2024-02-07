@@ -66,8 +66,40 @@ func (s *SpendNote) Serialize() ([]byte, error) {
 	return ser, nil
 }
 
+// ToPublicCiphertext returns the note serialization format used by
+// the PublicAddressScript.
+func (s *SpendNote) ToPublicCiphertext() ([]byte, error) {
+	ser := make([]byte, 0, 32*5)
+
+	idBytes := s.AssetID.Bytes()
+	amountBytes := make([]byte, 32)
+	binary.BigEndian.PutUint64(amountBytes[24:], uint64(s.Amount))
+
+	ser = append(ser, s.ScriptHash.Bytes()...)
+	ser = append(ser, amountBytes...)
+	ser = append(ser, idBytes...)
+	ser = append(ser, s.Salt[:]...)
+
+	if len(s.State) != 1 {
+		return nil, errors.New("state must have only one entry")
+	}
+	ser = append(ser, s.State[0]...)
+	return ser, nil
+}
+
 // Deserialize turns a serialized byte slice back into a SpendNote
 func (s *SpendNote) Deserialize(ser []byte) error {
+	if len(ser) == 32*5 {
+		copy(s.ScriptHash[:], ser[:ScriptHashLen])
+		copy(s.AssetID[:], ser[ScriptHashLen+AmountLen+AmountPad:ScriptHashLen+AmountLen+AmountPad+AssetIDLen])
+		copy(s.Salt[:], ser[ScriptHashLen+AmountLen+AmountPad+AssetIDLen:ScriptHashLen+AmountLen+AmountPad+AssetIDLen+SaltLen])
+		s.State = make(State, 1)
+		s.State[0] = make([]byte, 32)
+		copy(s.State[0], ser[ScriptHashLen+AmountLen+AmountPad+AssetIDLen+SaltLen:])
+		s.Amount = Amount(binary.BigEndian.Uint64(ser[ScriptHashLen+AmountPad : ScriptHashLen+AmountPad+AmountLen]))
+		return nil
+	}
+
 	if len(ser) < ScriptHashLen+AmountLen+AssetIDLen+SaltLen {
 		return errors.New("invalid serialization length")
 	}

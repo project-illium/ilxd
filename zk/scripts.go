@@ -32,6 +32,11 @@ var timelockedMultisigScriptLurk embed.FS
 var timelockedMultisigScriptData string
 var timeLockedMultisigCommitment []byte
 
+//go:embed lurk/public_address_script.lurk
+var publicAddressScriptLurk embed.FS
+var publicAddressScriptData string
+var publicAddressScriptCommitment []byte
+
 //go:embed lurk/standard_validation.lurk
 var standardValidationScriptLurk embed.FS
 var standardValidationScriptData string
@@ -97,6 +102,19 @@ func init() {
 		panic(err)
 	}
 	timeLockedMultisigCommitment, err = LurkCommit(timelockedMultisigScriptData)
+	if err != nil {
+		panic(err)
+	}
+
+	data, err = publicAddressScriptLurk.ReadFile("lurk/public_address_script.lurk")
+	if err != nil {
+		panic(err)
+	}
+	publicAddressScriptData, err = mp.Preprocess(string(data))
+	if err != nil {
+		panic(err)
+	}
+	publicAddressScriptCommitment, err = LurkCommit(publicAddressScriptData)
 	if err != nil {
 		panic(err)
 	}
@@ -170,6 +188,19 @@ func TimelockedMultisigScript() string {
 func TimelockedMultisigScriptCommitment() []byte {
 	ret := make([]byte, len(timeLockedMultisigCommitment))
 	copy(ret, timeLockedMultisigCommitment)
+	return ret
+}
+
+// PublicAddressScript returns the public address lurk script
+func PublicAddressScript() string {
+	return publicAddressScriptData
+}
+
+// PublicAddressScriptCommitment returns the script commitment hash
+// for the public address script.
+func PublicAddressScriptCommitment() []byte {
+	ret := make([]byte, len(publicAddressScriptCommitment))
+	copy(ret, publicAddressScriptCommitment)
 	return ret
 }
 

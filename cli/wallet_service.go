@@ -98,6 +98,23 @@ func (x *GetTimelockedAddress) Execute(args []string) error {
 	return nil
 }
 
+type GetPublicAddress struct {
+	opts *options
+}
+
+func (x *GetPublicAddress) Execute(args []string) error {
+	client, err := makeWalletClient(x.opts)
+	if err != nil {
+		return err
+	}
+	resp, err := client.GetPublicAddress(makeContext(x.opts.AuthToken), &pb.GetPublicAddressRequest{})
+	if err != nil {
+		return err
+	}
+	fmt.Println(resp.Address)
+	return nil
+}
+
 type GetAddresses struct {
 	opts *options
 }

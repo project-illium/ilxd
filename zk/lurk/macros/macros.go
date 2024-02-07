@@ -54,20 +54,20 @@ func (m Macro) Expand(program string) string {
 
 func IsMacro(s string) (Macro, bool) {
 	s = strings.TrimPrefix(strings.ToLower(s), "!(")
-	if strings.HasPrefix(s, Def.String()) {
-		return Def, true
+	if strings.HasPrefix(s, Defun.String()) {
+		return Defun, true
 	} else if strings.HasPrefix(s, Defrec.String()) {
 		return Defrec, true
-	} else if strings.HasPrefix(s, Defun.String()) {
-		return Defun, true
+	} else if strings.HasPrefix(s, Def.String()) {
+		return Def, true
 	} else if strings.HasPrefix(s, List.String()) {
 		return List, true
 	} else if strings.HasPrefix(s, Param.String()) {
 		return Param, true
-	} else if strings.HasPrefix(s, Assert.String()) {
-		return Assert, true
 	} else if strings.HasPrefix(s, AssertEq.String()) {
 		return AssertEq, true
+	} else if strings.HasPrefix(s, Assert.String()) {
+		return Assert, true
 	}
 	return "", false
 }
