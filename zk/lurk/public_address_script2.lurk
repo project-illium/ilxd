@@ -44,7 +44,6 @@
 ;; Where the key-selector and sigs are formatted the same as in the multisig
 ;; scripts.
 (lambda (locking-params unlocking-params input-index private-params public-params)
-    !(import std/crypto/checksig)
     !(import std/inputs/script-hash)
     !(import std/collections/nth)
 
@@ -79,10 +78,10 @@
           (if outputs
               (if (= input-script-hash (car (car outputs)))
                   (if (eq !(param priv-out idx) !(param pub-out idx ciphertext))
-                      (validate-outputs (cdr outputs) (+ idx 1)) ;; Looks good. Continue to next output.
+                      (cdr outputs (+ idx 1)) ;; Looks good. Continue to next output.
                       nil ;; The ciphertext does not equal the private output. Return nil.
                   )
-                  (validate-outputs (cdr outputs) (+ idx 1)) ;; This is not a public output, we don't need to validate it.
+                  (cdr outputs (+ idx 1)) ;; This is not a public output, we don't need to validate it.
               )
               t ;; We've looped through all the outputs without error
           )

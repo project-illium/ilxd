@@ -50,8 +50,8 @@ func (s *SpendNote) Serialize() ([]byte, error) {
 	ser := make([]byte, 0, ScriptHashLen+AmountLen+AssetIDLen+StateLen+SaltLen)
 
 	idBytes := s.AssetID.Bytes()
-	amountBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(amountBytes, uint64(s.Amount))
+	amountBytes := make([]byte, 32)
+	binary.BigEndian.PutUint64(amountBytes[0:8], uint64(s.Amount))
 
 	ser = append(ser, s.ScriptHash.Bytes()...)
 	ser = append(ser, amountBytes...)
@@ -68,17 +68,17 @@ func (s *SpendNote) Serialize() ([]byte, error) {
 
 // Deserialize turns a serialized byte slice back into a SpendNote
 func (s *SpendNote) Deserialize(ser []byte) error {
-	if len(ser) < ScriptHashLen+AmountLen+AssetIDLen+SaltLen {
+	if len(ser) < ScriptHashLen+AmountLen+AmountPad+AssetIDLen+SaltLen {
 		return errors.New("invalid serialization length")
 	}
 	copy(s.ScriptHash[:], ser[:ScriptHashLen])
 
 	s.Amount = Amount(binary.BigEndian.Uint64(ser[ScriptHashLen : ScriptHashLen+AmountLen]))
-	copy(s.AssetID[:], ser[ScriptHashLen+AmountLen:ScriptHashLen+AmountLen+AssetIDLen])
-	copy(s.Salt[:], ser[ScriptHashLen+AmountLen+AssetIDLen:ScriptHashLen+AmountLen+AssetIDLen+SaltLen])
+	copy(s.AssetID[:], ser[ScriptHashLen+AmountLen+AmountPad:ScriptHashLen+AmountLen+AmountPad+AssetIDLen])
+	copy(s.Salt[:], ser[ScriptHashLen+AmountLen+AmountPad+AssetIDLen:ScriptHashLen+AmountLen+AmountPad+AssetIDLen+SaltLen])
 
 	state := &State{}
-	if err := state.Deserialize(ser[ScriptHashLen+AmountLen+AssetIDLen+SaltLen:]); err != nil {
+	if err := state.Deserialize(ser[ScriptHashLen+AmountLen+AmountPad+AssetIDLen+SaltLen:]); err != nil {
 		return err
 	}
 	s.State = *state

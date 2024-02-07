@@ -19,6 +19,7 @@ const (
 	CommitmentLen = 32
 	ScriptHashLen = 32
 	AmountLen     = 8
+	AmountPad     = 24
 	AssetIDLen    = 32
 	StateLen      = 128
 	SaltLen       = 32

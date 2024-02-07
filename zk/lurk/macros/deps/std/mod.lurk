@@ -89,20 +89,20 @@
 !(module inputs (
         ;; script-commitment computes the commitment for the input's
         ;; locking script.
-        !(defun script-commitment (input)
-              (num (commit (car (cdr (cdr (cdr (cdr (cdr (cdr input))))))))))
+        !(defun script-commitment (input) (
+              (num (commit (car (cdr (cdr (cdr (cdr (cdr (cdr input)))))))))))
 
         ;; script-hash computes the script-hash for the
         ;; provided input.
-        !(defun script-hash (input)
+        !(defun script-hash (input) (
             (let ((locking-params (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr input)))))))))
                   (script (car (cdr (cdr (cdr (cdr (cdr (cdr input))))))))
                   (script-commitment (num (commit script))))
-            (num (commit (cons script-commitment locking-params)))))
+            (num (commit (cons script-commitment locking-params))))))
 
         ;; output-commitment computes the output commitment being
         ;; spent by the provided input.
-        !(defun output-commitment (input)
+        !(defun output-commitment (input) (
             (let ((locking-params (car (cdr (cdr (cdr (cdr (cdr (cdr (cdr input)))))))))
                   (script (car (cdr (cdr (cdr (cdr (cdr (cdr input))))))))
                   (script-commitment (num (commit script)))
@@ -111,7 +111,7 @@
                   (asset-id (car (cdr input)))
                   (salt (car (cdr (cdr input))))
                   (state (car (cdr (cdr (cdr input))))))
-            (num (commit (cons script-hash (cons amount (cons asset-id (cons salt (cons state nil)))))))))
+            (num (commit (cons script-hash (cons amount (cons asset-id (cons salt (cons state nil))))))))))
 ))
 
 ;; module collections contains some functions for interacting
