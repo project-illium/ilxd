@@ -1316,18 +1316,13 @@ func TestTransactionProofValidation(t *testing.T) {
 					return nil, nil, nil, err
 				}
 
-				ser, err := outNote.Serialize()
+				ser, err := outNote.ToPublicCiphertext()
 				if err != nil {
 					return nil, nil, nil, err
 				}
 
 				pub.Outputs[0].Commitment = outCommitment
 				pub.Outputs[0].CipherText = ser
-
-				fmt.Println()
-				fmt.Println(priv.ToExpr())
-				fmt.Println()
-				fmt.Println(pub.ToExpr())
 
 				return []string{zk.StandardValidationProgram(), zk.MintValidationProgram()}, priv, pub, nil
 			},

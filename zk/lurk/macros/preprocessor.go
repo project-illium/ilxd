@@ -449,7 +449,7 @@ func macroExpandParam(lurkProgram string) string {
 					p.Consume()
 				}
 				index := p.input[indexStart:p.pos]
-				resultExp := fmt.Sprintf("(nth %s (car (cdr (cdr (cdr (cdr public-params))))))", index)
+				resultExp := fmt.Sprintf("(nth %s (car (cdr (cdr (cdr (cdr (cdr (cdr public-params))))))))", index)
 
 				if p.Peek() == ' ' {
 					// Consume whitespace and then check for sub-param

@@ -67,8 +67,8 @@ func TestPreProcessValidParentheses(t *testing.T) {
 		{"!(param priv-out 3 asset-id)", "(car (cdr (cdr (nth 3 (cdr private-params)))))"},
 		{"!(param priv-out 3 salt)", "(car (cdr (cdr (cdr (nth 3 (cdr private-params))))))"},
 		{"!(param priv-out 3 state)", "(car (cdr (cdr (cdr (cdr (nth 3 (cdr private-params)))))))"},
-		{"!(param pub-out 4 commitment)", "(car (nth 4 (car (cdr (cdr (cdr (cdr public-params)))))))"},
-		{"!(param pub-out 4 ciphertext)", "(cdr (nth 4 (car (cdr (cdr (cdr (cdr public-params)))))))"},
+		{"!(param pub-out 4 commitment)", "(car (nth 4 (car (cdr (cdr (cdr (cdr (cdr (cdr public-params)))))))))"},
+		{"!(param pub-out 4 ciphertext)", "(cdr (nth 4 (car (cdr (cdr (cdr (cdr (cdr (cdr public-params)))))))))"},
 		{"!(param priv-in input-index amount)", "(car (nth input-index (car private-params)))"},
 	}
 
