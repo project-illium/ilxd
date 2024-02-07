@@ -78,22 +78,10 @@
     !(defun validate-outputs (outputs idx) (
           (if outputs
               (if (= input-script-hash (car (car outputs)))
-                  (let ((ciphertext !(param pub-out idx ciphertext)))
-                      (if (= (car (car outputs)) (car ciphertext))
-                          (if (= (car (cdr (car outputs))) (car (cdr ciphertext)))
-                              (if (= (car (cdr (cdr (car outputs)))) (car (cdr (cdr ciphertext))))
-                                  (if (= (car (cdr (cdr (cdr (car outputs))))) (car (cdr (cdr (cdr ciphertext)))))
-                                      (if (= (car (car (cdr (cdr (cdr (cdr (car outputs))))))) (car (cdr (cdr (cdr (cdr ciphertext))))))
-                                          (validate-outputs (cdr outputs) (+ idx 1)) ;; Looks good. Continue to next output.
-                                          nil ;; The ciphertext does not equal the private output. Return nil.
-                                      )
-                                      nil
-                                  )
-                                  nil
-                              )
-                              nil
-                          )
-                          nil
+                  (let ((priv-out (cons (car (car outputs)) (cons (car (cdr (car outputs))) (cons (car (cdr (cdr (car outputs)))) (cons (car (cdr (cdr (cdr (car outputs))))) (cons (car (car (cdr (cdr (cdr (cdr (car outputs))))))) nil)))))))
+                      (if (eq priv-out !(param pub-out idx ciphertext))
+                         (validate-outputs (cdr outputs) (+ idx 1)) ;; Looks good. Continue to next output.
+                         nil ;; The ciphertext does not equal the private output. Return nil.
                       )
                   )
                   (validate-outputs (cdr outputs) (+ idx 1)) ;; This is not a public output, we don't need to validate it.
