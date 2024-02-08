@@ -43,6 +43,7 @@ func (b *Blockchain) CalcChainScore(blks []*blocks.Block, flags ...BehaviorFlags
 		txoRootSet:        b.txoRootSet.Clone(),   // Reads from disk db, writes to cache only.
 		sigCache:          NewSigCache(DefaultSigCacheSize),
 		proofCache:        NewProofCache(DefaultProofCacheSize),
+		verifier:          b.verifier,
 		notificationsLock: sync.RWMutex{},
 		stateLock:         sync.RWMutex{},
 	}

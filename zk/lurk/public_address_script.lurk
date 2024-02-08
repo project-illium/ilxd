@@ -11,7 +11,7 @@
 ;;
 ;; script-hash = hash(script-commitment, locking-params...)
 ;;
-;; Where the locking-params would be public key that is unique to the user.
+;; Where the locking-params would be a public key that is unique to the user.
 ;; However, the presence of a pseudo-random public key in the preimage makes the
 ;; script-hash unpredictable and we would not be able to identify public
 ;; outputs. This is normally a desirable feature for private outputs, but not
