@@ -664,7 +664,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 			log.Warn("Restarting sync manager due to large number of orphans")
 			s.generator.Close()
 			s.syncManager.Close()
-			s.syncManager.Start()
+			go s.syncManager.Start()
 		}
 		s.orphanLock.Unlock()
 		return err
