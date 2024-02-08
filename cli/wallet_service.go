@@ -299,7 +299,7 @@ func (x *GetPrivateKey) Execute(args []string) error {
 
 type ImportAddress struct {
 	Address          string `short:"a" long:"addr" description:"The address to import"`
-	LockingScript    string `short:"u" long:"lockingscript" description:"The locking script for the address. Serialized as hex string"`
+	LockingScript    string `short:"l" long:"lockingscript" description:"The locking script for the address. Serialized as hex string"`
 	ViewPrivateKey   string `short:"k" long:"viewkey" description:"The view private key for the address. Serialized as hex string."`
 	Rescan           bool   `short:"r" long:"rescan" description:"Whether or not to rescan the blockchain to try to detect transactions for this address."`
 	RescanFromHeight uint32 `short:"t" long:"rescanheight" description:"The height of the chain to rescan from. Selecting a height close to the address birthday saves resources."`

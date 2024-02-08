@@ -14,6 +14,7 @@ import (
 	badger "github.com/ipfs/go-ds-badger"
 	golog "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	inet "github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/blockchain/indexers"
@@ -475,6 +476,40 @@ func BuildServer(config *repo.Config) (*Server, error) {
 			generator.Start()
 		}
 	}
+
+	// If we lose all of our peers and then they come back
+	// we can assume this was due to an internet connection
+	// outage. Let's restart the sync manager.
+	onlineMtx := stdsync.RWMutex{}
+	online := true
+	connected := func(_ inet.Network, conn inet.Conn) {
+		onlineMtx.RLock()
+		o := online
+		onlineMtx.RUnlock()
+		if !o && s.syncManager.IsCurrent() {
+			log.Warn("Restarting sync manager due to lost internet connection")
+			s.generator.Close()
+			s.syncManager.Close()
+			go s.syncManager.Start()
+			onlineMtx.Lock()
+			online = true
+			onlineMtx.Unlock()
+		}
+	}
+	disconnected := func(net inet.Network, conn inet.Conn) {
+		if len(net.Peers()) == 0 {
+			onlineMtx.Lock()
+			online = false
+			onlineMtx.Unlock()
+		}
+	}
+
+	notifier := &inet.NotifyBundle{
+		ConnectedF:    connected,
+		DisconnectedF: disconnected,
+	}
+
+	s.network.Host().Network().Notify(notifier)
 
 	return &s, nil
 }
