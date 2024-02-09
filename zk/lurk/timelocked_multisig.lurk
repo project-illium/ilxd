@@ -29,7 +29,7 @@
         !(defun validate-sigs (selector sigs keys valid-sigs) (
                 (if (car selector)
                     (if (= (car selector) 1)
-                        (if (checksig (car sigs) (cons (car keys) (cons (car (cdr keys)) nil)) sighash)
+                        (if (checksig (car sigs) !(list (car keys) (car (cdr keys))) sighash)
                             (validate-sigs (cdr selector) (cdr sigs) (cdr (cdr keys)) (+ valid-sigs 1))
                             nil
                         )

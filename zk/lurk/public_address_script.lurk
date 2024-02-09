@@ -61,7 +61,7 @@
     !(defun validate-sigs (selector sigs keys valid-sigs) (
             (if (car selector)
                 (if (= (car selector) 1)
-                    (if (checksig (car sigs) (cons (car keys) (cons (car (cdr keys)) nil)) sighash)
+                    (if (checksig (car sigs) !(list (car keys) (car (cdr keys))) sighash)
                         (validate-sigs (cdr selector) (cdr sigs) (cdr (cdr keys)) (+ valid-sigs 1))
                         nil
                     )
@@ -78,7 +78,7 @@
     !(defun validate-outputs (outputs idx) (
           (if outputs
               (if (= input-script-hash (car (car outputs)))
-                  (let ((priv-out (cons (car (car outputs)) (cons (car (cdr (car outputs))) (cons (car (cdr (cdr (car outputs)))) (cons (car (cdr (cdr (cdr (car outputs))))) (cons (car (car (cdr (cdr (cdr (cdr (car outputs))))))) nil)))))))
+                  (let ((priv-out !(list (car (car outputs)) (car (cdr (car outputs))) (car (cdr (cdr (car outputs)))) (car (cdr (cdr (cdr (car outputs))))) (car (car (cdr (cdr (cdr (cdr (car outputs))))))))))
                       (if (eq priv-out !(param pub-out idx ciphertext))
                          (validate-outputs (cdr outputs) (+ idx 1)) ;; Looks good. Continue to next output.
                          nil ;; The ciphertext does not equal the private output. Return nil.
