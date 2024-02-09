@@ -408,6 +408,26 @@ func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey crypto.
 	return dbtx.Commit(context.Background())
 }
 
+// RegistrationExists returns whether the viewkey is currently registered in the index
+func (idx *WalletServerIndex) RegistrationExists(ds repo.Datastore, viewKey crypto.PrivKey) (bool, error) {
+	if _, ok := viewKey.(*icrypto.Curve25519PrivateKey); !ok {
+		return false, errors.New("viewKey is not curve25519 private key")
+	}
+
+	ser, err := crypto.MarshalPrivateKey(viewKey)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = dsFetchIndexValue(ds, idx, repo.WalletServerViewKeyPrefix+hex.EncodeToString(ser))
+	if errors.Is(err, datastore.ErrNotFound) {
+		return false, nil
+	} else if err == nil {
+		return true, nil
+	}
+	return false, err
+}
+
 // RescanViewkey loads historical blocks from disk from the provided checkpoint (or genesis if checkpoint is nil)
 // and scans them looking for transactions for the provided viewKey. If transactions are found the internal state
 // is updated.

@@ -34,11 +34,17 @@ func (s *GrpcServer) RegisterViewKey(ctx context.Context, req *pb.RegisterViewKe
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	exists, err := s.wsIndex.RegistrationExists(s.ds, viewKey)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	// Registering again if the registration already exists rolls forward the last seen timestamp
 	if err := s.wsIndex.RegisterViewKey(s.ds, viewKey, req.SerializedLockingScript); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	if req.Birthday > 0 {
+	if req.Birthday > 0 && !exists {
 		checkpoint, height, err := s.chain.GetAccumulatorCheckpointByTimestamp(time.Unix(req.Birthday, 0))
 		if err != nil && errors.Is(err, blockchain.ErrNoCheckpoint) {
 			return nil, status.Error(codes.Internal, err.Error())
