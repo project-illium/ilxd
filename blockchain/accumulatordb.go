@@ -140,6 +140,11 @@ func (adb *AccumulatorDB) Commit(accumulator *Accumulator, chainHeight uint32, m
 	return nil
 }
 
+// LastFlushHeight returns the height of the last flush
+func (adb *AccumulatorDB) LastFlushHeight() (uint32, error) {
+	return dsFetchAccumulatorLastFlushHeight(adb.ds)
+}
+
 // Flush will trigger a manual flush of the accumulator DB to disk.
 //
 // This is safe for concurrent access
