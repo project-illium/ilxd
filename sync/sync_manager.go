@@ -830,7 +830,7 @@ func (sm *SyncManager) downloadBlockTxs(p peer.ID, startHeight, endHeight uint32
 }
 
 func (sm *SyncManager) waitForPeers() {
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 100; i++ {
 		n := len(sm.syncPeers())
 		if n >= bestHeightQuerySize {
 			return
