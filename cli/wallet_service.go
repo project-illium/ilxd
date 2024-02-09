@@ -560,7 +560,7 @@ func (x *CreateMultiSignature) Execute(args []string) error {
 type ProveMultisig struct {
 	Tx         string   `short:"t" long:"tx" description:"The transaction to prove. Serialized as hex string."`
 	Serialize  bool     `short:"s" long:"serialize" description:"Serialize the output as a hex string. If false it will be JSON."`
-	Signatures []string `short:"s" long:"sig" description:"A signature covering the tranaction's sighash. Use this option more than once to add more signatures.'"`
+	Signatures []string `short:"i" long:"sig" description:"A signature covering the tranaction's sighash. Use this option more than once to add more signatures.'"`
 	Mock       bool     `short:"m" long:"mock" description:"Create a mock proof instead of a real zk-snark. The inputs will still be validated."`
 	opts       *options
 }
@@ -960,6 +960,29 @@ func (x *CreateRawStakeTransaction) Execute(args []string) error {
 		fmt.Println(string(out))
 	}
 
+	return nil
+}
+
+type DecodeRawTransaction struct {
+	Tx   string `short:"t" long:"rawtx" description:"The transaction to decode. Serialized as a hex string"`
+	opts *options
+}
+
+func (x *DecodeRawTransaction) Execute(args []string) error {
+	txBytes, err := hex.DecodeString(x.Tx)
+	if err != nil {
+		return err
+	}
+	var rawTx pb.RawTransaction
+	if err := proto.Unmarshal(txBytes, &rawTx); err != nil {
+		return err
+	}
+
+	out, err := json.MarshalIndent(rawTx, "", "    ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(out))
 	return nil
 }
 
