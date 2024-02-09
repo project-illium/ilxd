@@ -66,15 +66,6 @@ const (
 
 var once sync.Once
 
-// Parameters is an interface for script private or public
-// parameters that converts a struct to a lurk list usable
-// by a script.
-type Parameters interface {
-	// ToExpr marshals the Parameters to a string
-	// expression used by lurk.
-	ToExpr() (string, error)
-}
-
 // Expr is a Parameters type that wraps a string expression
 type Expr string
 
@@ -233,7 +224,6 @@ func evaluate(lurkProgram, privateParams, publicParams string) (Tag, []byte, int
 	defer C.free(unsafe.Pointer(cprivateParams))
 	defer C.free(unsafe.Pointer(cpublicParams))
 
-	// Fixme: set to actual proof size
 	var (
 		iterations C.size_t
 		outputTag  [32]byte

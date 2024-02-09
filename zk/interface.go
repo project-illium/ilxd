@@ -11,6 +11,15 @@ import (
 	"sync"
 )
 
+// Parameters is an interface for script private or public
+// parameters that converts a struct to a lurk list usable
+// by a script.
+type Parameters interface {
+	// ToExpr marshals the Parameters to a string
+	// expression used by lurk.
+	ToExpr() (string, error)
+}
+
 // Prover is an interface to the zk-snark prove function.
 type Prover interface {
 	// Prove creates a proof that the private and public params
