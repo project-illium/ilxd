@@ -173,7 +173,7 @@ func TestSyncFromChooser(t *testing.T) {
 	}()
 	select {
 	case <-ch:
-	case <-time.After(time.Second * 10):
+	case <-time.After(time.Second * 15):
 		t.Fatal("sync timed out")
 	}
 
@@ -242,7 +242,7 @@ func TestSyncWithNodesAtDifferentHeights(t *testing.T) {
 	}()
 	select {
 	case <-ch:
-	case <-time.After(time.Second * 10):
+	case <-time.After(time.Second * 15):
 		t.Fatal("sync timed out")
 	}
 

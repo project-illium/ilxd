@@ -6,7 +6,6 @@ package types
 
 import (
 	"encoding/hex"
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -118,8 +117,6 @@ func TestSpendNote_PublicSerialization(t *testing.T) {
 
 	ser, err := note.ToPublicCiphertext()
 	assert.NoError(t, err)
-
-	fmt.Println(hex.EncodeToString(ser))
 
 	note2 := new(SpendNote)
 	err = note2.Deserialize(ser)
