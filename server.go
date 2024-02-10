@@ -1020,7 +1020,7 @@ func (s *Server) reIndexChain() error {
 	if err := s.blockchain.ReindexChainState(); err != nil {
 		return err
 	}
-	s.syncManager.Start()
+	go s.syncManager.Start()
 	return nil
 }
 

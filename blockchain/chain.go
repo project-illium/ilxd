@@ -229,6 +229,10 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	b.stateLock.Lock()
 	defer b.stateLock.Unlock()
 
+	return b.connectBlock(blk, flags)
+}
+
+func (b *Blockchain) connectBlock(blk *blocks.Block, flags BehaviorFlags) (err error) {
 	if !flags.HasFlag(BFGenesisValidation) {
 		if err := b.checkBlockContext(blk.Header); err != nil {
 			return err
@@ -429,6 +433,12 @@ func (b *Blockchain) ReindexChainState() error {
 		return err
 	}
 
+	b.validatorSet = NewValidatorSet(b.params, b.ds)
+	b.nullifierSet = NewNullifierSet(b.ds, b.nullifierSet.maxEntries)
+	b.accumulatorDB = NewAccumulatorDB(b.ds)
+	b.txoRootSet = NewTxoRootSet(b.ds, b.txoRootSet.maxEntries)
+	b.index = NewBlockIndex(b.ds)
+
 	if err := dsInitCurrentSupply(b.ds); err != nil {
 		return err
 	}
@@ -454,13 +464,12 @@ func (b *Blockchain) ReindexChainState() error {
 		if i == 0 {
 			flags = BFNoDupBlockCheck | BFFastAdd | BFGenesisValidation
 		}
-
-		if err := b.ConnectBlock(blk, flags); err != nil {
+		if err := b.connectBlock(blk, flags); err != nil {
 			return err
 		}
 		i++
 	}
-
+	log.Info("Finished reindex")
 	return nil
 }
 

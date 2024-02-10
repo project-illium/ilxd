@@ -361,7 +361,7 @@ func dsDeleteValidatorSet(dbtx datastore.Txn) error {
 			return err
 		}
 	}
-	return dbtx.Commit(context.Background())
+	return nil
 }
 
 func dsDeleteValidator(dbtx datastore.Txn, id peer.ID) error {
