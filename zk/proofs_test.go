@@ -27,6 +27,24 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func BenchmarkOneInputTwoOutput(b *testing.B) {
+	opts := defaultOpts()
+	opts.inAmounts = map[int]types.Amount{0: 2100000}
+	opts.outAmounts = map[int]types.Amount{0: 1000000}
+	priv, pub, err := generateTxParams(1, 2, opts)
+	assert.NoError(b, err)
+
+	_, _, iterations, err := zk.Eval(zk.StandardValidationProgram(), priv, pub)
+	assert.NoError(b, err)
+
+	start := time.Now()
+	_, err = zk.Prove(zk.StandardValidationProgram(), priv, pub)
+	end := time.Since(start)
+	assert.NoError(b, err)
+	fmt.Printf("Iterations: %d\n", iterations)
+	fmt.Printf("Iterations per second: %f\n", (float64(iterations) / float64(end.Milliseconds()) * 1000))
+}
+
 func TestProve(t *testing.T) {
 	r, err := zk.RandomFieldElement()
 	assert.NoError(t, err)
