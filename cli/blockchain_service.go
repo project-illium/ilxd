@@ -407,6 +407,7 @@ func (x *GetValidator) Execute(args []string) error {
 			ts := time.Unix(s.TimelockedUntil, 0)
 			a.TimelockedUntil = &ts
 		}
+		stk = append(stk, a)
 	}
 
 	v := struct {
