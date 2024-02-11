@@ -1245,6 +1245,8 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 		return nil, errors.New("tx is nil")
 	}
 
+	zk.LoadZKPublicParameters()
+
 	if rawTx.Tx.GetStandardTransaction() != nil {
 		standardTx := rawTx.Tx.GetStandardTransaction()
 		sigHash, err := standardTx.SigHash()
