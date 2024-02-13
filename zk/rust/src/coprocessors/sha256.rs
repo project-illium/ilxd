@@ -45,6 +45,7 @@ fn synthesize_sha256<F: LurkField, CS: ConstraintSystem<F>>(
 
     // Fine to lose the last <1 bit of precision.
     let digest_scalar = pack_bits(cs.namespace(|| "digest_scalar"), &digest_bits)?;
+
     AllocatedPtr::alloc_tag(
         &mut cs.namespace(|| "output_expr"),
         F::from_u64(4),
@@ -63,15 +64,12 @@ fn compute_sha256<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> F {
 
     input.reverse();
 
-    let hex_string: String = input.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
-    println!("r {}", hex_string);
-
     hasher.update(input);
     let mut bytes = hasher.finalize();
     bytes.reverse();
     let l = bytes.len();
     // Discard the two most significant bits.
-    bytes[l - 1] &= 0b00111111;
+    bytes[l - 1] &= 0b00011111;
 
     F::from_bytes(&bytes).unwrap()
 }
