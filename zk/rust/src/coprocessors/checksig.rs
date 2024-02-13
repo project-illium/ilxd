@@ -27,10 +27,9 @@ use lurk::{
     lem::store::Store,
 };
 use lazy_static::lazy_static;
-use pasta_curves::group::GroupEncoding;
 use super::utils::{pick, pick_const};
 
-type G2 = pasta_curves::vesta::Point;
+type G1 = halo2curves::grumpkin::G1;
 
 lazy_static! {
     static ref IO_TRUE_HASH: Vec<u8> = hex::decode("5698a149855d3a8b3ac99e32b65ce146f00163130070c245a2262b46c5dbc804").unwrap();
@@ -99,7 +98,7 @@ fn compute_checksig<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
     let m_bytes = z_ptrs[5].value().to_bytes();
 
     let pk_xy = from_xy(pk_x, pk_y);
-    let pk = PublicKey::<G2>::from_point(pk_xy);
+    let pk = PublicKey::<G1>::from_point(pk_xy);
 
     let sig_r = from_xy(r_x, r_y);
 
@@ -109,7 +108,7 @@ fn compute_checksig<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
             u64_m_array[i] |= (m_bytes[i * 8 + j] as u64) << (j * 8);
         }
     }
-    let m = <G2 as Group>::Scalar::from_raw(u64_m_array);
+    let m = <G1 as Group>::Scalar::from_raw(u64_m_array);
 
     let mut u64_s_array: [u64; 4] = [0; 4];
     for i in 0..4 {
@@ -117,7 +116,7 @@ fn compute_checksig<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
             u64_s_array[i] |= (s_bytes[i * 8 + j] as u64) << (j * 8);
         }
     }
-    let sig_s = <G2 as Group>::Scalar::from_raw(u64_s_array);
+    let sig_s = <G1 as Group>::Scalar::from_raw(u64_s_array);
 
     let sig = Signature{r: sig_r, s: sig_s};
     let result = pk.verify(m, &sig);
@@ -187,7 +186,7 @@ impl<G> SecretKey<G>
     }
 }
 
-pub fn from_xy(mut x: Vec<u8>, y: Vec<u8>) -> G2 {
+pub fn from_xy(mut x: Vec<u8>, y: Vec<u8>) -> G1 {
     // Ensure that x has 32 bytes, you might want to handle this differently
     if x.len() != 32 || y.len() != 32 {
         panic!("Input vectors must be exactly 32 bytes long");
@@ -200,7 +199,7 @@ pub fn from_xy(mut x: Vec<u8>, y: Vec<u8>) -> G2 {
     let slice = x.as_slice();
     let r: &[u8; 32] = slice.try_into().map_err(|_| "Conversion failed").unwrap();
 
-    G2::from_bytes(r).unwrap()
+    return bincode::deserialize(r).unwrap();
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -404,10 +403,10 @@ pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
         cs.namespace(|| "g"),
         Some((
             F::from_str_vartime(
-                "28948022309329048855892746252171976963363056481941647379679742748393362948096",
+                "8005362797447496392714541620568246214488611886064243306355082849781966593384",
             )
                 .unwrap(),
-            F::from_str_vartime("2").unwrap(),
+            F::from_str_vartime("1").unwrap(),
             false,
         )),
     )?;
@@ -416,11 +415,11 @@ pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
     let (gx, gy, _) = g.get_coordinates();
     let ex = AllocatedNum::alloc(
         &mut cs.namespace(|| "gx coordinate"),
-        || { Ok(F::from_str_vartime("28948022309329048855892746252171976963363056481941647379679742748393362948096").unwrap())}
+        || { Ok(F::from_str_vartime("8005362797447496392714541620568246214488611886064243306355082849781966593384").unwrap())}
     )?;
     let ey = AllocatedNum::alloc(
         &mut cs.namespace(|| "gy coordinate"),
-        || { Ok(F::from_str_vartime("2").unwrap())}
+        || { Ok(F::from_str_vartime("1").unwrap())}
     )?;
 
     let gx_equal_bit = alloc_equal(&mut cs.namespace(|| "gx is on curve"), gx, &ex);
@@ -458,13 +457,13 @@ pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
 mod tests {
     use pasta_curves::{
         arithmetic::CurveAffine,
-        pallas::Scalar as Fr,
         group::{Group, Curve},
     };
+    use halo2curves::grumpkin::Fq as Fr;
     use bellpepper_core::test_cs::TestConstraintSystem;
     use rand_core::OsRng;
     use super::*;
-    type G2 = pasta_curves::vesta::Point;
+    type G1 = halo2curves::grumpkin::G1;
 
     #[test]
     fn test_verify() {
@@ -472,26 +471,30 @@ mod tests {
         assert!(cs.is_satisfied());
         assert_eq!(cs.num_constraints(), 0);
 
-        let sk = SecretKey::<G2>::random(&mut OsRng);
+        let sk = SecretKey::<G1>::random(&mut OsRng);
         let hex_string: String = sk.0.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("sk {}", hex_string);
-        //let sk2 = SecretKey::<G2>::random(&mut OsRng);
+        //let sk2 = SecretKey::<G1>::random(&mut OsRng);
         //let pk = PublicKey::from_secret_key(&sk2);
         let pk = PublicKey::from_secret_key(&sk);
 
-        let hex_string: String = pk.0.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        let pk_bytes = bincode::serialize(&pk.0).unwrap();
+
+        let hex_string: String = pk_bytes.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("pk {}", hex_string);
 
         // generate a random message to sign
-        let c = <G2 as Group>::Scalar::random(&mut OsRng);
+        let c = <G1 as Group>::Scalar::random(&mut OsRng);
 
         // sign and verify
         let signature = sk.sign(c, &mut OsRng);
-        let hex_string: String = signature.r.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        let sig_r_bytes = bincode::serialize(&signature.r).unwrap();
+        let hex_string: String = sig_r_bytes.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("*sig_r {}", hex_string);
         let hex_string: String = signature.s.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("*sig_s {}", hex_string);
-        let hex_string: String = pk.0.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        let pk_bytes2 = bincode::serialize(&pk.0).unwrap();
+        let hex_string: String = pk_bytes2.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("*pk {}", hex_string);
         let hex_string: String = c.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("*m {}", hex_string);
@@ -521,7 +524,8 @@ mod tests {
             println!("ry {}", hex_string);
             AllocatedPoint::alloc(cs.namespace(|| "r"), Some((*rxy.x(), *rxy.y(), false))).unwrap()
         };
-        let hex_string: String = signature.r.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        let sig_r_bytes2 = bincode::serialize(&signature.r).unwrap();
+        let hex_string: String = sig_r_bytes2.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("r {}", hex_string);
         let hex_string: String = signature.s.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("s {}", hex_string);

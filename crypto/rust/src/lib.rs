@@ -87,7 +87,6 @@ pub extern "C" fn priv_to_pub(bytes: *const u8, out: *mut u8) {
     let sk = SecretKey::<G1>::from_scalar(b);
     let pk = PublicKey::from_secret_key(&sk);
 
-    //let pk_bytes = pk.0.to_bytes().as_ref().as_mut_ptr();
     let pk_bytes = bincode::serialize(&pk.0).unwrap();
 
     // Copy the public key bytes to the provided output buffer
@@ -217,7 +216,6 @@ pub extern "C" fn verify(pub_bytes: *const u8, digest_bytes: *const u8, sig_r: *
             return false;
         }
     };
-    //let pub_point = G1::from_raw_bytes(&pub_input_bytes).unwrap();
     let pk = PublicKey::from_point(pub_point);
 
     let mut u64_m_array: [u64; 4] = [0; 4];
@@ -233,7 +231,6 @@ pub extern "C" fn verify(pub_bytes: *const u8, digest_bytes: *const u8, sig_r: *
             return false;
         }
     };
-    //let r = G1::from_bytes(&sig_r_bytes).unwrap();
 
     sig_s_bytes.reverse();
     let mut u64_s_array: [u64; 4] = [0; 4];
