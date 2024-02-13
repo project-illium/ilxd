@@ -30,8 +30,12 @@ fn synthesize_sha256<F: LurkField, CS: ConstraintSystem<F>>(
         .hash()
         .to_bits_le_strict(&mut cs.namespace(|| "preimage_hash_bits"))?;
 
-    bits.extend(hash_bits);
-    bits.push(zero.clone()); // need 256 bits (or some multiple of 8).
+    let pad_to_next_len_multiple_of_8 = |bits: &mut Vec<_>| {
+        bits.resize((bits.len() + 7) / 8 * 8, zero.clone());
+    };
+
+    bits.extend(hash_bits.clone());
+    pad_to_next_len_multiple_of_8(&mut bits); // need 256 bits (or some multiple of 8).
 
     bits.reverse();
 

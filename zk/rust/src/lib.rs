@@ -10,6 +10,7 @@ use std::{
     ptr,
     slice,
 };
+use std::hash::Hash;
 use once_cell::sync::OnceCell;
 use lurk::{
     eval::lang::{Lang, Coproc},
@@ -31,9 +32,9 @@ use lurk::{
 };
 use rand::{rngs::OsRng};
 use pasta_curves::{
-    pallas::Scalar as Fr,
     group::ff::Field
 };
+use halo2curves::bn256::Fr;
 use flate2::{write::ZlibEncoder, read::ZlibDecoder, Compression};
 
 use coprocessors::{
@@ -57,8 +58,8 @@ lazy_static! {
     static ref IO_ONE: Fr = Fr::one();
     static ref IO_ENV_HASH: Fr = Fr::from_u64(12);
     static ref IO_TWO: Fr = Fr::from_u64(2);
-    static ref IO_TRUE_HASH: Fr = Fr::from_bytes(&hex::decode("5698a149855d3a8b3ac99e32b65ce146f00163130070c245a2262b46c5dbc804").unwrap()).unwrap();
-    static ref IO_CONT_HASH: Fr = Fr::from_bytes(&hex::decode("1c6b873ac13018a8332a6c340d61b4834698bb84fe5680523ce546705217f40e").unwrap()).unwrap();
+    static ref IO_TRUE_HASH: Fr = bincode::deserialize(&hex::decode("4c8ca192c0f6acba0d6816ce095040633a3ef6cb9bcea4f2b834514035f05c1f").unwrap()).unwrap();
+    static ref IO_CONT_HASH: Fr = bincode::deserialize(&hex::decode("5bf37bf71da9fe4353a86a682d2eda1cff8fb104072e4a320f3f5f0807b2a51c").unwrap()).unwrap();
     static ref IO_IN_CONT_TAG: Fr = Fr::from_u64(4096);
     static ref IO_OUT_CONT_TAG: Fr = Fr::from_u64(4110);
 }
@@ -342,7 +343,7 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     combined_proof.extend(commitment_bytes);
     combined_proof.extend(compressed_snark_encoded);
 
-    Ok((combined_proof, ret_tag, ret_val))
+    Ok((combined_proof, ret_tag.to_vec(), ret_val.to_vec()))
 }
 
 fn verify_proof(
@@ -370,8 +371,8 @@ fn verify_proof(
     z0.push(IO_CONT_HASH.clone());
 
     let mut zi: Vec<Fr> = Vec::with_capacity(6);
-    zi.push(Fr::from_bytes(&expected_tag).unwrap());
-    zi.push(Fr::from_bytes(&expected_output).unwrap());
+    zi.push(bincode::deserialize(&expected_tag).unwrap());
+    zi.push(bincode::deserialize(&expected_output).unwrap());
     zi.push(IO_ENV_HASH.clone());
     zi.push(IO_ZERO.clone());
     zi.push(IO_OUT_CONT_TAG.clone());
@@ -426,10 +427,29 @@ fn eval_simple(
     let z_ptr = store.hash_ptr(&output[0]);
     let mut tag = z_ptr.tag().to_field::<Fr>().to_bytes();
     let mut val = z_ptr.value().to_bytes();
+    let hex_string: String = tag.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+    println!("{:?}", hex_string);
+    let hex_string2: String = val.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+    println!("{:?}", hex_string2);
     tag.reverse();
     val.reverse();
+    let z_ptr1 = store.hash_ptr(&output[1]);
+    let mut tag1 = z_ptr1.tag().to_field::<Fr>().to_bytes();
+    let mut val1 = z_ptr1.value().to_bytes();
+    let hex_string3: String = tag1.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+    println!("{:?}", hex_string3);
+    let hex_string4: String = val1.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+    println!("{:?}", hex_string4);
 
-    Ok((tag, val, iterations))
+    let z_ptr2 = store.hash_ptr(&output[2]);
+    let mut tag2 = z_ptr2.tag().to_field::<Fr>().to_bytes();
+    let mut val2 = z_ptr2.value().to_bytes();
+    let hex_string5: String = tag2.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+    println!("{:?}", hex_string5);
+    let hex_string6: String = val2.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+    println!("{:?}", hex_string6);
+
+    Ok((tag.to_vec(), val.to_vec(), iterations))
 }
 
 #[cfg(test)]
@@ -456,8 +476,8 @@ mod tests {
             commitment,
             "(cons 7 8)".to_string(),
             proof.to_vec(),
-            IO_TWO.clone().to_bytes(),
-            IO_TRUE_HASH.clone().to_bytes(),
+            IO_TWO.clone().to_bytes().to_vec(),
+            IO_TRUE_HASH.clone().to_bytes().to_vec(),
         ).expect("verify_proof failed");
         println!("{:?}", res);
         assert!(res, "Verification failed");
