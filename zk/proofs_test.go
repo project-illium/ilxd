@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	lcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
@@ -106,6 +107,7 @@ func TestCoprocessors(t *testing.T) {
 	t.Run("sha256", func(t *testing.T) {
 		r, err := zk.RandomFieldElement()
 		assert.NoError(t, err)
+		fmt.Println(hex.EncodeToString(r[:]))
 
 		// Lurk variables must fit within the finite field.
 		// As such the hash output has the two most significant

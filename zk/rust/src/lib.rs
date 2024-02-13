@@ -122,16 +122,19 @@ pub extern "C" fn create_proof_ffi(
     let program_str = match c_str1.to_str() {
         Ok(str) => str,
         Err(_) => return -1, // Indicate error
+
     };
     let c_str2 = unsafe { CStr::from_ptr(private_params) };
     let priv_params_str = match c_str2.to_str() {
         Ok(str) => str,
         Err(_) => return -1, // Indicate error
+
     };
     let c_str3 = unsafe { CStr::from_ptr(public_params) };
     let pub_params_str = match c_str3.to_str() {
         Ok(str) => str,
         Err(_) => return -1, // Indicate error
+
     };
 
     match create_proof(
@@ -149,7 +152,7 @@ pub extern "C" fn create_proof_ffi(
             }
             0 // Success
         }
-        Err(_) => -1, // Error
+        Err(_) => -1, // Indicate error
     }
 }
 
@@ -436,8 +439,6 @@ fn eval_simple(
 mod tests {
     use crate::{IO_TWO, IO_TRUE_HASH, create_proof, verify_proof, get_public_params, eval_simple, coprocessors};
     use lurk::field::LurkField;
-    use serde::Serialize;
-    use crate::coprocessors::checksig;
 
     #[test]
     fn test_prove() {

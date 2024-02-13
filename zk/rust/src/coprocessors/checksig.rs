@@ -421,12 +421,12 @@ pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
         || { Ok(F::from_str_vartime("17631683881184975370165255887551781615748388533673675138860").unwrap())}
     )?;
 
-    let gx_equal_bit = alloc_equal(&mut cs.namespace(|| "gx is on curve"), gx, &ex);
-    let gy_equal_bit = alloc_equal(&mut cs.namespace(|| "gy is on curve"), gy, &ey);
+    let gx_equal_bit = alloc_equal(&mut cs.namespace(|| "gx is on curve"), gx, &ex)?;
+    let gy_equal_bit = alloc_equal(&mut cs.namespace(|| "gy is on curve"), gy, &ey)?;
     let g_bool: Boolean = Boolean::and(
         &mut cs.namespace(|| "g_and"),
-        &gx_equal_bit.unwrap(),
-        &gy_equal_bit.unwrap(),
+        &gx_equal_bit,
+        &gy_equal_bit,
     )?;
 
     let sg = g.scalar_mul(cs.namespace(|| "[s]G"), s_bits)?;
@@ -436,13 +436,13 @@ pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
     let (rcpk_x, rcpk_y, _) = rcpk.get_coordinates();
     let (sg_x, sg_y, _) = sg.get_coordinates();
 
-    let sgx_equal_bit = alloc_equal(&mut cs.namespace(|| "sg_x == rcpk_x"), sg_x, rcpk_x);
-    let sgy_equal_bit = alloc_equal(&mut cs.namespace(|| "sg_y == rcpk_y"), sg_y, rcpk_y);
+    let sgx_equal_bit = alloc_equal(&mut cs.namespace(|| "sg_x == rcpk_x"), sg_x, rcpk_x)?;
+    let sgy_equal_bit = alloc_equal(&mut cs.namespace(|| "sg_y == rcpk_y"), sg_y, rcpk_y)?;
 
     let sg_bool: Boolean = Boolean::and(
         &mut cs.namespace(|| "sg_and"),
-        &sgx_equal_bit.unwrap(),
-        &sgy_equal_bit.unwrap(),
+        &sgx_equal_bit,
+        &sgy_equal_bit,
     )?;
 
     Boolean::and(

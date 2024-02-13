@@ -61,7 +61,7 @@ const (
 
 	// LurkMaxFieldElement is the maximum value for a field element in lurk.
 	// In practice this means lurk script variables cannot exceed this value.
-	LurkMaxFieldElement = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd46"
+	LurkMaxFieldElement = "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000"
 )
 
 var once sync.Once

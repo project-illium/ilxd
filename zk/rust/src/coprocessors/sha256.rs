@@ -63,6 +63,9 @@ fn compute_sha256<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> F {
 
     input.reverse();
 
+    let hex_string: String = input.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+    println!("r {}", hex_string);
+
     hasher.update(input);
     let mut bytes = hasher.finalize();
     bytes.reverse();
