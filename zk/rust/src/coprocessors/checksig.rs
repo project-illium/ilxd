@@ -402,11 +402,10 @@ pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
     let g = AllocatedPoint::<F>::alloc(
         cs.namespace(|| "g"),
         Some((
-            F::from_str_vartime(
-                "8005362797447496392714541620568246214488611886064243306355082849781966593384",
-            )
-                .unwrap(),
             F::from_str_vartime("1").unwrap(),
+            F::from_str_vartime(
+                "17631683881184975370165255887551781615748388533673675138860",
+            ).unwrap(),
             false,
         )),
     )?;
@@ -415,11 +414,11 @@ pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
     let (gx, gy, _) = g.get_coordinates();
     let ex = AllocatedNum::alloc(
         &mut cs.namespace(|| "gx coordinate"),
-        || { Ok(F::from_str_vartime("8005362797447496392714541620568246214488611886064243306355082849781966593384").unwrap())}
+        || { Ok(F::from_str_vartime("1").unwrap())}
     )?;
     let ey = AllocatedNum::alloc(
         &mut cs.namespace(|| "gy coordinate"),
-        || { Ok(F::from_str_vartime("1").unwrap())}
+        || { Ok(F::from_str_vartime("17631683881184975370165255887551781615748388533673675138860").unwrap())}
     )?;
 
     let gx_equal_bit = alloc_equal(&mut cs.namespace(|| "gx is on curve"), gx, &ex);
@@ -459,7 +458,7 @@ mod tests {
         arithmetic::CurveAffine,
         group::{Group, Curve},
     };
-    use halo2curves::grumpkin::Fq as Fr;
+    use halo2curves::grumpkin::{Fq as Fr, G1Affine};
     use bellpepper_core::test_cs::TestConstraintSystem;
     use rand_core::OsRng;
     use super::*;

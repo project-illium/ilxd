@@ -427,35 +427,18 @@ fn eval_simple(
     let z_ptr = store.hash_ptr(&output[0]);
     let mut tag = z_ptr.tag().to_field::<Fr>().to_bytes();
     let mut val = z_ptr.value().to_bytes();
-    let hex_string: String = tag.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
-    println!("{:?}", hex_string);
-    let hex_string2: String = val.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
-    println!("{:?}", hex_string2);
     tag.reverse();
     val.reverse();
-    let z_ptr1 = store.hash_ptr(&output[1]);
-    let mut tag1 = z_ptr1.tag().to_field::<Fr>().to_bytes();
-    let mut val1 = z_ptr1.value().to_bytes();
-    let hex_string3: String = tag1.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
-    println!("{:?}", hex_string3);
-    let hex_string4: String = val1.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
-    println!("{:?}", hex_string4);
-
-    let z_ptr2 = store.hash_ptr(&output[2]);
-    let mut tag2 = z_ptr2.tag().to_field::<Fr>().to_bytes();
-    let mut val2 = z_ptr2.value().to_bytes();
-    let hex_string5: String = tag2.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
-    println!("{:?}", hex_string5);
-    let hex_string6: String = val2.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
-    println!("{:?}", hex_string6);
 
     Ok((tag.to_vec(), val.to_vec(), iterations))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{IO_TWO, IO_TRUE_HASH, create_proof, verify_proof, get_public_params, eval_simple};
+    use crate::{IO_TWO, IO_TRUE_HASH, create_proof, verify_proof, get_public_params, eval_simple, coprocessors};
     use lurk::field::LurkField;
+    use serde::Serialize;
+    use crate::coprocessors::checksig;
 
     #[test]
     fn test_prove() {
@@ -485,17 +468,17 @@ mod tests {
 
     #[test]
     fn test_eval() {
-    get_public_params();
-            let program = r#"(lambda (priv pub) (letrec ((or (lambda (a b)
-                                                                 (eval (cons 'coproc_or (cons a (cons b nil)))))))
-                                                         (= (or 19 15) 31)))"#;
-            let (value, tag, iterations) = eval_simple(
-                program.to_string(),
-                "(cons 7 8)".to_string(),
-                "(cons 7 8)".to_string()
-            ).expect("eval failed");
-            println!("{:?}", tag);
-            println!("{:?}", value);
-            println!("{:?}", iterations);
+        get_public_params();
+        let program = r#"(lambda (priv pub) (letrec ((or (lambda (a b)
+                                                             (eval (cons 'coproc_or (cons a (cons b nil)))))))
+                                                     (= (or 19 15) 31)))"#;
+        let (value, tag, iterations) = eval_simple(
+            program.to_string(),
+            "(cons 7 8)".to_string(),
+            "(cons 7 8)".to_string()
+        ).expect("eval failed");
+        println!("{:?}", tag);
+        println!("{:?}", value);
+        println!("{:?}", iterations);
     }
 }
