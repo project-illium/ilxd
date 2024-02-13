@@ -100,7 +100,7 @@ fn compute_blake2s<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> F {
     bytes.reverse();
     let l = bytes.len();
     // Discard the two most significant bits.
-    bytes[l - 1] &= 0b00111111;
+    bytes[l - 1] &= 0b00011111;
 
     F::from_bytes(&bytes).unwrap()
 }
