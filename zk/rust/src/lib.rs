@@ -10,7 +10,6 @@ use std::{
     ptr,
     slice,
 };
-use std::hash::Hash;
 use once_cell::sync::OnceCell;
 use lurk::{
     eval::lang::{Lang, Coproc},
