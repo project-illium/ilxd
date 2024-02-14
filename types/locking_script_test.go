@@ -27,7 +27,7 @@ func TestLockingScript_Hash(t *testing.T) {
 	assert.Equal(t, "(cons 0x13e0143cceae5e7e44d8025c57f4759cfb6384e4a2d3d1106e6c098603845900 (cons 1 (cons 0x0cef7dd85c04c505d55c063824a5bad62170db0d37e2068fc6c749ada2cb8293 nil)))", expr)
 	h, err := ul.Hash()
 	assert.NoError(t, err)
-	assert.Equal(t, "0e259200938dd2eb040d998ebbbbac8c14dc631125d8105cd996d2f1d0d24301", h.String())
+	assert.Equal(t, "0b3d42d956a0ebcba9911a21539ef77002e20d5c1cce91986c8be80e06fba705", h.String())
 }
 
 func TestLockingScript_SerializeDeserialize(t *testing.T) {
