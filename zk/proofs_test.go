@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	lcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
@@ -25,6 +26,14 @@ import (
 func TestMain(m *testing.M) {
 	zk.LoadZKPublicParameters()
 	os.Exit(m.Run())
+}
+
+func TestBasicTransferScript(t *testing.T) {
+	h, _ := hex.DecodeString("232235c6abf84c044249f20193b47c40265125c5695a61262afa2ac4ee1fec6d")
+	fmt.Printf("%08b\n", h[0])
+
+	h2, _ := hex.DecodeString("032235c6abf84c044249f20193b47c40265125c5695a61262afa2ac4ee1fec6d")
+	fmt.Printf("%08b\n", h2[0])
 }
 
 func BenchmarkOneInputTwoOutput(b *testing.B) {
@@ -1266,7 +1275,11 @@ func TestTransactionProofValidation(t *testing.T) {
 		{
 			Name: "public address valid",
 			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				sk1, pk1, err := crypto.GenerateNovaKey(rand.Reader)
+				keyBytes, err := hex.DecodeString("080512400269e008d77527f85f14b65697360ed6a24bae8d1d11abf1479899aa25677f4c5157bdf9edc3529461e8b1c44d4991f7cf435a543364c26abc76e869cafc7596")
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				sk1, err := lcrypto.UnmarshalPrivateKey(keyBytes)
 				if err != nil {
 					return nil, nil, nil, err
 				}
@@ -1274,7 +1287,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pk1X, pk1Y := pk1.(*crypto.NovaPublicKey).ToXY()
+				pk1X, pk1Y := sk1.GetPublic().(*crypto.NovaPublicKey).ToXY()
 				pk2X, pk2Y := pk2.(*crypto.NovaPublicKey).ToXY()
 
 				lockingParams := fmt.Sprintf("(cons 1 (cons 0x%x (cons 0x%x nil)))", pk1X, pk1Y)
