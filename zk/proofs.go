@@ -138,7 +138,7 @@ func createProof(lurkProgram, privateParams, publicParams string) ([]byte, Tag, 
 
 	// Fixme: set to actual proof size
 	var (
-		proof     [12000]byte
+		proof     [13000]byte
 		proofLen  C.size_t
 		outputTag [32]byte
 		outputVal [32]byte

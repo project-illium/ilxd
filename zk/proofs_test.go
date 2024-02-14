@@ -7,7 +7,9 @@ package zk_test
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
+	lcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/params/hash"
@@ -32,14 +34,14 @@ func BenchmarkOneInputTwoOutput(b *testing.B) {
 	priv, pub, err := generateTxParams(1, 2, opts)
 	assert.NoError(b, err)
 
-	tag, _, iterations, err := zk.Eval(zk.StandardValidationProgram(), priv, pub)
+	_, _, iterations, err := zk.Eval(zk.StandardValidationProgram(), priv, pub)
 	assert.NoError(b, err)
-	fmt.Println(tag)
 
 	start := time.Now()
-	_, err = zk.Prove(zk.StandardValidationProgram(), priv, pub)
+	proof, err := zk.Prove(zk.StandardValidationProgram(), priv, pub)
 	end := time.Since(start)
 	assert.NoError(b, err)
+	fmt.Printf("Proof Len: %d\n", len(proof))
 	fmt.Printf("Iterations: %d\n", iterations)
 	fmt.Printf("Iterations per second: %f\n", (float64(iterations) / float64(end.Milliseconds()) * 1000))
 }
@@ -188,7 +190,7 @@ func TestTransactionProofValidation(t *testing.T) {
 		ExpectedTag    zk.Tag
 		ExpectedOutput []byte
 	}{
-		/*{
+		{
 			Name: "standard/mint 1 input, 1 output valid",
 			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				priv, pub, err := generateTxParams(1, 1, defaultOpts())
@@ -199,7 +201,7 @@ func TestTransactionProofValidation(t *testing.T) {
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
-		},*/
+		},
 		{
 			Name: "standard/mint 1 input, 2 output valid",
 			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
@@ -215,7 +217,7 @@ func TestTransactionProofValidation(t *testing.T) {
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
 		},
-		/*{
+		{
 			Name: "standard/mint 1 input, 3 output valid",
 			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
 				opts := defaultOpts()
@@ -1346,7 +1348,7 @@ func TestTransactionProofValidation(t *testing.T) {
 			},
 			ExpectedTag:    zk.TagSym,
 			ExpectedOutput: zk.OutputTrue,
-		},*/
+		},
 	}
 
 	for _, test := range tests {

@@ -63,7 +63,6 @@ fn synthesize_checksig<F: LurkField, CS: ConstraintSystem<F>>(
     let c = synthesize_bits(&mut cs.namespace(|| "c bits"), c_bits)?;
 
     let valid = verify_signature(cs, &pk, &r, &s, &c)?;
-    println!("{:?}", valid);
 
     let t = AllocatedNum::alloc(cs.namespace(|| "t"), || {
         Ok(F::from_bytes(&IO_TRUE_HASH).unwrap())
