@@ -57,7 +57,7 @@ import (
 const (
 	// EstimatedProofSize is the estimated size (in bytes) of the transaction
 	// proofs. These vary slightly for each transaction type.
-	EstimatedProofSize = 11500
+	EstimatedProofSize = 12516
 
 	// LurkMaxFieldElement is the maximum value for a field element in lurk.
 	// In practice this means lurk script variables cannot exceed this value.
