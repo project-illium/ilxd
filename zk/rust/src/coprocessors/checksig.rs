@@ -63,6 +63,7 @@ fn synthesize_checksig<F: LurkField, CS: ConstraintSystem<F>>(
     let c = synthesize_bits(&mut cs.namespace(|| "c bits"), c_bits)?;
 
     let valid = verify_signature(cs, &pk, &r, &s, &c)?;
+    println!("{:?}", valid);
 
     let t = AllocatedNum::alloc(cs.namespace(|| "t"), || {
         Ok(F::from_bytes(&IO_TRUE_HASH).unwrap())
@@ -100,7 +101,7 @@ fn compute_checksig<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
     let pk_xy = from_xy(pk_x, pk_y);
     let pk = PublicKey::<G1>::from_point(pk_xy);
 
-    let sig_r = from_xy(r_x, r_y);
+    let sig_r = from_xy(r_x.clone(), r_y.clone());
 
     let mut u64_m_array: [u64; 4] = [0; 4];
     for i in 0..4 {
@@ -192,7 +193,7 @@ pub fn from_xy(mut x: Vec<u8>, y: Vec<u8>) -> G1 {
         panic!("Input vectors must be exactly 32 bytes long");
     }
 
-    let sign = (y.first().unwrap() & 1) << 7;
+    let sign = (y.first().unwrap() & 1) << 6;
 
     x[31] |= sign;
 
@@ -458,7 +459,7 @@ mod tests {
         arithmetic::CurveAffine,
         group::{Group, Curve},
     };
-    use halo2curves::grumpkin::{Fq as Fr};
+    use halo2curves::bn256::Fr;
     use bellpepper_core::test_cs::TestConstraintSystem;
     use rand_core::OsRng;
     use super::*;
@@ -569,7 +570,8 @@ mod tests {
         println!("{:?}", valid);
 
         // Check the signature was signed by the correct sk using the pk
-        verify_signature(&mut cs, &pk, &r, &s, &c).unwrap();
+        let valid2 = verify_signature(&mut cs, &pk, &r, &s, &c).unwrap();
+        println!("{:?}", valid2);
 
         assert!(cs.is_satisfied());
     }

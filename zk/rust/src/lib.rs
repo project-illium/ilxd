@@ -254,7 +254,7 @@ pub extern "C" fn eval_ffi(
             }
             0 // Success
         }
-        Err(_) => -1, // Error
+        Err(_) => -1 // Error
     }
 }
 

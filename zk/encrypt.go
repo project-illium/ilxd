@@ -35,7 +35,7 @@ loop:
 				return nil, err
 			}
 			encChunk := xorBytes(chunk[:], chunkKey)
-			if encChunk[0]&0b11000000 > 0 {
+			if encChunk[0]&0b11100000 > 0 {
 				continue loop
 			}
 			copy(ciphertext[i+1][:], encChunk)

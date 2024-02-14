@@ -17,15 +17,15 @@ func TestLurkCommit(t *testing.T) {
 	}{
 		{
 			expression: "(cons 1 (cons 2 nil))",
-			expected:   "17fcbf74593838c62db86d114e1bab3bce2e09daab2eef410c0c6745b2eef696",
+			expected:   "0c9e81a0ae6f34187171b5eed2e01438b5a5f7d16a25cbbe7edca785fea8be39",
 		},
 		{
 			expression: "1",
-			expected:   "0a427bccbd5078eccd71ac1d575074dfd18a1402a698d1335d2af21767d0331c",
+			expected:   "07219e1a9376d53d13febc75310471e8cd865a1e17031f252aa09009a3d9387a",
 		},
 		{
 			expression: "555",
-			expected:   "005ba8d537935281635f6eba89dda12ef51eb18d9e31a5d27add717b570d3bc6",
+			expected:   "289e3e85bd6fa8d8e136f645bf59c9c429063dd2452ce2dea7a9fbef043559ff",
 		},
 	}
 

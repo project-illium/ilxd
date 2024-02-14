@@ -118,7 +118,7 @@ func (o *PublicOutput) ToExpr() (string, error) {
 		copy(chunk, o.CipherText[i:end])
 
 		// Lurk elements exist within a finite field and cannot
-		// exceed the maximum field element. Here we set the two
+		// exceed the maximum field element. Here we set the three
 		// most significant bits of each ciphertext chunk to zero
 		// to fit within the max size.
 		//
@@ -128,7 +128,7 @@ func (o *PublicOutput) ToExpr() (string, error) {
 		// validate the ciphertext field in any way you need to take
 		// this into account.
 		if len(chunk) == chunkSize {
-			chunk[0] &= 0x3f
+			chunk[0] &= 0x1f
 		}
 
 		ciphertext += fmt.Sprintf("(cons 0x%x ", chunk)
