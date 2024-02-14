@@ -7,7 +7,16 @@ package circparams
 import (
 	"fmt"
 	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/zk"
+	"math/big"
 )
+
+var fieldMax *big.Int
+
+func init() {
+	fieldMax = new(big.Int)
+	fieldMax.SetString(zk.LurkMaxFieldElement, 16)
+}
 
 type PrivateInput struct {
 	Amount          types.Amount
@@ -118,8 +127,8 @@ func (o *PublicOutput) ToExpr() (string, error) {
 		copy(chunk, o.CipherText[i:end])
 
 		// Lurk elements exist within a finite field and cannot
-		// exceed the maximum field element. Here we set the two
-		// most significant bits of each ciphertext chunk to zero
+		// exceed the maximum field element. Here we set the most
+		// significant bits of each ciphertext chunk to zero
 		// to fit within the max size.
 		//
 		// In the normal case where the ciphertext is curve25519
@@ -128,7 +137,15 @@ func (o *PublicOutput) ToExpr() (string, error) {
 		// validate the ciphertext field in any way you need to take
 		// this into account.
 		if len(chunk) == chunkSize {
-			chunk[0] &= 0x3f
+			for x := uint8(1); x <= 3; x++ {
+				bigChunk := new(big.Int).SetBytes(chunk)
+				if bigChunk.Cmp(fieldMax) > 0 {
+					mask := byte(255) >> x
+					chunk[0] &= byte(mask)
+				} else {
+					break
+				}
+			}
 		}
 
 		ciphertext += fmt.Sprintf("(cons 0x%x ", chunk)

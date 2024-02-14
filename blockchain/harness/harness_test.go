@@ -210,5 +210,4 @@ func TestNewTestHarness(t *testing.T) {
 	assert.NoError(t, err)
 
 	h2.Close()
-
 }*/

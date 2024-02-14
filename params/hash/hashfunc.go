@@ -11,12 +11,12 @@ import (
 const HashSize = 32
 
 // HashFunc is a modified version of the blake2s hash
-// function which sets the first two bits of the output to
+// function which sets the first three bits of the output to
 // zero. This is needed for use inside a lurk program which
 // has a max field element value less than the maximum value
 // of the blake2s hash.
 func HashFunc(data []byte) []byte {
 	h := blake2s.Sum256(data)
-	h[0] &= 0b00111111
+	h[0] &= 0b00011111
 	return h[:]
 }

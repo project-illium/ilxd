@@ -94,7 +94,7 @@
                                          ;; If locked-until is greater than zero the script must be the
                                          ;; timelocked-multisig script.
                                          (if (> locked-until 0)
-                                             (if (= script-commitment 0x1195bab56d419453f3aab449ef8bb164dcc3104456ec4d0e3ba37878662a9717)
+                                             (if (= script-commitment 0x01d0043f8665c23998963a429c36a882f16f64c59e376f065fb13cca65ae5cc5)
                                                  ;; Validate that the script's lock-until matches the transaction's
                                                  (= (car locking-params) locked-until)
                                                  nil
@@ -107,9 +107,9 @@
                                  )
                                  nil ;; Nullifier invalid. Return false.
                              )
-                             nil ;; The public amount does not match the private amount
+                             nil ;; Asset other than ILX is staked
                         )
-                        nil ;; Asset other than ILX is staked
+                        nil ;; The public amount does not match the private amount
                     )
                )
         )

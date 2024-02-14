@@ -33,13 +33,17 @@ fn synthesize_blake2s<F: LurkField, CS: ConstraintSystem<F>>(
 
     let mut bits = vec![];
 
+    let pad_to_next_len_multiple_of_8 = |bits: &mut Vec<_>| {
+        bits.resize((bits.len() + 7) / 8 * 8, zero.clone());
+    };
+
     for ptr in ptrs.iter().rev() {
         let hash_bits = ptr
             .hash()
             .to_bits_le_strict(&mut cs.namespace(|| "preimage_hash_bits"))?;
 
         bits.extend(hash_bits);
-        bits.push(zero.clone()); // need 256 bits (or some multiple of 8).
+        pad_to_next_len_multiple_of_8(&mut bits); // need 256 bits (or some multiple of 8).
     }
 
     let mut little_endian_bits = Vec::new();
@@ -49,7 +53,6 @@ fn synthesize_blake2s<F: LurkField, CS: ConstraintSystem<F>>(
     for chunk in chunks.rev() {
         little_endian_bits.extend_from_slice(chunk);
     }
-
     let digest_bits = blake2s(cs.namespace(|| "digest_bits"), &little_endian_bits, &personalization)?;
 
     let mut little_endian_digest_bits = Vec::new();
@@ -97,7 +100,7 @@ fn compute_blake2s<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> F {
     bytes.reverse();
     let l = bytes.len();
     // Discard the two most significant bits.
-    bytes[l - 1] &= 0b00111111;
+    bytes[l - 1] &= 0b00011111;
 
     F::from_bytes(&bytes).unwrap()
 }

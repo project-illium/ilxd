@@ -165,7 +165,7 @@ func PublicKeyFromXY(x, y []byte) (crypto.PubKey, error) {
 	reverseBytes(y2)
 
 	b := y2[0] & 0x01
-	b <<= 7
+	b <<= 6
 
 	x2[31] |= b
 

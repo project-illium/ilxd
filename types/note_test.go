@@ -33,7 +33,7 @@ func TestSpendNote_Hash(t *testing.T) {
 	commitment, err := note.Commitment()
 	assert.NoError(t, err)
 
-	assert.Equal(t, "033936349e765fed388a814e2678533427fda4b9c785ff2383fced933128e418", commitment.String())
+	assert.Equal(t, "1e05d6a82755419586f82ae96f9adc85f4e93211a89782adff243f229152c7da", commitment.String())
 
 	s2, err := RandomSalt()
 	assert.NoError(t, err)

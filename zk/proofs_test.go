@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	lcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
@@ -38,9 +39,10 @@ func BenchmarkOneInputTwoOutput(b *testing.B) {
 	assert.NoError(b, err)
 
 	start := time.Now()
-	_, err = zk.Prove(zk.StandardValidationProgram(), priv, pub)
+	proof, err := zk.Prove(zk.StandardValidationProgram(), priv, pub)
 	end := time.Since(start)
 	assert.NoError(b, err)
+	fmt.Printf("Proof Len: %d\n", len(proof))
 	fmt.Printf("Iterations: %d\n", iterations)
 	fmt.Printf("Iterations per second: %f\n", (float64(iterations) / float64(end.Milliseconds()) * 1000))
 }
@@ -111,7 +113,7 @@ func TestCoprocessors(t *testing.T) {
 		// As such the hash output has the two most significant
 		// bits set to zero.
 		h := sha256.Sum256(r[:])
-		h[0] &= 0b00111111
+		h[0] &= 0b00011111
 
 		program := `(lambda (priv pub) (letrec ((sha256 (lambda (preimage)
                                     (eval (cons 'coproc_sha256 (cons preimage nil))))))
@@ -1265,7 +1267,11 @@ func TestTransactionProofValidation(t *testing.T) {
 		{
 			Name: "public address valid",
 			Setup: func() ([]string, zk.Parameters, zk.Parameters, error) {
-				sk1, pk1, err := crypto.GenerateNovaKey(rand.Reader)
+				keyBytes, err := hex.DecodeString("080512400269e008d77527f85f14b65697360ed6a24bae8d1d11abf1479899aa25677f4c5157bdf9edc3529461e8b1c44d4991f7cf435a543364c26abc76e869cafc7596")
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				sk1, err := lcrypto.UnmarshalPrivateKey(keyBytes)
 				if err != nil {
 					return nil, nil, nil, err
 				}
@@ -1273,7 +1279,7 @@ func TestTransactionProofValidation(t *testing.T) {
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				pk1X, pk1Y := pk1.(*crypto.NovaPublicKey).ToXY()
+				pk1X, pk1Y := sk1.GetPublic().(*crypto.NovaPublicKey).ToXY()
 				pk2X, pk2Y := pk2.(*crypto.NovaPublicKey).ToXY()
 
 				lockingParams := fmt.Sprintf("(cons 1 (cons 0x%x (cons 0x%x nil)))", pk1X, pk1Y)

@@ -57,11 +57,11 @@ import (
 const (
 	// EstimatedProofSize is the estimated size (in bytes) of the transaction
 	// proofs. These vary slightly for each transaction type.
-	EstimatedProofSize = 11500
+	EstimatedProofSize = 12516
 
 	// LurkMaxFieldElement is the maximum value for a field element in lurk.
 	// In practice this means lurk script variables cannot exceed this value.
-	LurkMaxFieldElement = "40000000000000000000000000000000224698fc0994a8dd8c46eb2100000000"
+	LurkMaxFieldElement = "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000"
 )
 
 var once sync.Once
@@ -136,9 +136,14 @@ func createProof(lurkProgram, privateParams, publicParams string) ([]byte, Tag, 
 	defer C.free(unsafe.Pointer(cprivateParams))
 	defer C.free(unsafe.Pointer(cpublicParams))
 
-	// Fixme: set to actual proof size
+	// Fixme: the actual size of the proof fluctuates
+	// some. We just need to make sure this array
+	// is big enough to hold it. We copy it to a
+	// correctly sized slice later and then this
+	// array will be freed from memory.
+	// Is 15000 big enough for all proofs?
 	var (
-		proof     [12000]byte
+		proof     [15000]byte
 		proofLen  C.size_t
 		outputTag [32]byte
 		outputVal [32]byte

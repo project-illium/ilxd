@@ -27,14 +27,13 @@ use lurk::{
     lem::store::Store,
 };
 use lazy_static::lazy_static;
-use pasta_curves::group::GroupEncoding;
 use super::utils::{pick, pick_const};
 
-type G2 = pasta_curves::vesta::Point;
+type G1 = halo2curves::grumpkin::G1;
 
 lazy_static! {
-    static ref IO_TRUE_HASH: Vec<u8> = hex::decode("5698a149855d3a8b3ac99e32b65ce146f00163130070c245a2262b46c5dbc804").unwrap();
-    static ref IO_FALSE_HASH: Vec<u8> = hex::decode("27345e8c5736d418e5a91fa58d8e6b220b682c6501734ad8a3841adc730de72c").unwrap();
+    static ref IO_TRUE_HASH: Vec<u8> = hex::decode("4c8ca192c0f6acba0d6816ce095040633a3ef6cb9bcea4f2b834514035f05c1f").unwrap();
+    static ref IO_FALSE_HASH: Vec<u8> = hex::decode("032f240cbb095bf8e5a50533e6f86f3695048af3b7279e067364da67c2c8551d").unwrap();
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -99,9 +98,9 @@ fn compute_checksig<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
     let m_bytes = z_ptrs[5].value().to_bytes();
 
     let pk_xy = from_xy(pk_x, pk_y);
-    let pk = PublicKey::<G2>::from_point(pk_xy);
+    let pk = PublicKey::<G1>::from_point(pk_xy);
 
-    let sig_r = from_xy(r_x, r_y);
+    let sig_r = from_xy(r_x.clone(), r_y.clone());
 
     let mut u64_m_array: [u64; 4] = [0; 4];
     for i in 0..4 {
@@ -109,7 +108,7 @@ fn compute_checksig<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
             u64_m_array[i] |= (m_bytes[i * 8 + j] as u64) << (j * 8);
         }
     }
-    let m = <G2 as Group>::Scalar::from_raw(u64_m_array);
+    let m = <G1 as Group>::Scalar::from_raw(u64_m_array);
 
     let mut u64_s_array: [u64; 4] = [0; 4];
     for i in 0..4 {
@@ -117,7 +116,7 @@ fn compute_checksig<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
             u64_s_array[i] |= (s_bytes[i * 8 + j] as u64) << (j * 8);
         }
     }
-    let sig_s = <G2 as Group>::Scalar::from_raw(u64_s_array);
+    let sig_s = <G1 as Group>::Scalar::from_raw(u64_s_array);
 
     let sig = Signature{r: sig_r, s: sig_s};
     let result = pk.verify(m, &sig);
@@ -187,20 +186,20 @@ impl<G> SecretKey<G>
     }
 }
 
-pub fn from_xy(mut x: Vec<u8>, y: Vec<u8>) -> G2 {
+pub fn from_xy(mut x: Vec<u8>, y: Vec<u8>) -> G1 {
     // Ensure that x has 32 bytes, you might want to handle this differently
     if x.len() != 32 || y.len() != 32 {
         panic!("Input vectors must be exactly 32 bytes long");
     }
 
-    let sign = (y.first().unwrap() & 1) << 7;
+    let sign = (y.first().unwrap() & 1) << 6;
 
     x[31] |= sign;
 
     let slice = x.as_slice();
     let r: &[u8; 32] = slice.try_into().map_err(|_| "Conversion failed").unwrap();
 
-    G2::from_bytes(r).unwrap()
+    return bincode::deserialize(r).unwrap();
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -403,11 +402,10 @@ pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
     let g = AllocatedPoint::<F>::alloc(
         cs.namespace(|| "g"),
         Some((
+            F::from_str_vartime("1").unwrap(),
             F::from_str_vartime(
-                "28948022309329048855892746252171976963363056481941647379679742748393362948096",
-            )
-                .unwrap(),
-            F::from_str_vartime("2").unwrap(),
+                "17631683881184975370165255887551781615748388533673675138860",
+            ).unwrap(),
             false,
         )),
     )?;
@@ -416,19 +414,19 @@ pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
     let (gx, gy, _) = g.get_coordinates();
     let ex = AllocatedNum::alloc(
         &mut cs.namespace(|| "gx coordinate"),
-        || { Ok(F::from_str_vartime("28948022309329048855892746252171976963363056481941647379679742748393362948096").unwrap())}
+        || { Ok(F::from_str_vartime("1").unwrap())}
     )?;
     let ey = AllocatedNum::alloc(
         &mut cs.namespace(|| "gy coordinate"),
-        || { Ok(F::from_str_vartime("2").unwrap())}
+        || { Ok(F::from_str_vartime("17631683881184975370165255887551781615748388533673675138860").unwrap())}
     )?;
 
-    let gx_equal_bit = alloc_equal(&mut cs.namespace(|| "gx is on curve"), gx, &ex);
-    let gy_equal_bit = alloc_equal(&mut cs.namespace(|| "gy is on curve"), gy, &ey);
+    let gx_equal_bit = alloc_equal(&mut cs.namespace(|| "gx is on curve"), gx, &ex)?;
+    let gy_equal_bit = alloc_equal(&mut cs.namespace(|| "gy is on curve"), gy, &ey)?;
     let g_bool: Boolean = Boolean::and(
         &mut cs.namespace(|| "g_and"),
-        &gx_equal_bit.unwrap(),
-        &gy_equal_bit.unwrap(),
+        &gx_equal_bit,
+        &gy_equal_bit,
     )?;
 
     let sg = g.scalar_mul(cs.namespace(|| "[s]G"), s_bits)?;
@@ -438,13 +436,13 @@ pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
     let (rcpk_x, rcpk_y, _) = rcpk.get_coordinates();
     let (sg_x, sg_y, _) = sg.get_coordinates();
 
-    let sgx_equal_bit = alloc_equal(&mut cs.namespace(|| "sg_x == rcpk_x"), sg_x, rcpk_x);
-    let sgy_equal_bit = alloc_equal(&mut cs.namespace(|| "sg_y == rcpk_y"), sg_y, rcpk_y);
+    let sgx_equal_bit = alloc_equal(&mut cs.namespace(|| "sg_x == rcpk_x"), sg_x, rcpk_x)?;
+    let sgy_equal_bit = alloc_equal(&mut cs.namespace(|| "sg_y == rcpk_y"), sg_y, rcpk_y)?;
 
     let sg_bool: Boolean = Boolean::and(
         &mut cs.namespace(|| "sg_and"),
-        &sgx_equal_bit.unwrap(),
-        &sgy_equal_bit.unwrap(),
+        &sgx_equal_bit,
+        &sgy_equal_bit,
     )?;
 
     Boolean::and(
@@ -458,13 +456,13 @@ pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
 mod tests {
     use pasta_curves::{
         arithmetic::CurveAffine,
-        pallas::Scalar as Fr,
         group::{Group, Curve},
     };
+    use halo2curves::bn256::Fr;
     use bellpepper_core::test_cs::TestConstraintSystem;
     use rand_core::OsRng;
     use super::*;
-    type G2 = pasta_curves::vesta::Point;
+    type G1 = halo2curves::grumpkin::G1;
 
     #[test]
     fn test_verify() {
@@ -472,35 +470,39 @@ mod tests {
         assert!(cs.is_satisfied());
         assert_eq!(cs.num_constraints(), 0);
 
-        let sk = SecretKey::<G2>::random(&mut OsRng);
+        let sk = SecretKey::<G1>::random(&mut OsRng);
         let hex_string: String = sk.0.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("sk {}", hex_string);
-        //let sk2 = SecretKey::<G2>::random(&mut OsRng);
-        //let pk = PublicKey::from_secret_key(&sk2);
-        let pk = PublicKey::from_secret_key(&sk);
+        //let sk2 = SecretKey::<G1>::random(&mut OsRng);
+        //let pkey = PublicKey::from_secret_key(&sk2);
+        let pkey = PublicKey::from_secret_key(&sk);
 
-        let hex_string: String = pk.0.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        let pk_bytes = bincode::serialize(&pkey.0).unwrap();
+
+        let hex_string: String = pk_bytes.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("pk {}", hex_string);
 
         // generate a random message to sign
-        let c = <G2 as Group>::Scalar::random(&mut OsRng);
+        let msg = <G1 as Group>::Scalar::random(&mut OsRng);
 
         // sign and verify
-        let signature = sk.sign(c, &mut OsRng);
-        let hex_string: String = signature.r.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        let signature = sk.sign(msg, &mut OsRng);
+        let sig_r_bytes = bincode::serialize(&signature.r).unwrap();
+        let hex_string: String = sig_r_bytes.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("*sig_r {}", hex_string);
         let hex_string: String = signature.s.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("*sig_s {}", hex_string);
-        let hex_string: String = pk.0.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        let pk_bytes2 = bincode::serialize(&pkey.0).unwrap();
+        let hex_string: String = pk_bytes2.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("*pk {}", hex_string);
-        let hex_string: String = c.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        let hex_string: String = msg.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("*m {}", hex_string);
-        let result = pk.verify(c, &signature);
+        let result = pkey.verify(msg, &signature);
         assert!(result);
 
         // prepare inputs to the circuit gadget
         let pk = {
-            let pkxy = pk.0.to_affine().coordinates().unwrap();
+            let pkxy = pkey.0.to_affine().coordinates().unwrap();
 
             let hex_string: String = pkxy.x().to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
             println!("pkx {}", hex_string);
@@ -521,11 +523,12 @@ mod tests {
             println!("ry {}", hex_string);
             AllocatedPoint::alloc(cs.namespace(|| "r"), Some((*rxy.x(), *rxy.y(), false))).unwrap()
         };
-        let hex_string: String = signature.r.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        let sig_r_bytes2 = bincode::serialize(&signature.r).unwrap();
+        let hex_string: String = sig_r_bytes2.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("r {}", hex_string);
         let hex_string: String = signature.s.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("s {}", hex_string);
-        let hex_string: String = c.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        let hex_string: String = msg.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("c {}", hex_string);
         let s = {
             let s_bits = signature
@@ -538,15 +541,36 @@ mod tests {
             synthesize_bits2(&mut cs.namespace(|| "s bits"), &Some(s_bits)).unwrap()
         };
         let c = {
-            let c_bits = c.to_le_bits().iter().map(|b| *b).collect::<Vec<bool>>();
+            let c_bits = msg.to_le_bits().iter().map(|b| *b).collect::<Vec<bool>>();
 
             synthesize_bits2(&mut cs.namespace(|| "c bits"), &Some(c_bits)).unwrap()
         };
 
-
+        let rxy = signature.r.to_affine().coordinates().unwrap();
+        let store = &mut Store::<Fr>::default();
+        let rx = store.num(rxy.x().clone());
+        let ry = store.num(rxy.y().clone());
+        let sbytes = signature.s.to_bytes();
+        let ss = store.num(Fr::from_bytes(&sbytes.try_into().unwrap()).unwrap());
+        let pkxy = pkey.0.to_affine().coordinates().unwrap();
+        let pkx = store.num(pkxy.x().clone());
+        let pky = store.num(pkxy.y().clone());
+        let mbytes = msg.to_bytes();
+        let cc = store.num(Fr::from_bytes(&mbytes.try_into().unwrap()).unwrap());
+        let args: &[Ptr] = &[
+            rx,
+            ry,
+            ss,
+            pkx,
+            pky,
+            cc,
+        ];
+        let valid = compute_checksig(&store, args);
+        println!("{:?}", valid);
 
         // Check the signature was signed by the correct sk using the pk
-        verify_signature(&mut cs, &pk, &r, &s, &c).unwrap();
+        let valid2 = verify_signature(&mut cs, &pk, &r, &s, &c).unwrap();
+        println!("{:?}", valid2);
 
         assert!(cs.is_satisfied());
     }

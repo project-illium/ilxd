@@ -15,8 +15,7 @@ use pasta_curves::{
 use rand::{rngs::OsRng, RngCore, SeedableRng};
 use sha3::{Digest, Sha3_512};
 use rand_chacha::ChaChaRng;
-
-type G2 = pasta_curves::vesta::Point;
+type G1 = halo2curves::grumpkin::G1;
 
 #[no_mangle]
 pub extern "C" fn generate_secret_key(out: *mut u8) {
@@ -25,7 +24,7 @@ pub extern "C" fn generate_secret_key(out: *mut u8) {
         return;
     }
 
-    let sk = SecretKey::<G2>::random(&mut OsRng);
+    let sk = SecretKey::<G1>::random(&mut OsRng);
     let mut sk_bytes = sk.0.to_repr();
     sk_bytes.reverse();
 
@@ -49,7 +48,7 @@ pub extern "C" fn secret_key_from_seed(seed: *const u8, out: *mut u8) {
     // Create a ChaChaRng from the seed
     let mut rng = ChaChaRng::from_seed(seed_array);
 
-    let sk = SecretKey::<G2>::random(&mut rng);
+    let sk = SecretKey::<G1>::random(&mut rng);
     let mut sk_bytes = sk.0.to_repr();
     sk_bytes.reverse();
 
@@ -84,11 +83,11 @@ pub extern "C" fn priv_to_pub(bytes: *const u8, out: *mut u8) {
         }
     }
 
-    let b = <G2 as Group>::Scalar::from_raw(u64_array);
-    let sk = SecretKey::<G2>::from_scalar(b);
+    let b = <G1 as Group>::Scalar::from_raw(u64_array);
+    let sk = SecretKey::<G1>::from_scalar(b);
     let pk = PublicKey::from_secret_key(&sk);
 
-    let pk_bytes = pk.0.to_bytes();
+    let pk_bytes = bincode::serialize(&pk.0).unwrap();
 
     // Copy the public key bytes to the provided output buffer
     unsafe {
@@ -115,7 +114,12 @@ pub extern "C" fn compressed_to_full(bytes: *const u8, out_x: *mut u8, out_y: *m
         std::ptr::copy_nonoverlapping(bytes, input_bytes.as_mut_ptr(), len);
     }
 
-    let pub_point = G2::from_bytes(&input_bytes).unwrap();
+    let pub_point: G1 = match bincode::deserialize(&input_bytes){
+        Ok(deser) => deser,
+        Err(_) => {
+            return;
+        }
+    };
     let pk = PublicKey::from_point(pub_point);
 
     let xy = pk.0.to_affine().coordinates().unwrap();
@@ -160,14 +164,15 @@ pub extern "C" fn sign(privkey: *const u8, message_digest: *const u8, out: *mut 
         }
     }
 
-    let b1 = <G2 as Group>::Scalar::from_raw(u64_priv_array);
-    let sk = SecretKey::<G2>::from_scalar(b1);
-    let m = <G2 as Group>::Scalar::from_raw(u64_m_array);
+    let b1 = <G1 as Group>::Scalar::from_raw(u64_priv_array);
+    let sk = SecretKey::<G1>::from_scalar(b1);
+    let m = <G1 as Group>::Scalar::from_raw(u64_m_array);
 
     let signature = sk.sign(m, &mut OsRng);
 
     // Serialize the signature into the provided output buffer
-    let r = signature.r.to_bytes();
+    let binding = signature.r.to_bytes();
+    let r = binding.as_ref();
     let mut s = signature.s.to_repr();
     s.reverse();
 
@@ -205,7 +210,12 @@ pub extern "C" fn verify(pub_bytes: *const u8, digest_bytes: *const u8, sig_r: *
     }
 
     // Convert bytes to the appropriate types
-    let pub_point = G2::from_bytes(&pub_input_bytes).unwrap();
+    let pub_point: G1 = match bincode::deserialize(&pub_input_bytes){
+        Ok(deser) => deser,
+        Err(_) => {
+            return false;
+        }
+    };
     let pk = PublicKey::from_point(pub_point);
 
     let mut u64_m_array: [u64; 4] = [0; 4];
@@ -214,9 +224,13 @@ pub extern "C" fn verify(pub_bytes: *const u8, digest_bytes: *const u8, sig_r: *
             u64_m_array[i] |= (m_bytes[i * 8 + j] as u64) << (j * 8);
         }
     }
-    let m = <G2 as Group>::Scalar::from_raw(u64_m_array);
-
-    let r = G2::from_bytes(&sig_r_bytes).unwrap();
+    let m = <G1 as Group>::Scalar::from_raw(u64_m_array);
+    let r: G1 = match bincode::deserialize(&sig_r_bytes){
+        Ok(deser) => deser,
+        Err(_) => {
+            return false;
+        }
+    };
 
     sig_s_bytes.reverse();
     let mut u64_s_array: [u64; 4] = [0; 4];
@@ -225,7 +239,7 @@ pub extern "C" fn verify(pub_bytes: *const u8, digest_bytes: *const u8, sig_r: *
             u64_s_array[i] |= (sig_s_bytes[i * 8 + j] as u64) << (j * 8);
         }
     }
-    let s = <G2 as Group>::Scalar::from_raw(u64_s_array);
+    let s = <G1 as Group>::Scalar::from_raw(u64_s_array);
 
     let signature = Signature { r, s };
 
