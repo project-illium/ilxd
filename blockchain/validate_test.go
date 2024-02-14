@@ -509,7 +509,7 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
-								Ciphertext: make([]byte, CiphertextLen),
+								Ciphertext: bytes.Repeat([]byte{0x11}, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
@@ -519,7 +519,7 @@ func TestValidateBlock(t *testing.T) {
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
-								Ciphertext: bytes.Repeat([]byte{0x11}, CiphertextLen),
+								Ciphertext: make([]byte, CiphertextLen),
 							},
 						},
 						Nullifiers: [][]byte{nullifier[:]},
