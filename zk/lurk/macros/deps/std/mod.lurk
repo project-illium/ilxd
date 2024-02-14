@@ -2,7 +2,7 @@
 !(module crypto (
         ;; checksig verifies the signature covering the sighash against
         ;; the provided public key. This function uses the Nova signature
-        ;; algorithm with the Vesta Curve.
+        ;; algorithm with the Grumpkin Curve.
         ;;
         ;; sig       - (cons sig-rx (cons sig-ry (cons sig-s nil)))
         ;; pubkey    - (cons pubkey-x (cons pubkey-y nil))

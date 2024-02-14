@@ -47,12 +47,12 @@ func init() {
 	crypto.PrivKeyUnmarshallers[Libp2pKeyTypeNova] = UnmarshalNovaPrivateKey
 }
 
-// NovaPrivateKey is a Vesta curve private key in the nova proving system.
+// NovaPrivateKey is a Grumpkin curve private key in the nova proving system.
 type NovaPrivateKey struct {
 	k *[64]byte
 }
 
-// NovaPublicKey is a Vesta curve public key in the nova proving system.
+// NovaPublicKey is a Grumpkin curve public key in the nova proving system.
 type NovaPublicKey struct {
 	k *[32]byte
 }
