@@ -32,8 +32,8 @@ use super::utils::{pick, pick_const};
 type G1 = halo2curves::grumpkin::G1;
 
 lazy_static! {
-    static ref IO_TRUE_HASH: Vec<u8> = hex::decode("5698a149855d3a8b3ac99e32b65ce146f00163130070c245a2262b46c5dbc804").unwrap();
-    static ref IO_FALSE_HASH: Vec<u8> = hex::decode("27345e8c5736d418e5a91fa58d8e6b220b682c6501734ad8a3841adc730de72c").unwrap();
+    static ref IO_TRUE_HASH: Vec<u8> = hex::decode("4c8ca192c0f6acba0d6816ce095040633a3ef6cb9bcea4f2b834514035f05c1f").unwrap();
+    static ref IO_FALSE_HASH: Vec<u8> = hex::decode("032f240cbb095bf8e5a50533e6f86f3695048af3b7279e067364da67c2c8551d").unwrap();
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -458,7 +458,7 @@ mod tests {
         arithmetic::CurveAffine,
         group::{Group, Curve},
     };
-    use halo2curves::grumpkin::{Fq as Fr, G1Affine};
+    use halo2curves::grumpkin::{Fq as Fr};
     use bellpepper_core::test_cs::TestConstraintSystem;
     use rand_core::OsRng;
     use super::*;
@@ -474,35 +474,35 @@ mod tests {
         let hex_string: String = sk.0.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("sk {}", hex_string);
         //let sk2 = SecretKey::<G1>::random(&mut OsRng);
-        //let pk = PublicKey::from_secret_key(&sk2);
-        let pk = PublicKey::from_secret_key(&sk);
+        //let pkey = PublicKey::from_secret_key(&sk2);
+        let pkey = PublicKey::from_secret_key(&sk);
 
-        let pk_bytes = bincode::serialize(&pk.0).unwrap();
+        let pk_bytes = bincode::serialize(&pkey.0).unwrap();
 
         let hex_string: String = pk_bytes.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("pk {}", hex_string);
 
         // generate a random message to sign
-        let c = <G1 as Group>::Scalar::random(&mut OsRng);
+        let msg = <G1 as Group>::Scalar::random(&mut OsRng);
 
         // sign and verify
-        let signature = sk.sign(c, &mut OsRng);
+        let signature = sk.sign(msg, &mut OsRng);
         let sig_r_bytes = bincode::serialize(&signature.r).unwrap();
         let hex_string: String = sig_r_bytes.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("*sig_r {}", hex_string);
         let hex_string: String = signature.s.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("*sig_s {}", hex_string);
-        let pk_bytes2 = bincode::serialize(&pk.0).unwrap();
+        let pk_bytes2 = bincode::serialize(&pkey.0).unwrap();
         let hex_string: String = pk_bytes2.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("*pk {}", hex_string);
-        let hex_string: String = c.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        let hex_string: String = msg.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("*m {}", hex_string);
-        let result = pk.verify(c, &signature);
+        let result = pkey.verify(msg, &signature);
         assert!(result);
 
         // prepare inputs to the circuit gadget
         let pk = {
-            let pkxy = pk.0.to_affine().coordinates().unwrap();
+            let pkxy = pkey.0.to_affine().coordinates().unwrap();
 
             let hex_string: String = pkxy.x().to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
             println!("pkx {}", hex_string);
@@ -528,7 +528,7 @@ mod tests {
         println!("r {}", hex_string);
         let hex_string: String = signature.s.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("s {}", hex_string);
-        let hex_string: String = c.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
+        let hex_string: String = msg.to_bytes().iter().rev().map(|byte| format!("{:02x}", byte)).collect();
         println!("c {}", hex_string);
         let s = {
             let s_bits = signature
@@ -541,12 +541,32 @@ mod tests {
             synthesize_bits2(&mut cs.namespace(|| "s bits"), &Some(s_bits)).unwrap()
         };
         let c = {
-            let c_bits = c.to_le_bits().iter().map(|b| *b).collect::<Vec<bool>>();
+            let c_bits = msg.to_le_bits().iter().map(|b| *b).collect::<Vec<bool>>();
 
             synthesize_bits2(&mut cs.namespace(|| "c bits"), &Some(c_bits)).unwrap()
         };
 
-
+        let rxy = signature.r.to_affine().coordinates().unwrap();
+        let store = &mut Store::<Fr>::default();
+        let rx = store.num(rxy.x().clone());
+        let ry = store.num(rxy.y().clone());
+        let sbytes = signature.s.to_bytes();
+        let ss = store.num(Fr::from_bytes(&sbytes.try_into().unwrap()).unwrap());
+        let pkxy = pkey.0.to_affine().coordinates().unwrap();
+        let pkx = store.num(pkxy.x().clone());
+        let pky = store.num(pkxy.y().clone());
+        let mbytes = msg.to_bytes();
+        let cc = store.num(Fr::from_bytes(&mbytes.try_into().unwrap()).unwrap());
+        let args: &[Ptr] = &[
+            rx,
+            ry,
+            ss,
+            pkx,
+            pky,
+            cc,
+        ];
+        let valid = compute_checksig(&store, args);
+        println!("{:?}", valid);
 
         // Check the signature was signed by the correct sk using the pk
         verify_signature(&mut cs, &pk, &r, &s, &c).unwrap();

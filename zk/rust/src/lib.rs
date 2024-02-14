@@ -437,7 +437,7 @@ fn eval_simple(
 
 #[cfg(test)]
 mod tests {
-    use crate::{IO_TWO, IO_TRUE_HASH, create_proof, verify_proof, get_public_params, eval_simple, coprocessors};
+    use crate::{IO_TWO, IO_TRUE_HASH, create_proof, verify_proof, get_public_params, eval_simple};
     use lurk::field::LurkField;
 
     #[test]
