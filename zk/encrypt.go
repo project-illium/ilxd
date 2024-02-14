@@ -7,6 +7,13 @@ import (
 	"math/big"
 )
 
+var fieldMax *big.Int
+
+func init() {
+	fieldMax = new(big.Int)
+	fieldMax.SetString(LurkMaxFieldElement, 16)
+}
+
 // LurkEncrypt is a stream cipher algorithm that can be computed inside
 // the circuit. It operates on a lurk list where each item in the list is
 // as lurk field element.
@@ -35,7 +42,7 @@ loop:
 				return nil, err
 			}
 			encChunk := xorBytes(chunk[:], chunkKey)
-			if encChunk[0]&0b11100000 > 0 {
+			if new(big.Int).SetBytes(encChunk).Cmp(fieldMax) > 0 {
 				continue loop
 			}
 			copy(ciphertext[i+1][:], encChunk)
