@@ -28,14 +28,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestBasicTransferScript(t *testing.T) {
-	h, _ := hex.DecodeString("232235c6abf84c044249f20193b47c40265125c5695a61262afa2ac4ee1fec6d")
-	fmt.Printf("%08b\n", h[0])
-
-	h2, _ := hex.DecodeString("032235c6abf84c044249f20193b47c40265125c5695a61262afa2ac4ee1fec6d")
-	fmt.Printf("%08b\n", h2[0])
-}
-
 func BenchmarkOneInputTwoOutput(b *testing.B) {
 	opts := defaultOpts()
 	opts.inAmounts = map[int]types.Amount{0: 2100000}
