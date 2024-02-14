@@ -107,9 +107,9 @@
                                  )
                                  nil ;; Nullifier invalid. Return false.
                              )
-                             nil ;; The public amount does not match the private amount
+                             nil ;; Asset other than ILX is staked
                         )
-                        nil ;; Asset other than ILX is staked
+                        nil ;; The public amount does not match the private amount
                     )
                )
         )

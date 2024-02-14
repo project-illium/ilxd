@@ -136,9 +136,14 @@ func createProof(lurkProgram, privateParams, publicParams string) ([]byte, Tag, 
 	defer C.free(unsafe.Pointer(cprivateParams))
 	defer C.free(unsafe.Pointer(cpublicParams))
 
-	// Fixme: set to actual proof size
+	// Fixme: the actual size of the proof fluctuates
+	// some. We just need to make sure this array
+	// is big enough to hold it. We copy it to a
+	// correctly sized slice later and then this
+	// array will be freed from memory.
+	// Is 15000 big enough for all proofs?
 	var (
-		proof     [13000]byte
+		proof     [15000]byte
 		proofLen  C.size_t
 		outputTag [32]byte
 		outputVal [32]byte
