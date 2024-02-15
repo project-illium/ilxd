@@ -7,38 +7,6 @@
                (cat-and-hash (lambda (a b)
                     (eval (cons 'coproc_blake2s (cons a (cons b nil))))))
 
-               ;; map-get returns an item from a map given the key.
-               ;; the map must be a list of form (:key item :key item).
-               (map-get (lambda (key plist)
-                    (if plist
-                       (if (eq key (car plist))
-                           (car (cdr plist))
-                           (map-get key (cdr (cdr plist))))
-                       nil)))
-
-               ;; map-update updates value of the given key in the
-               ;; provided map and returns the new map.
-               ;; If the key is not in the map a new map entry will
-               ;; be added.
-               ;; The map is formatted as a flat list of format
-               ;; (:key item :key item)
-               (map-update (lambda (key value map)
-                    (if (eq map nil)
-                        (cons key (cons value nil))
-                        (let ((existing-key (car map))
-                              (rest-map (cdr map)))
-                              (if (= existing-key key)
-                                  (cons key (cons value (cdr (cdr map))))
-                                  (cons existing-key (map-update key value rest-map)))))))
-
-               ;; check-overflow returns whether the sum of a and b overflows a u64
-               (check-overflow (lambda (a b)
-                   (if (> b 0)
-                       (if (> a (- 18446744073709551615 b))
-                           t
-                           nil)
-                       nil)))
-
                ;; validate-inclusion-proof validates that the provided
                ;; output commitment connects to the provided merkle root
                ;; via a merkle inclusion proof.
@@ -59,7 +27,6 @@
                            (= (hash-branches leaf hashes) root) ;; All others
                            (= leaf root)                        ;; Genesis coinbase
                        ))))
-
                )
 
                ;; Validate the staked input
