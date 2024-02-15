@@ -23,6 +23,7 @@ use lurk::{
         nova::C1LEM,
         RecursiveSNARKTrait
     },
+    state::initial_lurk_state,
     public_parameters::{
         instance::{Instance, Kind},
         supernova_public_params,
@@ -223,6 +224,7 @@ pub extern "C" fn eval_ffi(
     output_tag: *mut u8,
     output_val: *mut u8,
     iterations: *mut usize,
+    debug: bool,
 ) -> i32 {
     let c_str1 = unsafe { CStr::from_ptr(lurk_program) };
     let program_str = match c_str1.to_str() {
@@ -243,7 +245,8 @@ pub extern "C" fn eval_ffi(
     match eval_simple(
         program_str.to_string(),
         priv_params_str.to_string(),
-        pub_params_str.to_string()
+        pub_params_str.to_string(),
+        debug,
     ) {
         Ok((vec1, vec2, n_iter)) => {
             // Assume output1, output2, and output3 are large enough to hold the data
@@ -390,7 +393,8 @@ fn verify_proof(
 fn eval_simple(
     lurk_program: String,
     private_params: String,
-    public_params: String
+    public_params: String,
+    debug: bool,
 ) -> Result<(Vec<u8>, Vec<u8>, usize), Box<dyn Error>> {
     let store = &Store::<Fr>::default();
     let max_steps = 100000000;
@@ -426,6 +430,26 @@ fn eval_simple(
     let cprocs = make_cprocs_funcs_from_lang(&lang);
 
     let (output, iterations, _) = evaluate_simple::<Fr, MultiCoproc<Fr>>(Some((&lurk_step, &cprocs, &lang)), call, store, max_steps)?;
+
+    if debug {
+        let state = initial_lurk_state();
+        let frames = evaluate::<Fr, MultiCoproc<Fr>>(Some((&lurk_step, &cprocs, &lang)), call, store, max_steps)?;
+        for (i, frame) in frames.iter().enumerate() {
+            let expr = frame.output.get(0)
+                .map(|e| e.fmt_to_string(store, state))
+                .unwrap_or_else(|| "N/A".to_string());
+            let env = frame.output.get(1)
+                .map(|e| e.fmt_to_string(store, state))
+                .unwrap_or_else(|| "N/A".to_string());
+            let cont = frame.output.get(2)
+                .map(|e| e.fmt_to_string(store, state))
+                .unwrap_or_else(|| "N/A".to_string());
+
+            println!("\tFrame: {}\n\tExpr: {}\n\tEnv:  {}\n\tCont: {}\n", i, expr, env, cont);
+        }
+        println!("\tIterations: {}", iterations)
+    }
+
     let z_ptr = store.hash_ptr(&output[0]);
     let mut tag = z_ptr.tag().to_field::<Fr>().to_bytes();
     let mut val = z_ptr.value().to_bytes();

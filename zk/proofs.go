@@ -9,6 +9,7 @@ package zk
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdbool.h>
 // Function to save the current stderr file descriptor and redirect stderr to /dev/null
 int redirect_stderr() {
     int stderr_copy = dup(2);
@@ -44,7 +45,8 @@ int eval_ffi(
     const char* public_params,
     uint8_t* output_tag,
     uint8_t* output_val,
-	size_t* iterations);
+	size_t* iterations,
+	bool debug);
 */
 import "C"
 import (
@@ -115,7 +117,7 @@ func Verify(lurkProgram string, publicParams Parameters, proof []byte) (bool, er
 	return verifyProof(lurkProgram, pub, proof, tagBytes, OutputTrue)
 }
 
-func Eval(lurkProgram string, privateParams Parameters, publicParams Parameters) (Tag, []byte, int, error) {
+func Eval(lurkProgram string, privateParams Parameters, publicParams Parameters, debug ...bool) (Tag, []byte, int, error) {
 	priv, err := privateParams.ToExpr()
 	if err != nil {
 		return TagNil, nil, 0, err
@@ -124,7 +126,7 @@ func Eval(lurkProgram string, privateParams Parameters, publicParams Parameters)
 	if err != nil {
 		return TagNil, nil, 0, err
 	}
-	return evaluate(lurkProgram, priv, pub)
+	return evaluate(lurkProgram, priv, pub, len(debug) > 0 && debug[0])
 }
 
 func createProof(lurkProgram, privateParams, publicParams string) ([]byte, Tag, []byte, error) {
@@ -220,7 +222,7 @@ func verifyProof(lurkProgram, publicParams string, proof, expectedTag, expectedO
 	return result == 0, nil
 }
 
-func evaluate(lurkProgram, privateParams, publicParams string) (Tag, []byte, int, error) {
+func evaluate(lurkProgram, privateParams, publicParams string, debug bool) (Tag, []byte, int, error) {
 	clurkProgram := C.CString(lurkProgram)
 	cprivateParams := C.CString(privateParams)
 	cpublicParams := C.CString(publicParams)
@@ -242,6 +244,7 @@ func evaluate(lurkProgram, privateParams, publicParams string) (Tag, []byte, int
 		(*C.uint8_t)(unsafe.Pointer(&outputTag[0])),
 		(*C.uint8_t)(unsafe.Pointer(&outputVal[0])),
 		&iterations,
+		C.bool(debug),
 	)
 
 	if result != 0 {
