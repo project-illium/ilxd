@@ -9,7 +9,6 @@ import (
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/policy"
 	"github.com/project-illium/ilxd/repo"
-	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/zk"
 	"time"
 )
@@ -29,7 +28,6 @@ func DefaultOptions() Option {
 		cfg.policy = policy.NewPolicy(repo.DefaultFeePerKilobyte, repo.DefaultMinimumStake, repo.DefaultSoftLimit)
 		cfg.sigCache = blockchain.NewSigCache(defaultSigCacheSize)
 		cfg.proofCache = blockchain.NewProofCache(defaultProofCacheSize)
-		cfg.treasuryWhitelist = make(map[types.ID]bool)
 		cfg.transactionTTL = defaultTransactionTTL
 		return nil
 	}
@@ -79,20 +77,6 @@ func Policy(p *policy.Policy) Option {
 	}
 }
 
-// TreasuryWhitelist is a map of transactions ID that this node approves
-// of for treasury withdrawls. Only this IDs will be accepted into the
-// mempool.
-func TreasuryWhitelist(whitelist []types.ID) Option {
-	return func(cfg *config) error {
-		m := make(map[types.ID]bool)
-		for _, id := range whitelist {
-			m[id] = true
-		}
-		cfg.treasuryWhitelist = m
-		return nil
-	}
-}
-
 // TransactionTTL represents the amount of time a transaction remains
 // in the mempool without being included in a block before we discard it.
 func TransactionTTL(ttl time.Duration) Option {
@@ -126,14 +110,13 @@ func ProofCache(proofCache *blockchain.ProofCache) Option {
 
 // Config specifies the blockchain configuration.
 type config struct {
-	params            *params.NetworkParams
-	chainView         ChainView
-	policy            *policy.Policy
-	sigCache          *blockchain.SigCache
-	proofCache        *blockchain.ProofCache
-	verifier          zk.Verifier
-	treasuryWhitelist map[types.ID]bool
-	transactionTTL    time.Duration
+	params         *params.NetworkParams
+	chainView      ChainView
+	policy         *policy.Policy
+	sigCache       *blockchain.SigCache
+	proofCache     *blockchain.ProofCache
+	verifier       zk.Verifier
+	transactionTTL time.Duration
 }
 
 func (cfg *config) validate() error {

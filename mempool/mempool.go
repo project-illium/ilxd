@@ -347,7 +347,15 @@ func (m *Mempool) validateTransaction(tx *transactions.Transaction) error {
 			return ruleError(blockchain.ErrInvalidTx, "txo root does not exist in chain")
 		}
 	case *transactions.Transaction_TreasuryTransaction:
-		if !m.cfg.treasuryWhitelist[tx.ID()] {
+		whitelist := m.cfg.policy.GetTreasuryWhitelist()
+		exists := false
+		for _, txid := range whitelist {
+			if txid.Compare(tx.ID()) == 0 {
+				exists = true
+				break
+			}
+		}
+		if !exists {
 			return policyError(ErrTreasuryWhitelist, "treasury transaction not whitelisted")
 		}
 

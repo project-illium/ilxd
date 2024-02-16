@@ -665,7 +665,7 @@ func TestMempool(t *testing.T) {
 			}),
 			signFunc: func(tx *transactions.Transaction) error {
 				h := tx.ID()
-				m.cfg.treasuryWhitelist[h] = true
+				m.cfg.policy.AddToTreasuryWhitelist(h)
 				return nil
 			},
 			expectedErr: ruleError(blockchain.ErrInvalidTx, ""),
@@ -683,7 +683,7 @@ func TestMempool(t *testing.T) {
 			}),
 			signFunc: func(tx *transactions.Transaction) error {
 				h := tx.ID()
-				m.cfg.treasuryWhitelist[h] = true
+				m.cfg.policy.AddToTreasuryWhitelist(h)
 				return nil
 			},
 			expectedErr: nil,
@@ -701,7 +701,7 @@ func TestMempool(t *testing.T) {
 			}),
 			signFunc: func(tx *transactions.Transaction) error {
 				h := tx.ID()
-				m.cfg.treasuryWhitelist[h] = true
+				m.cfg.policy.AddToTreasuryWhitelist(h)
 				return nil
 			},
 			expectedErr: ruleError(blockchain.ErrInvalidTx, ""),
