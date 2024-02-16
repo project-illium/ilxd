@@ -151,19 +151,22 @@ func (b *Blockchain) validateHeader(header *blocks.BlockHeader, flags BehaviorFl
 // validateBlock validates that the block is valid according to the consensus rules.
 // BLockchain context is used when validating the block as queries to the validator set,
 // treasury, tx root set, etc are made.
-func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error {
+//
+// Returns the index of the transaction that was invalid or -1 if none were determined
+// to be invalid.
+func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) (int, error) {
 	if err := b.validateHeader(blk.Header, flags); err != nil {
-		return err
+		return -1, err
 	}
 
 	if len(blk.Transactions) == 0 {
-		return ruleError(ErrEmptyBlock, "block contains zero transactions")
+		return -1, ruleError(ErrEmptyBlock, "block contains zero transactions")
 	}
 
 	calculatedTxRoot := TransactionsMerkleRoot(blk.Transactions)
 
 	if !bytes.Equal(calculatedTxRoot[:], blk.Header.TxRoot) {
-		return ruleError(ErrInvalidTxRoot, "transaction merkle root is invalid")
+		return -1, ruleError(ErrInvalidTxRoot, "transaction merkle root is invalid")
 	}
 
 	var (
@@ -175,32 +178,32 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 		lastTxid        = types.NewID(make([]byte, 32))
 	)
 
-	for _, t := range blk.GetTransactions() {
+	for i, t := range blk.GetTransactions() {
 		if !flags.HasFlag(BFGenesisValidation) {
 			if lastTxid.Compare(t.ID()) >= 0 {
-				return ruleError(ErrBlockSort, "block is not sorted by txid")
+				return -1, ruleError(ErrBlockSort, "block is not sorted by txid")
 			}
 			lastTxid = t.ID()
 		}
 		if err := CheckTransactionSanity(t, time.Unix(blk.Header.Timestamp, 0)); err != nil {
-			return err
+			return i, err
 		}
 		switch tx := t.Tx.(type) {
 		case *transactions.Transaction_CoinbaseTransaction:
 			validatorID, err := peer.IDFromBytes(tx.CoinbaseTransaction.Validator_ID)
 			if err != nil {
-				return ruleError(ErrInvalidTx, "coinbase tx validator ID does not decode")
+				return i, ruleError(ErrInvalidTx, "coinbase tx validator ID does not decode")
 			}
 			if !flags.HasFlag(BFGenesisValidation) {
 				if blockCoinbases[validatorID] {
-					return ruleError(ErrDuplicateCoinbase, "more than one coinbase per validator")
+					return i, ruleError(ErrDuplicateCoinbase, "more than one coinbase per validator")
 				}
 				validator, err := b.validatorSet.GetValidator(validatorID)
 				if err != nil {
-					return ruleError(ErrInvalidTx, "validator does not exist in validator set")
+					return i, ruleError(ErrInvalidTx, "validator does not exist in validator set")
 				}
 				if types.Amount(tx.CoinbaseTransaction.NewCoins) != validator.UnclaimedCoins || tx.CoinbaseTransaction.NewCoins == 0 {
-					return ruleError(ErrInvalidTx, "coinbase transaction creates invalid number of coins")
+					return i, ruleError(ErrInvalidTx, "coinbase transaction creates invalid number of coins")
 				}
 				blockCoinbases[validatorID] = true
 			}
@@ -209,73 +212,73 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 			if !flags.HasFlag(BFGenesisValidation) {
 				exists, err := b.txoRootSet.RootExists(types.NewID(tx.StakeTransaction.TxoRoot))
 				if err != nil {
-					return err
+					return i, err
 				}
 				if !exists {
-					return ruleError(ErrInvalidTx, "txo root does not exist in chain")
+					return i, ruleError(ErrInvalidTx, "txo root does not exist in chain")
 				}
 				exists, err = b.nullifierSet.NullifierExists(types.NewNullifier(tx.StakeTransaction.Nullifier))
 				if err != nil {
-					return err
+					return i, err
 				}
 				if exists {
-					return ruleError(ErrDoubleSpend, "stake tx contains spent nullifier")
+					return i, ruleError(ErrDoubleSpend, "stake tx contains spent nullifier")
 				}
 				valID, err := peer.IDFromBytes(tx.StakeTransaction.Validator_ID)
 				if err != nil {
-					return ruleError(ErrInvalidTx, "stake tx validator ID does not decode")
+					return i, ruleError(ErrInvalidTx, "stake tx validator ID does not decode")
 				}
 				validator, err := b.validatorSet.GetValidator(valID)
 				if err == nil {
 					stake, exists := validator.Nullifiers[types.NewNullifier(tx.StakeTransaction.Nullifier)]
 					if exists {
 						if stake.Blockstamp.Add(ValidatorExpiration - RestakePeriod).After(time.Unix(blk.Header.Timestamp, 0)) {
-							return ruleError(ErrRestakeTooEarly, "restake transaction too early")
+							return i, ruleError(ErrRestakeTooEarly, "restake transaction too early")
 						}
 					}
 				}
 			}
 		case *transactions.Transaction_StandardTransaction:
 			if flags.HasFlag(BFGenesisValidation) {
-				return ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
+				return i, ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
 			}
 			for _, n := range tx.StandardTransaction.Nullifiers {
 				nullifier := types.NewNullifier(n)
 				if blockNullifiers[nullifier] {
-					return ruleError(ErrDoubleSpend, "block contains duplicate nullifier")
+					return i, ruleError(ErrDoubleSpend, "block contains duplicate nullifier")
 				}
 				exists, err := b.nullifierSet.NullifierExists(nullifier)
 				if err != nil {
-					return err
+					return i, err
 				}
 				if exists {
-					return ruleError(ErrDoubleSpend, "block contains spent nullifier")
+					return i, ruleError(ErrDoubleSpend, "block contains spent nullifier")
 				}
 
 				blockNullifiers[nullifier] = true
 			}
 			exists, err := b.txoRootSet.RootExists(types.NewID(tx.StandardTransaction.TxoRoot))
 			if err != nil {
-				return err
+				return i, err
 			}
 			if !exists {
-				return ruleError(ErrInvalidTx, "txo root does not exist in chain")
+				return i, ruleError(ErrInvalidTx, "txo root does not exist in chain")
 			}
 		case *transactions.Transaction_MintTransaction:
 			if flags.HasFlag(BFGenesisValidation) {
-				return ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
+				return i, ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
 			}
 			for _, n := range tx.MintTransaction.Nullifiers {
 				nullifier := types.NewNullifier(n)
 				if blockNullifiers[nullifier] {
-					return ruleError(ErrDoubleSpend, "block contains duplicate nullifier")
+					return i, ruleError(ErrDoubleSpend, "block contains duplicate nullifier")
 				}
 				exists, err := b.nullifierSet.NullifierExists(nullifier)
 				if err != nil {
-					return err
+					return i, err
 				}
 				if exists {
-					return ruleError(ErrDoubleSpend, "block contains duplicate nullifier")
+					return i, ruleError(ErrDoubleSpend, "block contains duplicate nullifier")
 				}
 
 				blockNullifiers[nullifier] = true
@@ -283,45 +286,45 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 
 			exists, err := b.txoRootSet.RootExists(types.NewID(tx.MintTransaction.TxoRoot))
 			if err != nil {
-				return err
+				return i, err
 			}
 			if !exists {
-				return ruleError(ErrInvalidTx, "txo root does not exist in chain")
+				return i, ruleError(ErrInvalidTx, "txo root does not exist in chain")
 			}
 		case *transactions.Transaction_TreasuryTransaction:
 			if flags.HasFlag(BFGenesisValidation) {
-				return ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
+				return i, ruleError(ErrInvalidGenesis, "genesis block should only contain coinbase and stake txs")
 			}
 			if treasuryBalance == nil {
 				balance, err := dsFetchTreasuryBalance(b.ds)
 				if err != nil {
-					return err
+					return i, err
 				}
 				treasuryBalance = &balance
 			}
 
 			if types.Amount(tx.TreasuryTransaction.Amount) > *treasuryBalance {
-				return ruleError(ErrInvalidTx, "treasury tx amount exceeds treasury balance")
+				return i, ruleError(ErrInvalidTx, "treasury tx amount exceeds treasury balance")
 			}
 			*treasuryBalance -= types.Amount(tx.TreasuryTransaction.Amount)
 		default:
-			return ruleError(ErrInvalidTx, "unknown transaction type")
+			return i, ruleError(ErrInvalidTx, "unknown transaction type")
 		}
 	}
 
 	for _, stakeTx := range stakeTransactions {
 		if blockNullifiers[types.NewNullifier(stakeTx.Nullifier)] {
-			return ruleError(ErrBlockStakeSpend, "stake created and spent in the same block")
+			return -1, ruleError(ErrBlockStakeSpend, "stake created and spent in the same block")
 		}
 	}
 
 	if flags.HasFlag(BFGenesisValidation) {
 		if len(blk.Transactions) < 2 {
-			return ruleError(ErrInvalidGenesis, "genesis block must at least two txs")
+			return -1, ruleError(ErrInvalidGenesis, "genesis block must at least two txs")
 		}
 		coinbaseTx, ok := blk.Transactions[0].GetTx().(*transactions.Transaction_CoinbaseTransaction)
 		if !ok {
-			return ruleError(ErrInvalidGenesis, "first genesis transaction is not a coinbase")
+			return -1, ruleError(ErrInvalidGenesis, "first genesis transaction is not a coinbase")
 		}
 		acc := NewAccumulator()
 		for _, output := range coinbaseTx.CoinbaseTransaction.Outputs {
@@ -332,27 +335,27 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) error
 		totalStaked := types.Amount(0)
 		for _, stakeTx := range stakeTransactions {
 			if !bytes.Equal(stakeTx.TxoRoot, txoRoot) {
-				return ruleError(ErrInvalidGenesis, "genesis stake txoroot invalid")
+				return -1, ruleError(ErrInvalidGenesis, "genesis stake txoroot invalid")
 			}
 			totalStaked += types.Amount(stakeTx.Amount)
 		}
 		if totalStaked > types.Amount(coinbaseTx.CoinbaseTransaction.NewCoins) {
-			return ruleError(ErrInvalidGenesis, "genesis total stake larger than coinbase")
+			return -1, ruleError(ErrInvalidGenesis, "genesis total stake larger than coinbase")
 		}
 	}
 
 	if !flags.HasFlag(BFFastAdd) {
 		proofValidator := NewProofValidator(b.proofCache, b.verifier)
 		if err := proofValidator.Validate(blk.Transactions); err != nil {
-			return err
+			return -1, err
 		}
 		sigValidator := NewSigValidator(b.sigCache)
 		if err := sigValidator.Validate(blk.Transactions); err != nil {
-			return err
+			return -1, err
 		}
 	}
 
-	return nil
+	return -1, nil
 }
 
 // CheckTransactionSanity performs a sanity check on the transaction. No blockchain context
