@@ -34,12 +34,9 @@ import (
 // the extra bandwidth cost of the checksums. At small block sizes this isn't
 // worth it. So we omit the checksums.
 func (m *Mempool) EncodeXthinner(blkIds []types.ID) (*blocks.XThinnerBlock, error) {
-	m.mempoolLock.RLock()
-	defer m.mempoolLock.RUnlock()
-
-	mempoolTxs := make([]types.ID, 0, len(m.pool)+2)
-
-	for txid := range m.pool {
+	pool := m.GetTransactions()
+	mempoolTxs := make([]types.ID, 0, len(pool)+2)
+	for txid := range pool {
 		mempoolTxs = append(mempoolTxs, txid)
 	}
 	sort.Sort(TxidSorter(mempoolTxs))
@@ -54,7 +51,7 @@ func (m *Mempool) EncodeXthinner(blkIds []types.ID) (*blocks.XThinnerBlock, erro
 	)
 
 	for _, txid := range blkIds {
-		if _, ok := m.pool[txid]; !ok {
+		if _, ok := pool[txid]; !ok {
 			return nil, errors.New("block tx not found in pool")
 		}
 		// Pop stage
@@ -131,9 +128,6 @@ func (m *Mempool) EncodeXthinner(blkIds []types.ID) (*blocks.XThinnerBlock, erro
 //
 // In both cases the solution is to download the full list of txids from the remote peer.
 func (m *Mempool) DecodeXthinner(blk *blocks.XThinnerBlock) (*blocks.Block, []uint32) {
-	m.mempoolLock.RLock()
-	defer m.mempoolLock.RUnlock()
-
 	var (
 		pops            = decodeBitmap(blk.Pops)
 		pushes          = decodeBitmap(blk.Pushes)
@@ -146,15 +140,16 @@ func (m *Mempool) DecodeXthinner(blk *blocks.XThinnerBlock) (*blocks.Block, []ui
 		rerequests      = make([]uint32, 0, blk.TxCount)
 	)
 
-	mempoolTxs := make([]types.ID, 0, len(m.pool)+1)
+	pool := m.GetTransactions()
+	mempoolTxs := make([]types.ID, 0, len(pool)+1)
 
-	for txid := range m.pool {
+	for txid := range pool {
 		mempoolTxs = append(mempoolTxs, txid)
 	}
 	prefilled := make(map[types.ID]*transactions.Transaction)
 	for _, tx := range blk.PrefilledTxs {
 		id := tx.Transaction.ID()
-		if _, ok := m.pool[id]; !ok {
+		if _, ok := pool[id]; !ok {
 			mempoolTxs = append(mempoolTxs, id)
 		}
 		prefilled[id] = tx.Transaction
@@ -202,9 +197,9 @@ func (m *Mempool) DecodeXthinner(blk *blocks.XThinnerBlock) (*blocks.Block, []ui
 			fullBlk.Transactions[pos] = tx
 		} else {
 			poolTxid := mempoolTxs[mempoolposition]
-			ttx, ok := m.pool[poolTxid]
+			poolTx, ok := pool[poolTxid]
 			if ok {
-				fullBlk.Transactions[pos] = ttx.tx
+				fullBlk.Transactions[pos] = poolTx
 			}
 		}
 	}

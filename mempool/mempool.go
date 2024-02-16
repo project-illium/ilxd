@@ -11,16 +11,22 @@ import (
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"google.golang.org/protobuf/proto"
-	"sync"
 	"time"
 )
 
-type validationReq struct {
+type processTxReq struct {
 	tx         *transactions.Transaction
 	resultChan chan error
 }
 type removeBlockTxsReq struct {
 	txs []*transactions.Transaction
+}
+type getTransactionReq struct {
+	txid       types.ID
+	resultChan chan *transactions.Transaction
+}
+type getTransactionsReq struct {
+	resultChan chan map[types.ID]*transactions.Transaction
 }
 type ttlTx struct {
 	tx         *transactions.Transaction
@@ -39,7 +45,6 @@ type Mempool struct {
 	cfg            *config
 	msgChan        chan interface{}
 	quit           chan struct{}
-	mempoolLock    sync.RWMutex
 }
 
 // NewMempool returns a new mempool with the configuration options.
@@ -66,7 +71,6 @@ func NewMempool(opts ...Option) (*Mempool, error) {
 		cfg:            &cfg,
 		msgChan:        make(chan interface{}),
 		quit:           make(chan struct{}),
-		mempoolLock:    sync.RWMutex{},
 	}
 	go m.validationHandler()
 	return m, nil
@@ -83,20 +87,22 @@ func (m *Mempool) validationHandler() {
 		select {
 		case msg := <-m.msgChan:
 			switch req := msg.(type) {
-			case *validationReq:
-				req.resultChan <- m.validateTransaction(req.tx)
+			case *processTxReq:
+				req.resultChan <- m.processTransaction(req.tx)
 			case *removeBlockTxsReq:
 				m.removeBlockTransactions(req.txs)
+			case *getTransactionReq:
+				req.resultChan <- m.handleGetTransaction(req.txid)
+			case *getTransactionsReq:
+				req.resultChan <- m.handleGetTransactions()
 			}
 		case <-ticker.C:
-			m.mempoolLock.RLock()
 			toDelete := make([]*transactions.Transaction, 0)
 			for _, tx := range m.pool {
 				if time.Now().After(tx.expiration) {
 					toDelete = append(toDelete, tx.tx)
 				}
 			}
-			m.mempoolLock.RUnlock()
 			if len(toDelete) > 0 {
 				m.removeBlockTransactions(toDelete)
 			}
@@ -139,7 +145,7 @@ func (m *Mempool) ProcessTransaction(tx *transactions.Transaction) error {
 	}
 
 	resultChan := make(chan error)
-	m.msgChan <- &validationReq{
+	m.msgChan <- &processTxReq{
 		tx:         proto.Clone(tx).(*transactions.Transaction),
 		resultChan: resultChan,
 	}
@@ -148,29 +154,58 @@ func (m *Mempool) ProcessTransaction(tx *transactions.Transaction) error {
 }
 
 // GetTransaction returns a transaction given the ID if it exists in the pool.
+//
+// This method is safe for concurrent access.
 func (m *Mempool) GetTransaction(txid types.ID) (*transactions.Transaction, error) {
-	m.mempoolLock.RLock()
-	defer m.mempoolLock.RUnlock()
+	resp := make(chan *transactions.Transaction)
+	defer close(resp)
+	m.msgChan <- &getTransactionReq{
+		txid:       txid,
+		resultChan: resp,
+	}
+	tx := <-resp
 
-	tx, ok := m.pool[txid]
-	if !ok {
+	if tx == nil {
 		return nil, ErrNotFound
 	}
-	cpy := proto.Clone(tx.tx)
+	cpy := proto.Clone(tx)
 	return cpy.(*transactions.Transaction), nil
 }
 
-// GetTransactions returns the full list of transactions from the pool.
-func (m *Mempool) GetTransactions() map[types.ID]*transactions.Transaction {
-	m.mempoolLock.RLock()
-	defer m.mempoolLock.RUnlock()
+// handleGetTransaction is the implementation for GetTransaction
+//
+// This method is NOT safe for concurrent access.
+func (m *Mempool) handleGetTransaction(txid types.ID) *transactions.Transaction {
+	ttlTx, ok := m.pool[txid]
+	if !ok {
+		return nil
+	}
+	return ttlTx.tx
+}
 
+// GetTransactions returns the full list of transactions from the pool.
+//
+// This method is safe for concurrent access.
+func (m *Mempool) GetTransactions() map[types.ID]*transactions.Transaction {
+	resp := make(chan map[types.ID]*transactions.Transaction)
+	defer close(resp)
+	m.msgChan <- &getTransactionsReq{
+		resultChan: resp,
+	}
+	pool := <-resp
+
+	return pool
+}
+
+// handleGetTransactions is the implementation for GetTransactions
+//
+// This method is NOT safe for concurrent access.
+func (m *Mempool) handleGetTransactions() map[types.ID]*transactions.Transaction {
 	pool := make(map[types.ID]*transactions.Transaction)
 	for id, tx := range m.pool {
 		cpy := proto.Clone(tx.tx)
 		pool[id] = cpy.(*transactions.Transaction)
 	}
-
 	return pool
 }
 
@@ -184,13 +219,10 @@ func (m *Mempool) RemoveBlockTransactions(txs []*transactions.Transaction) {
 	}
 }
 
-// removeBlockTransactions is the implementation of RemoveBlockTransactions.
+// removeBlockTransactions is the implementation for RemoveBlockTransactions.
 //
 // This method is NOT safe for concurrent access.
 func (m *Mempool) removeBlockTransactions(txs []*transactions.Transaction) {
-	m.mempoolLock.Lock()
-	defer m.mempoolLock.Unlock()
-
 	for _, tx := range txs {
 		delete(m.pool, tx.ID())
 
@@ -228,10 +260,10 @@ func (m *Mempool) removeBlockTransactions(txs []*transactions.Transaction) {
 	}
 }
 
-func (m *Mempool) validateTransaction(tx *transactions.Transaction) error {
-	m.mempoolLock.Lock()
-	defer m.mempoolLock.Unlock()
-
+// processTransaction is the implementation for ProcessTransaction.
+//
+// This method is NOT safe for concurrent access.
+func (m *Mempool) processTransaction(tx *transactions.Transaction) error {
 	if _, ok := m.pool[tx.ID()]; ok {
 		return ErrDuplicateTx
 	}
