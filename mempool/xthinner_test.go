@@ -207,8 +207,11 @@ func TestMempool_EncodeXthinner(t *testing.T) {
 
 	for x, test := range tests {
 		m := &Mempool{
-			pool: make(map[types.ID]*ttlTx),
+			pool:    make(map[types.ID]*ttlTx),
+			msgChan: make(chan interface{}),
+			quit:    make(chan struct{}),
 		}
+		go m.validationHandler()
 		for _, tx := range test.mempoolTxs {
 			m.pool[tx.ID()] = &ttlTx{tx: tx}
 		}
@@ -240,12 +243,16 @@ func TestMempool_EncodeXthinner(t *testing.T) {
 		for i := range rerequests {
 			assert.Equalf(t, test.expectedRequests[i], rerequests[i], "test %d", x)
 		}
+		m.Close()
 	}
 }
 func TestEmptyPool(t *testing.T) {
 	m := &Mempool{
-		pool: make(map[types.ID]*ttlTx),
+		pool:    make(map[types.ID]*ttlTx),
+		msgChan: make(chan interface{}),
+		quit:    make(chan struct{}),
 	}
+	go m.validationHandler()
 	mempoolTxs := []*transactions.Transaction{
 		transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 2}),    // 0bf4c9d8b09c0181a7511b9a7bb8ee416aeef26acd282947a85b51f7663c05cd
 		transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 7127}), // 1798f664c8349445911f9d1d8a7655e388e47bc6bf022c4d5faa03b384b3ba18
@@ -274,11 +281,16 @@ func TestEmptyPool(t *testing.T) {
 	assert.NoError(t, err)
 
 	m2 := &Mempool{
-		pool: make(map[types.ID]*ttlTx),
+		pool:    make(map[types.ID]*ttlTx),
+		msgChan: make(chan interface{}),
+		quit:    make(chan struct{}),
 	}
+	go m2.validationHandler()
 
 	_, missing := m2.DecodeXthinner(blk)
 	assert.Len(t, missing, 3)
+	m.Close()
+	m2.Close()
 }
 
 func TestBitmapEncoding(t *testing.T) {
