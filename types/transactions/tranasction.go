@@ -22,6 +22,7 @@ var _ types.Serializable = (*StakeTransaction)(nil)
 var _ types.Serializable = (*TreasuryTransaction)(nil)
 var _ types.Serializable = (*MintTransaction)(nil)
 
+// WrapTransaction wraps a typed transaction in the transaction wrapper
 func WrapTransaction(tx interface{}) *Transaction {
 	var t isTransaction_Tx
 	switch typ := tx.(type) {
@@ -49,6 +50,10 @@ type txWrapperJSON struct {
 	TreasuryTransaction *TreasuryTransaction `json:"treasury_transaction"`
 }
 
+// ID returns the txid of the transaction. If the id is cached
+// it will return from cache instead of recomputing the hash. If
+// it is not cached it will cache the computed txid for faster
+// returns next time.
 func (tx *Transaction) ID() types.ID {
 	if len(tx.cachedTxid) > 0 {
 		return types.NewID(tx.cachedTxid)
@@ -58,14 +63,17 @@ func (tx *Transaction) ID() types.ID {
 	return id
 }
 
+// CacheTxid caches the transaction ID for faster returns
 func (tx *Transaction) CacheTxid(txid types.ID) {
 	tx.cachedTxid = txid.Bytes()
 }
 
+// CacheWid caches the WID for faster returns
 func (tx *Transaction) CacheWid(wid types.ID) {
 	tx.cachedWid = wid.Bytes()
 }
 
+// UID returns the ID of the transaction excluding the proof
 func (tx *Transaction) UID() types.ID {
 	clone := proto.Clone(tx)
 	switch tx := clone.(*Transaction).GetTx().(type) {
@@ -84,6 +92,7 @@ func (tx *Transaction) UID() types.ID {
 	return types.NewIDFromData(ser)
 }
 
+// WID returns the witness ID for the transaction
 func (tx *Transaction) WID() types.ID {
 	if len(tx.cachedWid) > 0 {
 		return types.NewID(tx.cachedWid)
@@ -104,6 +113,7 @@ func (tx *Transaction) WID() types.ID {
 	return types.NewIDFromData(proof)
 }
 
+// Outputs returns the transaction's output
 func (tx *Transaction) Outputs() []*Output {
 	outputs := make([]*Output, 0, 1)
 	switch tx := tx.GetTx().(type) {
@@ -119,6 +129,7 @@ func (tx *Transaction) Outputs() []*Output {
 	return outputs
 }
 
+// Nullifiers returns the transaction's nullifiers
 func (tx *Transaction) Nullifiers() []types.Nullifier {
 	nullifiers := make([]types.Nullifier, 0, 1)
 	switch tx := tx.GetTx().(type) {

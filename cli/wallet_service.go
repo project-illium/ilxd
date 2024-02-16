@@ -963,6 +963,51 @@ func (x *CreateRawStakeTransaction) Execute(args []string) error {
 	return nil
 }
 
+type DecodeTransaction struct {
+	Tx      string `short:"t" long:"tx" description:"The transaction to decode. Serialized as a hex string"`
+	Concise bool   `short:"c" long:"concise" description:"Return the transaction without the proof"`
+	opts    *options
+}
+
+func (x *DecodeTransaction) Execute(args []string) error {
+	txBytes, err := hex.DecodeString(x.Tx)
+	if err != nil {
+		return err
+	}
+	var tx transactions.Transaction
+	if err := proto.Unmarshal(txBytes, &tx); err != nil {
+		return err
+	}
+
+	if x.Concise {
+		switch t := tx.GetTx().(type) {
+		case *transactions.Transaction_StandardTransaction:
+			t.StandardTransaction.Proof = nil
+		case *transactions.Transaction_MintTransaction:
+			t.MintTransaction.Proof = nil
+		case *transactions.Transaction_StakeTransaction:
+			t.StakeTransaction.Proof = nil
+		case *transactions.Transaction_CoinbaseTransaction:
+			t.CoinbaseTransaction.Proof = nil
+		case *transactions.Transaction_TreasuryTransaction:
+			t.TreasuryTransaction.Proof = nil
+		}
+	}
+
+	type txWithID struct {
+		Txid string                    `json:"txid"`
+		Tx   *transactions.Transaction `json:"tx"`
+	}
+
+	out, err := json.MarshalIndent(&txWithID{Txid: tx.ID().String(), Tx: &tx}, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(out))
+	return nil
+}
+
 type DecodeRawTransaction struct {
 	Tx   string `short:"t" long:"rawtx" description:"The transaction to decode. Serialized as a hex string"`
 	opts *options
@@ -978,10 +1023,11 @@ func (x *DecodeRawTransaction) Execute(args []string) error {
 		return err
 	}
 
-	out, err := json.MarshalIndent(rawTx, "", "    ")
+	out, err := json.MarshalIndent(&rawTx, "", "    ")
 	if err != nil {
 		return err
 	}
+
 	fmt.Println(string(out))
 	return nil
 }
@@ -1039,7 +1085,7 @@ func (x *ProveRawTransaction) Execute(args []string) error {
 		return err
 	}
 	var tx *transactions.Transaction
-	if privKeys != nil || hasUnlockingParams {
+	if privKeys != nil || hasUnlockingParams || rawTx.Tx.GetTreasuryTransaction() != nil {
 		tx, err = proveRawTransactionLocally(&rawTx, privKeys, prover)
 		if err != nil {
 			spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
@@ -1408,8 +1454,38 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 		stakeTx.Proof = proof
 
 		return transactions.WrapTransaction(stakeTx), nil
+	} else if rawTx.Tx.GetTreasuryTransaction() != nil {
+		treasuryTx := rawTx.Tx.GetTreasuryTransaction()
+		publicParams, err := treasuryTx.ToCircuitParams()
+		if err != nil {
+			return nil, err
+		}
+
+		privateParams := make(circparams.TreasuryPrivateParams, 0, len(treasuryTx.Outputs))
+		for _, output := range rawTx.Outputs {
+			priv := circparams.PrivateOutput{
+				ScriptHash: types.NewID(output.ScriptHash),
+				Amount:     types.Amount(output.Amount),
+				AssetID:    types.NewID(output.Asset_ID),
+				Salt:       types.NewID(output.Salt),
+			}
+			state := new(types.State)
+			if err := state.Deserialize(output.State); err != nil {
+				return nil, err
+			}
+			priv.State = *state
+			privateParams = append(privateParams, priv)
+		}
+
+		proof, err := prover.Prove(zk.TreasuryValidationProgram(), &privateParams, publicParams)
+		if err != nil {
+			return nil, err
+		}
+
+		treasuryTx.Proof = proof
+		return transactions.WrapTransaction(treasuryTx), nil
 	}
-	return nil, errors.New("tx must be either standard or stake type")
+	return nil, errors.New("tx must be either standard, stake, or treasury type")
 }
 
 func pbIOtoIO(ios []*pb.WalletTransaction_IO) []interface{} {

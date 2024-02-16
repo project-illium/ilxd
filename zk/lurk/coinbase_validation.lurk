@@ -55,7 +55,7 @@
                                                                        (cons asset-id                                           ;; asset-id
                                                                        (cons (car (cdr (cdr (cdr priv-out))))                   ;; salt
                                                                        (cons (car (cdr (cdr (cdr (cdr priv-out))))) nil)))))))) ;; state
-                                             (validate-outputs (cdr private-outputs) (cdr public-outputs) (map-update asset-id (+ asset-sum amount) asset-map)) ;; If validation succeeds loop through the next ouputs
+                                             (validate-outputs (cdr private-outputs) (cdr public-outputs) (map-update asset-id (+ asset-sum amount) asset-map)) ;; If validation succeeds loop through the next outputs
                                              nil ;; Validation failed return false
                                          )
                                      )
