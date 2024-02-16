@@ -417,7 +417,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		return nil, err
 	}
 
-	s.chainService, err = sync.NewChainService(ctx, s.fetchBlock, chain, network, netParams)
+	s.chainService, err = sync.NewChainService(ctx, s.fetchBlock, s.isCurrent, chain, network, netParams)
 	if err != nil {
 		return nil, err
 	}
@@ -935,6 +935,11 @@ func (s *Server) fetchBlock(blockID types.ID) (*blocks.Block, error) {
 	}
 
 	return s.blockchain.GetBlockByID(blockID)
+}
+
+func (s *Server) isCurrent() bool {
+	<-s.ready
+	return s.syncManager.IsCurrent()
 }
 
 func (s *Server) consensusChoose(blks []*blocks.Block) (types.ID, error) {

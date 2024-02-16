@@ -99,7 +99,7 @@ func makeMockNode(mn mocknet.Mocknet, chain *blockchain.Blockchain) (*mockNode, 
 		return nil, err
 	}
 
-	service, err := NewChainService(context.Background(), chain.GetBlockByID, chain, network, chain.Params())
+	service, err := NewChainService(context.Background(), chain.GetBlockByID, func() bool { return true }, chain, network, chain.Params())
 	if err != nil {
 		return nil, err
 	}

@@ -35,21 +35,24 @@ var ErrNotCurrent = errors.New("peer not current")
 var ErrNotFound = errors.New("not found")
 
 type FetchBlockFunc func(blockID types.ID) (*blocks.Block, error)
+type IsCurrentFunc func() bool
 
 type ChainService struct {
 	ctx        context.Context
 	network    *net.Network
 	params     *params.NetworkParams
 	fetchBlock FetchBlockFunc
+	isCurrent  IsCurrentFunc
 	chain      *blockchain.Blockchain
 	ms         net.MessageSender
 }
 
-func NewChainService(ctx context.Context, fetchBlock FetchBlockFunc, chain *blockchain.Blockchain, network *net.Network, params *params.NetworkParams) (*ChainService, error) {
+func NewChainService(ctx context.Context, fetchBlock FetchBlockFunc, isCurrent IsCurrentFunc, chain *blockchain.Blockchain, network *net.Network, params *params.NetworkParams) (*ChainService, error) {
 	cs := &ChainService{
 		ctx:        ctx,
 		network:    network,
 		fetchBlock: fetchBlock,
+		isCurrent:  isCurrent,
 		chain:      chain,
 		params:     params,
 		ms:         net.NewMessageSender(network.Host(), params.ProtocolPrefix+ChainServiceProtocol+ChainServiceProtocolVersion),
@@ -484,14 +487,18 @@ func (cs *ChainService) GetBest(p peer.ID) (types.ID, uint32, error) {
 }
 
 func (cs *ChainService) handleGetBest(req *wire.GetBestReq) (*wire.MsgGetBestResp, error) {
+	if !cs.isCurrent() {
+		return &wire.MsgGetBestResp{
+			Error: wire.ErrorResponse_NotCurrent,
+		}, nil
+	}
+
 	blockID, height, _ := cs.chain.BestBlock()
 
 	resp := &wire.MsgGetBestResp{
 		Block_ID: blockID[:],
 		Height:   height,
 	}
-
-	// FIXME: if not current return error
 
 	return resp, nil
 }
