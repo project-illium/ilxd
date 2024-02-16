@@ -1332,7 +1332,7 @@ func TestValidateBlock(t *testing.T) {
 	for _, test := range tests {
 		blk, err := test.block(proto.Clone(block).(*blocks.Block))
 		assert.NoError(t, err)
-		err = b.validateBlock(blk, test.flags)
+		_, err = b.validateBlock(blk, test.flags)
 		if test.expectedErr == nil {
 			assert.NoErrorf(t, err, "block validation test: %s failure", test.name)
 		} else {

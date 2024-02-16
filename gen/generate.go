@@ -272,7 +272,11 @@ func (g *BlockGenerator) generateBlock() error {
 	}
 	blk.Header.Signature = sig
 
-	if err := g.chain.CheckConnectBlock(blk); err != nil {
+	if invalidIdx, err := g.chain.CheckConnectBlock(blk); err != nil {
+		if invalidIdx >= 0 && invalidIdx < len(blk.Transactions) {
+			invalidTx := blk.Transactions[invalidIdx]
+			g.mpool.RemoveBlockTransactions([]*transactions.Transaction{invalidTx})
+		}
 		return err
 	}
 

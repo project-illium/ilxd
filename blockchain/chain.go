@@ -191,28 +191,31 @@ func (b *Blockchain) IsPruned() (bool, error) {
 // CheckConnectBlock checks that the block is valid for the current state of the blockchain
 // and that it can be connected to the chain. This method does not change any blockchain
 // state. It merely reads the current state to determine the block validity.
-func (b *Blockchain) CheckConnectBlock(blk *blocks.Block) error {
+//
+// The returned int will contain the index of the invalid transaction, if that
+// was the cause of the failure, or -1.
+func (b *Blockchain) CheckConnectBlock(blk *blocks.Block) (int, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
 
 	if err := b.checkBlockContext(blk.Header); err != nil {
-		return err
+		return -1, err
 	}
 
 	bannedNullifiers, err := b.validatorSet.ComputeBannedNullifiers(blk)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	ops, size, err := datastoreTxnLimits(blk, bannedNullifiers)
 	if err != nil {
-		return err
+		return -1, err
 	}
 	if ops > dsMaxBatchCount {
-		return ruleError(ErrMaxBlockSize, "block exceeds max database transaction ops")
+		return -1, ruleError(ErrMaxBlockSize, "block exceeds max database transaction ops")
 	}
 	if size > dsMaxBatchSize {
-		return ruleError(ErrMaxBlockSize, "block exceeds max database transaction size")
+		return -1, ruleError(ErrMaxBlockSize, "block exceeds max database transaction size")
 	}
 
 	return b.validateBlock(blk, BFNone)
@@ -250,7 +253,7 @@ func (b *Blockchain) connectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	}
 
 	if !flags.HasFlag(BFNoValidation) {
-		if err := b.validateBlock(blk, flags); err != nil {
+		if _, err := b.validateBlock(blk, flags); err != nil {
 			return err
 		}
 	}

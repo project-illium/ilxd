@@ -671,7 +671,7 @@ func (s *Server) setAutostake(autostake bool) error {
 
 func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck bool) error {
 	<-s.ready
-	err := s.blockchain.CheckConnectBlock(blk)
+	_, err := s.blockchain.CheckConnectBlock(blk)
 
 	switch err.(type) {
 	case blockchain.OrphanBlockError:
