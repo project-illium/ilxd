@@ -230,20 +230,29 @@ func StakeValidationProgram() string {
 	return stakeValidationScriptData
 }
 
+// MakeMultisigUnlockingParams takes in a list of public keys and signatures and returns
+// a lurk expression for the signatures that can be used as unlocking params for the
+// multisig script.
+//
+// Note: The public keys here must be in the same order as they appear in the locking params.
+// Note2: The signatures must be in the same order as the public keys they belong to. // Fixme: this function can be refactored to remove this requirement
 func MakeMultisigUnlockingParams(pubkeys []crypto.PubKey, sigs [][]byte, sigHash []byte) (string, error) {
 	sigCpy := make([][]byte, len(sigs))
-	copy(sigCpy, sigs)
+	for i, sig := range sigs {
+		sigCpy[i] = make([]byte, len(sig))
+		copy(sigCpy[i], sig)
+	}
 
 	keySelector := "(cons "
 	for i, key := range pubkeys {
-		if len(sigs) > 0 {
-			valid, err := key.Verify(sigHash, sigs[0])
+		if len(sigCpy) > 0 {
+			valid, err := key.Verify(sigHash, sigCpy[0])
 			if err != nil {
 				return "", err
 			}
 			if valid {
 				keySelector += "1 "
-				sigs = sigs[1:]
+				sigCpy = sigCpy[1:]
 			} else {
 				keySelector += "0 "
 			}
@@ -261,7 +270,7 @@ func MakeMultisigUnlockingParams(pubkeys []crypto.PubKey, sigs [][]byte, sigHash
 	}
 
 	unlockignScript := "(cons " + keySelector + " "
-	for _, sig := range sigCpy {
+	for _, sig := range sigs {
 		unlockignScript += "(cons "
 		if len(sig) != 64 {
 			return "", errors.New("invalid signature len")
@@ -270,7 +279,7 @@ func MakeMultisigUnlockingParams(pubkeys []crypto.PubKey, sigs [][]byte, sigHash
 		unlockignScript += fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil))) ", sigRx, sigRy, sigS)
 	}
 	unlockignScript += "nil)"
-	for i := 0; i < len(sigCpy); i++ {
+	for i := 0; i < len(sigs); i++ {
 		unlockignScript += ")"
 	}
 	return unlockignScript, nil
