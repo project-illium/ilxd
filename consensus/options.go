@@ -73,7 +73,18 @@ func ValidatorConnector(valConn ValidatorSetConnection) Option {
 // This option is required.
 func RequestBlock(requestBlockFunc RequestBlockFunc) Option {
 	return func(cfg *config) error {
-		cfg.requestBlock = requestBlockFunc
+		cfg.requestBlockFunc = requestBlockFunc
+		return nil
+	}
+}
+
+// GetBlock is a function which returns the block for the given ID or
+// an error.
+//
+// This option is required.
+func GetBlock(getBlockFunc GetBlockFunc) Option {
+	return func(cfg *config) error {
+		cfg.getBlockFunc = getBlockFunc
 		return nil
 	}
 }
@@ -101,13 +112,14 @@ func PeerID(self peer.ID) Option {
 
 // Config specifies the blockchain configuration.
 type config struct {
-	params         *params.NetworkParams
-	network        *net.Network
-	valConn        ValidatorSetConnection
-	chooser        blockchain.WeightedChooser
-	self           peer.ID
-	requestBlock   RequestBlockFunc
-	getBlockIDFunc GetBlockIDFunc
+	params           *params.NetworkParams
+	network          *net.Network
+	valConn          ValidatorSetConnection
+	chooser          blockchain.WeightedChooser
+	self             peer.ID
+	requestBlockFunc RequestBlockFunc
+	getBlockFunc     GetBlockFunc
+	getBlockIDFunc   GetBlockIDFunc
 }
 
 func (cfg *config) validate() error {
@@ -126,8 +138,11 @@ func (cfg *config) validate() error {
 	if cfg.chooser == nil {
 		return AssertError("NewConsensusEngine: chooser cannot be nil")
 	}
-	if cfg.requestBlock == nil {
+	if cfg.requestBlockFunc == nil {
 		return AssertError("NewConsensusEngine: requestBlockFunc cannot be nil")
+	}
+	if cfg.getBlockFunc == nil {
+		return AssertError("NewConsensusEngine: getBlockFunc cannot be nil")
 	}
 	if cfg.getBlockIDFunc == nil {
 		return AssertError("NewConsensusEngine: getBlockIDFunc cannot be nil")

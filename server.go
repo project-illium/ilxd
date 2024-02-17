@@ -370,6 +370,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		consensus.Chooser(chain),
 		consensus.RequestBlock(s.requestBlock),
 		consensus.GetBlockID(chain.GetBlockIDByHeight),
+		consensus.GetBlock(s.fetchBlock),
 		consensus.PeerID(network.Host().ID()),
 	}...)
 	if err != nil {
@@ -1000,7 +1001,7 @@ func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
 		"id":   blockID,
 		"peer": remotePeer,
 	}))
-	blk, err := s.chainService.GetBlock(remotePeer, blockID)
+	blk, err := s.engine.GetBlockFromPeer(remotePeer, blockID)
 	if err != nil {
 		s.network.IncreaseBanscore(remotePeer, 0, 30)
 		s.inflightLock.Lock()

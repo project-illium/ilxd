@@ -63,8 +63,8 @@ type requestExpirationMsg struct {
 
 // queryMsg signifies a query from another peer.
 type queryMsg struct {
-	request    *wire.MsgAvaRequest
-	respChan   chan *wire.MsgAvaResponse
+	request    *wire.MsgPollRequest
+	respChan   chan *wire.MsgPollResponse
 	remotePeer peer.ID
 }
 
@@ -78,13 +78,16 @@ type newBlockMessage struct {
 // registerVotesMsg signifies a response to a query from another peer.
 type registerVotesMsg struct {
 	p    peer.ID
-	resp *wire.MsgAvaResponse
+	resp *wire.MsgPollResponse
 }
 
 // RequestBlockFunc is called when the engine receives a query from a peer about
 // and unknown block. It should attempt to download the block from the remote peer,
 // validate it, then pass it into the engine.
 type RequestBlockFunc func(blockID types.ID, remotePeer peer.ID)
+
+// GetBlockFunc returns the block for the given ID or error if it's not found.
+type GetBlockFunc func(blockID types.ID) (*blocks.Block, error)
 
 // GetBlockIDFunc returns the blockID at the given height or an error if it's not found.
 type GetBlockIDFunc func(height uint32) (types.ID, error)
@@ -103,6 +106,7 @@ type ConsensusEngine struct {
 	self         peer.ID
 	wg           sync.WaitGroup
 	requestBlock RequestBlockFunc
+	getBlock     GetBlockFunc
 	getBlockID   GetBlockIDFunc
 	quit         chan struct{}
 	msgChan      chan interface{}
@@ -135,7 +139,8 @@ func NewConsensusEngine(ctx context.Context, opts ...Option) (*ConsensusEngine, 
 		self:         cfg.self,
 		ms:           net.NewMessageSender(cfg.network.Host(), cfg.params.ProtocolPrefix+ConsensusProtocol+ConsensusProtocolVersion),
 		wg:           sync.WaitGroup{},
-		requestBlock: cfg.requestBlock,
+		requestBlock: cfg.requestBlockFunc,
+		getBlock:     cfg.getBlockFunc,
 		getBlockID:   cfg.getBlockIDFunc,
 		quit:         make(chan struct{}),
 		msgChan:      make(chan interface{}),
@@ -247,7 +252,7 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 		default:
 		}
 
-		req := new(wire.MsgAvaRequest)
+		req := new(wire.MsgConsensusServiceRequest)
 		msgBytes, err := reader.ReadMsg()
 		if err != nil {
 			reader.ReleaseMsg(msgBytes)
@@ -273,33 +278,60 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 		}
 		reader.ReleaseMsg(msgBytes)
 
-		respCh := make(chan *wire.MsgAvaResponse)
-		eng.msgChan <- &queryMsg{
-			request:    req,
-			respChan:   respCh,
-			remotePeer: remotePeer,
+		switch msg := req.Msg.(type) {
+		case *wire.MsgConsensusServiceRequest_PollRequest:
+			respCh := make(chan *wire.MsgPollResponse)
+			eng.msgChan <- &queryMsg{
+				request:    msg.PollRequest,
+				respChan:   respCh,
+				remotePeer: remotePeer,
+			}
+
+			respMsg := <-respCh
+			err = net.WriteMsg(s, respMsg)
+			if err != nil {
+				log.WithCaller(true).Trace("Error writing poll response to avalanche stream", log.ArgsFromMap(map[string]any{
+					"peer":  remotePeer,
+					"error": err,
+				}))
+				s.Reset()
+			}
+		case *wire.MsgConsensusServiceRequest_GetBlock:
+			// Why handle block requests here instead of in the chain service?
+			// Because pruned nodes do not run the chain service and we'd still
+			// like a pruned node to be able to participate in consensus.
+			//
+			// Pruned nodes keep the last 10 blocks from the tip, so they should
+			// be able to respond to these requests (and most of the time the
+			// block will simply be in the active inventory).
+			respMsg := &wire.MsgBlockResp{}
+			blk, err := eng.getBlock(types.NewID(msg.GetBlock.Block_ID))
+			if err != nil {
+				respMsg.Error = wire.ErrorResponse_NotFound
+			} else {
+				respMsg.Block = blk
+			}
+			err = net.WriteMsg(s, respMsg)
+			if err != nil {
+				log.WithCaller(true).Trace("Error writing blk response to avalanche stream", log.ArgsFromMap(map[string]any{
+					"peer":  remotePeer,
+					"error": err,
+				}))
+				s.Reset()
+			}
 		}
 
-		respMsg := <-respCh
-		err = net.WriteMsg(s, respMsg)
-		if err != nil {
-			log.WithCaller(true).Trace("Error writing to avalanche stream", log.ArgsFromMap(map[string]any{
-				"peer":  remotePeer,
-				"error": err,
-			}))
-			s.Reset()
-		}
 		ticker.Reset(time.Minute)
 	}
 }
 
-func (eng *ConsensusEngine) handleQuery(req *wire.MsgAvaRequest, remotePeer peer.ID, respChan chan *wire.MsgAvaResponse) {
+func (eng *ConsensusEngine) handleQuery(req *wire.MsgPollRequest, remotePeer peer.ID, respChan chan *wire.MsgPollResponse) {
 	if len(req.Heights) == 0 {
 		log.WithCaller(true).Trace("Received empty avalanche request", log.Args("peer", remotePeer))
 		eng.network.IncreaseBanscore(remotePeer, 30, 0)
 		return
 	}
-	resp := &wire.MsgAvaResponse{
+	resp := &wire.MsgPollResponse{
 		Request_ID: req.Request_ID,
 		Votes:      make([][]byte, 0, len(req.Heights)),
 	}
@@ -338,11 +370,17 @@ func (eng *ConsensusEngine) handleRequestExpiration(key string, p peer.ID) {
 	}
 }
 
-func (eng *ConsensusEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer peer.ID) {
+func (eng *ConsensusEngine) queueMessageToPeer(pollReq *wire.MsgPollRequest, peer peer.ID) {
 	var (
-		key  = queryKey(req.Request_ID, peer.String())
-		resp = new(wire.MsgAvaResponse)
+		key  = queryKey(pollReq.Request_ID, peer.String())
+		resp = new(wire.MsgPollResponse)
 	)
+
+	req := &wire.MsgConsensusServiceRequest{
+		Msg: &wire.MsgConsensusServiceRequest_PollRequest{
+			PollRequest: pollReq,
+		},
+	}
 
 	if peer != eng.self {
 		err := eng.ms.SendRequest(eng.ctx, peer, req, resp)
@@ -354,9 +392,9 @@ func (eng *ConsensusEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer pee
 		// Sleep here to not artificially advantage our own node.
 		time.Sleep(time.Millisecond * 20)
 
-		respCh := make(chan *wire.MsgAvaResponse)
+		respCh := make(chan *wire.MsgPollResponse)
 		eng.msgChan <- &queryMsg{
-			request:    req,
+			request:    pollReq,
 			remotePeer: peer,
 			respChan:   respCh,
 		}
@@ -369,7 +407,7 @@ func (eng *ConsensusEngine) queueMessageToPeer(req *wire.MsgAvaRequest, peer pee
 	}
 }
 
-func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResponse) {
+func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgPollResponse) {
 	eng.chooser.RegisterDialSuccess(p)
 	key := queryKey(resp.Request_ID, p.String())
 
@@ -448,6 +486,27 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgAvaResp
 	}
 }
 
+// GetBlockFromPeer requests the given block from the remote peer and returns
+// the response or an error.
+//
+// This is called from outside the package, rather than inside, specifically
+// because we want to wrap the call in some extra logic regarding processing
+// the block and (potentially) increasing the peer's banscore on bad responses.
+func (eng *ConsensusEngine) GetBlockFromPeer(p peer.ID, blkID types.ID) (*blocks.Block, error) {
+	req := &wire.GetBlockReq{
+		Block_ID: blkID.Bytes(),
+	}
+	resp := new(wire.MsgBlockResp)
+	err := eng.ms.SendRequest(eng.ctx, p, req, resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Error != wire.ErrorResponse_None {
+		return nil, fmt.Errorf("consensus engine: getBlock error: %s", resp.Error.String())
+	}
+	return resp.Block, nil
+}
+
 func (eng *ConsensusEngine) pollLoop() {
 	if eng.valConn.ConnectedStakePercentage() < MinConnectedStakeThreshold {
 		return
@@ -484,7 +543,7 @@ func (eng *ConsensusEngine) pollLoop() {
 	key := queryKey(requestID, p.String())
 	eng.queries[key] = NewRequestRecord(time.Now().Unix(), heights)
 
-	req := &wire.MsgAvaRequest{
+	req := &wire.MsgPollRequest{
 		Request_ID: requestID,
 		Heights:    heights,
 	}
