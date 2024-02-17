@@ -5,11 +5,14 @@
 package main
 
 import (
+	"fmt"
 	"github.com/jessevdk/go-flags"
 	"github.com/project-illium/ilxd/limits"
 	"github.com/project-illium/ilxd/repo"
 	"os"
 	"os/signal"
+	"path"
+	"runtime/debug"
 	"syscall"
 )
 
@@ -36,6 +39,36 @@ func main() {
 	if err != nil {
 		log.WithCaller(true).Fatal("Failed to load config", log.Args("error", err))
 	}
+
+	// Log any panic to the log dir
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("Shutting down after panic. See logs for more info.")
+
+			logPath := path.Join(cfg.LogDir, "panic_dump.log")
+			os.Remove(logPath)
+			file, err := os.Create(logPath)
+			if err != nil {
+				log.Error("Error creating panic dump file:", log.Args("error", err))
+				return
+			}
+			defer file.Close()
+
+			_, err = file.WriteString(fmt.Sprintf("Panic: %v\n", r))
+			if err != nil {
+				log.Error("Error creating panic dump file:", log.Args("error", err))
+				return
+			}
+
+			_, err = file.Write(debug.Stack())
+			if err != nil {
+				log.Error("Error creating panic dump file:", log.Args("error", err))
+				return
+			}
+
+			os.Exit(1)
+		}
+	}()
 
 	// Build and start the server.
 	server, err := BuildServer(cfg)
