@@ -252,7 +252,7 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 		default:
 		}
 
-		req := new(wire.MsgConsensusServiceRequest)
+		req := new(wire.MsgConsensusRequest)
 		msgBytes, err := reader.ReadMsg()
 		if err != nil {
 			reader.ReleaseMsg(msgBytes)
@@ -279,7 +279,7 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 		reader.ReleaseMsg(msgBytes)
 
 		switch msg := req.Msg.(type) {
-		case *wire.MsgConsensusServiceRequest_PollRequest:
+		case *wire.MsgConsensusRequest_PollRequest:
 			respCh := make(chan *wire.MsgPollResponse)
 			eng.msgChan <- &queryMsg{
 				request:    msg.PollRequest,
@@ -296,7 +296,7 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 				}))
 				s.Reset()
 			}
-		case *wire.MsgConsensusServiceRequest_GetBlock:
+		case *wire.MsgConsensusRequest_GetBlock:
 			// Why handle block requests here instead of in the chain service?
 			// Because pruned nodes do not run the chain service and we'd still
 			// like a pruned node to be able to participate in consensus.
@@ -376,8 +376,8 @@ func (eng *ConsensusEngine) queueMessageToPeer(pollReq *wire.MsgPollRequest, pee
 		resp = new(wire.MsgPollResponse)
 	)
 
-	req := &wire.MsgConsensusServiceRequest{
-		Msg: &wire.MsgConsensusServiceRequest_PollRequest{
+	req := &wire.MsgConsensusRequest{
+		Msg: &wire.MsgConsensusRequest_PollRequest{
 			PollRequest: pollReq,
 		},
 	}

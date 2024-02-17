@@ -15,7 +15,7 @@ enum ErrorResponse {
     NotCurrent = 3;
 }
 
-message MsgConsensusServiceRequest {
+message MsgConsensusRequest {
     oneof msg {
         MsgPollRequest poll_request = 1;
         GetBlockReq get_block = 2;
