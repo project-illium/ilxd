@@ -74,6 +74,7 @@ func newMockNode(mn mocknet.Mocknet) (*mockNode, error) {
 		Network(network),
 		ValidatorConnector(&MockValConn{}),
 		Chooser(&MockChooser{network: network}),
+		GetBlock(func(id types.ID) (*blocks.Block, error) { return nil, errors.New("not found") }),
 		GetBlockID(func(height uint32) (types.ID, error) { return types.ID{}, errors.New("not found") }),
 		RequestBlock(func(id types.ID, id2 peer.ID) {}),
 		PeerID(network.Host().ID()),

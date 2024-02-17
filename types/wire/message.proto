@@ -15,12 +15,19 @@ enum ErrorResponse {
     NotCurrent = 3;
 }
 
-message MsgAvaRequest {
+message MsgConsensusRequest {
+    oneof msg {
+        MsgPollRequest poll_request = 1;
+        GetBlockReq get_block = 2;
+    }
+}
+
+message MsgPollRequest {
     uint32 request_ID       = 1;
     repeated uint32 heights = 2;
 }
 
-message MsgAvaResponse {
+message MsgPollResponse {
     uint32 request_ID    = 1;
     repeated bytes votes = 2;
 }
