@@ -1268,6 +1268,11 @@ func (x *TimelockCoins) Execute(args []string) error {
 		commitments = append(commitments, cBytes)
 	}
 
+	spinner, err := pterm.DefaultSpinner.Start(provingPhrases[mrand.Intn(len(provingPhrases))])
+	if err != nil {
+		return err
+	}
+
 	resp, err := client.TimelockCoins(makeContext(x.opts.AuthToken), &pb.TimelockCoinsRequest{
 		LockUntil:        x.LockUntil,
 		Amount:           x.Amount,
@@ -1275,11 +1280,11 @@ func (x *TimelockCoins) Execute(args []string) error {
 		InputCommitments: commitments,
 	})
 	if err != nil {
-		return err
+		spinner.Fail(fmt.Sprintf("Error proving transaction: %s", err.Error()))
+		return nil
 	}
 
-	fmt.Println(hex.EncodeToString(resp.Transaction_ID))
-
+	spinner.Success(hex.EncodeToString(resp.Transaction_ID))
 	return nil
 }
 
