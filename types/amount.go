@@ -6,14 +6,21 @@ package types
 
 import "encoding/binary"
 
-// Amount represents the base illium monetary unit (to be named later).
-// The total number of coins issued is not expected to overflow an uint64
+const NanosPerILX = 1e9
+
+// Amount represents the base illium monetary unit (nanoillium or nanos).
+// The total number of nanoillium issued is not expected to overflow an uint64
 // for 250 years from genesis.
 type Amount uint64
 
-// ToBytes returns the byte repesentation of the amount
+// ToBytes returns the byte representation of the amount
 func (a Amount) ToBytes() []byte {
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, uint64(a))
 	return b
+}
+
+// ToILX returns the amount, formatted as ILX
+func (a Amount) ToILX() float64 {
+	return float64(a) / NanosPerILX
 }
