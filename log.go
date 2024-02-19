@@ -12,6 +12,7 @@ import (
 	"github.com/project-illium/ilxd/gen"
 	"github.com/project-illium/ilxd/mempool"
 	"github.com/project-illium/ilxd/policy"
+	"github.com/project-illium/ilxd/policy/protocol"
 	"github.com/project-illium/ilxd/sync"
 	"github.com/project-illium/walletlib"
 	"github.com/pterm/pterm"
@@ -63,6 +64,7 @@ func setupLogging(logDir, level string, testnet bool) error {
 	walletlib.UseLogger(log)
 	indexers.UseLogger(log)
 	policy.UseLogger(log)
+	protocol.UseLogger(log)
 	return nil
 }
 

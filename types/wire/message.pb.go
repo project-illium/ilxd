@@ -1031,6 +1031,455 @@ func (x *MsgGetBestResp) GetError() ErrorResponse {
 	return ErrorResponse_None
 }
 
+type MsgPolicyRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Types that are assignable to Msg:
+	//
+	//	*MsgPolicyRequest_GetFeePerKb
+	//	*MsgPolicyRequest_GetMinStake
+	//	*MsgPolicyRequest_GetBlocksizeSoftLimit
+	//	*MsgPolicyRequest_GetTreasuryWhitelist
+	Msg isMsgPolicyRequest_Msg `protobuf_oneof:"msg"`
+}
+
+func (x *MsgPolicyRequest) Reset() {
+	*x = MsgPolicyRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_message_proto_msgTypes[16]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *MsgPolicyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MsgPolicyRequest) ProtoMessage() {}
+
+func (x *MsgPolicyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_message_proto_msgTypes[16]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MsgPolicyRequest.ProtoReflect.Descriptor instead.
+func (*MsgPolicyRequest) Descriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{16}
+}
+
+func (m *MsgPolicyRequest) GetMsg() isMsgPolicyRequest_Msg {
+	if m != nil {
+		return m.Msg
+	}
+	return nil
+}
+
+func (x *MsgPolicyRequest) GetGetFeePerKb() *GetFeePerKB {
+	if x, ok := x.GetMsg().(*MsgPolicyRequest_GetFeePerKb); ok {
+		return x.GetFeePerKb
+	}
+	return nil
+}
+
+func (x *MsgPolicyRequest) GetGetMinStake() *GetMinStake {
+	if x, ok := x.GetMsg().(*MsgPolicyRequest_GetMinStake); ok {
+		return x.GetMinStake
+	}
+	return nil
+}
+
+func (x *MsgPolicyRequest) GetGetBlocksizeSoftLimit() *GetBlocksizeSoftLimit {
+	if x, ok := x.GetMsg().(*MsgPolicyRequest_GetBlocksizeSoftLimit); ok {
+		return x.GetBlocksizeSoftLimit
+	}
+	return nil
+}
+
+func (x *MsgPolicyRequest) GetGetTreasuryWhitelist() *GetTreasuryWhitelist {
+	if x, ok := x.GetMsg().(*MsgPolicyRequest_GetTreasuryWhitelist); ok {
+		return x.GetTreasuryWhitelist
+	}
+	return nil
+}
+
+type isMsgPolicyRequest_Msg interface {
+	isMsgPolicyRequest_Msg()
+}
+
+type MsgPolicyRequest_GetFeePerKb struct {
+	GetFeePerKb *GetFeePerKB `protobuf:"bytes,1,opt,name=get_fee_per_kb,json=getFeePerKb,proto3,oneof"`
+}
+
+type MsgPolicyRequest_GetMinStake struct {
+	GetMinStake *GetMinStake `protobuf:"bytes,2,opt,name=get_min_stake,json=getMinStake,proto3,oneof"`
+}
+
+type MsgPolicyRequest_GetBlocksizeSoftLimit struct {
+	GetBlocksizeSoftLimit *GetBlocksizeSoftLimit `protobuf:"bytes,3,opt,name=get_blocksize_soft_limit,json=getBlocksizeSoftLimit,proto3,oneof"`
+}
+
+type MsgPolicyRequest_GetTreasuryWhitelist struct {
+	GetTreasuryWhitelist *GetTreasuryWhitelist `protobuf:"bytes,4,opt,name=get_treasury_whitelist,json=getTreasuryWhitelist,proto3,oneof"`
+}
+
+func (*MsgPolicyRequest_GetFeePerKb) isMsgPolicyRequest_Msg() {}
+
+func (*MsgPolicyRequest_GetMinStake) isMsgPolicyRequest_Msg() {}
+
+func (*MsgPolicyRequest_GetBlocksizeSoftLimit) isMsgPolicyRequest_Msg() {}
+
+func (*MsgPolicyRequest_GetTreasuryWhitelist) isMsgPolicyRequest_Msg() {}
+
+type GetFeePerKB struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *GetFeePerKB) Reset() {
+	*x = GetFeePerKB{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_message_proto_msgTypes[17]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetFeePerKB) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFeePerKB) ProtoMessage() {}
+
+func (x *GetFeePerKB) ProtoReflect() protoreflect.Message {
+	mi := &file_message_proto_msgTypes[17]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFeePerKB.ProtoReflect.Descriptor instead.
+func (*GetFeePerKB) Descriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{17}
+}
+
+type MsgGetFeePerKBResp struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	FeePerKb uint64 `protobuf:"varint,1,opt,name=fee_per_kb,json=feePerKb,proto3" json:"fee_per_kb,omitempty"`
+}
+
+func (x *MsgGetFeePerKBResp) Reset() {
+	*x = MsgGetFeePerKBResp{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_message_proto_msgTypes[18]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *MsgGetFeePerKBResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MsgGetFeePerKBResp) ProtoMessage() {}
+
+func (x *MsgGetFeePerKBResp) ProtoReflect() protoreflect.Message {
+	mi := &file_message_proto_msgTypes[18]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MsgGetFeePerKBResp.ProtoReflect.Descriptor instead.
+func (*MsgGetFeePerKBResp) Descriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *MsgGetFeePerKBResp) GetFeePerKb() uint64 {
+	if x != nil {
+		return x.FeePerKb
+	}
+	return 0
+}
+
+type GetMinStake struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *GetMinStake) Reset() {
+	*x = GetMinStake{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_message_proto_msgTypes[19]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetMinStake) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMinStake) ProtoMessage() {}
+
+func (x *GetMinStake) ProtoReflect() protoreflect.Message {
+	mi := &file_message_proto_msgTypes[19]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMinStake.ProtoReflect.Descriptor instead.
+func (*GetMinStake) Descriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{19}
+}
+
+type MsgGetMinStakeResp struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	MinStake uint64 `protobuf:"varint,1,opt,name=min_stake,json=minStake,proto3" json:"min_stake,omitempty"`
+}
+
+func (x *MsgGetMinStakeResp) Reset() {
+	*x = MsgGetMinStakeResp{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_message_proto_msgTypes[20]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *MsgGetMinStakeResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MsgGetMinStakeResp) ProtoMessage() {}
+
+func (x *MsgGetMinStakeResp) ProtoReflect() protoreflect.Message {
+	mi := &file_message_proto_msgTypes[20]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MsgGetMinStakeResp.ProtoReflect.Descriptor instead.
+func (*MsgGetMinStakeResp) Descriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *MsgGetMinStakeResp) GetMinStake() uint64 {
+	if x != nil {
+		return x.MinStake
+	}
+	return 0
+}
+
+type GetBlocksizeSoftLimit struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *GetBlocksizeSoftLimit) Reset() {
+	*x = GetBlocksizeSoftLimit{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_message_proto_msgTypes[21]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetBlocksizeSoftLimit) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBlocksizeSoftLimit) ProtoMessage() {}
+
+func (x *GetBlocksizeSoftLimit) ProtoReflect() protoreflect.Message {
+	mi := &file_message_proto_msgTypes[21]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBlocksizeSoftLimit.ProtoReflect.Descriptor instead.
+func (*GetBlocksizeSoftLimit) Descriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{21}
+}
+
+type MsgGetBlocksizeSoftLimitResp struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Limit uint32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+}
+
+func (x *MsgGetBlocksizeSoftLimitResp) Reset() {
+	*x = MsgGetBlocksizeSoftLimitResp{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_message_proto_msgTypes[22]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *MsgGetBlocksizeSoftLimitResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MsgGetBlocksizeSoftLimitResp) ProtoMessage() {}
+
+func (x *MsgGetBlocksizeSoftLimitResp) ProtoReflect() protoreflect.Message {
+	mi := &file_message_proto_msgTypes[22]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MsgGetBlocksizeSoftLimitResp.ProtoReflect.Descriptor instead.
+func (*MsgGetBlocksizeSoftLimitResp) Descriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *MsgGetBlocksizeSoftLimitResp) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type GetTreasuryWhitelist struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *GetTreasuryWhitelist) Reset() {
+	*x = GetTreasuryWhitelist{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_message_proto_msgTypes[23]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetTreasuryWhitelist) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTreasuryWhitelist) ProtoMessage() {}
+
+func (x *GetTreasuryWhitelist) ProtoReflect() protoreflect.Message {
+	mi := &file_message_proto_msgTypes[23]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTreasuryWhitelist.ProtoReflect.Descriptor instead.
+func (*GetTreasuryWhitelist) Descriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{23}
+}
+
+type MsgGetTreasuryWhitelistResp struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Whitelist [][]byte `protobuf:"bytes,1,rep,name=whitelist,proto3" json:"whitelist,omitempty"`
+}
+
+func (x *MsgGetTreasuryWhitelistResp) Reset() {
+	*x = MsgGetTreasuryWhitelistResp{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_message_proto_msgTypes[24]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *MsgGetTreasuryWhitelistResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MsgGetTreasuryWhitelistResp) ProtoMessage() {}
+
+func (x *MsgGetTreasuryWhitelistResp) ProtoReflect() protoreflect.Message {
+	mi := &file_message_proto_msgTypes[24]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MsgGetTreasuryWhitelistResp.ProtoReflect.Descriptor instead.
+func (*MsgGetTreasuryWhitelistResp) Descriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *MsgGetTreasuryWhitelistResp) GetWhitelist() [][]byte {
+	if x != nil {
+		return x.Whitelist
+	}
+	return nil
+}
+
 var File_message_proto protoreflect.FileDescriptor
 
 var file_message_proto_rawDesc = []byte{
@@ -1131,7 +1580,44 @@ var file_message_proto_rawDesc = []byte{
 	0x69, 0x67, 0x68, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x06, 0x68, 0x65, 0x69, 0x67,
 	0x68, 0x74, 0x12, 0x24, 0x0a, 0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x18, 0x03, 0x20, 0x01, 0x28,
 	0x0e, 0x32, 0x0e, 0x2e, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x52, 0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x2a, 0x47, 0x0a, 0x0d, 0x45, 0x72, 0x72, 0x6f,
+	0x65, 0x52, 0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x22, 0xa4, 0x02, 0x0a, 0x10, 0x4d, 0x73, 0x67,
+	0x50, 0x6f, 0x6c, 0x69, 0x63, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x33, 0x0a,
+	0x0e, 0x67, 0x65, 0x74, 0x5f, 0x66, 0x65, 0x65, 0x5f, 0x70, 0x65, 0x72, 0x5f, 0x6b, 0x62, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0c, 0x2e, 0x47, 0x65, 0x74, 0x46, 0x65, 0x65, 0x50, 0x65,
+	0x72, 0x4b, 0x42, 0x48, 0x00, 0x52, 0x0b, 0x67, 0x65, 0x74, 0x46, 0x65, 0x65, 0x50, 0x65, 0x72,
+	0x4b, 0x62, 0x12, 0x32, 0x0a, 0x0d, 0x67, 0x65, 0x74, 0x5f, 0x6d, 0x69, 0x6e, 0x5f, 0x73, 0x74,
+	0x61, 0x6b, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0c, 0x2e, 0x47, 0x65, 0x74, 0x4d,
+	0x69, 0x6e, 0x53, 0x74, 0x61, 0x6b, 0x65, 0x48, 0x00, 0x52, 0x0b, 0x67, 0x65, 0x74, 0x4d, 0x69,
+	0x6e, 0x53, 0x74, 0x61, 0x6b, 0x65, 0x12, 0x51, 0x0a, 0x18, 0x67, 0x65, 0x74, 0x5f, 0x62, 0x6c,
+	0x6f, 0x63, 0x6b, 0x73, 0x69, 0x7a, 0x65, 0x5f, 0x73, 0x6f, 0x66, 0x74, 0x5f, 0x6c, 0x69, 0x6d,
+	0x69, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x47, 0x65, 0x74, 0x42, 0x6c,
+	0x6f, 0x63, 0x6b, 0x73, 0x69, 0x7a, 0x65, 0x53, 0x6f, 0x66, 0x74, 0x4c, 0x69, 0x6d, 0x69, 0x74,
+	0x48, 0x00, 0x52, 0x15, 0x67, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x69, 0x7a, 0x65,
+	0x53, 0x6f, 0x66, 0x74, 0x4c, 0x69, 0x6d, 0x69, 0x74, 0x12, 0x4d, 0x0a, 0x16, 0x67, 0x65, 0x74,
+	0x5f, 0x74, 0x72, 0x65, 0x61, 0x73, 0x75, 0x72, 0x79, 0x5f, 0x77, 0x68, 0x69, 0x74, 0x65, 0x6c,
+	0x69, 0x73, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x47, 0x65, 0x74, 0x54,
+	0x72, 0x65, 0x61, 0x73, 0x75, 0x72, 0x79, 0x57, 0x68, 0x69, 0x74, 0x65, 0x6c, 0x69, 0x73, 0x74,
+	0x48, 0x00, 0x52, 0x14, 0x67, 0x65, 0x74, 0x54, 0x72, 0x65, 0x61, 0x73, 0x75, 0x72, 0x79, 0x57,
+	0x68, 0x69, 0x74, 0x65, 0x6c, 0x69, 0x73, 0x74, 0x42, 0x05, 0x0a, 0x03, 0x6d, 0x73, 0x67, 0x22,
+	0x0d, 0x0a, 0x0b, 0x47, 0x65, 0x74, 0x46, 0x65, 0x65, 0x50, 0x65, 0x72, 0x4b, 0x42, 0x22, 0x32,
+	0x0a, 0x12, 0x4d, 0x73, 0x67, 0x47, 0x65, 0x74, 0x46, 0x65, 0x65, 0x50, 0x65, 0x72, 0x4b, 0x42,
+	0x52, 0x65, 0x73, 0x70, 0x12, 0x1c, 0x0a, 0x0a, 0x66, 0x65, 0x65, 0x5f, 0x70, 0x65, 0x72, 0x5f,
+	0x6b, 0x62, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x08, 0x66, 0x65, 0x65, 0x50, 0x65, 0x72,
+	0x4b, 0x62, 0x22, 0x0d, 0x0a, 0x0b, 0x47, 0x65, 0x74, 0x4d, 0x69, 0x6e, 0x53, 0x74, 0x61, 0x6b,
+	0x65, 0x22, 0x31, 0x0a, 0x12, 0x4d, 0x73, 0x67, 0x47, 0x65, 0x74, 0x4d, 0x69, 0x6e, 0x53, 0x74,
+	0x61, 0x6b, 0x65, 0x52, 0x65, 0x73, 0x70, 0x12, 0x1b, 0x0a, 0x09, 0x6d, 0x69, 0x6e, 0x5f, 0x73,
+	0x74, 0x61, 0x6b, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x08, 0x6d, 0x69, 0x6e, 0x53,
+	0x74, 0x61, 0x6b, 0x65, 0x22, 0x17, 0x0a, 0x15, 0x47, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b,
+	0x73, 0x69, 0x7a, 0x65, 0x53, 0x6f, 0x66, 0x74, 0x4c, 0x69, 0x6d, 0x69, 0x74, 0x22, 0x34, 0x0a,
+	0x1c, 0x4d, 0x73, 0x67, 0x47, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x69, 0x7a, 0x65,
+	0x53, 0x6f, 0x66, 0x74, 0x4c, 0x69, 0x6d, 0x69, 0x74, 0x52, 0x65, 0x73, 0x70, 0x12, 0x14, 0x0a,
+	0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x05, 0x6c, 0x69,
+	0x6d, 0x69, 0x74, 0x22, 0x16, 0x0a, 0x14, 0x47, 0x65, 0x74, 0x54, 0x72, 0x65, 0x61, 0x73, 0x75,
+	0x72, 0x79, 0x57, 0x68, 0x69, 0x74, 0x65, 0x6c, 0x69, 0x73, 0x74, 0x22, 0x3b, 0x0a, 0x1b, 0x4d,
+	0x73, 0x67, 0x47, 0x65, 0x74, 0x54, 0x72, 0x65, 0x61, 0x73, 0x75, 0x72, 0x79, 0x57, 0x68, 0x69,
+	0x74, 0x65, 0x6c, 0x69, 0x73, 0x74, 0x52, 0x65, 0x73, 0x70, 0x12, 0x1c, 0x0a, 0x09, 0x77, 0x68,
+	0x69, 0x74, 0x65, 0x6c, 0x69, 0x73, 0x74, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x09, 0x77,
+	0x68, 0x69, 0x74, 0x65, 0x6c, 0x69, 0x73, 0x74, 0x2a, 0x47, 0x0a, 0x0d, 0x45, 0x72, 0x72, 0x6f,
 	0x72, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x08, 0x0a, 0x04, 0x4e, 0x6f, 0x6e,
 	0x65, 0x10, 0x00, 0x12, 0x0c, 0x0a, 0x08, 0x4e, 0x6f, 0x74, 0x46, 0x6f, 0x75, 0x6e, 0x64, 0x10,
 	0x01, 0x12, 0x0e, 0x0a, 0x0a, 0x42, 0x61, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x10,
@@ -1153,27 +1639,36 @@ func file_message_proto_rawDescGZIP() []byte {
 }
 
 var file_message_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_message_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_message_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_message_proto_goTypes = []interface{}{
-	(ErrorResponse)(0),               // 0: ErrorResponse
-	(*MsgConsensusRequest)(nil),      // 1: MsgConsensusRequest
-	(*MsgPollRequest)(nil),           // 2: MsgPollRequest
-	(*MsgPollResponse)(nil),          // 3: MsgPollResponse
-	(*MsgChainServiceRequest)(nil),   // 4: MsgChainServiceRequest
-	(*GetBlockTxsReq)(nil),           // 5: GetBlockTxsReq
-	(*MsgBlockTxsResp)(nil),          // 6: MsgBlockTxsResp
-	(*GetBlockTxidsReq)(nil),         // 7: GetBlockTxidsReq
-	(*MsgBlockTxidsResp)(nil),        // 8: MsgBlockTxidsResp
-	(*GetBlockReq)(nil),              // 9: GetBlockReq
-	(*MsgBlockResp)(nil),             // 10: MsgBlockResp
-	(*GetBlockIDReq)(nil),            // 11: GetBlockIDReq
-	(*MsgGetBlockIDResp)(nil),        // 12: MsgGetBlockIDResp
-	(*GetHeadersStreamReq)(nil),      // 13: GetHeadersStreamReq
-	(*GetBlockTxsStreamReq)(nil),     // 14: GetBlockTxsStreamReq
-	(*GetBestReq)(nil),               // 15: GetBestReq
-	(*MsgGetBestResp)(nil),           // 16: MsgGetBestResp
-	(*transactions.Transaction)(nil), // 17: Transaction
-	(*blocks.Block)(nil),             // 18: Block
+	(ErrorResponse)(0),                   // 0: ErrorResponse
+	(*MsgConsensusRequest)(nil),          // 1: MsgConsensusRequest
+	(*MsgPollRequest)(nil),               // 2: MsgPollRequest
+	(*MsgPollResponse)(nil),              // 3: MsgPollResponse
+	(*MsgChainServiceRequest)(nil),       // 4: MsgChainServiceRequest
+	(*GetBlockTxsReq)(nil),               // 5: GetBlockTxsReq
+	(*MsgBlockTxsResp)(nil),              // 6: MsgBlockTxsResp
+	(*GetBlockTxidsReq)(nil),             // 7: GetBlockTxidsReq
+	(*MsgBlockTxidsResp)(nil),            // 8: MsgBlockTxidsResp
+	(*GetBlockReq)(nil),                  // 9: GetBlockReq
+	(*MsgBlockResp)(nil),                 // 10: MsgBlockResp
+	(*GetBlockIDReq)(nil),                // 11: GetBlockIDReq
+	(*MsgGetBlockIDResp)(nil),            // 12: MsgGetBlockIDResp
+	(*GetHeadersStreamReq)(nil),          // 13: GetHeadersStreamReq
+	(*GetBlockTxsStreamReq)(nil),         // 14: GetBlockTxsStreamReq
+	(*GetBestReq)(nil),                   // 15: GetBestReq
+	(*MsgGetBestResp)(nil),               // 16: MsgGetBestResp
+	(*MsgPolicyRequest)(nil),             // 17: MsgPolicyRequest
+	(*GetFeePerKB)(nil),                  // 18: GetFeePerKB
+	(*MsgGetFeePerKBResp)(nil),           // 19: MsgGetFeePerKBResp
+	(*GetMinStake)(nil),                  // 20: GetMinStake
+	(*MsgGetMinStakeResp)(nil),           // 21: MsgGetMinStakeResp
+	(*GetBlocksizeSoftLimit)(nil),        // 22: GetBlocksizeSoftLimit
+	(*MsgGetBlocksizeSoftLimitResp)(nil), // 23: MsgGetBlocksizeSoftLimitResp
+	(*GetTreasuryWhitelist)(nil),         // 24: GetTreasuryWhitelist
+	(*MsgGetTreasuryWhitelistResp)(nil),  // 25: MsgGetTreasuryWhitelistResp
+	(*transactions.Transaction)(nil),     // 26: Transaction
+	(*blocks.Block)(nil),                 // 27: Block
 }
 var file_message_proto_depIdxs = []int32{
 	2,  // 0: MsgConsensusRequest.poll_request:type_name -> MsgPollRequest
@@ -1185,18 +1680,22 @@ var file_message_proto_depIdxs = []int32{
 	13, // 6: MsgChainServiceRequest.get_headers_stream:type_name -> GetHeadersStreamReq
 	14, // 7: MsgChainServiceRequest.get_block_txs_stream:type_name -> GetBlockTxsStreamReq
 	15, // 8: MsgChainServiceRequest.get_best:type_name -> GetBestReq
-	17, // 9: MsgBlockTxsResp.transactions:type_name -> Transaction
+	26, // 9: MsgBlockTxsResp.transactions:type_name -> Transaction
 	0,  // 10: MsgBlockTxsResp.error:type_name -> ErrorResponse
 	0,  // 11: MsgBlockTxidsResp.error:type_name -> ErrorResponse
-	18, // 12: MsgBlockResp.block:type_name -> Block
+	27, // 12: MsgBlockResp.block:type_name -> Block
 	0,  // 13: MsgBlockResp.error:type_name -> ErrorResponse
 	0,  // 14: MsgGetBlockIDResp.error:type_name -> ErrorResponse
 	0,  // 15: MsgGetBestResp.error:type_name -> ErrorResponse
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	18, // 16: MsgPolicyRequest.get_fee_per_kb:type_name -> GetFeePerKB
+	20, // 17: MsgPolicyRequest.get_min_stake:type_name -> GetMinStake
+	22, // 18: MsgPolicyRequest.get_blocksize_soft_limit:type_name -> GetBlocksizeSoftLimit
+	24, // 19: MsgPolicyRequest.get_treasury_whitelist:type_name -> GetTreasuryWhitelist
+	20, // [20:20] is the sub-list for method output_type
+	20, // [20:20] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_message_proto_init() }
@@ -1397,6 +1896,114 @@ func file_message_proto_init() {
 				return nil
 			}
 		}
+		file_message_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*MsgPolicyRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_message_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetFeePerKB); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_message_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*MsgGetFeePerKBResp); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_message_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetMinStake); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_message_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*MsgGetMinStakeResp); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_message_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetBlocksizeSoftLimit); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_message_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*MsgGetBlocksizeSoftLimitResp); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_message_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetTreasuryWhitelist); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_message_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*MsgGetTreasuryWhitelistResp); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	file_message_proto_msgTypes[0].OneofWrappers = []interface{}{
 		(*MsgConsensusRequest_PollRequest)(nil),
@@ -1411,13 +2018,19 @@ func file_message_proto_init() {
 		(*MsgChainServiceRequest_GetBlockTxsStream)(nil),
 		(*MsgChainServiceRequest_GetBest)(nil),
 	}
+	file_message_proto_msgTypes[16].OneofWrappers = []interface{}{
+		(*MsgPolicyRequest_GetFeePerKb)(nil),
+		(*MsgPolicyRequest_GetMinStake)(nil),
+		(*MsgPolicyRequest_GetBlocksizeSoftLimit)(nil),
+		(*MsgPolicyRequest_GetTreasuryWhitelist)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_message_proto_rawDesc,
 			NumEnums:      1,
-			NumMessages:   16,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

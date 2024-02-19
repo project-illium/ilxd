@@ -2491,7 +2491,8 @@ type NodeServiceClient interface {
 	// GetTreasuryWhitelist returns the current treasury whitelist for the node. Blocks containing
 	// TreasuryTransactions not found in this list will have their initial preference set to not-preferred.
 	GetTreasuryWhitelist(ctx context.Context, in *GetTreasuryWhitelistRequest, opts ...grpc.CallOption) (*GetTreasuryWhitelistResponse, error)
-	// UpdateTreasuryWhitelist adds or removes a transaction to from the treasury whitelist
+	// UpdateTreasuryWhitelist adds or removes a transaction to from the treasury whitelist.
+	// This update is committed to the datastore and will persist between sessions.
 	UpdateTreasuryWhitelist(ctx context.Context, in *UpdateTreasuryWhitelistRequest, opts ...grpc.CallOption) (*UpdateTreasuryWhitelistResponse, error)
 	// ReconsiderBlock tries to reprocess the given block
 	ReconsiderBlock(ctx context.Context, in *ReconsiderBlockRequest, opts ...grpc.CallOption) (*ReconsiderBlockResponse, error)
@@ -2700,7 +2701,8 @@ type NodeServiceServer interface {
 	// GetTreasuryWhitelist returns the current treasury whitelist for the node. Blocks containing
 	// TreasuryTransactions not found in this list will have their initial preference set to not-preferred.
 	GetTreasuryWhitelist(context.Context, *GetTreasuryWhitelistRequest) (*GetTreasuryWhitelistResponse, error)
-	// UpdateTreasuryWhitelist adds or removes a transaction to from the treasury whitelist
+	// UpdateTreasuryWhitelist adds or removes a transaction to from the treasury whitelist.
+	// This update is committed to the datastore and will persist between sessions.
 	UpdateTreasuryWhitelist(context.Context, *UpdateTreasuryWhitelistRequest) (*UpdateTreasuryWhitelistResponse, error)
 	// ReconsiderBlock tries to reprocess the given block
 	ReconsiderBlock(context.Context, *ReconsiderBlockRequest) (*ReconsiderBlockResponse, error)

@@ -24,6 +24,7 @@ import (
 	"github.com/project-illium/ilxd/net"
 	params "github.com/project-illium/ilxd/params"
 	policy2 "github.com/project-illium/ilxd/policy"
+	"github.com/project-illium/ilxd/policy/protocol"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/rpc"
 	"github.com/project-illium/ilxd/sync"
@@ -380,6 +381,10 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Start the policy service. We don't need to track this object in server,
+	// and it will shut down when the context is canceled.
+	protocol.NewPolicyService(ctx, network, netParams, policy)
 
 	grpcServer, err := newGrpcServer(config.RPCOpts, &rpc.GrpcServerConfig{
 		Chain:                chain,
