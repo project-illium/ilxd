@@ -146,6 +146,13 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 				s.Reset()
 				return
 			}
+		default:
+			log.WithCaller(true).Error("Received unknown chain service message", log.ArgsFromMap(map[string]any{
+				"peer": remotePeer,
+			}))
+			s.Reset()
+			cs.network.IncreaseBanscore(remotePeer, 30, 0)
+			return
 		}
 		if err != nil {
 			log.WithCaller(true).Error("Error handling chain service message", log.ArgsFromMap(map[string]any{

@@ -319,6 +319,13 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 				}))
 				s.Reset()
 			}
+		default:
+			log.WithCaller(true).Error("Received unknown consensus message", log.ArgsFromMap(map[string]any{
+				"peer": remotePeer,
+			}))
+			s.Reset()
+			eng.network.IncreaseBanscore(remotePeer, 30, 0)
+			return
 		}
 
 		ticker.Reset(time.Minute)

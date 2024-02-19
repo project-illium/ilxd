@@ -96,3 +96,36 @@ message MsgGetBestResp {
     uint32 height       = 2;
     ErrorResponse error = 3;
 }
+
+message MsgPolicyRequest {
+    oneof msg {
+        GetFeePerKB get_fee_per_kb                     = 1;
+        GetMinStake get_min_stake                      = 2;
+        GetBlocksizeSoftLimit get_blocksize_soft_limit = 3;
+        GetTreasuryWhitelist get_treasury_whitelist    = 4;
+    }
+}
+
+message GetFeePerKB {}
+
+message MsgGetFeePerKBResp {
+    uint64 fee_per_kb = 1;
+}
+
+message GetMinStake {}
+
+message MsgGetMinStakeResp {
+    uint64 min_stake = 1;
+}
+
+message GetBlocksizeSoftLimit {}
+
+message MsgGetBlocksizeSoftLimitResp {
+    uint32 limit = 1;
+}
+
+message GetTreasuryWhitelist {}
+
+message MsgGetTreasuryWhitelistResp {
+    repeated bytes whitelist = 1;
+}
