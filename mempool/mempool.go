@@ -9,10 +9,13 @@ import (
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/policy"
 	"github.com/project-illium/ilxd/types"
+	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"google.golang.org/protobuf/proto"
 	"time"
 )
+
+const minTimeAfterRejection = time.Minute
 
 type processTxReq struct {
 	tx         *transactions.Transaction
@@ -28,9 +31,14 @@ type getTransactionReq struct {
 type getTransactionsReq struct {
 	resultChan chan map[types.ID]*transactions.Transaction
 }
-type ttlTx struct {
-	tx         *transactions.Transaction
-	expiration time.Time
+type rejectedBlockReq struct {
+	blk *blocks.Block
+}
+type poolTx struct {
+	tx            *transactions.Transaction
+	firstSeen     time.Time
+	chainHeight   uint32
+	rejectedBlock bool
 }
 
 // Mempool holds valid transactions that have been relayed around the
@@ -38,7 +46,7 @@ type ttlTx struct {
 // transactions before admitting them. The block generation package uses
 // the mempool transactions to generate blocks.
 type Mempool struct {
-	pool           map[types.ID]*ttlTx
+	pool           map[types.ID]*poolTx
 	nullifiers     map[types.Nullifier]types.ID
 	treasuryDebits map[types.ID]types.Amount
 	coinbases      map[peer.ID]*transactions.CoinbaseTransaction
@@ -64,7 +72,7 @@ func NewMempool(opts ...Option) (*Mempool, error) {
 	}
 
 	m := &Mempool{
-		pool:           make(map[types.ID]*ttlTx),
+		pool:           make(map[types.ID]*poolTx),
 		nullifiers:     make(map[types.Nullifier]types.ID),
 		treasuryDebits: make(map[types.ID]types.Amount),
 		coinbases:      make(map[peer.ID]*transactions.CoinbaseTransaction),
@@ -95,11 +103,13 @@ func (m *Mempool) validationHandler() {
 				req.resultChan <- m.handleGetTransaction(req.txid)
 			case *getTransactionsReq:
 				req.resultChan <- m.handleGetTransactions()
+			case *rejectedBlockReq:
+				m.handleRejectedBlock(req.blk)
 			}
 		case <-ticker.C:
 			toDelete := make([]*transactions.Transaction, 0)
 			for _, tx := range m.pool {
-				if time.Now().After(tx.expiration) {
+				if time.Now().After(tx.firstSeen.Add(m.cfg.transactionTTL)) {
 					toDelete = append(toDelete, tx.tx)
 				}
 			}
@@ -145,6 +155,7 @@ func (m *Mempool) ProcessTransaction(tx *transactions.Transaction) error {
 	}
 
 	resultChan := make(chan error)
+	defer close(resultChan)
 	m.msgChan <- &processTxReq{
 		tx:         proto.Clone(tx).(*transactions.Transaction),
 		resultChan: resultChan,
@@ -256,6 +267,38 @@ func (m *Mempool) removeBlockTransactions(txs []*transactions.Transaction) {
 			}
 		case *transactions.Transaction_TreasuryTransaction:
 			delete(m.treasuryDebits, t.TreasuryTransaction.ID())
+		}
+	}
+}
+
+// ProcessRejectedBlock should be called when a block is rejected. The
+// mempool will take a look at the transactions and decide if any should
+// be removed from the pool.
+//
+// This method is safe for concurrent access.
+func (m *Mempool) ProcessRejectedBlock(blk *blocks.Block) {
+	m.msgChan <- &rejectedBlockReq{
+		blk: blk,
+	}
+}
+
+// handleRejectedBlock is the implementation for ProcessRejectedBlock.
+//
+// This method is NOT safe for concurrent access.
+func (m *Mempool) handleRejectedBlock(blk *blocks.Block) {
+	for _, tx := range blk.Transactions {
+		ptx, ok := m.pool[tx.ID()]
+		if ok {
+			// If this transaction was previously in a block that also got rejected, and
+			// it's been in the pool for a little while without being included in any other
+			// block, let's delete it from the pool.
+			if ptx.rejectedBlock && time.Now().After(ptx.firstSeen.Add(minTimeAfterRejection)) {
+				delete(m.pool, tx.ID())
+				continue
+			}
+
+			// Otherwise mark it as having been part of a rejected block.
+			ptx.rejectedBlock = true
 		}
 	}
 }
@@ -408,9 +451,11 @@ func (m *Mempool) processTransaction(tx *transactions.Transaction) error {
 	default:
 		return ruleError(blockchain.ErrInvalidTx, "unknown transaction type")
 	}
-	m.pool[tx.ID()] = &ttlTx{
-		tx:         tx,
-		expiration: time.Now().Add(m.cfg.transactionTTL),
+	_, chainHeight, _ := m.cfg.chainView.BestBlock()
+	m.pool[tx.ID()] = &poolTx{
+		tx:          tx,
+		firstSeen:   time.Now(),
+		chainHeight: chainHeight,
 	}
 	log.Debug("New mempool transaction", log.ArgsFromMap(map[string]any{
 		"txid": tx.ID().String(),

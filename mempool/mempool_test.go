@@ -784,3 +784,7 @@ func (m *mockBlockchainView) GetValidator(validatorID peer.ID) (*blockchain.Vali
 	}
 	return val, nil
 }
+
+func (m *mockBlockchainView) BestBlock() (types.ID, uint32, time.Time) {
+	return types.ID{}, 0, time.Now()
+}

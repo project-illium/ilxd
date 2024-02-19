@@ -128,7 +128,7 @@ func TestMempool_EncodeXthinner(t *testing.T) {
 			},
 			mempoolFunc: func(m *Mempool) {
 				tx := transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 7542}) // 19d5710a9ed7e7832bcdd59c19c4863646e8cd19d6af19b29b307ffd77637ee2
-				m.pool[tx.ID()] = &ttlTx{tx: tx}
+				m.pool[tx.ID()] = &poolTx{tx: tx}
 			},
 			expectedTxids: []string{
 				"1798f664c8349445911f9d1d8a7655e388e47bc6bf022c4d5faa03b384b3ba18",
@@ -152,7 +152,7 @@ func TestMempool_EncodeXthinner(t *testing.T) {
 			},
 			mempoolFunc: func(m *Mempool) {
 				tx := transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 1665222}) // 19d58de5cc6e9aab56def8cf9ce7bacd53210e59c1d2b3d599ada53cf9be91e8
-				m.pool[tx.ID()] = &ttlTx{tx: tx}
+				m.pool[tx.ID()] = &poolTx{tx: tx}
 			},
 			expectedTxids: []string{
 				"1798f664c8349445911f9d1d8a7655e388e47bc6bf022c4d5faa03b384b3ba18",
@@ -207,13 +207,13 @@ func TestMempool_EncodeXthinner(t *testing.T) {
 
 	for x, test := range tests {
 		m := &Mempool{
-			pool:    make(map[types.ID]*ttlTx),
+			pool:    make(map[types.ID]*poolTx),
 			msgChan: make(chan interface{}),
 			quit:    make(chan struct{}),
 		}
 		go m.validationHandler()
 		for _, tx := range test.mempoolTxs {
-			m.pool[tx.ID()] = &ttlTx{tx: tx}
+			m.pool[tx.ID()] = &poolTx{tx: tx}
 		}
 
 		blockIDs := make([]types.ID, 0, len(test.blockHashes))
@@ -248,7 +248,7 @@ func TestMempool_EncodeXthinner(t *testing.T) {
 }
 func TestEmptyPool(t *testing.T) {
 	m := &Mempool{
-		pool:    make(map[types.ID]*ttlTx),
+		pool:    make(map[types.ID]*poolTx),
 		msgChan: make(chan interface{}),
 		quit:    make(chan struct{}),
 	}
@@ -261,7 +261,7 @@ func TestEmptyPool(t *testing.T) {
 		transactions.WrapTransaction(&transactions.StandardTransaction{Fee: 18}),   // 19d58d02122a4399fc6a25ce3713559408012a47480ee1ba9f9df530845fcf29
 	}
 	for _, tx := range mempoolTxs {
-		m.pool[tx.ID()] = &ttlTx{tx: tx}
+		m.pool[tx.ID()] = &poolTx{tx: tx}
 	}
 
 	blockHashes := []string{
@@ -281,7 +281,7 @@ func TestEmptyPool(t *testing.T) {
 	assert.NoError(t, err)
 
 	m2 := &Mempool{
-		pool:    make(map[types.ID]*ttlTx),
+		pool:    make(map[types.ID]*poolTx),
 		msgChan: make(chan interface{}),
 		quit:    make(chan struct{}),
 	}
