@@ -94,6 +94,11 @@ func (ps *PolicyService) handleNewMessage(s inet.Stream) {
 		}
 		reader.ReleaseMsg(msgBytes)
 
+		// Increase the transient banscore so peers don't slam us with
+		// crawls. There is really no reason to make their queries in
+		// rapid succession.
+		ps.network.IncreaseBanscore(remotePeer, 0, 10)
+
 		var resp proto.Message
 		switch m := req.Msg.(type) {
 		case *wire.MsgPolicyRequest_GetFeePerKb:
