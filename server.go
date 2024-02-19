@@ -827,6 +827,9 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 					"id":     blk.ID().String(),
 					"height": blk.Header.Height,
 				}))
+				if s.generator.IsOwnBlock(blk.ID()) {
+					s.mempool.ProcessRejectedBlock(blk)
+				}
 			}
 
 			// Leave it here for a little in case a peer requests it.

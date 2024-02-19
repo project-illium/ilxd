@@ -19,10 +19,19 @@ import (
 )
 
 const (
-	BlockGenerationInterval          = time.Second
-	BlockVersion                     = 1
+	// BlockGenerationInterval is the time to wait between generation attempts
+	BlockGenerationInterval = time.Second
+
+	// BlockVersion is the version to put in the block headers
+	BlockVersion = 1
+
+	// MinAllowableTimeBetweenDupBlocks is the minimum time the generator will
+	// wait before creating another block at the same height. If the last block
+	// got rejected we will want to eventually try again, but we don't want to
+	// flood the network with blocks.
 	MinAllowableTimeBetweenDupBlocks = time.Minute * 2
-	serializedHeaderSize             = 184
+
+	serializedHeaderSize = 184
 
 	// This is the number of extra bytes protobuf uses to
 	// append a tx to the block. Not all transactions use
@@ -34,24 +43,31 @@ const (
 	txProtobufExtraBytes = 4
 )
 
+// BlockGenerator is used by validators to generate blocks.
+// It strives to create blocks in proportion to the validator's
+// share of the total weighted stake.
 type BlockGenerator struct {
-	privKey        crypto.PrivKey
-	ownPeerID      peer.ID
-	ownPeerIDBytes []byte
-	lastGenHeight  uint32
-	lastGenTime    time.Time
-	mpool          *mempool.Mempool
-	policy         *policy.Policy
-	tickInterval   time.Duration
-	chain          *blockchain.Blockchain
-	broadcast      func(blk *blocks.XThinnerBlock) error
-	active         bool
-	activeMtx      sync.RWMutex
-	lastHeight     uint32
-	interruptChan  chan uint32
-	quit           chan struct{}
+	privKey         crypto.PrivKey
+	ownPeerID       peer.ID
+	ownPeerIDBytes  []byte
+	lastGenHeight   uint32
+	lastGenTime     time.Time
+	generatedBlocks map[types.ID]bool
+	mpool           *mempool.Mempool
+	policy          *policy.Policy
+	tickInterval    time.Duration
+	chain           *blockchain.Blockchain
+	broadcast       func(blk *blocks.XThinnerBlock) error
+	active          bool
+	activeMtx       sync.RWMutex
+	genBlksMtx      sync.RWMutex
+	lastHeight      uint32
+	interruptChan   chan uint32
+	quit            chan struct{}
 }
 
+// NewBlockGenerator returns a new BlockGenerator but does not
+// start it. Start needs to be called separately.
 func NewBlockGenerator(opts ...Option) (*BlockGenerator, error) {
 	var cfg config
 	for _, opt := range opts {
@@ -78,22 +94,26 @@ func NewBlockGenerator(opts ...Option) (*BlockGenerator, error) {
 	}
 
 	g := &BlockGenerator{
-		ownPeerID:      ownPeerID,
-		ownPeerIDBytes: ownPeerIDBytes,
-		privKey:        cfg.privKey,
-		mpool:          cfg.mpool,
-		tickInterval:   cfg.tickInterval,
-		chain:          cfg.chain,
-		policy:         cfg.policy,
-		broadcast:      cfg.broadcastFunc,
+		ownPeerID:       ownPeerID,
+		ownPeerIDBytes:  ownPeerIDBytes,
+		privKey:         cfg.privKey,
+		generatedBlocks: make(map[types.ID]bool),
+		mpool:           cfg.mpool,
+		tickInterval:    cfg.tickInterval,
+		chain:           cfg.chain,
+		policy:          cfg.policy,
+		broadcast:       cfg.broadcastFunc,
 
 		activeMtx:     sync.RWMutex{},
+		genBlksMtx:    sync.RWMutex{},
 		interruptChan: make(chan uint32),
 		active:        false,
 	}
 
 	return g, nil
 }
+
+// Start turns on the generator and starts generating blocks
 func (g *BlockGenerator) Start() {
 	g.activeMtx.Lock()
 	defer g.activeMtx.Unlock()
@@ -107,6 +127,8 @@ func (g *BlockGenerator) Start() {
 	log.Info("Block generator active")
 }
 
+// Close shuts down the generator and puts it into a state
+// where it can be restarted if necessary.
 func (g *BlockGenerator) Close() {
 	g.activeMtx.Lock()
 	defer g.activeMtx.Unlock()
@@ -126,6 +148,7 @@ out:
 	}
 }
 
+// Active returns whether the block generator is currently active
 func (g *BlockGenerator) Active() bool {
 	g.activeMtx.RLock()
 	defer g.activeMtx.RUnlock()
@@ -133,12 +156,22 @@ func (g *BlockGenerator) Active() bool {
 	return g.active
 }
 
+// Interrupt should be called when a new block is connected to the
+// chain. It will stop the generator goroutine from creating a
+// block at the current height and move on to the next height.
 func (g *BlockGenerator) Interrupt(height uint32) {
 	go func() {
 		if g.Active() {
 			g.interruptChan <- height
 		}
 	}()
+}
+
+// IsOwnBlock returns whether the block was created by the generator
+func (g *BlockGenerator) IsOwnBlock(blkID types.ID) bool {
+	g.genBlksMtx.RLock()
+	defer g.genBlksMtx.RUnlock()
+	return g.generatedBlocks[blkID]
 }
 
 func (g *BlockGenerator) eventLoop() {
@@ -305,6 +338,17 @@ out:
 		"id":     blk.ID().String(),
 		"height": blk.Header.Height,
 	}))
+
+	blkID := blk.ID()
+	g.genBlksMtx.Lock()
+	g.generatedBlocks[blkID] = true
+	g.genBlksMtx.Unlock()
+
+	time.AfterFunc(time.Minute*5, func() {
+		g.genBlksMtx.Lock()
+		delete(g.generatedBlocks, blkID)
+		g.genBlksMtx.Unlock()
+	})
 
 	return g.broadcast(xthinnerBlock)
 }
