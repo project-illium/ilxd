@@ -53,6 +53,8 @@ const (
 	PrunedBlockchainDatastoreKey = "/ilxd/pruned/"
 	// CachedAddrInfoDatastoreKey is the datastore key used to persist addrinfos from the peerstore.
 	CachedAddrInfoDatastoreKey = "/ilxd/peerstore/addrinfo/"
+	// TreasuryWhitelistDatastoreKeyPrefix is the datastore key prefix for the treasury whitelist.
+	TreasuryWhitelistDatastoreKeyPrefix = "/ilxd/whitelist/"
 
 	// TxIndexKey is the datastore key for the transaction index.
 	TxIndexKey = "txindex"

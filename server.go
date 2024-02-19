@@ -111,21 +111,6 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		golog.SetDebugLogging()
 	}
 
-	// Policy
-	policy := policy2.NewPolicy(
-		types.Amount(config.Policy.MinFeePerKilobyte),
-		types.Amount(config.Policy.MinStake),
-		config.Policy.BlocksizeSoftLimit,
-	)
-
-	for _, id := range config.Policy.TreasuryWhitelist {
-		w, err := types.NewIDFromString(id)
-		if err != nil {
-			return nil, err
-		}
-		s.policy.AddToTreasuryWhitelist(w)
-	}
-
 	// Parameter selection
 	var netParams *params.NetworkParams
 	if config.Testnet {
@@ -179,6 +164,25 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	ds, err := badger.NewDatastore(config.DataDir, badgerOpts)
 	if err != nil {
 		return nil, err
+	}
+
+	// Policy
+	policy, err := policy2.NewPolicy(
+		ds,
+		types.Amount(config.Policy.MinFeePerKilobyte),
+		types.Amount(config.Policy.MinStake),
+		config.Policy.BlocksizeSoftLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, id := range config.Policy.TreasuryWhitelist {
+		w, err := types.NewIDFromString(id)
+		if err != nil {
+			return nil, err
+		}
+		s.policy.AddToTreasuryWhitelist(w)
 	}
 
 	// Create the blockchain

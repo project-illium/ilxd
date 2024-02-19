@@ -43,12 +43,15 @@ func TestGenerator(t *testing.T) {
 	pidBytes, err := pid.Marshal()
 	assert.NoError(t, err)
 
+	policy, err := policy.NewPolicy(nil, repo.DefaultFeePerKilobyte, repo.DefaultMinimumStake, repo.DefaultSoftLimit)
+	assert.NoError(t, err)
+
 	generator, err := NewBlockGenerator(
 		Blockchain(testHarness.Blockchain()),
 		Mempool(mpool),
 		BroadcastFunc(broadcast),
 		PrivateKey(sk),
-		Policy(policy.NewPolicy(repo.DefaultFeePerKilobyte, repo.DefaultMinimumStake, repo.DefaultSoftLimit)),
+		Policy(policy),
 		tickInterval(time.Millisecond),
 	)
 	assert.NoError(t, err)
