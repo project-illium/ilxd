@@ -549,10 +549,6 @@ func (vs *ValidatorSet) ConnectBlock(blk *blocks.Block, validatorReward types.Am
 				valNew.UnclaimedCoins = 0
 			}
 
-			if valNew.EpochBlocks < blockProductionFloor(float64(vs.EpochBlocks), expectedBlocks/float64(vs.EpochBlocks)) {
-				valNew.UnclaimedCoins = 0
-			}
-
 			valNew.EpochBlocks = 0
 			valNew.ExpectedBlocks = 0
 			valNew.CoinbasePenalty = false
@@ -801,16 +797,6 @@ func blockProductionLimit(EpochBlocks float64, stakePercentage float64) uint32 {
 		y = 1
 	}
 	return uint32(x + y + .5)
-}
-
-// Six standard deviations from the expected number of blocks.
-func blockProductionFloor(EpochBlocks float64, stakePercentage float64) uint32 {
-	expectedBlocks := uint32(EpochBlocks * stakePercentage)
-	dev := uint32(math.Sqrt(EpochBlocks*stakePercentage*(1-stakePercentage)) * 6)
-	if dev > expectedBlocks {
-		return 0
-	}
-	return (expectedBlocks - dev) / 3
 }
 
 // Returns a value for weight for the given maturity (in months) that approximates what you would get with a typical bond yield curve.

@@ -367,6 +367,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	}
 
 	valConn := net.NewValidatorConnector(network.Host(), hostID, chain.GetValidator, chain.Validators, chain.Subscribe)
+	policy.SetValidatorStatFunc(valConn.ValidatorQueryRate)
 
 	engine, err := consensus.NewConsensusEngine(ctx, []consensus.Option{
 		consensus.Params(netParams),

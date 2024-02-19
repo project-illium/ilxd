@@ -15,6 +15,11 @@ import (
 	"time"
 )
 
+type validatorStat struct {
+	queryAttempts uint64
+	queryFailures uint64
+}
+
 // ValidatorConnector does two things.
 // First, it strives to maintain active connections to all validators in the
 // validator set.
@@ -25,7 +30,10 @@ type ValidatorConnector struct {
 	getValidatorFunc    func(validatorID peer.ID) (*blockchain.Validator, error)
 	getValidatorsFunc   func() []*blockchain.Validator
 	host                host.Host
-	mtx                 sync.RWMutex
+	currentStats        map[peer.ID]*validatorStat
+	lastEpochStats      map[peer.ID]*validatorStat
+
+	mtx sync.RWMutex
 }
 
 // NewValidatorConnector returns a new ValidatorConnector
@@ -39,6 +47,8 @@ func NewValidatorConnector(host host.Host, ownID peer.ID,
 		getValidatorFunc:  getValidatorFunc,
 		getValidatorsFunc: getValidatorsFunc,
 		host:              host,
+		currentStats:      make(map[peer.ID]*validatorStat),
+		lastEpochStats:    make(map[peer.ID]*validatorStat),
 		mtx:               sync.RWMutex{},
 	}
 
@@ -60,6 +70,64 @@ func (vc *ValidatorConnector) ConnectedStakePercentage() float64 {
 	defer vc.mtx.RUnlock()
 
 	return vc.connectedPercentage
+}
+
+// RegisterQuerySuccess registers a successful query for the purpose of
+// tracking validator uptime and behavior.
+func (vc *ValidatorConnector) RegisterQuerySuccess(p peer.ID) {
+	vc.mtx.Lock()
+	defer vc.mtx.Unlock()
+
+	val, ok := vc.currentStats[p]
+	if ok {
+		val.queryAttempts++
+	} else {
+		vc.currentStats[p] = &validatorStat{
+			queryAttempts: 1,
+		}
+	}
+}
+
+// RegisterQueryFailure registers a failed query for the purpose of
+// tracking validator uptime and behavior.
+func (vc *ValidatorConnector) RegisterQueryFailure(p peer.ID) {
+	vc.mtx.Lock()
+	defer vc.mtx.Unlock()
+
+	val, ok := vc.currentStats[p]
+	if ok {
+		val.queryAttempts++
+		val.queryFailures++
+	} else {
+		vc.currentStats[p] = &validatorStat{
+			queryAttempts: 1,
+			queryFailures: 1,
+		}
+	}
+}
+
+// ValidatorQueryRate returns the query success rate for the validator
+// for the prior epoch.
+func (vc *ValidatorConnector) ValidatorQueryRate(p peer.ID) float64 {
+	vc.mtx.RLock()
+	defer vc.mtx.RUnlock()
+
+	stats, ok := vc.lastEpochStats[p]
+	if !ok {
+		return 100
+	}
+	if stats.queryAttempts == 0 {
+		return 100
+	}
+	return float64(stats.queryAttempts-stats.queryFailures) / float64(stats.queryAttempts)
+}
+
+func (vc *ValidatorConnector) resetStats() {
+	vc.mtx.Lock()
+	defer vc.mtx.Unlock()
+
+	vc.lastEpochStats = vc.currentStats
+	vc.currentStats = make(map[peer.ID]*validatorStat)
 }
 
 func (vc *ValidatorConnector) run() {
@@ -100,6 +168,8 @@ func (vc *ValidatorConnector) update() {
 func (vc *ValidatorConnector) handleBlockchainNotification(ntf *blockchain.Notification) {
 	if ntf.Type == blockchain.NTValidatorSetUpdate {
 		vc.update()
+	} else if ntf.Type == blockchain.NTNewEpoch {
+		vc.resetStats()
 	}
 }
 

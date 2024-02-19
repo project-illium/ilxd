@@ -32,6 +32,7 @@ const (
 	ErrMinStake
 	ErrDuplicateCoinbase
 	ErrTreasuryWhitelist
+	ErrPoorValidatorUptime
 )
 
 var (
@@ -41,10 +42,11 @@ var (
 
 // Map of ErrorCode values back to their constant names for pretty printing.
 var errorCodeStrings = map[ErrorCode]string{
-	ErrFeeTooLow:         "ErrFeeTooLow",
-	ErrMinStake:          "ErrMinStake",
-	ErrDuplicateCoinbase: "ErrDuplicateCoinbase",
-	ErrTreasuryWhitelist: "ErrTreasuryWhitelist",
+	ErrFeeTooLow:           "ErrFeeTooLow",
+	ErrMinStake:            "ErrMinStake",
+	ErrDuplicateCoinbase:   "ErrDuplicateCoinbase",
+	ErrTreasuryWhitelist:   "ErrTreasuryWhitelist",
+	ErrPoorValidatorUptime: "ErrPoorValidatorUptime",
 }
 
 // String returns the ErrorCode as a human-readable name.

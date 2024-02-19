@@ -363,6 +363,7 @@ func (eng *ConsensusEngine) handleQuery(req *wire.MsgPollRequest, remotePeer pee
 
 func (eng *ConsensusEngine) handleRequestExpiration(key string, p peer.ID) {
 	eng.chooser.RegisterDialFailure(p)
+	eng.valConn.RegisterQueryFailure(p)
 	r, ok := eng.queries[key]
 	if !ok {
 		return
@@ -416,6 +417,7 @@ func (eng *ConsensusEngine) queueMessageToPeer(pollReq *wire.MsgPollRequest, pee
 
 func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgPollResponse) {
 	eng.chooser.RegisterDialSuccess(p)
+	eng.valConn.RegisterQuerySuccess(p)
 	key := queryKey(resp.Request_ID, p.String())
 
 	r, ok := eng.queries[key]
