@@ -72,9 +72,9 @@ func (vc *ValidatorConnector) ConnectedStakePercentage() float64 {
 	return vc.connectedPercentage
 }
 
-// RegisterQuerySuccess registers a successful query for the purpose of
+// RegisterDialSuccess registers a successful query for the purpose of
 // tracking validator uptime and behavior.
-func (vc *ValidatorConnector) RegisterQuerySuccess(p peer.ID) {
+func (vc *ValidatorConnector) RegisterDialSuccess(p peer.ID) {
 	vc.mtx.Lock()
 	defer vc.mtx.Unlock()
 
@@ -88,9 +88,9 @@ func (vc *ValidatorConnector) RegisterQuerySuccess(p peer.ID) {
 	}
 }
 
-// RegisterQueryFailure registers a failed query for the purpose of
+// RegisterDialFailure registers a failed query for the purpose of
 // tracking validator uptime and behavior.
-func (vc *ValidatorConnector) RegisterQueryFailure(p peer.ID) {
+func (vc *ValidatorConnector) RegisterDialFailure(p peer.ID) {
 	vc.mtx.Lock()
 	defer vc.mtx.Unlock()
 
@@ -106,9 +106,9 @@ func (vc *ValidatorConnector) RegisterQueryFailure(p peer.ID) {
 	}
 }
 
-// ValidatorQueryRate returns the query success rate for the validator
+// ValidatorDialSuccessRate returns the dial success rate for the validator
 // for the prior epoch.
-func (vc *ValidatorConnector) ValidatorQueryRate(p peer.ID) float64 {
+func (vc *ValidatorConnector) ValidatorDialSuccessRate(p peer.ID) float64 {
 	vc.mtx.RLock()
 	defer vc.mtx.RUnlock()
 

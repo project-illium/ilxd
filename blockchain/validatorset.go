@@ -520,10 +520,6 @@ func (vs *ValidatorSet) ConnectBlock(blk *blocks.Block, validatorReward types.Am
 				copyValidator(valNew, valOld)
 			}
 
-			expectedBlocks := valNew.ExpectedBlocks
-			if expectedBlocks < 1 {
-				expectedBlocks = 1
-			}
 			valTotal := types.Amount(0)
 			for nullifier, stake := range valNew.Nullifiers {
 				timeSinceStake := blockTime.Sub(stake.Blockstamp)

@@ -8,6 +8,6 @@ import "github.com/libp2p/go-libp2p/core/peer"
 
 type ValidatorSetConnection interface {
 	ConnectedStakePercentage() float64
-	RegisterQuerySuccess(p peer.ID)
-	RegisterQueryFailure(p peer.ID)
+	RegisterDialSuccess(p peer.ID)
+	RegisterDialFailure(p peer.ID)
 }
