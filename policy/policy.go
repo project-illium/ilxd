@@ -5,13 +5,20 @@
 package policy
 
 import (
+	"context"
+	"errors"
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
+	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"path"
 	"sync"
 )
 
 type Policy struct {
+	ds                 repo.Datastore
 	minFeePerKilobyte  types.Amount
 	minStake           types.Amount
 	blocksizeSoftLimit uint32
@@ -20,14 +27,36 @@ type Policy struct {
 	mtx sync.RWMutex
 }
 
-func NewPolicy(minFeePerKilobyte, minStake types.Amount, blocksizeSoftLimit uint32) *Policy {
+func NewPolicy(ds repo.Datastore, minFeePerKilobyte, minStake types.Amount, blocksizeSoftLimit uint32) (*Policy, error) {
+	var treasuryWhitelist []types.ID
+	if ds != nil {
+		query, err := ds.Query(context.Background(), query.Query{
+			Prefix: repo.TreasuryWhitelistDatastoreKeyPrefix,
+		})
+		if err != nil && !errors.Is(err, datastore.ErrNotFound) {
+			return nil, err
+		}
+
+		defer query.Close()
+
+		for r := range query.Next() {
+			idHex := path.Base(r.Key)
+			id, err := types.NewIDFromString(idHex)
+			if err != nil {
+				return nil, err
+			}
+			treasuryWhitelist = append(treasuryWhitelist, id)
+		}
+	}
+
 	return &Policy{
+		ds:                 ds,
 		minFeePerKilobyte:  minFeePerKilobyte,
 		minStake:           minStake,
 		blocksizeSoftLimit: blocksizeSoftLimit,
-		treasuryWhitelist:  nil,
+		treasuryWhitelist:  treasuryWhitelist,
 		mtx:                sync.RWMutex{},
-	}
+	}, nil
 }
 
 func (p *Policy) GetMinFeePerKilobyte() types.Amount {
@@ -87,6 +116,14 @@ func (p *Policy) AddToTreasuryWhitelist(txids ...types.ID) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
+	if p.ds != nil {
+		for _, txid := range txids {
+			if err := p.ds.Put(context.Background(), datastore.NewKey(repo.TreasuryWhitelistDatastoreKeyPrefix+txid.String()), nil); err != nil {
+				log.WithCaller(true).Error("Error putting treasury whitelist to datastore", log.Args("Error", err.Error()))
+			}
+		}
+	}
+
 	p.treasuryWhitelist = append(p.treasuryWhitelist, txids...)
 }
 
@@ -98,6 +135,11 @@ loop:
 	for i := len(p.treasuryWhitelist) - 1; i >= 0; i-- {
 		for _, txid := range txids {
 			if p.treasuryWhitelist[i] == txid {
+				if p.ds != nil {
+					if err := p.ds.Delete(context.Background(), datastore.NewKey(repo.TreasuryWhitelistDatastoreKeyPrefix+txid.String())); err != nil {
+						log.WithCaller(true).Error("Error deleting treasury whitelist from datastore", log.Args("Error", err.Error()))
+					}
+				}
 				p.treasuryWhitelist = append(p.treasuryWhitelist[:i], p.treasuryWhitelist[i+1:]...)
 				continue loop
 			}

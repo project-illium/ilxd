@@ -25,7 +25,7 @@ const (
 func DefaultOptions() Option {
 	return func(cfg *config) error {
 		cfg.params = &params.RegestParams
-		cfg.policy = policy.NewPolicy(repo.DefaultFeePerKilobyte, repo.DefaultMinimumStake, repo.DefaultSoftLimit)
+		cfg.policy, _ = policy.NewPolicy(nil, repo.DefaultFeePerKilobyte, repo.DefaultMinimumStake, repo.DefaultSoftLimit)
 		cfg.sigCache = blockchain.NewSigCache(defaultSigCacheSize)
 		cfg.proofCache = blockchain.NewProofCache(defaultProofCacheSize)
 		cfg.transactionTTL = defaultTransactionTTL
