@@ -8,7 +8,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/types"
-	"time"
 )
 
 // ChainView is an interface of methods that provide the blockchain
@@ -27,7 +26,4 @@ type ChainView interface {
 
 	// GetValidator returns the validator for the given ID
 	GetValidator(validatorID peer.ID) (*blockchain.Validator, error)
-
-	// BestBlock returns information about the block at the tip of the chain
-	BestBlock() (bestID types.ID, height uint32, timestamp time.Time)
 }

@@ -37,7 +37,6 @@ type rejectedBlockReq struct {
 type poolTx struct {
 	tx            *transactions.Transaction
 	firstSeen     time.Time
-	chainHeight   uint32
 	rejectedBlock bool
 }
 
@@ -455,11 +454,10 @@ func (m *Mempool) processTransaction(tx *transactions.Transaction) error {
 	default:
 		return ruleError(blockchain.ErrInvalidTx, "unknown transaction type")
 	}
-	_, chainHeight, _ := m.cfg.chainView.BestBlock()
+
 	m.pool[tx.ID()] = &poolTx{
-		tx:          tx,
-		firstSeen:   time.Now(),
-		chainHeight: chainHeight,
+		tx:        tx,
+		firstSeen: time.Now(),
 	}
 	log.Debug("New mempool transaction", log.ArgsFromMap(map[string]any{
 		"txid": tx.ID().String(),
