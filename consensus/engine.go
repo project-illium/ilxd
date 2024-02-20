@@ -134,7 +134,7 @@ func NewConsensusEngine(ctx context.Context, opts ...Option) (*ConsensusEngine, 
 		ctx:          ctx,
 		network:      cfg.network,
 		valConn:      cfg.valConn,
-		chooser:      NewBackoffChooser(cfg.chooser),
+		chooser:      NewBackoffChooser(cfg.chooser, cfg.valConn),
 		params:       cfg.params,
 		self:         cfg.self,
 		ms:           net.NewMessageSender(cfg.network.Host(), cfg.params.ProtocolPrefix+ConsensusProtocol+ConsensusProtocolVersion),
@@ -192,8 +192,9 @@ out:
 // will be marked as Rejected.
 func (eng *ConsensusEngine) NewBlock(header *blocks.BlockHeader, isAcceptable bool, callback chan<- Status) {
 	log.WithCaller(true).Trace("Consensus engine new block", log.ArgsFromMap(map[string]any{
-		"id":     header.ID().String(),
-		"height": header.Height,
+		"id":         header.ID().String(),
+		"height":     header.Height,
+		"acceptable": isAcceptable,
 	}))
 	headerCpy := proto.Clone(header).(*blocks.BlockHeader)
 	eng.msgChan <- &newBlockMessage{
@@ -363,7 +364,6 @@ func (eng *ConsensusEngine) handleQuery(req *wire.MsgPollRequest, remotePeer pee
 
 func (eng *ConsensusEngine) handleRequestExpiration(key string, p peer.ID) {
 	eng.chooser.RegisterDialFailure(p)
-	eng.valConn.RegisterDialFailure(p)
 	r, ok := eng.queries[key]
 	if !ok {
 		return
@@ -417,7 +417,6 @@ func (eng *ConsensusEngine) queueMessageToPeer(pollReq *wire.MsgPollRequest, pee
 
 func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgPollResponse) {
 	eng.chooser.RegisterDialSuccess(p)
-	eng.valConn.RegisterDialSuccess(p)
 	key := queryKey(resp.Request_ID, p.String())
 
 	r, ok := eng.queries[key]
