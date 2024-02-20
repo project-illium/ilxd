@@ -44,6 +44,8 @@ type MockValConn struct{}
 func (m *MockValConn) ConnectedStakePercentage() float64 {
 	return 100
 }
+func (m *MockValConn) RegisterDialSuccess(p peer.ID) {}
+func (m *MockValConn) RegisterDialFailure(p peer.ID) {}
 
 type mockNode struct {
 	engine *ConsensusEngine

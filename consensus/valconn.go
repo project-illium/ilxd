@@ -4,6 +4,10 @@
 
 package consensus
 
+import "github.com/libp2p/go-libp2p/core/peer"
+
 type ValidatorSetConnection interface {
 	ConnectedStakePercentage() float64
+	RegisterDialSuccess(p peer.ID)
+	RegisterDialFailure(p peer.ID)
 }

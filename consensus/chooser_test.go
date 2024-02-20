@@ -34,7 +34,7 @@ func TestBackoffChooser(t *testing.T) {
 		chooser.peers[i] = pid
 	}
 
-	bochooser := NewBackoffChooser(chooser)
+	bochooser := NewBackoffChooser(chooser, &MockValConn{})
 
 	for i := 0; i < 100; i++ {
 		assert.NotEqual(t, "", bochooser.WeightedRandomValidator())

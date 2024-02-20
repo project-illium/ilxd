@@ -21,13 +21,15 @@ type backoffTime struct {
 type BackoffChooser struct {
 	peerMap map[peer.ID]*backoffTime
 	chooser blockchain.WeightedChooser
+	valconn ValidatorSetConnection
 }
 
 // NewBackoffChooser returns a new initialized BackoffChooser
-func NewBackoffChooser(chooser blockchain.WeightedChooser) *BackoffChooser {
+func NewBackoffChooser(chooser blockchain.WeightedChooser, valconn ValidatorSetConnection) *BackoffChooser {
 	return &BackoffChooser{
 		peerMap: make(map[peer.ID]*backoffTime),
 		chooser: chooser,
+		valconn: valconn,
 	}
 }
 
@@ -41,6 +43,9 @@ func (b *BackoffChooser) WeightedRandomValidator() peer.ID {
 			return peer
 
 		}
+		// We'll count this as a dial failure for purposes of tracking
+		// peer uptime.
+		b.valconn.RegisterDialFailure(peer)
 		return ""
 	}
 	return peer
@@ -49,6 +54,7 @@ func (b *BackoffChooser) WeightedRandomValidator() peer.ID {
 // RegisterDialFailure increases the exponential backoff time for
 // the given peer.
 func (b *BackoffChooser) RegisterDialFailure(p peer.ID) {
+	b.valconn.RegisterDialFailure(p)
 	bot, ok := b.peerMap[p]
 	if ok {
 		t := bot.eb.NextBackOff()
@@ -75,6 +81,7 @@ func (b *BackoffChooser) RegisterDialFailure(p peer.ID) {
 // RegisterDialSuccess deletes the exponential backoff for the
 // given peer.
 func (b *BackoffChooser) RegisterDialSuccess(p peer.ID) {
+	b.valconn.RegisterDialSuccess(p)
 	_, ok := b.peerMap[p]
 	if ok {
 		log.WithCaller(true).Trace("Removing dial backoff", log.Args("peer", p))

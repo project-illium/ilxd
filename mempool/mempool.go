@@ -325,6 +325,10 @@ func (m *Mempool) processTransaction(tx *transactions.Transaction) error {
 			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction creates invalid number of coins")
 		}
 
+		if !m.cfg.policy.GetValidatorAcceptableCoinbase(validatorID) {
+			return policyError(ErrPoorValidatorUptime, "coinbase for peer with poor uptime")
+		}
+
 		// There is an unlikely scenario where a coinbase could sit in the mempool
 		// for an entire epoch and not get included in a block. We don't want two
 		// coinbases from the same validator in the mempool so we will evict the
