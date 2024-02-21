@@ -3,8 +3,7 @@ use bellpepper_core::{
 };
 use core::ops::{AddAssign, MulAssign};
 use std::marker::PhantomData;
-use bellpepper_core::boolean::Boolean;
-use bellpepper_core::num::AllocatedNum;
+use bellpepper_core::{boolean::Boolean, num::AllocatedNum};
 use ff::{
     derive::byteorder::{ByteOrder, LittleEndian},
     Field, PrimeField, PrimeFieldBits,
