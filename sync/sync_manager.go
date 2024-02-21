@@ -241,7 +241,7 @@ syncLoop:
 				blks, err := sm.downloadEvalWindow(p, forkHeight+1)
 				if err != nil {
 					log.Debug("Sync peer failed to serve evaluation window", log.Args("peer", p))
-					sm.network.IncreaseBanscore(p, 101, 0)
+					sm.network.IncreaseBanscore(p, 101, 0, "failed to serve evaluation window")
 					continue syncLoop
 				}
 				firstBlocks = append(firstBlocks, blks[0])
@@ -250,7 +250,7 @@ syncLoop:
 				score, err := sm.chain.CalcChainScore(blks, sm.behavorFlag)
 				if err != nil {
 					log.Debug("Sync peer served invalid evaluation window", log.Args("peer", p))
-					sm.network.IncreaseBanscore(p, 101, 0)
+					sm.network.IncreaseBanscore(p, 101, 0, "served invalid evaluation window")
 					continue syncLoop
 				}
 				if len(blks) < evaluationWindow {
@@ -292,7 +292,7 @@ syncLoop:
 			if len(firstBlocks) > 1 {
 				for blockID, p := range blockMap {
 					if blockID != bestID {
-						sm.network.IncreaseBanscore(p, 101, 0)
+						sm.network.IncreaseBanscore(p, 101, 0, "served invalid chain fork")
 						sm.bucketMtx.Lock()
 						var banBucket types.ID
 					bucketLoop:
@@ -307,7 +307,7 @@ syncLoop:
 						bucket, ok := sm.buckets[banBucket]
 						if ok {
 							for _, p2 := range bucket {
-								sm.network.IncreaseBanscore(p2, 101, 0)
+								sm.network.IncreaseBanscore(p2, 101, 0, "part of invalid fork bucket")
 							}
 						}
 						delete(sm.buckets, banBucket)
@@ -437,8 +437,8 @@ bucketLoop:
 				if errors.Is(err, ErrNotFound) {
 					id, h, err = sm.chainService.GetBest(pid)
 				}
-				if err != nil {
-					sm.network.IncreaseBanscore(pid, 0, 20)
+				if err != nil && !errors.Is(err, ErrNotCurrent) {
+					sm.network.IncreaseBanscore(pid, 0, 20, "failed to respond to getBlockID/getBest query")
 					return
 				}
 				ch <- resp{
@@ -513,7 +513,7 @@ func (sm *SyncManager) populatePeerBuckets() error {
 				if errors.Is(err, ErrNotCurrent) {
 					return
 				} else if err != nil {
-					sm.network.IncreaseBanscore(pid, 0, 20)
+					sm.network.IncreaseBanscore(pid, 0, 20, "failed to respond to getBest query")
 					return
 				}
 				ch <- resp{
@@ -576,13 +576,13 @@ func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) {
 func (sm *SyncManager) downloadEvalWindow(p peer.ID, fromHeight uint32) ([]*blocks.Block, error) {
 	headers, err := sm.downloadHeaders(p, fromHeight, fromHeight+evaluationWindow-1)
 	if err != nil {
-		sm.network.IncreaseBanscore(p, 0, 20)
+		sm.network.IncreaseBanscore(p, 0, 20, "failed to serve requested headers")
 		return nil, err
 	}
 	blks := make([]*blocks.Block, 0, len(headers))
 	txs, err := sm.downloadBlockTxs(p, fromHeight, fromHeight+evaluationWindow-1)
 	if err != nil {
-		sm.network.IncreaseBanscore(p, 0, 20)
+		sm.network.IncreaseBanscore(p, 0, 20, "failed to serve requested block txs")
 		return nil, fmt.Errorf("peer %s block download error %s", p, err)
 	}
 	for i, tx := range txs {
@@ -597,21 +597,21 @@ func (sm *SyncManager) downloadEvalWindow(p peer.ID, fromHeight uint32) ([]*bloc
 func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent, expectedID types.ID, flags blockchain.BehaviorFlags) error {
 	headers, err := sm.downloadHeaders(p, fromHeight, toHeight)
 	if err != nil {
-		sm.network.IncreaseBanscore(p, 0, 20)
+		sm.network.IncreaseBanscore(p, 0, 20, "failed to serve requested headers")
 		return err
 	}
 	if headers[len(headers)-1].ID().Compare(expectedID) != 0 {
-		sm.network.IncreaseBanscore(p, 101, 0)
+		sm.network.IncreaseBanscore(p, 101, 0, "served chain of headers that doesn't link to expected block")
 		return fmt.Errorf("peer %s returned last header with unexpected ID", p)
 	}
 
 	if types.NewID(headers[0].Parent).Compare(parent) != 0 {
-		sm.network.IncreaseBanscore(p, 101, 0)
+		sm.network.IncreaseBanscore(p, 101, 0, "served chain of headers that doesn't link to known parent")
 		return fmt.Errorf("peer %s returned frist header with unexpected parent ID", p)
 	}
 	for i := len(headers) - 1; i > 0; i-- {
 		if types.NewID(headers[i].Parent).Compare(headers[i-1].ID()) != 0 {
-			sm.network.IncreaseBanscore(p, 101, 0)
+			sm.network.IncreaseBanscore(p, 101, 0, "served chain of headers that don't link to each other")
 			return fmt.Errorf("peer %s returned headers that do not connect", p)
 		}
 	}
@@ -632,7 +632,7 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 		}
 		txs, err := sm.downloadBlockTxs(p, start, stop)
 		if err != nil {
-			sm.network.IncreaseBanscore(p, 0, 20)
+			sm.network.IncreaseBanscore(p, 0, 20, "failed to serve requested block txs")
 			return fmt.Errorf("peer %s block download error %s", p, err)
 		}
 		x := 0
@@ -643,7 +643,7 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 			}
 			merkleRoot := blockchain.TransactionsMerkleRoot(blk.Transactions)
 			if !bytes.Equal(merkleRoot[:], headers[i].TxRoot) {
-				sm.network.IncreaseBanscore(p, 101, 0)
+				sm.network.IncreaseBanscore(p, 101, 0, "served block txs with invalid merkle root")
 				return fmt.Errorf("peer %s invalid block download merkle root", p.String())
 			}
 			blks = append(blks, blk)
@@ -731,7 +731,7 @@ func (sm *SyncManager) findForkPoint(currentHeight, toHeight uint32, blockMap ma
 						id, height, err = sm.chainService.GetBest(pid)
 						if height < startHeight || height >= getHeight {
 							err = fmt.Errorf("fork peer %s not returning expected height", pid)
-							sm.network.IncreaseBanscore(pid, 101, 0)
+							sm.network.IncreaseBanscore(pid, 101, 0, "fork peer not serving block ID or valid height")
 						}
 					}
 					ch <- resp{

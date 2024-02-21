@@ -607,8 +607,8 @@ func (n *Network) BroadcastTransaction(tx *transactions.Transaction) error {
 	return n.txTopic.Publish(context.Background(), ser)
 }
 
-func (n *Network) IncreaseBanscore(p peer.ID, persistent, transient uint32) {
-	banned, err := n.connGater.IncreaseBanscore(p, persistent, transient)
+func (n *Network) IncreaseBanscore(p peer.ID, persistent, transient uint32, reason ...string) {
+	banned, err := n.connGater.IncreaseBanscore(p, persistent, transient, reason...)
 	if err != nil {
 		log.WithCaller(true).Error("Error setting banscore", log.ArgsFromMap(map[string]any{
 			"peer":  p,

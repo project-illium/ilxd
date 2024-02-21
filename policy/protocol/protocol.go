@@ -97,7 +97,7 @@ func (ps *PolicyService) handleNewMessage(s inet.Stream) {
 		// Increase the transient banscore so peers don't slam us with
 		// crawls. There is really no reason to make their queries in
 		// rapid succession.
-		ps.network.IncreaseBanscore(remotePeer, 0, 10)
+		ps.network.IncreaseBanscore(remotePeer, 0, 10, "rate limiting policy protocol")
 
 		var resp proto.Message
 		switch m := req.Msg.(type) {
@@ -114,7 +114,7 @@ func (ps *PolicyService) handleNewMessage(s inet.Stream) {
 				"peer": remotePeer,
 			}))
 			s.Reset()
-			ps.network.IncreaseBanscore(remotePeer, 30, 0)
+			ps.network.IncreaseBanscore(remotePeer, 30, 0, "sent unknown policy protocol message")
 			return
 		}
 		if err != nil {

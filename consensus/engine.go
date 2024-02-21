@@ -325,7 +325,7 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 				"peer": remotePeer,
 			}))
 			s.Reset()
-			eng.network.IncreaseBanscore(remotePeer, 30, 0)
+			eng.network.IncreaseBanscore(remotePeer, 30, 0, "sent unknown consensus message")
 			return
 		}
 
@@ -335,8 +335,8 @@ func (eng *ConsensusEngine) handleNewMessage(s inet.Stream) {
 
 func (eng *ConsensusEngine) handleQuery(req *wire.MsgPollRequest, remotePeer peer.ID, respChan chan *wire.MsgPollResponse) {
 	if len(req.Heights) == 0 {
-		log.WithCaller(true).Trace("Received empty avalanche request", log.Args("peer", remotePeer))
-		eng.network.IncreaseBanscore(remotePeer, 30, 0)
+		log.WithCaller(true).Trace("Received empty poll request", log.Args("peer", remotePeer))
+		eng.network.IncreaseBanscore(remotePeer, 30, 0, "sent empty poll request")
 		return
 	}
 	resp := &wire.MsgPollResponse{
@@ -421,8 +421,8 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgPollRes
 
 	r, ok := eng.queries[key]
 	if !ok {
-		log.Debug("Received avalanche response with an unknown request ID", log.Args("peer", p))
-		eng.network.IncreaseBanscore(p, 30, 0)
+		log.Debug("Received poll response with an unknown request ID", log.Args("peer", p))
+		eng.network.IncreaseBanscore(p, 30, 0, "sent poll response with unknown request ID")
 		return
 	}
 
@@ -430,15 +430,15 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgPollRes
 	delete(eng.queries, key)
 
 	if r.IsExpired() {
-		log.Debug("Received avalanche response with an expired request", log.Args("peer", p))
-		eng.network.IncreaseBanscore(p, 0, 20)
+		log.Debug("Received poll response with an expired request", log.Args("peer", p))
+		eng.network.IncreaseBanscore(p, 0, 20, "sent poll response for expired request")
 		return
 	}
 
 	heights := r.GetHeights()
 	if len(resp.Votes) != len(heights) {
-		log.Debug("Received avalanche response with an incorrect number of votes", log.Args("peer", p))
-		eng.network.IncreaseBanscore(p, 30, 0)
+		log.Debug("Received poll response with an incorrect number of votes", log.Args("peer", p))
+		eng.network.IncreaseBanscore(p, 30, 0, "sent poll response with incorrect number of votes")
 		return
 	}
 
@@ -454,8 +454,8 @@ func (eng *ConsensusEngine) handleRegisterVotes(p peer.ID, resp *wire.MsgPollRes
 		}
 
 		if len(resp.Votes[i]) != hash.HashSize {
-			log.Debug("Received avalanche response with an incorrect hash length", log.Args("peer", p))
-			eng.network.IncreaseBanscore(p, 30, 0)
+			log.Debug("Received poll response with an incorrect hash length", log.Args("peer", p))
+			eng.network.IncreaseBanscore(p, 30, 0, "sent poll response with incorrect hash length")
 			continue
 		}
 

@@ -716,7 +716,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 		return err
 	case blockchain.RuleError:
 		if recheck {
-			s.network.IncreaseBanscore(relayingPeer, 34, 0)
+			s.network.IncreaseBanscore(relayingPeer, 34, 0, "relayed block with rule error")
 			return err
 		}
 		// If the merkle root is invalid it either means we had a collision in the
@@ -734,7 +734,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 					"peer": relayingPeer,
 					"id":   blk.ID().String(),
 				}))
-				s.network.IncreaseBanscore(relayingPeer, 34, 0)
+				s.network.IncreaseBanscore(relayingPeer, 34, 0, "failed to serve requested block txids")
 
 				for _, pid := range s.network.Host().Network().Peers() {
 					blk, err = s.fetchBlockTxids(blk, pid)
@@ -755,10 +755,10 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 			// right after we finalize a block at the same height. We'll
 			// only lightly increase the penalty for this to prevent banning
 			// nodes for innocent behavior.
-			s.network.IncreaseBanscore(relayingPeer, 0, 1)
+			s.network.IncreaseBanscore(relayingPeer, 0, 1, "relayed block that does not connect")
 		} else {
 			// Ban nodes that send us invalid blocks.
-			s.network.IncreaseBanscore(relayingPeer, 101, 0)
+			s.network.IncreaseBanscore(relayingPeer, 101, 0, "relayed block with rule error")
 		}
 		return err
 	}
@@ -785,7 +785,7 @@ func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck b
 
 			// The block producer sent us two blocks at the same height
 			// too close together.
-			s.network.IncreaseBanscore(relayingPeer, 101, 0)
+			s.network.IncreaseBanscore(relayingPeer, 101, 0, "relayed two blocks at same height in short succession")
 			s.inventoryLock.Unlock()
 			return errors.New("multiple blocks from the same validator")
 		}
@@ -883,7 +883,7 @@ func (s *Server) decodeXthinner(xThinnerBlk *blocks.XThinnerBlock, relayingPeer 
 				"peer":  relayingPeer,
 				"error": err,
 			}))
-			s.network.IncreaseBanscore(relayingPeer, 34, 0)
+			s.network.IncreaseBanscore(relayingPeer, 34, 0, "failed to serve requested block txs")
 		}
 
 		for _, pid := range s.network.Host().Network().Peers() {
@@ -1016,7 +1016,7 @@ func (s *Server) requestBlock(blockID types.ID, remotePeer peer.ID) {
 	}))
 	blk, err := s.engine.GetBlockFromPeer(remotePeer, blockID)
 	if err != nil {
-		s.network.IncreaseBanscore(remotePeer, 0, 30)
+		s.network.IncreaseBanscore(remotePeer, 0, 30, "failed to serve requested block")
 		s.inflightLock.Lock()
 		delete(s.inflightRequests, blockID)
 		s.inflightLock.Unlock()

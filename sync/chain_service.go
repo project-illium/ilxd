@@ -151,7 +151,7 @@ func (cs *ChainService) handleNewMessage(s inet.Stream) {
 				"peer": remotePeer,
 			}))
 			s.Reset()
-			cs.network.IncreaseBanscore(remotePeer, 30, 0)
+			cs.network.IncreaseBanscore(remotePeer, 30, 0, "sent unknown chain service message")
 			return
 		}
 		if err != nil {
@@ -197,7 +197,7 @@ func (cs *ChainService) GetBlockTxs(p peer.ID, blockID types.ID, txIndexes []uin
 	}
 
 	if len(resp.Transactions) != len(txIndexes) {
-		cs.network.IncreaseBanscore(p, 50, 0)
+		cs.network.IncreaseBanscore(p, 50, 0, "did not return all requested txs")
 		return nil, fmt.Errorf("peer %s did not return all requested txs", p.String())
 	}
 

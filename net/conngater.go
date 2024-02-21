@@ -130,7 +130,7 @@ func (cg *ConnectionGater) loadRules(ctx context.Context) error {
 //
 // If persistent is non-zero the persistent score will never decrease. The transient score does
 // decrease according to a decay function.
-func (cg *ConnectionGater) IncreaseBanscore(p peer.ID, persistent, transient uint32) (bool, error) {
+func (cg *ConnectionGater) IncreaseBanscore(p peer.ID, persistent, transient uint32, reason ...string) (bool, error) {
 	if _, ok := cg.blockedPeers[p]; ok || cg.banDuration == 0 {
 		return false, nil
 	}
@@ -141,11 +141,15 @@ func (cg *ConnectionGater) IncreaseBanscore(p peer.ID, persistent, transient uin
 		cg.scores[p] = banscore
 	}
 	score := banscore.Increase(persistent, transient)
-	log.Info("Increased peer banscore", log.ArgsFromMap(map[string]any{
+	args := map[string]any{
 		"peer":      p,
 		"score":     score,
 		"threshold": cg.maxBanscore,
-	}))
+	}
+	if len(reason) > 0 {
+		args["reason"] = reason[0]
+	}
+	log.Info("Increased peer banscore", log.ArgsFromMap(args))
 	cg.Unlock()
 	banned := score > cg.maxBanscore
 	if banned {
