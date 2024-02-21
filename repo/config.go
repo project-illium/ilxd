@@ -33,7 +33,7 @@ const (
 	defaultGrpcPort       = 5001
 
 	DefaultFeePerKilobyte = 10000
-	DefaultMinimumStake   = 1000000
+	DefaultMinimumStake   = 175000000000
 	DefaultMaxMessageSize = 1 << 23 // 8 MiB
 	DefaultSoftLimit      = 1 << 20 // 1 MiB
 
