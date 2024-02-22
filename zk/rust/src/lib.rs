@@ -114,6 +114,7 @@ pub extern "C" fn create_proof_ffi(
     lurk_program: *const c_char,
     private_params: *const c_char,
     public_params: *const c_char,
+    max_steps: usize,
     proof: *mut u8,
     proof_len: *mut usize,
     output_tag: *mut u8,
@@ -141,7 +142,8 @@ pub extern "C" fn create_proof_ffi(
     match create_proof(
         program_str.to_string(),
         priv_params_str.to_string(),
-        pub_params_str.to_string()
+        pub_params_str.to_string(),
+        max_steps,
     ) {
         Ok((vec1, vec2, vec3)) => {
             // Assume output1, output2, and output3 are large enough to hold the data
@@ -221,6 +223,7 @@ pub extern "C" fn eval_ffi(
     lurk_program: *const c_char,
     private_params: *const c_char,
     public_params: *const c_char,
+    max_steps: usize,
     output_tag: *mut u8,
     output_val: *mut u8,
     iterations: *mut usize,
@@ -246,6 +249,7 @@ pub extern "C" fn eval_ffi(
         program_str.to_string(),
         priv_params_str.to_string(),
         pub_params_str.to_string(),
+        max_steps,
         debug,
     ) {
         Ok((vec1, vec2, n_iter)) => {
@@ -289,9 +293,8 @@ fn create_public_params() -> PublicParams<Fr> {
     pp
 }
 
-fn create_proof(lurk_program: String, private_params: String, public_params: String) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Box<dyn Error>> {
+fn create_proof(lurk_program: String, private_params: String, public_params: String, max_steps: usize) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Box<dyn Error>> {
     let store = &Store::<Fr>::default();
-    let max_steps = 100000000;
 
     let secret = Fr::random(OsRng);
     let priv_expr = store.read_with_default_state(private_params.as_str())?;
@@ -394,10 +397,10 @@ fn eval_simple(
     lurk_program: String,
     private_params: String,
     public_params: String,
+    max_steps: usize,
     debug: bool,
 ) -> Result<(Vec<u8>, Vec<u8>, usize), Box<dyn Error>> {
     let store = &Store::<Fr>::default();
-    let max_steps = 100000000;
 
     let secret = Fr::random(OsRng);
     let priv_expr = store.read_with_default_state(private_params.as_str())?;

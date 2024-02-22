@@ -28,6 +28,9 @@ import (
 
 var _ pb.BlockchainServiceServer = (*GrpcServer)(nil)
 var _ pb.NodeServiceServer = (*GrpcServer)(nil)
+var _ pb.WalletServiceServer = (*GrpcServer)(nil)
+var _ pb.WalletServerServiceServer = (*GrpcServer)(nil)
+var _ pb.ProverServiceServer = (*GrpcServer)(nil)
 
 // GrpcServerConfig hols the various objects needed by the GrpcServer to
 // perform its functions.
@@ -52,6 +55,7 @@ type GrpcServerConfig struct {
 	DisableNodeService   bool
 	DisableWalletService bool
 	DisableWalletServer  bool
+	DisableProverServer  bool
 
 	TxIndex *indexers.TxIndex
 	WSIndex *indexers.WalletServerIndex
@@ -88,6 +92,7 @@ type GrpcServer struct {
 	pb.UnimplementedNodeServiceServer
 	pb.UnimplementedWalletServiceServer
 	pb.UnimplementedWalletServerServiceServer
+	pb.UnimplementedProverServiceServer
 }
 
 // NewGrpcServer returns a new GrpcServer which has not yet
@@ -125,6 +130,9 @@ func NewGrpcServer(cfg *GrpcServerConfig) *GrpcServer {
 	}
 	if !cfg.DisableWalletServer {
 		pb.RegisterWalletServerServiceServer(cfg.Server, s)
+	}
+	if !cfg.DisableProverServer {
+		pb.RegisterProverServiceServer(cfg.Server, s)
 	}
 
 	s.chain.Subscribe(s.handleBlockchainNotifications)

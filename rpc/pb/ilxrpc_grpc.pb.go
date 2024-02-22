@@ -1043,6 +1043,142 @@ var WalletServerService_ServiceDesc = grpc.ServiceDesc{
 	Metadata: "ilxrpc.proto",
 }
 
+// ProverServiceClient is the client API for ProverService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type ProverServiceClient interface {
+	// Prove creates the proof for the transaction and returns the transaction
+	// with the proof attached. The transaction is *not* submitted to the network.
+	//
+	// The transaction is validated against the mempool and will return an error
+	// if it is an otherwise invalid transaction.
+	Prove(ctx context.Context, in *ProveRequest, opts ...grpc.CallOption) (*ProveResponse, error)
+	// ProveAndSubmit creates the proof for the transaction and then submits it to
+	// the network. And error is returned if it fails mempool submission.
+	ProveAndSubmit(ctx context.Context, in *ProveAndSubmitRequest, opts ...grpc.CallOption) (*ProveAndSubmitResponse, error)
+}
+
+type proverServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewProverServiceClient(cc grpc.ClientConnInterface) ProverServiceClient {
+	return &proverServiceClient{cc}
+}
+
+func (c *proverServiceClient) Prove(ctx context.Context, in *ProveRequest, opts ...grpc.CallOption) (*ProveResponse, error) {
+	out := new(ProveResponse)
+	err := c.cc.Invoke(ctx, "/pb.ProverService/Prove", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *proverServiceClient) ProveAndSubmit(ctx context.Context, in *ProveAndSubmitRequest, opts ...grpc.CallOption) (*ProveAndSubmitResponse, error) {
+	out := new(ProveAndSubmitResponse)
+	err := c.cc.Invoke(ctx, "/pb.ProverService/ProveAndSubmit", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ProverServiceServer is the server API for ProverService service.
+// All implementations must embed UnimplementedProverServiceServer
+// for forward compatibility
+type ProverServiceServer interface {
+	// Prove creates the proof for the transaction and returns the transaction
+	// with the proof attached. The transaction is *not* submitted to the network.
+	//
+	// The transaction is validated against the mempool and will return an error
+	// if it is an otherwise invalid transaction.
+	Prove(context.Context, *ProveRequest) (*ProveResponse, error)
+	// ProveAndSubmit creates the proof for the transaction and then submits it to
+	// the network. And error is returned if it fails mempool submission.
+	ProveAndSubmit(context.Context, *ProveAndSubmitRequest) (*ProveAndSubmitResponse, error)
+	mustEmbedUnimplementedProverServiceServer()
+}
+
+// UnimplementedProverServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedProverServiceServer struct {
+}
+
+func (UnimplementedProverServiceServer) Prove(context.Context, *ProveRequest) (*ProveResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Prove not implemented")
+}
+func (UnimplementedProverServiceServer) ProveAndSubmit(context.Context, *ProveAndSubmitRequest) (*ProveAndSubmitResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ProveAndSubmit not implemented")
+}
+func (UnimplementedProverServiceServer) mustEmbedUnimplementedProverServiceServer() {}
+
+// UnsafeProverServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ProverServiceServer will
+// result in compilation errors.
+type UnsafeProverServiceServer interface {
+	mustEmbedUnimplementedProverServiceServer()
+}
+
+func RegisterProverServiceServer(s grpc.ServiceRegistrar, srv ProverServiceServer) {
+	s.RegisterService(&ProverService_ServiceDesc, srv)
+}
+
+func _ProverService_Prove_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProverServiceServer).Prove(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.ProverService/Prove",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProverServiceServer).Prove(ctx, req.(*ProveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ProverService_ProveAndSubmit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProveAndSubmitRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProverServiceServer).ProveAndSubmit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.ProverService/ProveAndSubmit",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProverServiceServer).ProveAndSubmit(ctx, req.(*ProveAndSubmitRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// ProverService_ServiceDesc is the grpc.ServiceDesc for ProverService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var ProverService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "pb.ProverService",
+	HandlerType: (*ProverServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Prove",
+			Handler:    _ProverService_Prove_Handler,
+		},
+		{
+			MethodName: "ProveAndSubmit",
+			Handler:    _ProverService_ProveAndSubmit_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "ilxrpc.proto",
+}
+
 // WalletServiceClient is the client API for WalletService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.

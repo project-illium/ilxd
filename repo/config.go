@@ -98,6 +98,7 @@ type RPCOptions struct {
 	DisableNodeService         bool     `long:"disablenodeservice" description:"Disable the node RPC service. This option should be used if running a public blockchain or wallet server."`
 	DisableWalletService       bool     `long:"disablewalletservice" description:"Disable the wallet RPC service. This option should be used if running a public blockchain or wallet server."`
 	DisableWalletServerService bool     `long:"disablewalletserverservice" description:"Disable the wallet server RPC service. This will automatically be disable if wsindex is disabled."`
+	EnableProverService        bool     `long:"enableproverservice" description:"Enable the prover RPC service. This is not turned on by default."`
 }
 
 // LoadConfig initializes and parses the config using a config file and command
