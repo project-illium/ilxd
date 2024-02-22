@@ -5,6 +5,7 @@
 package blockchain
 
 import (
+	"fmt"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
@@ -79,7 +80,7 @@ func (p *proofValidator) Validate(txs []*transactions.Transaction) error {
 	for i := 0; i < len(txs); i++ {
 		err := <-p.resultChan
 		if err != nil {
-			return err
+			return ruleError(ErrInvalidTx, fmt.Sprintf("proof validation error: %s", err.Error()))
 		}
 	}
 	return nil
@@ -108,7 +109,7 @@ func (p *proofValidator) validateHandler() {
 					break
 				}
 				if !valid {
-					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
+					p.resultChan <- ruleError(ErrInvalidTx, "invalid proof")
 					break
 				}
 				p.proofCache.Add(proofHash, tx.StandardTransaction.Proof, tx.StandardTransaction.ID())
@@ -131,7 +132,7 @@ func (p *proofValidator) validateHandler() {
 					break
 				}
 				if !valid {
-					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
+					p.resultChan <- ruleError(ErrInvalidTx, "invalid proof")
 					break
 				}
 				p.proofCache.Add(proofHash, tx.CoinbaseTransaction.Proof, tx.CoinbaseTransaction.ID())
@@ -154,7 +155,7 @@ func (p *proofValidator) validateHandler() {
 					break
 				}
 				if !valid {
-					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
+					p.resultChan <- ruleError(ErrInvalidTx, "invalid proof")
 					break
 				}
 				p.proofCache.Add(proofHash, tx.TreasuryTransaction.Proof, tx.TreasuryTransaction.ID())
@@ -177,7 +178,7 @@ func (p *proofValidator) validateHandler() {
 					break
 				}
 				if !valid {
-					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
+					p.resultChan <- ruleError(ErrInvalidTx, "invalid proof")
 					break
 				}
 				p.proofCache.Add(proofHash, tx.MintTransaction.Proof, tx.MintTransaction.ID())
@@ -200,7 +201,7 @@ func (p *proofValidator) validateHandler() {
 					break
 				}
 				if !valid {
-					p.resultChan <- ruleError(ErrInvalidTx, "invalid zk-snark proof")
+					p.resultChan <- ruleError(ErrInvalidTx, "invalid proof")
 					break
 				}
 				p.proofCache.Add(proofHash, tx.StakeTransaction.Proof, tx.StakeTransaction.ID())
