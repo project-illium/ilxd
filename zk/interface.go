@@ -24,7 +24,10 @@ type Parameters interface {
 type Prover interface {
 	// Prove creates a proof that the private and public params
 	// make the program return true.
-	Prove(program string, privateParams Parameters, publicParams Parameters) (proof []byte, err error)
+	//
+	// maxSteps is optional if you want to limit the number of steps
+	// before terminating the proof creation.
+	Prove(program string, privateParams Parameters, publicParams Parameters, maxSteps ...uint64) (proof []byte, err error)
 }
 
 // Verifier is an interface to the zk-snark verify function.
@@ -40,8 +43,8 @@ type LurkProver struct{}
 
 // Prove creates a proof that the private and public params
 // make the program return true.
-func (l *LurkProver) Prove(program string, privateParams Parameters, publicParams Parameters) (proof []byte, err error) {
-	return Prove(program, privateParams, publicParams)
+func (l *LurkProver) Prove(program string, privateParams Parameters, publicParams Parameters, maxSteps ...uint64) (proof []byte, err error) {
+	return Prove(program, privateParams, publicParams, maxSteps...)
 }
 
 // LurkVerifier is an implementation of the Verifier interface
@@ -65,8 +68,22 @@ type MockProver struct {
 
 // Prove creates a proof that the private and public params
 // make the program return true.
-func (m *MockProver) Prove(program string, privateParams Parameters, publicParams Parameters) ([]byte, error) {
-	tag, val, _, err := Eval(program, privateParams, publicParams)
+func (m *MockProver) Prove(program string, privateParams Parameters, publicParams Parameters, maxSteps ...uint64) ([]byte, error) {
+	priv, err := privateParams.ToExpr()
+	if err != nil {
+		return nil, err
+	}
+	pub, err := publicParams.ToExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	ms := defaultMaxSteps
+	if len(maxSteps) > 0 {
+		ms = maxSteps[0]
+	}
+
+	tag, val, _, err := evaluate(program, priv, pub, ms, false)
 	if err != nil {
 		return nil, err
 	}

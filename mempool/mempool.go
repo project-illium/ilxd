@@ -21,6 +21,10 @@ type processTxReq struct {
 	tx         *transactions.Transaction
 	resultChan chan error
 }
+type validateTxReq struct {
+	tx         *transactions.Transaction
+	resultChan chan error
+}
 type removeBlockTxsReq struct {
 	txs []*transactions.Transaction
 }
@@ -102,6 +106,8 @@ func (m *Mempool) validationHandler() {
 				req.resultChan <- m.handleGetTransaction(req.txid)
 			case *getTransactionsReq:
 				req.resultChan <- m.handleGetTransactions()
+			case *validateTxReq:
+				req.resultChan <- m.handleValidateTransaction(req.tx)
 			case *rejectedBlockReq:
 				m.handleRejectedBlock(req.blk)
 			}
@@ -300,6 +306,175 @@ func (m *Mempool) handleRejectedBlock(blk *blocks.Block) {
 			ptx.rejectedBlock = true
 		}
 	}
+}
+
+// ValidateTransaction returns whether the transaction is valid and can be added to the
+// pool but does *not* add it to the pool.
+//
+// This function is safe for concurrent access.
+func (m *Mempool) ValidateTransaction(tx *transactions.Transaction, validatedProof bool) error {
+	if err := blockchain.CheckTransactionSanity(tx, time.Now()); err != nil {
+		return err
+	}
+
+	fpkb, isFeePayer, err := policy.CalcFeePerKilobyte(tx)
+	if err != nil {
+		return err
+	}
+	if isFeePayer && fpkb < m.cfg.policy.GetMinFeePerKilobyte() {
+		return policyError(ErrFeeTooLow, "transaction fee is below policy minimum")
+	}
+
+	if validatedProof {
+		proofChan := blockchain.ValidateTransactionProof(tx, m.cfg.proofCache, m.cfg.verifier)
+		sigChan := blockchain.ValidateTransactionSig(tx, m.cfg.sigCache)
+
+		err = <-proofChan
+		if err != nil {
+			return err
+		}
+		err = <-sigChan
+		if err != nil {
+			return err
+		}
+	}
+
+	respCh := make(chan error)
+	defer close(respCh)
+	m.msgChan <- &validateTxReq{
+		tx:         tx,
+		resultChan: respCh,
+	}
+	err = <-respCh
+	return err
+}
+
+// handleValidateTransaction is the implementation for ValidateTransaction.
+//
+// This method is NOT safe for concurrent access.
+func (m *Mempool) handleValidateTransaction(tx *transactions.Transaction) error {
+	switch t := tx.GetTx().(type) {
+	case *transactions.Transaction_CoinbaseTransaction:
+		validatorID, err := peer.IDFromBytes(t.CoinbaseTransaction.Validator_ID)
+		if err != nil {
+			return ruleError(blockchain.ErrInvalidTx, "coinbase tx validator ID does not decode")
+		}
+		validator, err := m.cfg.chainView.GetValidator(validatorID)
+		if err != nil {
+			return ruleError(blockchain.ErrInvalidTx, "validator does not exist in validator set")
+		}
+		if types.Amount(t.CoinbaseTransaction.NewCoins) != validator.UnclaimedCoins || t.CoinbaseTransaction.NewCoins == 0 {
+			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction creates invalid number of coins")
+		}
+
+		if !m.cfg.policy.GetValidatorAcceptableCoinbase(validatorID) {
+			return policyError(ErrPoorValidatorUptime, "coinbase for peer with poor uptime")
+		}
+
+	case *transactions.Transaction_StandardTransaction:
+		for _, n := range t.StandardTransaction.Nullifiers {
+			if _, ok := m.nullifiers[types.NewNullifier(n)]; ok {
+				return ruleError(blockchain.ErrDoubleSpend, "nullifier already in mempool")
+			}
+			exists, err := m.cfg.chainView.NullifierExists(types.NewNullifier(n))
+			if err != nil {
+				return err
+			}
+			if exists {
+				return ruleError(blockchain.ErrDoubleSpend, "tx contains spent nullifier")
+			}
+		}
+		exists, err := m.cfg.chainView.TxoRootExists(types.NewID(t.StandardTransaction.TxoRoot))
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return ruleError(blockchain.ErrInvalidTx, "txo root does not exist in chain")
+		}
+	case *transactions.Transaction_MintTransaction:
+		for _, n := range t.MintTransaction.Nullifiers {
+			if _, ok := m.nullifiers[types.NewNullifier(n)]; ok {
+				return ruleError(blockchain.ErrDoubleSpend, "nullifier already in mempool")
+			}
+			exists, err := m.cfg.chainView.NullifierExists(types.NewNullifier(n))
+			if err != nil {
+				return err
+			}
+			if exists {
+				return ruleError(blockchain.ErrDoubleSpend, "tx contains spent nullifier")
+			}
+		}
+		exists, err := m.cfg.chainView.TxoRootExists(types.NewID(t.MintTransaction.TxoRoot))
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return ruleError(blockchain.ErrInvalidTx, "txo root does not exist in chain")
+		}
+	case *transactions.Transaction_StakeTransaction:
+		if types.Amount(t.StakeTransaction.Amount) < m.cfg.policy.GetMinStake() {
+			return policyError(ErrMinStake, "stake amount below policy minimum")
+		}
+		if _, ok := m.nullifiers[types.NewNullifier(t.StakeTransaction.Nullifier)]; ok {
+			return ruleError(blockchain.ErrDoubleSpend, "stake nullifier already in mempool")
+		}
+		valID, err := peer.IDFromBytes(t.StakeTransaction.Validator_ID)
+		if err != nil {
+			return ruleError(blockchain.ErrInvalidTx, "stake tx validator ID does not decode")
+		}
+		validator, err := m.cfg.chainView.GetValidator(valID)
+		if err == nil {
+			stake, exists := validator.Nullifiers[types.NewNullifier(t.StakeTransaction.Nullifier)]
+			if exists {
+				if stake.Blockstamp.Add(blockchain.ValidatorExpiration - blockchain.RestakePeriod).After(time.Now()) {
+					return ruleError(blockchain.ErrRestakeTooEarly, "restake transaction too early")
+				}
+			}
+		}
+		exists, err := m.cfg.chainView.NullifierExists(types.NewNullifier(t.StakeTransaction.Nullifier))
+		if err != nil {
+			return err
+		}
+		if exists {
+			return ruleError(blockchain.ErrDoubleSpend, "tx contains spent nullifier")
+		}
+		exists, err = m.cfg.chainView.TxoRootExists(types.NewID(t.StakeTransaction.TxoRoot))
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return ruleError(blockchain.ErrInvalidTx, "txo root does not exist in chain")
+		}
+	case *transactions.Transaction_TreasuryTransaction:
+		whitelist := m.cfg.policy.GetTreasuryWhitelist()
+		exists := false
+		for _, txid := range whitelist {
+			if txid.Compare(tx.ID()) == 0 {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			return policyError(ErrTreasuryWhitelist, "treasury transaction not whitelisted")
+		}
+
+		treasuryBalance, err := m.cfg.chainView.TreasuryBalance()
+		if err != nil {
+			return err
+		}
+		inPoolBalance := types.Amount(0)
+		for _, amt := range m.treasuryDebits {
+			inPoolBalance += amt
+		}
+
+		if types.Amount(t.TreasuryTransaction.Amount) > treasuryBalance-inPoolBalance {
+			return ruleError(blockchain.ErrInvalidTx, "treasury tx amount exceeds treasury balance")
+		}
+
+	default:
+		return ruleError(blockchain.ErrInvalidTx, "unknown transaction type")
+	}
+	return nil
 }
 
 // processTransaction is the implementation for ProcessTransaction.

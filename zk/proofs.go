@@ -28,6 +28,7 @@ int create_proof_ffi(
     const char* lurk_program,
     const char* private_params,
     const char* public_params,
+ 	size_t* max_steps,
     uint8_t* proof,
     size_t* proof_len,
     uint8_t* output_tag,
@@ -43,6 +44,7 @@ int eval_ffi(
     const char* lurk_program,
     const char* private_params,
     const char* public_params,
+	size_t* max_steps,
     uint8_t* output_tag,
     uint8_t* output_val,
 	size_t* iterations,
@@ -64,6 +66,11 @@ const (
 	// LurkMaxFieldElement is the maximum value for a field element in lurk.
 	// In practice this means lurk script variables cannot exceed this value.
 	LurkMaxFieldElement = "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000"
+
+	// defaultMaxSteps is the maximum number of steps to allow the prover to use
+	// before terminating the proving. This large number essentially means unlimited
+	// For proofs submitted by untrusted users, this number should be a lot lower.
+	defaultMaxSteps uint64 = 1000000000000
 )
 
 var once sync.Once
@@ -87,7 +94,7 @@ func LoadZKPublicParameters() {
 	})
 }
 
-func Prove(lurkProgram string, privateParams Parameters, publicParams Parameters) ([]byte, error) {
+func Prove(lurkProgram string, privateParams Parameters, publicParams Parameters, maxSteps ...uint64) ([]byte, error) {
 	priv, err := privateParams.ToExpr()
 	if err != nil {
 		return nil, err
@@ -96,7 +103,13 @@ func Prove(lurkProgram string, privateParams Parameters, publicParams Parameters
 	if err != nil {
 		return nil, err
 	}
-	proof, tag, output, err := createProof(lurkProgram, priv, pub)
+
+	ms := defaultMaxSteps
+	if len(maxSteps) > 0 {
+		ms = maxSteps[0]
+	}
+
+	proof, tag, output, err := createProof(lurkProgram, priv, pub, ms)
 	if err != nil {
 		return nil, err
 	}
@@ -126,10 +139,10 @@ func Eval(lurkProgram string, privateParams Parameters, publicParams Parameters,
 	if err != nil {
 		return TagNil, nil, 0, err
 	}
-	return evaluate(lurkProgram, priv, pub, len(debug) > 0 && debug[0])
+	return evaluate(lurkProgram, priv, pub, defaultMaxSteps, len(debug) > 0 && debug[0])
 }
 
-func createProof(lurkProgram, privateParams, publicParams string) ([]byte, Tag, []byte, error) {
+func createProof(lurkProgram, privateParams, publicParams string, maxSteps uint64) ([]byte, Tag, []byte, error) {
 	clurkProgram := C.CString(lurkProgram)
 	cprivateParams := C.CString(privateParams)
 	cpublicParams := C.CString(publicParams)
@@ -155,6 +168,7 @@ func createProof(lurkProgram, privateParams, publicParams string) ([]byte, Tag, 
 		clurkProgram,
 		cprivateParams,
 		cpublicParams,
+		(*C.size_t)(unsafe.Pointer(&maxSteps)),
 		(*C.uint8_t)(unsafe.Pointer(&proof[0])),
 		&proofLen,
 		(*C.uint8_t)(unsafe.Pointer(&outputTag[0])),
@@ -222,7 +236,7 @@ func verifyProof(lurkProgram, publicParams string, proof, expectedTag, expectedO
 	return result == 0, nil
 }
 
-func evaluate(lurkProgram, privateParams, publicParams string, debug bool) (Tag, []byte, int, error) {
+func evaluate(lurkProgram, privateParams, publicParams string, maxSteps uint64, debug bool) (Tag, []byte, int, error) {
 	clurkProgram := C.CString(lurkProgram)
 	cprivateParams := C.CString(privateParams)
 	cpublicParams := C.CString(publicParams)
@@ -241,6 +255,7 @@ func evaluate(lurkProgram, privateParams, publicParams string, debug bool) (Tag,
 		clurkProgram,
 		cprivateParams,
 		cpublicParams,
+		(*C.size_t)(unsafe.Pointer(&maxSteps)),
 		(*C.uint8_t)(unsafe.Pointer(&outputTag[0])),
 		(*C.uint8_t)(unsafe.Pointer(&outputVal[0])),
 		&iterations,

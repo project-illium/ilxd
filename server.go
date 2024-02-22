@@ -407,6 +407,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		DisableNodeService:   config.RPCOpts.DisableNodeService,
 		DisableWalletService: config.RPCOpts.DisableWalletService,
 		DisableWalletServer:  config.RPCOpts.DisableWalletServerService || wsIndex == nil,
+		DisableProverServer:  !config.RPCOpts.EnableProverService,
 	})
 	if err != nil {
 		return nil, err
