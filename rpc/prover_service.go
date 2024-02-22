@@ -42,7 +42,7 @@ func (s *GrpcServer) ProveAndSubmit(ctx context.Context, req *pb.ProveAndSubmitR
 	}
 	req.Transaction.GetStandardTransaction().Proof = proof
 
-	err = s.txMemPool.ProcessTransaction(req.Transaction)
+	err = s.broadcastTxFunc(req.Transaction)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -74,7 +74,6 @@ func (s *GrpcServer) proveTx(tx *transactions.Transaction, privIns []*pb.Private
 			Amount:          types.Amount(in.Amount),
 			AssetID:         types.NewID(in.Asset_ID),
 			Salt:            types.NewID(in.Salt),
-			State:           types.State{},
 			CommitmentIndex: in.TxoProof.Index,
 			InclusionProof: circparams.InclusionProof{
 				Hashes: in.TxoProof.Hashes,
@@ -84,9 +83,11 @@ func (s *GrpcServer) proveTx(tx *transactions.Transaction, privIns []*pb.Private
 			LockingParams:   in.LockingParams,
 			UnlockingParams: in.UnlockingParams,
 		}
-		if err := privParams.Inputs[i].State.Deserialize(in.State); err != nil {
+		state := new(types.State)
+		if err := state.Deserialize(in.State); err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
+		privParams.Inputs[i].State = *state
 	}
 
 	for i, out := range privOuts {
@@ -95,11 +96,12 @@ func (s *GrpcServer) proveTx(tx *transactions.Transaction, privIns []*pb.Private
 			Amount:     types.Amount(out.Amount),
 			AssetID:    types.NewID(out.Asset_ID),
 			Salt:       types.NewID(out.Salt),
-			State:      types.State{},
 		}
-		if err := privParams.Outputs[i].State.Deserialize(out.State); err != nil {
+		state := new(types.State)
+		if err := state.Deserialize(out.State); err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
+		privParams.Outputs[i].State = *state
 	}
 
 	publicParams, err := tx.GetStandardTransaction().ToCircuitParams()

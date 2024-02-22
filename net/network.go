@@ -358,7 +358,7 @@ loop:
 			log.Debug("Mempool reject transaction", log.ArgsFromMap(map[string]any{
 				"txid":          tx.ID().String(),
 				"from peer":     p,
-				"unknown error": err,
+				"unknown error": err.Error(),
 			}))
 			return pubsub.ValidationIgnore
 		}
