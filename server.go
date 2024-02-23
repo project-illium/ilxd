@@ -547,6 +547,10 @@ func (s *Server) processMempoolTransaction(tx *transactions.Transaction) error {
 func (s *Server) submitTransaction(tx *transactions.Transaction) error {
 	<-s.ready
 
+	if err := s.mempool.ValidateTransaction(tx, false); err != nil {
+		return err
+	}
+
 	s.submittedTxsLock.Lock()
 	s.submittedTxs[tx.ID()] = struct{}{}
 	s.submittedTxsLock.Unlock()
