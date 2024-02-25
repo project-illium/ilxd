@@ -218,11 +218,13 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
-	torDir := CleanAndExpandPath(path.Join(cfg.DataDir, "tor-data"))
-	if _, err := os.Stat(torDir); os.IsNotExist(err) {
-		err := os.MkdirAll(torDir, 0700)
-		if err != nil {
-			return nil, err
+	if cfg.TorOptions.TorBinaryPath != "" {
+		torDir := CleanAndExpandPath(path.Join(cfg.DataDir, "tor-data"))
+		if _, err := os.Stat(torDir); os.IsNotExist(err) {
+			err := os.MkdirAll(torDir, 0700)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

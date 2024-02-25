@@ -821,6 +821,8 @@ github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225211124-8cf7087c
 github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225211124-8cf7087c1779/go.mod h1:1RO8P8OcjgwknIpGAksEXEgo+UT1SFiTuP9GKKc3eQI=
 github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225212346-05ad574ed14d h1:3A8+9LkHSTgBw/r1mQMlmdIIKhHJnk514RivvvEzjCQ=
 github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225212346-05ad574ed14d/go.mod h1:1RO8P8OcjgwknIpGAksEXEgo+UT1SFiTuP9GKKc3eQI=
+github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225220003-5d7b03404e0a h1:nOSypDVwYf/DovURJMZt7RmXWP2NsHmGtU9MxUN+3Fc=
+github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225220003-5d7b03404e0a/go.mod h1:1RO8P8OcjgwknIpGAksEXEgo+UT1SFiTuP9GKKc3eQI=
 github.com/project-illium/logger v0.0.0-20240118200101-2fb0847599c9 h1:tjuJ2PyUFqqaf7n40VWgDTHz6kq4NDGdc2XEW2RZBao=
 github.com/project-illium/logger v0.0.0-20240118200101-2fb0847599c9/go.mod h1:GL6B2FAMr7v1FEC+rCSkf5JBKKFpGf8Hjz3uZsJ60pQ=
 github.com/project-illium/walletlib v0.0.0-20240223175359-2d0592c5b456 h1:91R20rdGa4JvDxZqJPtITzYt2CTCnZeHJ9j+B0d2A7c=
