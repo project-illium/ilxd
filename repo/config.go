@@ -104,7 +104,7 @@ type RPCOptions struct {
 
 type TorOptions struct {
 	TorBinaryPath string `long:"torbinary" description:"A path to the Tor binary. If this is provided the server will start tor automatically and shut it down on close. All incoming and outgoing connections will be routed through Tor."`
-	TorrcFile     string `long:"torrcfile" description:"A path to a Torrc file. If you want to connect to a running Tor instance provide the path to its torrc file. All incoming and outgoing connections will be routed through Tor."`
+	TorrcFile     string `long:"torrcfile" description:"A path to a custom torrc file if you want to configure tor with your own settings."`
 	DualStack     bool   `long:"tordualstack" description:"This option tells ilxd to accept connections over Tor AND over the clear internet. Clear TCP connections will be prioritized. This mode is NOT private."`
 }
 
@@ -204,6 +204,14 @@ func LoadConfig() (*Config, error) {
 			if err != nil {
 				return nil, err
 			}
+		}
+	}
+
+	torDir := CleanAndExpandPath(path.Join(cfg.DataDir, "tor-data"))
+	if _, err := os.Stat(torDir); os.IsNotExist(err) {
+		err := os.MkdirAll(torDir, 0700)
+		if err != nil {
+			return nil, err
 		}
 	}
 

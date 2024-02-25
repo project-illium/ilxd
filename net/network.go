@@ -37,8 +37,6 @@ import (
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
-	"os"
-	"path"
 	"time"
 )
 
@@ -156,7 +154,7 @@ loop:
 		mode = dht.ModeServer
 	}
 	// If using tor exclusively we'll force client mode.
-	if cfg.torrcFile != "" && cfg.torBinary != "" && !cfg.torDualStack {
+	if cfg.torBinary != "" && !cfg.torDualStack {
 		mode = dht.ModeClient
 	}
 
@@ -292,19 +290,16 @@ loop:
 	}
 
 	// Activate the tor transport if the configuration is provided
-	if cfg.torrcFile != "" || cfg.torBinary != "" {
-		tordir := path.Join(os.TempDir(), "ilxd-tor")
-		os.MkdirAll(tordir, os.ModePerm)
+	if cfg.torBinary != "" {
 		opts := []torOpts.Configurator{
 			torOpts.WithResourceManager(rm),
-			torOpts.SetTemporaryDirectory(tordir),
+			torOpts.SetDataDir(cfg.torDataDir),
+			torOpts.SetBinaryPath(cfg.torBinary),
 		}
 		if cfg.torrcFile != "" {
 			opts = append(opts, torOpts.SetTorrcPath(cfg.torrcFile))
 		}
-		if cfg.torBinary != "" {
-			opts = append(opts, torOpts.SetBinaryPath(cfg.torBinary))
-		}
+
 		if cfg.torDualStack {
 			cfg.listenAddrs = append(cfg.listenAddrs, tor.NopMaddr3Str)
 			hostOpts = libp2p.ChainOptions( // QUIC and TCP
