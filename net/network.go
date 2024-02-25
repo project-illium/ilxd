@@ -29,6 +29,7 @@ import (
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	"github.com/multiformats/go-multiaddr"
+	madns "github.com/multiformats/go-multiaddr-dns"
 	mh "github.com/multiformats/go-multihash"
 	tor "github.com/project-illium/go-libp2p-tor-transport"
 	torOpts "github.com/project-illium/go-libp2p-tor-transport/config"
@@ -306,8 +307,17 @@ loop:
 				libp2p.Transport(tcp.NewTCPTransport),
 				libp2p.Transport(quic.NewTransport), hostOpts)
 		} else {
-			opts = append(opts, torOpts.AllowTcpDial)
+			opts = append(opts, torOpts.AllowTcpDial, torOpts.WithDNSPort(2121))
 			cfg.listenAddrs = []string{tor.NopMaddr3Str}
+
+			// This is probably useless for resolving dns queries as libp2p mostly
+			// relies on TXT records and tor can't resolve TXT records (afaik) but
+			// it will at least prevent IP leaks.
+			resolver, err := madns.NewResolver(madns.WithDefaultResolver(tor.NewTorResolver("localhost:2121")))
+			if err != nil {
+				return nil, err
+			}
+			hostOpts = libp2p.ChainOptions(libp2p.MultiaddrResolver(resolver), hostOpts)
 		}
 		torTransport, err := tor.NewBuilder(opts...)
 		if err != nil {

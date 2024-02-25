@@ -818,6 +818,10 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/polydawn/refmt v0.89.0 h1:ADJTApkvkeBZsN0tBTx8QjpD9JkmxbKp0cxfr9qszm4=
 github.com/polydawn/refmt v0.89.0/go.mod h1:/zvteZs/GwLtCgZ4BL6CBsk9IKIlexP43ObX9AxTqTw=
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
+github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225221623-aeef6eee85ea h1:qzhdhyW0+xf1ZL2zEJlJmwYsLGU+vhhNiq38stRw2C0=
+github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225221623-aeef6eee85ea/go.mod h1:OScaOLXoSTVJn4yOH8n88NgLJpdIVSoVcSUMffw4CGk=
+github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225223941-cb4e1394a11d h1:q2ZV9kiFo3QyS0jQXinXUkvIILksY2XzVAAsdgeK7NE=
+github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225223941-cb4e1394a11d/go.mod h1:OScaOLXoSTVJn4yOH8n88NgLJpdIVSoVcSUMffw4CGk=
 github.com/project-illium/logger v0.0.0-20240118200101-2fb0847599c9 h1:tjuJ2PyUFqqaf7n40VWgDTHz6kq4NDGdc2XEW2RZBao=
 github.com/project-illium/logger v0.0.0-20240118200101-2fb0847599c9/go.mod h1:GL6B2FAMr7v1FEC+rCSkf5JBKKFpGf8Hjz3uZsJ60pQ=
 github.com/project-illium/walletlib v0.0.0-20240223175359-2d0592c5b456 h1:91R20rdGa4JvDxZqJPtITzYt2CTCnZeHJ9j+B0d2A7c=
