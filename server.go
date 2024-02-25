@@ -36,6 +36,8 @@ import (
 	"github.com/project-illium/walletlib"
 	"github.com/project-illium/walletlib/client"
 	"github.com/pterm/pterm"
+	"path"
+	"path/filepath"
 	"sort"
 	stdsync "sync"
 	"time"
@@ -349,8 +351,14 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		net.MaxBanscore(config.MaxBanscore),
 		net.BanDuration(config.BanDuration),
 		net.MaxMessageSize(config.Policy.MaxMessageSize),
+		net.TorBinary(config.TorOptions.TorBinaryPath),
+		net.TorrcFile(config.TorOptions.TorrcFile),
+		net.TorDataDir(path.Join(filepath.Dir(config.DataDir), "tor-data")),
 	}
-	if config.DisableNATPortMap {
+	if config.TorOptions.DualStack {
+		networkOpts = append(networkOpts, net.TorDualStack())
+	}
+	if config.DisableNATPortMap || (config.TorOptions.TorBinaryPath != "" && !config.TorOptions.DualStack) {
 		networkOpts = append(networkOpts, net.DisableNatPortMap())
 	}
 	hostID, err := peer.IDFromPrivateKey(privKey)

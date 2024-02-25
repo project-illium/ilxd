@@ -123,6 +123,45 @@ func ForceDHTServerMode() Option {
 	}
 }
 
+// TorBinary is the path to a tor binary file. If this option
+// is used the tor transport is activated and the tor binary
+// is started and managed by this process.
+func TorBinary(binaryPath string) Option {
+	return func(cfg *config) error {
+		cfg.torBinary = binaryPath
+		return nil
+	}
+}
+
+// TorrcFile is the path to a custom tor torrc file. This allows
+// you to set custom options for the running tor instance.
+func TorrcFile(torrcPath string) Option {
+	return func(cfg *config) error {
+		cfg.torrcFile = torrcPath
+		return nil
+	}
+}
+
+// TorDualStack configures the network to make connections
+// over both Tor AND the clear internet.
+//
+// Tor must be configured to use this mode.
+func TorDualStack() Option {
+	return func(cfg *config) error {
+		cfg.torDualStack = true
+		return nil
+	}
+}
+
+// TorDataDir is the path to the directory to store
+// tor data.
+func TorDataDir(dir string) Option {
+	return func(cfg *config) error {
+		cfg.torDataDir = dir
+		return nil
+	}
+}
+
 type config struct {
 	params            *params.NetworkParams
 	userAgent         string
@@ -138,6 +177,10 @@ type config struct {
 	maxBanscore       uint32
 	forceServerMode   bool
 	banDuration       time.Duration
+	torBinary         string
+	torrcFile         string
+	torDualStack      bool
+	torDataDir        string
 }
 
 func (cfg *config) validate() error {
@@ -161,6 +204,9 @@ func (cfg *config) validate() error {
 	}
 	if cfg.validateBlock == nil {
 		return fmt.Errorf("%w: validateBlock is nil", ErrNetworkConfig)
+	}
+	if cfg.torDualStack && cfg.torBinary == "" {
+		return fmt.Errorf("%w: dual stack mode requires tor binary path", ErrNetworkConfig)
 	}
 	return nil
 }
