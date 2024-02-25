@@ -22,6 +22,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.11.0
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/nixberg/chacha-rng-go v0.1.0
+	github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225201812-1069732176d8
 	github.com/project-illium/logger v0.0.0-20240118200101-2fb0847599c9
 	github.com/project-illium/walletlib v0.0.0-20240223175359-2d0592c5b456
 	github.com/project-illium/weightedrand/v2 v2.1.0
@@ -48,6 +49,7 @@ require (
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
+	github.com/cretz/bine v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
 	github.com/dchest/siphash v1.2.2 // indirect
@@ -83,6 +85,7 @@ require (
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/go-temp-err-catcher v0.1.0 // indirect
 	github.com/jbenet/goprocess v0.1.4 // indirect
+	github.com/joomcode/errorx v1.0.3 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
 	github.com/koron/go-ssdp v0.0.4 // indirect
@@ -140,6 +143,7 @@ require (
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
+	github.com/yookoala/realpath v1.0.0 // indirect
 	go.opentelemetry.io/otel v1.16.0 // indirect
 	go.opentelemetry.io/otel/metric v1.16.0 // indirect
 	go.opentelemetry.io/otel/trace v1.16.0 // indirect

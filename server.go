@@ -349,8 +349,13 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		net.MaxBanscore(config.MaxBanscore),
 		net.BanDuration(config.BanDuration),
 		net.MaxMessageSize(config.Policy.MaxMessageSize),
+		net.TorBinary(config.TorOptions.TorBinaryPath),
+		net.TorrcFile(config.TorOptions.TorrcFile),
 	}
-	if config.DisableNATPortMap {
+	if config.TorOptions.DualStack {
+		networkOpts = append(networkOpts, net.TorDualStack())
+	}
+	if config.DisableNATPortMap || (config.TorOptions.TorBinaryPath != "" && config.TorOptions.TorrcFile != "" && !config.TorOptions.DualStack) {
 		networkOpts = append(networkOpts, net.DisableNatPortMap())
 	}
 	hostID, err := peer.IDFromPrivateKey(privKey)

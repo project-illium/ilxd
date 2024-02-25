@@ -77,8 +77,9 @@ type Config struct {
 	Prune              bool          `long:"prune" description:"Delete the blockchain from disk. The node will store just the date needed to validate new blocks."`
 	MockProofs         bool          `long:"mock" description:"Set the node to use mock proofs instead of full proofs. This option is only available for regtest."`
 
-	Policy  Policy     `group:"Policy"`
-	RPCOpts RPCOptions `group:"RPC Options"`
+	Policy     Policy     `group:"Policy"`
+	RPCOpts    RPCOptions `group:"RPC Options"`
+	TorOptions TorOptions `group:"Tor Options"`
 }
 
 type Policy struct {
@@ -99,6 +100,12 @@ type RPCOptions struct {
 	DisableWalletService       bool     `long:"disablewalletservice" description:"Disable the wallet RPC service. This option should be used if running a public blockchain or wallet server."`
 	DisableWalletServerService bool     `long:"disablewalletserverservice" description:"Disable the wallet server RPC service. This will automatically be disable if wsindex is disabled."`
 	EnableProverService        bool     `long:"enableproverservice" description:"Enable the prover RPC service. This is not turned on by default."`
+}
+
+type TorOptions struct {
+	TorBinaryPath string `long:"torbinary" description:"A path to the Tor binary. If this is provided the server will start tor automatically and shut it down on close. All incoming and outgoing connections will be routed through Tor."`
+	TorrcFile     string `long:"torrcfile" description:"A path to a Torrc file. If you want to connect to a running Tor instance provide the path to its torrc file. All incoming and outgoing connections will be routed through Tor."`
+	DualStack     bool   `long:"tordualstack" description:"This option tells ilxd to accept connections over Tor AND over the clear internet. Clear TCP connections will be prioritized. This mode is NOT private."`
 }
 
 // LoadConfig initializes and parses the config using a config file and command

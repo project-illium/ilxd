@@ -30,11 +30,15 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	"github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
+	tor "github.com/project-illium/go-libp2p-tor-transport"
+	torOpts "github.com/project-illium/go-libp2p-tor-transport/config"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/mempool"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"os"
+	"path"
 	"time"
 )
 
@@ -151,6 +155,10 @@ loop:
 	if cfg.forceServerMode {
 		mode = dht.ModeServer
 	}
+	// If using tor exclusively we'll force client mode.
+	if cfg.torrcFile != "" && cfg.torBinary != "" && !cfg.torDualStack {
+		mode = dht.ModeClient
+	}
 
 	dhtOpts := []dht.Option{
 		dht.DisableValues(),
@@ -227,20 +235,15 @@ loop:
 	// Initialize the resource manager
 	rm, err := rcmgr.NewResourceManager(limiter, rcmgr.WithMetricsDisabled())
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	hostOpts := libp2p.ChainOptions(
 		// Use the keypair we generated
 		libp2p.Identity(cfg.privateKey),
-		// Multiple listen addresses
-		libp2p.ListenAddrStrings(cfg.listenAddrs...),
+
 		// Noise and TLS
 		libp2p.DefaultSecurity,
-
-		// QUIC and TCP
-		libp2p.Transport(tcp.NewTCPTransport),
-		libp2p.Transport(quic.NewTransport),
 
 		libp2p.DefaultMuxers,
 
@@ -285,8 +288,47 @@ loop:
 		hostOpts = libp2p.ChainOptions(libp2p.NATPortMap(), hostOpts)
 	}
 	if cfg.forceServerMode {
-		libp2p.ForceReachabilityPublic()
+		hostOpts = libp2p.ChainOptions(libp2p.ForceReachabilityPublic(), hostOpts)
 	}
+
+	// Activate the tor transport if the configuration is provided
+	if cfg.torrcFile != "" || cfg.torBinary != "" {
+		tordir := path.Join(os.TempDir(), "ilxd-tor")
+		os.MkdirAll(tordir, os.ModePerm)
+		opts := []torOpts.Configurator{
+			torOpts.WithResourceManager(rm),
+			torOpts.SetTemporaryDirectory(tordir),
+		}
+		if cfg.torrcFile != "" {
+			opts = append(opts, torOpts.SetTorrcPath(cfg.torrcFile))
+		}
+		if cfg.torBinary != "" {
+			opts = append(opts, torOpts.SetBinaryPath(cfg.torBinary))
+		}
+		if cfg.torDualStack {
+			cfg.listenAddrs = append(cfg.listenAddrs, tor.NopMaddr3Str)
+			hostOpts = libp2p.ChainOptions( // QUIC and TCP
+				libp2p.Transport(tcp.NewTCPTransport),
+				libp2p.Transport(quic.NewTransport), hostOpts)
+		} else {
+			opts = append(opts, torOpts.AllowTcpDial)
+			cfg.listenAddrs = []string{tor.NopMaddr3Str}
+		}
+		torTransport, err := tor.NewBuilder(opts...)
+		if err != nil {
+			return nil, err
+		}
+		hostOpts = libp2p.ChainOptions(libp2p.Transport(torTransport), hostOpts)
+
+		hostOpts = libp2p.ChainOptions(libp2p.ForceReachabilityPrivate(), hostOpts)
+	} else {
+		hostOpts = libp2p.ChainOptions( // QUIC and TCP
+			libp2p.Transport(tcp.NewTCPTransport),
+			libp2p.Transport(quic.NewTransport), hostOpts)
+	}
+
+	// Multiple listen addresses
+	hostOpts = libp2p.ChainOptions(libp2p.ListenAddrStrings(cfg.listenAddrs...), hostOpts)
 
 	var host host.Host
 	if cfg.host != nil {
