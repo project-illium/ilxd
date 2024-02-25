@@ -22,7 +22,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.11.0
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/nixberg/chacha-rng-go v0.1.0
-	github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225220003-5d7b03404e0a
+	github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225221623-aeef6eee85ea
 	github.com/project-illium/logger v0.0.0-20240118200101-2fb0847599c9
 	github.com/project-illium/walletlib v0.0.0-20240223175359-2d0592c5b456
 	github.com/project-illium/weightedrand/v2 v2.1.0
@@ -62,6 +62,7 @@ require (
 	github.com/flynn/noise v1.0.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/gcash/bchd v0.17.2-0.20201218180520-5708823e0e99 // indirect
+	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
@@ -165,3 +166,5 @@ require (
 	lukechampine.com/blake3 v1.2.1 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )
+
+replace github.com/project-illium/go-libp2p-tor-transport => /home/chris/workspace/go-libp2p-tor-transport

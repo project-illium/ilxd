@@ -247,6 +247,7 @@ github.com/gin-contrib/sse v0.1.0/go.mod h1:RHrZQHXnP2xjPF+u1gW/2HnVO7nvIa9PG3Gm
 github.com/gin-gonic/gin v1.6.3 h1:ahKqKTFpO5KTPHxWZjEdPScmYaGtLo8Y4DMHoEsnp14=
 github.com/gin-gonic/gin v1.6.3/go.mod h1:75u5sXoLsGZoRN5Sgbi1eraJ4GU3++wFwWzhwvtwp4M=
 github.com/gliderlabs/ssh v0.1.1/go.mod h1:U7qILu1NlMHj9FlMhZLlkCdDnU1DBEAqr0aevW3Awn0=
+github.com/go-errors/errors v1.0.1 h1:LUHzmkK3GUKUrL/1gfBUxAHzcev3apQlezX/+O7ma6w=
 github.com/go-errors/errors v1.0.1/go.mod h1:f4zRHt4oKfwPJE5k8C9vpYG+aDHdBFUsgrm6/TyX73Q=
 github.com/go-gl/glfw v0.0.0-20190409004039-e6da0acd62b1/go.mod h1:vR7hzQXu2zJy9AVAgeJqvqgH9Q5CA+iKCZ2gyEVpxRU=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20191125211704-12ad95a8df72/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
@@ -817,12 +818,6 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/polydawn/refmt v0.89.0 h1:ADJTApkvkeBZsN0tBTx8QjpD9JkmxbKp0cxfr9qszm4=
 github.com/polydawn/refmt v0.89.0/go.mod h1:/zvteZs/GwLtCgZ4BL6CBsk9IKIlexP43ObX9AxTqTw=
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
-github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225211124-8cf7087c1779 h1:zSLhjsfVWj9S837VbCjksAM/3ZZSeICNZ4d+ewsV/Jo=
-github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225211124-8cf7087c1779/go.mod h1:1RO8P8OcjgwknIpGAksEXEgo+UT1SFiTuP9GKKc3eQI=
-github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225212346-05ad574ed14d h1:3A8+9LkHSTgBw/r1mQMlmdIIKhHJnk514RivvvEzjCQ=
-github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225212346-05ad574ed14d/go.mod h1:1RO8P8OcjgwknIpGAksEXEgo+UT1SFiTuP9GKKc3eQI=
-github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225220003-5d7b03404e0a h1:nOSypDVwYf/DovURJMZt7RmXWP2NsHmGtU9MxUN+3Fc=
-github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225220003-5d7b03404e0a/go.mod h1:1RO8P8OcjgwknIpGAksEXEgo+UT1SFiTuP9GKKc3eQI=
 github.com/project-illium/logger v0.0.0-20240118200101-2fb0847599c9 h1:tjuJ2PyUFqqaf7n40VWgDTHz6kq4NDGdc2XEW2RZBao=
 github.com/project-illium/logger v0.0.0-20240118200101-2fb0847599c9/go.mod h1:GL6B2FAMr7v1FEC+rCSkf5JBKKFpGf8Hjz3uZsJ60pQ=
 github.com/project-illium/walletlib v0.0.0-20240223175359-2d0592c5b456 h1:91R20rdGa4JvDxZqJPtITzYt2CTCnZeHJ9j+B0d2A7c=
