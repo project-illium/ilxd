@@ -175,6 +175,17 @@ func LoadConfig() (*Config, error) {
 		configFileError = err
 	}
 
+	// Reparse command-line arguments to override config file settings
+	_, err = parser.Parse()
+	if err != nil {
+		if e, ok := err.(*flags.Error); ok && e.Type == flags.ErrHelp {
+			return nil, err
+		} else {
+			fmt.Fprintf(os.Stderr, "Error parsing command line arguments: %v\n", err)
+			return nil, err
+		}
+	}
+
 	if cfg.Testnet && cfg.Regtest {
 		return nil, errors.New("invalid combination of testnet and regtest")
 	}
