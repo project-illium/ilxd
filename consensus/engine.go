@@ -25,19 +25,19 @@ import (
 )
 
 const (
-	// AvalancheRequestTimeout is the amount of time to wait for a response to a
+	// RequestTimeout is the amount of time to wait for a response to a
 	// query
-	AvalancheRequestTimeout = 1 * time.Minute
+	RequestTimeout = 1 * time.Minute
 
-	// AvalancheFinalizationScore is the confidence score we consider to be final
-	AvalancheFinalizationScore = 160
+	// FinalizationScore is the confidence score we consider to be final
+	FinalizationScore = 160
 
-	// AvalancheTimeStep is the amount of time to wait between event ticks
-	AvalancheTimeStep = time.Millisecond
+	// TimeStep is the amount of time to wait between event ticks
+	TimeStep = time.Millisecond
 
-	// AvalancheMaxInflightPoll is the max outstanding requests that we can have
+	// MaxInflightPoll is the max outstanding requests that we can have
 	// for any inventory item.
-	AvalancheMaxInflightPoll = AvalancheFinalizationScore
+	MaxInflightPoll = FinalizationScore
 
 	// DeleteInventoryAfter is the maximum time we'll keep a block in memory
 	// if it hasn't been finalized by avalanche.
@@ -161,7 +161,7 @@ func (eng *ConsensusEngine) Close() {
 }
 
 func (eng *ConsensusEngine) handler() {
-	eventLoopTicker := time.NewTicker(AvalancheTimeStep)
+	eventLoopTicker := time.NewTicker(TimeStep)
 out:
 	for {
 		select {

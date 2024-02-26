@@ -39,7 +39,7 @@ func TestBlockChoice(t *testing.T) {
 	assert.Len(t, bc.blockVotes, 2)
 	assert.Equal(t, bc.bitRecord.isOnePreferred(), getBit(blk1, 0) == 1)
 
-	for i := 0; i < AvalancheFinalizationScore+11; i++ {
+	for i := 0; i < FinalizationScore+11; i++ {
 		_, ok := bc.RecordVote(blk1)
 		assert.False(t, ok)
 	}

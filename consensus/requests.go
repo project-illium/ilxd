@@ -31,5 +31,5 @@ func (r RequestRecord) GetHeights() []uint32 {
 
 // IsExpired returns true if the request has expired
 func (r RequestRecord) IsExpired() bool {
-	return time.Unix(r.timestamp, 0).Add(AvalancheRequestTimeout).Before(time.Now())
+	return time.Unix(r.timestamp, 0).Add(RequestTimeout).Before(time.Now())
 }

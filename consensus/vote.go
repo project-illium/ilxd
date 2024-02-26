@@ -111,11 +111,11 @@ func (bc *BlockChoice) HasFinalized() bool {
 // votes may ultimately be needed but this can be used to throttle
 // inflight requests.
 func (bc *BlockChoice) VotesNeededToFinalize() int {
-	max := AvalancheMaxInflightPoll
+	max := MaxInflightPoll
 	for _, rec := range bc.blockVotes {
 		confidence := rec.getConfidence()
-		if AvalancheMaxInflightPoll-int(confidence) < max {
-			max = AvalancheFinalizationScore - int(confidence)
+		if MaxInflightPoll-int(confidence) < max {
+			max = FinalizationScore - int(confidence)
 		}
 	}
 	return max
@@ -309,7 +309,7 @@ func (vr *BitVoteRecord) RecordVote(voteID types.ID) Result {
 	// Vote is conclusive and agrees with our current state
 	if vr.isOnePreferred() == one {
 		vr.confidence += 2
-		if vr.getConfidence() >= AvalancheFinalizationScore {
+		if vr.getConfidence() >= FinalizationScore {
 			setBit(&vr.finalizedBits, vr.activeBit, vr.isOnePreferred())
 			vr.activeBit++
 			vr.votes = 0
@@ -379,7 +379,7 @@ func (vr *BlockVoteRecord) RecordVote(vote byte) Result {
 	if vr.isPreferred() == yes {
 		if vr.isPreferred() {
 			vr.confidence += 2
-			if vr.getConfidence() >= AvalancheFinalizationScore {
+			if vr.getConfidence() >= FinalizationScore {
 				return ResultFinalized
 			}
 		}
@@ -421,7 +421,7 @@ func (vr *BlockVoteRecord) isPreferred() bool {
 }
 
 func (vr *BlockVoteRecord) hasFinalized() bool {
-	return vr.getConfidence() >= AvalancheFinalizationScore
+	return vr.getConfidence() >= FinalizationScore
 }
 
 func (vr *BlockVoteRecord) getConfidence() uint16 {
