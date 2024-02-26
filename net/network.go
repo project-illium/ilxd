@@ -293,9 +293,6 @@ loop:
 	if !cfg.disableNatPortMap {
 		hostOpts = libp2p.ChainOptions(libp2p.NATPortMap(), hostOpts)
 	}
-	if cfg.forceServerMode && cfg.torBinary == "" {
-		hostOpts = libp2p.ChainOptions(libp2p.ForceReachabilityPublic(), hostOpts)
-	}
 
 	// Activate the tor transport if the configuration is provided
 	if cfg.torBinary != "" {
