@@ -256,6 +256,10 @@ loop:
 			return kdht, err
 		}),
 
+		// Enable the node to act as a relay if it discovers that we are
+		// publicly reachable.
+		libp2p.EnableRelayService(),
+
 		// Let this host use relays and advertise itself on relays if
 		// it finds it is behind NAT. Use libp2p.Relay(options...) to
 		// enable active relays and more.
@@ -268,6 +272,8 @@ loop:
 		// performance issues.
 		libp2p.EnableNATService(),
 
+		// Allow node to accept relayed incoming connections and make relayed
+		// outgoing connections.
 		libp2p.EnableRelay(),
 
 		libp2p.EnableHolePunching(),
@@ -318,14 +324,13 @@ loop:
 				return nil, err
 			}
 			hostOpts = libp2p.ChainOptions(libp2p.MultiaddrResolver(resolver), hostOpts)
+			hostOpts = libp2p.ChainOptions(libp2p.ForceReachabilityPrivate(), hostOpts)
 		}
 		torTransport, err := tor.NewBuilder(opts...)
 		if err != nil {
 			return nil, err
 		}
 		hostOpts = libp2p.ChainOptions(libp2p.Transport(torTransport), hostOpts)
-
-		hostOpts = libp2p.ChainOptions(libp2p.ForceReachabilityPrivate(), hostOpts)
 	} else {
 		hostOpts = libp2p.ChainOptions( // QUIC and TCP
 			libp2p.Transport(tcp.NewTCPTransport),
