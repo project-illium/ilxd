@@ -582,6 +582,7 @@ loop:
 				if !ok {
 					return
 				}
+				log.Info(fmt.Sprintf("Autonat Reachability: %s", ev.(event.EvtLocalReachabilityChanged).Reachability.String()))
 				if ev.(event.EvtLocalReachabilityChanged).Reachability == network.ReachabilityPublic {
 					h, err := mh.Sum([]byte(RelayKey), mh.SHA2_256, -1)
 					if err != nil {
