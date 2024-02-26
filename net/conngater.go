@@ -168,6 +168,9 @@ func (cg *ConnectionGater) IncreaseBanscore(p peer.ID, persistent, transient uin
 				if ip.IsLoopback() {
 					continue
 				}
+				if isRelayAddr(addr) {
+					continue
+				}
 				if err := cg.BlockAddr(ip); err != nil {
 					return false, err
 				}
@@ -331,7 +334,7 @@ func (cg *ConnectionGater) InterceptPeerDial(p peer.ID) (allow bool) {
 }
 
 func (cg *ConnectionGater) InterceptAddrDial(p peer.ID, a ma.Multiaddr) (allow bool) {
-	// we have already filtered blocked peers in InterceptPeerDial, so we just check the IP
+	// We have already filtered blocked peers in InterceptPeerDial, so we just check the IP
 	cg.RLock()
 	defer cg.RUnlock()
 
@@ -377,4 +380,9 @@ func (cg *ConnectionGater) InterceptSecured(dir network.Direction, p peer.ID, cm
 
 func (cg *ConnectionGater) InterceptUpgraded(network.Conn) (allow bool, reason control.DisconnectReason) {
 	return true, 0
+}
+
+func isRelayAddr(addr ma.Multiaddr) bool {
+	_, err := addr.ValueForProtocol(ma.P_CIRCUIT)
+	return err == nil
 }

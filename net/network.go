@@ -150,6 +150,9 @@ loop:
 		return nil, err
 	}
 
+	// Only peers running in server mode are discoverable given just
+	// their peerID. For validators its imperative that they are
+	// discoverable, so we'll force server mode in this case.
 	mode := dht.ModeAuto
 	if cfg.forceServerMode {
 		mode = dht.ModeServer
