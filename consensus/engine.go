@@ -154,7 +154,7 @@ func NewConsensusEngine(ctx context.Context, opts ...Option) (*ConsensusEngine, 
 	return eng, nil
 }
 
-// Close gracefully shutsdown the consensus engine
+// Close gracefully shuts down the consensus engine
 func (eng *ConsensusEngine) Close() {
 	close(eng.quit)
 	eng.wg.Wait()

@@ -154,10 +154,6 @@ loop:
 	if cfg.forceServerMode {
 		mode = dht.ModeServer
 	}
-	// If using tor exclusively we'll force client mode.
-	if cfg.torBinary != "" && !cfg.torDualStack {
-		mode = dht.ModeClient
-	}
 
 	dhtOpts := []dht.Option{
 		dht.DisableValues(),
