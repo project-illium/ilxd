@@ -264,6 +264,7 @@ loop:
 		// it finds it is behind NAT. Use libp2p.Relay(options...) to
 		// enable active relays and more.
 		libp2p.EnableAutoRelayWithPeerSource(peerSource),
+
 		// If you want to help other peers to figure out if they are behind
 		// NATs, you can launch the server-side of AutoNAT too (AutoRelay
 		// already runs the client)
@@ -292,7 +293,7 @@ loop:
 	if !cfg.disableNatPortMap {
 		hostOpts = libp2p.ChainOptions(libp2p.NATPortMap(), hostOpts)
 	}
-	if cfg.forceServerMode {
+	if cfg.forceServerMode && cfg.torBinary == "" {
 		hostOpts = libp2p.ChainOptions(libp2p.ForceReachabilityPublic(), hostOpts)
 	}
 
