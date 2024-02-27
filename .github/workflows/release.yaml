@@ -48,10 +48,10 @@ jobs:
             os: ubuntu-latest
             goarch: 'amd64'
             image: null
-          - platform : darwin
-            os: macos-latest
-            goarch: 'amd64'
-            image: null
+          #- platform : darwin
+          #  os: macos-latest
+          #  goarch: 'amd64'
+          #  image: null
 
     steps:
       - name: Checkout code
@@ -95,13 +95,13 @@ jobs:
           cd ../..
           cd zk/rust && cargo build --release
 
-      - name: Build Rust bindings for darwin
-        if: matrix.platform == 'darwin'
-        shell: bash
-        run: |
-          cd crypto/rust && cargo build --target=x86_64-apple-darwin --release
-          cd ../..
-          cd zk/rust && cargo build --target=x86_64-apple-darwin --release
+      #- name: Build Rust bindings for darwin
+      #  if: matrix.platform == 'darwin'
+      #  shell: bash
+      #  run: |
+      #    cd crypto/rust && cargo build --target=x86_64-apple-darwin --release
+      #    cd ../..
+      #    cd zk/rust && cargo build --target=x86_64-apple-darwin --release
 
       - name: Compile ilxd and ilxcli for ${{ matrix.platform }} ${{ matrix.goarch }}
         shell: bash
