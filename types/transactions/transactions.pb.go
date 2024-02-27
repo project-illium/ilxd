@@ -82,9 +82,9 @@ type Transaction struct {
 	//	*Transaction_StakeTransaction
 	//	*Transaction_TreasuryTransaction
 	//	*Transaction_MintTransaction
-	Tx isTransaction_Tx `protobuf_oneof:"Tx"`
+	Tx         isTransaction_Tx `protobuf_oneof:"Tx"`
 	cachedTxid []byte
-	cachedWid []byte
+	cachedWid  []byte
 }
 
 func (x *Transaction) Reset() {

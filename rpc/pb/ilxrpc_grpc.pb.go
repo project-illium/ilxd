@@ -2598,6 +2598,8 @@ type NodeServiceClient interface {
 	GetNetworkKey(ctx context.Context, in *GetNetworkKeyRequest, opts ...grpc.CallOption) (*GetNetworkKeyResponse, error)
 	// GetPeers returns a list of peers that this node is connected to
 	GetPeers(ctx context.Context, in *GetPeersRequest, opts ...grpc.CallOption) (*GetPeersResponse, error)
+	// GetPeerInfo returns a list of peers that this node is connected to
+	GetPeerInfo(ctx context.Context, in *GetPeerInfoRequest, opts ...grpc.CallOption) (*GetPeerInfoResponse, error)
 	// AddPeer attempts to connect to the provided peer
 	AddPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*AddPeerResponse, error)
 	// BlockPeer blocks the given peer for the provided time period
@@ -2666,6 +2668,15 @@ func (c *nodeServiceClient) GetNetworkKey(ctx context.Context, in *GetNetworkKey
 func (c *nodeServiceClient) GetPeers(ctx context.Context, in *GetPeersRequest, opts ...grpc.CallOption) (*GetPeersResponse, error) {
 	out := new(GetPeersResponse)
 	err := c.cc.Invoke(ctx, "/pb.NodeService/GetPeers", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeServiceClient) GetPeerInfo(ctx context.Context, in *GetPeerInfoRequest, opts ...grpc.CallOption) (*GetPeerInfoResponse, error) {
+	out := new(GetPeerInfoResponse)
+	err := c.cc.Invoke(ctx, "/pb.NodeService/GetPeerInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2808,6 +2819,8 @@ type NodeServiceServer interface {
 	GetNetworkKey(context.Context, *GetNetworkKeyRequest) (*GetNetworkKeyResponse, error)
 	// GetPeers returns a list of peers that this node is connected to
 	GetPeers(context.Context, *GetPeersRequest) (*GetPeersResponse, error)
+	// GetPeerInfo returns a list of peers that this node is connected to
+	GetPeerInfo(context.Context, *GetPeerInfoRequest) (*GetPeerInfoResponse, error)
 	// AddPeer attempts to connect to the provided peer
 	AddPeer(context.Context, *AddPeerRequest) (*AddPeerResponse, error)
 	// BlockPeer blocks the given peer for the provided time period
@@ -2860,6 +2873,9 @@ func (UnimplementedNodeServiceServer) GetNetworkKey(context.Context, *GetNetwork
 }
 func (UnimplementedNodeServiceServer) GetPeers(context.Context, *GetPeersRequest) (*GetPeersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPeers not implemented")
+}
+func (UnimplementedNodeServiceServer) GetPeerInfo(context.Context, *GetPeerInfoRequest) (*GetPeerInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPeerInfo not implemented")
 }
 func (UnimplementedNodeServiceServer) AddPeer(context.Context, *AddPeerRequest) (*AddPeerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddPeer not implemented")
@@ -2966,6 +2982,24 @@ func _NodeService_GetPeers_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(NodeServiceServer).GetPeers(ctx, req.(*GetPeersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NodeService_GetPeerInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPeerInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServiceServer).GetPeerInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.NodeService/GetPeerInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServiceServer).GetPeerInfo(ctx, req.(*GetPeerInfoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -3240,6 +3274,10 @@ var NodeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetPeers",
 			Handler:    _NodeService_GetPeers_Handler,
+		},
+		{
+			MethodName: "GetPeerInfo",
+			Handler:    _NodeService_GetPeerInfo_Handler,
 		},
 		{
 			MethodName: "AddPeer",

@@ -76,6 +76,35 @@ func (s *GrpcServer) GetPeers(ctx context.Context, req *pb.GetPeersRequest) (*pb
 	}, nil
 }
 
+// GetPeerInfo returns a list of peers that this node is connected to
+func (s *GrpcServer) GetPeerInfo(ctx context.Context, req *pb.GetPeerInfoRequest) (*pb.GetPeerInfoResponse, error) {
+	for _, p := range s.network.Host().Network().Peers() {
+		if p.String() == req.Peer_ID {
+			userAgentBytes, err := s.network.Host().Peerstore().Get(p, "AgentVersion")
+			if err != nil {
+				continue
+			}
+			userAgentString, ok := (userAgentBytes).(string)
+			if !ok {
+				continue
+			}
+			maaddrs := s.network.Host().Peerstore().Addrs(p)
+			addrs := make([]string, 0, len(maaddrs))
+			for _, addr := range maaddrs {
+				addrs = append(addrs, addr.String())
+			}
+			return &pb.GetPeerInfoResponse{
+				Peer: &pb.Peer{
+					Id:        p.String(),
+					UserAgent: userAgentString,
+					Addrs:     addrs,
+				},
+			}, nil
+		}
+	}
+	return nil, status.Error(codes.InvalidArgument, "not connect to peer")
+}
+
 // AddPeer attempts to connect to the provided peer
 func (s *GrpcServer) AddPeer(ctx context.Context, req *pb.AddPeerRequest) (*pb.AddPeerResponse, error) {
 	peerID, err := peer.Decode(req.Peer_ID)

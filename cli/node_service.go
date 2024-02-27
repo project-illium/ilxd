@@ -98,6 +98,42 @@ func (x *GetPeers) Execute(args []string) error {
 	return nil
 }
 
+type GetPeerInfo struct {
+	Peer string `short:"p" long:"peer" description:"The peer ID to look up."`
+	opts *options
+}
+
+func (x *GetPeerInfo) Execute(args []string) error {
+	client, err := makeNodeClient(x.opts)
+	if err != nil {
+		return err
+	}
+	resp, err := client.GetPeerInfo(makeContext(x.opts.AuthToken), &pb.GetPeerInfoRequest{
+		Peer_ID: x.Peer,
+	})
+	if err != nil {
+		return err
+	}
+
+	type peer struct {
+		PeerID    string   `json:"peerID"`
+		UserAgent string   `json:"userAgent"`
+		Addrs     []string `json:"addrs"`
+	}
+
+	p := peer{
+		PeerID:    resp.Peer.Id,
+		UserAgent: resp.Peer.UserAgent,
+		Addrs:     resp.Peer.Addrs,
+	}
+	out, err := json.MarshalIndent(&p, "", "    ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(out))
+	return nil
+}
+
 type AddPeer struct {
 	Peer string `short:"p" long:"peer" description:"The peer ID to connect to. The IP address will be looked up in the DHT if necessary."`
 	opts *options

@@ -87,6 +87,7 @@ func main() {
 	parser.AddCommand("gethostinfo", "Returns info about the libp2p host", "Returns info about the libp2p host", &GetHostInfo{opts: &opts})
 	parser.AddCommand("getnetworkkey", "Returns node's network private key", "Returns node's network private key", &GetNetworkKey{opts: &opts})
 	parser.AddCommand("getpeers", "Returns a list of peers that this node is connected to", "Returns a list of peers that this node is connected to", &GetPeers{opts: &opts})
+	parser.AddCommand("getpeerinfo", "Returns info about the peer", "Returns info about the peer if it is connected", &GetPeerInfo{opts: &opts})
 	parser.AddCommand("addpeer", "Attempts to connect to the provided peer", "Attempts to connect to the provided peer", &AddPeer{opts: &opts})
 	parser.AddCommand("blockpeer", "Blocks the given peer for the provided time period", "Blocks the given peer for the provided time period", &BlockPeer{opts: &opts})
 	parser.AddCommand("unblockpeer", "Removes a peer from the block list", "Removes a peer from the block list", &UnblockPeer{opts: &opts})
