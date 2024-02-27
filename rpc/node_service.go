@@ -28,6 +28,7 @@ func (s *GrpcServer) GetHostInfo(ctx context.Context, req *pb.GetHostInfoRequest
 		Peers:        uint32(len(s.network.Host().Network().Peers())),
 		TxIndex:      s.txIndex != nil,
 		WalletServer: s.wsIndex != nil,
+		Reachability: s.network.Reachability().String(),
 	}, nil
 }
 

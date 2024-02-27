@@ -997,10 +997,12 @@ message GetHostInfoResponse {
     repeated string addrs = 2;
     // The number of peers this node is connected to
     uint32 peers          = 3;
+    // The firewall status of the node
+    string reachability   = 4;
     // Is tx index enabled
-    bool tx_index         = 4;
+    bool tx_index         = 5;
     // Is the wallet server enabled
-    bool wallet_server    = 5;
+    bool wallet_server    = 6;
 }
 
 message GetNetworkKeyRequest{}

@@ -38,16 +38,23 @@ import (
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
+	"sync"
 	"time"
 )
 
 const (
-	BlockTopic              = "blocks"
-	TransactionsTopic       = "transactions"
-	RelayKey                = "/ilx/relaypeers"
+	// BlockTopic is the routing topic for block relay
+	BlockTopic = "blocks"
+	// TransactionsTopic is the routing topic for transaction relay
+	TransactionsTopic = "transactions"
+	// RelayKey is the routing key used to advertise and discover relay peers
+	RelayKey = "/ilx/relaypeers"
+	// ValidatorProtectionFlag is a flag use to keep alive connections to
+	// validator peers.
 	ValidatorProtectionFlag = "validator"
 )
 
+// Network manages the libp2p network connections to other peers
 type Network struct {
 	host        host.Host
 	connManager coreconmgr.ConnManager
@@ -59,8 +66,12 @@ type Network struct {
 	pstoreds    *Peerstoreds
 	txSub       *pubsub.Subscription
 	blkSub      *pubsub.Subscription
+
+	reachability    inet.Reachability
+	reachabilityMtx sync.RWMutex
 }
 
+// NewNetwork returns a new network configured with the provided options
 func NewNetwork(ctx context.Context, opts ...Option) (*Network, error) {
 	var cfg config
 	for _, opt := range opts {
@@ -541,16 +552,17 @@ loop:
 	}()
 
 	net := &Network{
-		host:        host,
-		connManager: cmgr,
-		connGater:   conngater,
-		dht:         kdht,
-		pubsub:      ps,
-		txTopic:     txTopic,
-		blockTopic:  blockTopic,
-		pstoreds:    pstoreds,
-		txSub:       txSub,
-		blkSub:      blockSub,
+		host:            host,
+		connManager:     cmgr,
+		connGater:       conngater,
+		dht:             kdht,
+		pubsub:          ps,
+		txTopic:         txTopic,
+		blockTopic:      blockTopic,
+		pstoreds:        pstoreds,
+		txSub:           txSub,
+		blkSub:          blockSub,
+		reachabilityMtx: sync.RWMutex{},
 	}
 
 	connected := func(_ inet.Network, conn inet.Conn) {
@@ -582,6 +594,9 @@ loop:
 					return
 				}
 				log.Info(fmt.Sprintf("Autonat Reachability: %s", ev.(event.EvtLocalReachabilityChanged).Reachability.String()))
+				net.reachabilityMtx.Lock()
+				net.reachability = ev.(event.EvtLocalReachabilityChanged).Reachability
+				net.reachabilityMtx.Unlock()
 				if ev.(event.EvtLocalReachabilityChanged).Reachability == network.ReachabilityPublic {
 					h, err := mh.Sum([]byte(RelayKey), mh.SHA2_256, -1)
 					if err != nil {
@@ -597,6 +612,7 @@ loop:
 	return net, nil
 }
 
+// Close shuts down the network
 func (n *Network) Close() error {
 	n.txSub.Cancel()
 	n.blkSub.Cancel()
@@ -613,34 +629,51 @@ func (n *Network) Close() error {
 	return nil
 }
 
+// Reachability returns whether the node can be dialed from external
+// nodes or if a firewall is blocking incoming connections.
+func (n *Network) Reachability() inet.Reachability {
+	n.reachabilityMtx.RLock()
+	defer n.reachabilityMtx.RUnlock()
+
+	return n.reachability
+}
+
+// Host returns the network's libp2p Host
 func (n *Network) Host() host.Host {
 	return n.host
 }
 
+// ConnManager returns the network's ConnManager
 func (n *Network) ConnManager() coreconmgr.ConnManager {
 	return n.connManager
 }
 
+// Dht returns the network's DHT instance
 func (n *Network) Dht() *dht.IpfsDHT {
 	return n.dht
 }
 
+// Pubsub returns the network's Pubsub instance
 func (n *Network) Pubsub() *pubsub.PubSub {
 	return n.pubsub
 }
 
+// ConnGater returns the network's ConnGater
 func (n *Network) ConnGater() *ConnectionGater {
 	return n.connGater
 }
 
+// SubscribeBlocks returns a subscription to the blocks pubsub channel
 func (n *Network) SubscribeBlocks() (*pubsub.Subscription, error) {
 	return n.blockTopic.Subscribe()
 }
 
+// SubscribeTransactions returns a subscription to the transactions pubsub channel
 func (n *Network) SubscribeTransactions() (*pubsub.Subscription, error) {
 	return n.txTopic.Subscribe()
 }
 
+// BroadcastBlock submits a block to the blocks pubsub channel
 func (n *Network) BroadcastBlock(blk *blocks.XThinnerBlock) error {
 	ser, err := blk.Serialize()
 	if err != nil {
@@ -649,6 +682,7 @@ func (n *Network) BroadcastBlock(blk *blocks.XThinnerBlock) error {
 	return n.blockTopic.Publish(context.Background(), ser)
 }
 
+// BroadcastTransaction submits a transaction to the transactions pubsub channel
 func (n *Network) BroadcastTransaction(tx *transactions.Transaction) error {
 	ser, err := tx.Serialize()
 	if err != nil {
@@ -657,6 +691,8 @@ func (n *Network) BroadcastTransaction(tx *transactions.Transaction) error {
 	return n.txTopic.Publish(context.Background(), ser)
 }
 
+// IncreaseBanscore increases the banscore for a peer and bans the peer if it goes over
+// the configured threshold.
 func (n *Network) IncreaseBanscore(p peer.ID, persistent, transient uint32, reason ...string) {
 	banned, err := n.connGater.IncreaseBanscore(p, persistent, transient, reason...)
 	if err != nil {
