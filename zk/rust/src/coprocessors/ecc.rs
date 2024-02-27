@@ -11,7 +11,7 @@ use bellpepper_core::{
     ConstraintSystem, SynthesisError,
 };
 use ff::PrimeField;
-use pasta_curves::pallas;
+use halo2curves::bn256::G1;
 use nova::traits::Group;
 use lurk::field::LurkField;
 
@@ -100,16 +100,16 @@ impl<F> AllocatedPoint<F>
         let x_square = self.x.square(cs.namespace(|| "x_square"))?;
         let x_cube = self.x.mul(cs.namespace(|| "x_cube"), &x_square)?;
 
-        let pallas_0 = F::from_u128(pallas::Point::group_params().0.to_u128().unwrap());
-        let pallas_1 = F::from_u128(pallas::Point::group_params().1.to_u128().unwrap());
+        let bn256_0 = F::from_u128(G1::group_params().0.to_u128().unwrap());
+        let bn256_1 = F::from_u128(G1::group_params().1.to_u128().unwrap());
         let rhs = AllocatedNum::alloc(cs.namespace(|| "rhs"), || {
             if *self.is_infinity.get_value().get()? == F::ONE {
                 Ok(F::ZERO)
             } else {
                 Ok(
                     *x_cube.get_value().get()?
-                        + *self.x.get_value().get()? * pallas_0
-                        + pallas_1,
+                        + *self.x.get_value().get()? * bn256_0
+                        + bn256_1,
                 )
             }
         })?;
@@ -118,8 +118,8 @@ impl<F> AllocatedPoint<F>
             || "rhs = (1-is_infinity) * (x^3 + Ax + B)",
             |lc| {
                 lc + x_cube.get_variable()
-                    + (pallas_0, self.x.get_variable())
-                    + (pallas_1, CS::one())
+                    + (bn256_0, self.x.get_variable())
+                    + (bn256_1, CS::one())
             },
             |lc| lc + CS::one() - self.is_infinity.get_variable(),
             |lc| lc + rhs.get_variable(),
@@ -421,7 +421,7 @@ impl<F> AllocatedPoint<F>
             |lc| lc + prod_1.get_variable(),
         );
 
-        let pallas_0 = F::from_u128(pallas::Point::group_params().0.to_u128().unwrap());
+        let bn256_0 = F::from_u128(G1::group_params().0.to_u128().unwrap());
         let lambda = AllocatedNum::alloc(cs.namespace(|| "alloc lambda"), || {
             let tmp_inv = if *self.is_infinity.get_value().get()? == F::ONE {
                 // Return default value 1
@@ -430,14 +430,14 @@ impl<F> AllocatedPoint<F>
                 // Return the actual inverse
                 (*tmp.get_value().get()?).invert().unwrap()
             };
-            Ok(tmp_inv * (*prod_1.get_value().get()? + pallas_0))
+            Ok(tmp_inv * (*prod_1.get_value().get()? + bn256_0))
         })?;
 
         cs.enforce(
             || "Check lambda",
             |lc| lc + tmp.get_variable(),
             |lc| lc + lambda.get_variable(),
-            |lc| lc + prod_1.get_variable() + (pallas_0, CS::one()),
+            |lc| lc + prod_1.get_variable() + (bn256_0, CS::one()),
         );
 
         /*************************************************************/
@@ -753,9 +753,9 @@ impl<F> AllocatedPointNonInfinity<F>
 
         let x_sq = self.x.square(cs.namespace(|| "x_sq"))?;
 
-        let pallas_0 = F::from_u128(pallas::Point::group_params().0.to_u128().unwrap());
+        let bn256_0 = F::from_u128(G1::group_params().0.to_u128().unwrap());
         let lambda = AllocatedNum::alloc(cs.namespace(|| "lambda"), || {
-            let n = F::from(3) * x_sq.get_value().get()? + pallas_0;
+            let n = F::from(3) * x_sq.get_value().get()? + bn256_0;
             let d = F::from(2) * *self.y.get_value().get()?;
             if d == F::ZERO {
                 Ok(F::ONE)
@@ -767,7 +767,7 @@ impl<F> AllocatedPointNonInfinity<F>
             || "Check that lambda is computed correctly",
             |lc| lc + lambda.get_variable(),
             |lc| lc + (F::from(2), self.y.get_variable()),
-            |lc| lc + (F::from(3), x_sq.get_variable()) + (pallas_0, CS::one()),
+            |lc| lc + (F::from(3), x_sq.get_variable()) + (bn256_0, CS::one()),
         );
 
         let x = AllocatedNum::alloc(cs.namespace(|| "x"), || {

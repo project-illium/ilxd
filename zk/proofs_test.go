@@ -173,6 +173,22 @@ func TestCoprocessors(t *testing.T) {
 		valid, err := zk.Verify(program, pub, proof)
 		assert.NoError(t, err)
 		assert.True(t, valid)
+
+		// Invalid signature
+		sk2, _, err := crypto.GenerateNovaKey(rand.Reader)
+		assert.NoError(t, err)
+
+		message = []byte("fake message")
+		sigHash = hash.HashFunc(message)
+
+		sig, err = sk2.Sign(sigHash)
+		assert.NoError(t, err)
+
+		sigRx, sigRy, sigS = crypto.UnmarshalSignature(sig)
+		priv = zk.Expr(fmt.Sprintf("(cons 0x%x (cons 0x%x (cons 0x%x nil)))", sigRx, sigRy, sigS))
+
+		_, err = zk.Prove(program, priv, pub)
+		assert.Error(t, err)
 	})
 }
 
