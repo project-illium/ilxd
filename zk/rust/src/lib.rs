@@ -476,7 +476,8 @@ mod tests {
         let (packed_proof, _tag, _output) = create_proof(
             program.to_string(),
             "(cons 7 8)".to_string(),
-            "(cons 7 8)".to_string()
+            "(cons 7 8)".to_string(),
+            10000000,
         ).expect("create_proof failed");
         let mut commitment = packed_proof[..32].to_vec();
         commitment.reverse();
@@ -502,7 +503,9 @@ mod tests {
         let (value, tag, iterations) = eval_simple(
             program.to_string(),
             "(cons 7 8)".to_string(),
-            "(cons 7 8)".to_string()
+            "(cons 7 8)".to_string(),
+            1000000,
+            false,
         ).expect("eval failed");
         println!("{:?}", tag);
         println!("{:?}", value);
