@@ -23,12 +23,13 @@ func (s *GrpcServer) GetHostInfo(ctx context.Context, req *pb.GetHostInfoRequest
 		addrs = append(addrs, addr.String())
 	}
 	return &pb.GetHostInfoResponse{
-		Peer_ID:      s.network.Host().ID().String(),
-		Addrs:        addrs,
-		Peers:        uint32(len(s.network.Host().Network().Peers())),
-		TxIndex:      s.txIndex != nil,
-		WalletServer: s.wsIndex != nil,
-		Reachability: s.network.Reachability().String(),
+		Peer_ID:       s.network.Host().ID().String(),
+		Addrs:         addrs,
+		Peers:         uint32(len(s.network.Host().Network().Peers())),
+		TxIndex:       s.txIndex != nil,
+		WalletServer:  s.wsIndex != nil,
+		ProvingServer: s.provingServiceActive,
+		Reachability:  s.network.Reachability().String(),
 	}, nil
 }
 

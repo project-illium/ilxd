@@ -1006,6 +1006,8 @@ message GetHostInfoResponse {
     bool tx_index         = 5;
     // Is the wallet server enabled
     bool wallet_server    = 6;
+    // Is the proving server enabled
+    bool proving_server   = 7;
 }
 
 message GetNetworkKeyRequest{}

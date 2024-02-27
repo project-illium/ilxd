@@ -79,8 +79,9 @@ type GrpcServer struct {
 	autoStakeFunc    func(bool) error
 	networkKeyFunc   func() (crypto.PrivKey, error)
 
-	txIndex *indexers.TxIndex
-	wsIndex *indexers.WalletServerIndex
+	txIndex              *indexers.TxIndex
+	wsIndex              *indexers.WalletServerIndex
+	provingServiceActive bool
 
 	httpServer *http.Server
 	subs       map[types.ID]*subscription
@@ -99,26 +100,27 @@ type GrpcServer struct {
 // be started.
 func NewGrpcServer(cfg *GrpcServerConfig) *GrpcServer {
 	s := &GrpcServer{
-		chain:            cfg.Chain,
-		chainParams:      cfg.ChainParams,
-		ds:               cfg.Ds,
-		txMemPool:        cfg.TxMemPool,
-		network:          cfg.Network,
-		wallet:           cfg.Wallet,
-		prover:           cfg.Prover,
-		broadcastTxFunc:  cfg.BroadcastTxFunc,
-		setLogLevelFunc:  cfg.SetLogLevelFunc,
-		reindexChainFunc: cfg.ReindexChainFunc,
-		requestBlockFunc: cfg.RequestBlockFunc,
-		autoStakeFunc:    cfg.AutoStakeFunc,
-		networkKeyFunc:   cfg.NetworkKeyFunc,
-		txIndex:          cfg.TxIndex,
-		policy:           cfg.Policy,
-		httpServer:       cfg.HTTPServer,
-		subs:             make(map[types.ID]*subscription),
-		subMtx:           sync.RWMutex{},
-		events:           make(chan interface{}),
-		quit:             make(chan struct{}),
+		chain:                cfg.Chain,
+		chainParams:          cfg.ChainParams,
+		ds:                   cfg.Ds,
+		txMemPool:            cfg.TxMemPool,
+		network:              cfg.Network,
+		wallet:               cfg.Wallet,
+		prover:               cfg.Prover,
+		broadcastTxFunc:      cfg.BroadcastTxFunc,
+		setLogLevelFunc:      cfg.SetLogLevelFunc,
+		reindexChainFunc:     cfg.ReindexChainFunc,
+		requestBlockFunc:     cfg.RequestBlockFunc,
+		autoStakeFunc:        cfg.AutoStakeFunc,
+		networkKeyFunc:       cfg.NetworkKeyFunc,
+		txIndex:              cfg.TxIndex,
+		provingServiceActive: !cfg.DisableProverServer,
+		policy:               cfg.Policy,
+		httpServer:           cfg.HTTPServer,
+		subs:                 make(map[types.ID]*subscription),
+		subMtx:               sync.RWMutex{},
+		events:               make(chan interface{}),
+		quit:                 make(chan struct{}),
 	}
 	reflection.Register(cfg.Server)
 	pb.RegisterBlockchainServiceServer(cfg.Server, s)
