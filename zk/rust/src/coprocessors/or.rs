@@ -90,10 +90,6 @@ impl<F: LurkField> CoCircuit<F> for OrCoprocessor<F> {
 }
 
 impl<F: LurkField> Coprocessor<F> for OrCoprocessor<F> {
-    fn eval_arity(&self) -> usize {
-        self.n
-    }
-
     fn has_circuit(&self) -> bool {
         true
     }

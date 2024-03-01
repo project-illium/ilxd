@@ -124,10 +124,6 @@ impl<F: LurkField> CoCircuit<F> for Blake2sCoprocessor<F> {
 }
 
 impl<F: LurkField> Coprocessor<F> for Blake2sCoprocessor<F> {
-    fn eval_arity(&self) -> usize {
-        self.n
-    }
-
     fn has_circuit(&self) -> bool {
         true
     }

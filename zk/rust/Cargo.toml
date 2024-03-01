@@ -20,7 +20,7 @@ hex = "0.4.3"
 itertools = "0.11"
 lazy_static = "1.4.0"
 lurk = { git = "https://github.com/lurk-lab/lurk-rs.git", branch = "main" }
-lurk-macros = "0.2.0"
+lurk-macros = { git = "https://github.com/lurk-lab/lurk-rs.git", branch = "main", package = "lurk-macros" }
 nova = { git = "https://github.com/lurk-lab/arecibo", branch = "dev", package = "arecibo", features = ["abomonate"]}
 num-bigint = { version = "0.4", features = ["serde", "rand"] }
 once_cell = "1.19.0"
