@@ -36,6 +36,7 @@ import (
 	"github.com/project-illium/walletlib"
 	"github.com/project-illium/walletlib/client"
 	"github.com/pterm/pterm"
+	mrand "math/rand"
 	"path"
 	"path/filepath"
 	"sort"
@@ -668,15 +669,27 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 				s.coinbasesToStake[tx.ID()] = struct{}{}
 			}
 			s.autoStakeLock.Unlock()
-			log.Info("Broadcasting coinbase transaction for self", log.ArgsFromMap(map[string]any{
-				"txid":      tx.ID().String(),
-				"new coins": uint64(validator.UnclaimedCoins),
-			}))
-			if err := s.submitTransaction(tx); err != nil {
-				log.WithCaller(true).Error("Error submitting auto coinbase transaction",
-					log.Args("error", err))
-				return
+
+			// Broadcast the coinbase at a random interval between now and a half hour.
+			// This prevents a flood of coinbase transactions right at the start of a
+			// new epoch.
+			//
+			// If regtest mode broadcast immediately.
+			randomDuration := time.Duration(mrand.Intn(60*30)) * time.Second
+			if s.params.Name == params.RegestParams.Name {
+				randomDuration = 0
 			}
+			time.AfterFunc(randomDuration, func() {
+				log.Info("Broadcasting coinbase transaction for self", log.ArgsFromMap(map[string]any{
+					"txid":      tx.ID().String(),
+					"new coins": uint64(validator.UnclaimedCoins),
+				}))
+				if err := s.submitTransaction(tx); err != nil {
+					log.WithCaller(true).Error("Error submitting auto coinbase transaction",
+						log.Args("error", err))
+					return
+				}
+			})
 		}
 	}
 }
