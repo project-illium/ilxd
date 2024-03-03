@@ -60,7 +60,7 @@ $ CUDA=1 make install
 ```
 
 ### Usage
-Vist [docs.illium.org](https://docs.illium.org/docs/node/running_a_node) for a comprehensive guide to running a node.
+Vist [docs.illium.org](https://docs.illium.org/node) for a comprehensive guide to running a node.
 
 ### Contributing
 We'd love your help! See the [contributing guidlines](https://github.com/project-illium/ilxd/blob/master/CONTRIBUTING.md) before submitting your first PR.
