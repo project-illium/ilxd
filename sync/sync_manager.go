@@ -841,7 +841,14 @@ func (sm *SyncManager) waitForPeers() {
 
 func (sm *SyncManager) syncPeers() []peer.ID {
 	peers := make([]peer.ID, 0, len(sm.network.Host().Network().Peers()))
+peerLoop:
 	for _, p := range sm.network.Host().Network().Peers() {
+		for _, conn := range sm.network.Host().Network().ConnsToPeer(p) {
+			if conn.Stat().Transient {
+				continue peerLoop
+			}
+		}
+
 		protocols, err := sm.network.Host().Peerstore().GetProtocols(p)
 		if err != nil {
 			continue
