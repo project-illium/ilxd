@@ -7,6 +7,7 @@ package blockchain
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
@@ -215,4 +216,27 @@ func deepEqualProofMap(a, b map[types.ID]*InclusionProof) bool {
 		}
 	}
 	return true
+}
+
+func TestDeserializeAccumulator(t *testing.T) {
+	commitment, err := hex.DecodeString("2bc0f879e43eb5bdafe89af6a96cb2402dce6da2f6ca3603d2500fc39d03fc4a")
+	assert.NoError(t, err)
+
+	index := uint64(10000)
+
+	root, err := hex.DecodeString("0fa432c84e24bac3179bd0452413957e949e3762ff1338d7926455311e369193")
+	assert.NoError(t, err)
+
+	flags := uint64(2)
+
+	h0, err := hex.DecodeString("04df052f49d035e9d95cb42f4a4d4b2301f3e4dc8f6ec8092672f7c19c5bc4ff")
+	assert.NoError(t, err)
+	h1, err := hex.DecodeString("1ce43d9334bec09ede47906007df920bdb819c546abbc27dbbc87eec9d62b74f")
+	assert.NoError(t, err)
+	h2, err := hex.DecodeString("1b33760ceea9c7b463699d5cc15cfdd1376757118b9b39bf663aba367f42badb")
+	assert.NoError(t, err)
+
+	valid, err := ValidateInclusionProof(commitment, index, [][]byte{h0, h1, h2}, flags, root)
+	assert.NoError(t, err)
+	assert.True(t, valid)
 }

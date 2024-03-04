@@ -6,3 +6,4 @@ pub mod sha256;
 pub mod xor;
 pub mod and;
 pub mod or;
+mod merkle;
