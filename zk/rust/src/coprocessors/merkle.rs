@@ -44,8 +44,8 @@ fn synthesize_merkle<F: LurkField, CS: ConstraintSystem<F>>(
     let t_tag = F::from_u64(2);
     let f_tag = F::from_u64(0);
 
-    let zero = AllocatedNum::alloc(cs.namespace(|| "f num"), || {
-        Ok(t_tag)
+    let zero = AllocatedNum::alloc(cs.namespace(|| "zero"), || {
+        Ok(f_tag)
     })?;
 
     let t = AllocatedNum::alloc(cs.namespace(|| "t"), || {
@@ -55,7 +55,7 @@ fn synthesize_merkle<F: LurkField, CS: ConstraintSystem<F>>(
         Ok(F::from_bytes(&IO_FALSE_HASH).unwrap())
     })?;
 
-    let computed = synthesize_cat_and_hash(cs, commitment, index)?;
+    let computed = synthesize_cat_and_hash(&mut cs.namespace(|| "genesis"), commitment, index)?;
     let mut computed2 = computed.clone();
 
     // If hashes is nil then this is the genesis block and we only need to compare hash(commit || index)
@@ -72,16 +72,15 @@ fn synthesize_merkle<F: LurkField, CS: ConstraintSystem<F>>(
     // Otherwise we need to iterate over the hashes and compute root
     let mut i = 0;
     loop {
-        let (car, cdr, length) = chain_car_cdr(cs, g, s, not_dummy, &hashes, 1)?;
-
-        let end = alloc_equal(&mut cs.namespace(|| "end of list"), &length, &zero)?;
+        let (car, cdr, length) = chain_car_cdr(&mut cs.namespace(|| format!("car_cdr_{i}")), g, s, not_dummy, &hashes, 1)?;
+        let end = alloc_equal(&mut cs.namespace(|| format!("end of list {i}")), &length, &zero)?;
         if end.get_value().unwrap() {
             break
         }
 
-        let left = synthesize_cat_and_hash(cs, car[0].hash(), &computed2)?;
-        let right = synthesize_cat_and_hash(cs, &computed2, car[0].hash())?;
-        computed2 = pick(cs.namespace(|| "new computed2"), &flags[i], &right, &left)?;
+        let left = synthesize_cat_and_hash(&mut cs.namespace(|| format!("left {i}")), &computed2, car[0].hash())?;
+        let right = synthesize_cat_and_hash(&mut cs.namespace(|| format!("right {i}")), car[0].hash(), &computed2)?;
+        computed2 = pick(cs.namespace(|| format!("new computed2 {i}")), &flags[i], &right, &left)?;
         hashes = cdr;
 
         i += 1;
@@ -278,7 +277,9 @@ pub enum MerkleCoproc<F: LurkField> {
 
 #[cfg(test)]
 mod tests {
+    use bellpepper_core::test_cs::TestConstraintSystem;
     use halo2curves::bn256::Fr;
+    use lurk::lem::circuit::GlobalAllocator;
     use super::*;
 
     #[test]
@@ -295,6 +296,7 @@ mod tests {
         let h2: Fr =  bincode::deserialize(&hex::decode("dbba427f36ba3a66bf399b8b11576737d1fd5cc15c9d6963b4c7a9ee0c76331b").unwrap()).unwrap();
 
         let hashes = store.cons(store.num(h0), store.cons(store.num(h1), store.cons(store.num(h2), store.intern_nil())));
+        let hashes_ptr = store.hash_ptr(&hashes);
 
         let args: &[Ptr] = &[
             store.num(commitment),
@@ -306,5 +308,33 @@ mod tests {
 
         let resp = validate_merkle_proof(store, args);
         println!("{:?}", resp);
+
+        let mut cs = TestConstraintSystem::<Fr>::new();
+        let g = &GlobalAllocator::default();
+
+        let commitment_num = AllocatedNum::alloc(cs.namespace(|| "c num"), || {Ok(commitment)}).unwrap();
+        let c = AllocatedPtr::alloc_tag(&mut cs.namespace(|| "commitment"), Fr::from_u64(4), commitment_num).unwrap();
+
+        let index_num = AllocatedNum::alloc(cs.namespace(|| "i num"), || {Ok(index)}).unwrap();
+        let i = AllocatedPtr::alloc_tag(&mut cs.namespace(|| "index"), Fr::from_u64(4), index_num).unwrap();
+
+        let flags_num = AllocatedNum::alloc(cs.namespace(|| "f num"), || {Ok(flags)}).unwrap();
+        let f = AllocatedPtr::alloc_tag(&mut cs.namespace(|| "flags"), Fr::from_u64(4), flags_num).unwrap();
+
+        let root_num = AllocatedNum::alloc(cs.namespace(|| "r num"), || {Ok(root)}).unwrap();
+        let r = AllocatedPtr::alloc_tag(&mut cs.namespace(|| "root"), Fr::from_u64(4), root_num).unwrap();
+
+        let hashes_hash = AllocatedNum::alloc(cs.namespace(|| "h hash"), || {Ok(hashes_ptr.1)}).unwrap();
+        let h = AllocatedPtr::alloc_tag(&mut cs.namespace(|| "hashes"), Fr::from_u64(1), hashes_hash).unwrap();
+
+        let ptrs: &[AllocatedPtr<Fr>] = &[
+            c,
+            i,
+            f,
+            h,
+            r,
+        ];
+        let output = synthesize_merkle(&mut cs, g, store, &Boolean::Constant(true), ptrs).unwrap();
+        println!("{:?}", output);
     }
 }
