@@ -13,7 +13,7 @@ use lurk::{
     coprocessor::{CoCircuit, Coprocessor, gadgets::chain_car_cdr},
 };
 use lurk::circuit::gadgets::constraints::alloc_equal;
-use crate::coprocessors::utils::{pick, pick_const};
+use crate::coprocessors::utils::{pick, pick_const, open};
 
 lazy_static! {
     static ref IO_TRUE_HASH: Vec<u8> = hex::decode("4c8ca192c0f6acba0d6816ce095040633a3ef6cb9bcea4f2b834514035f05c1f").unwrap();
@@ -30,15 +30,17 @@ pub struct MerkleCoprocessor<F: LurkField> {
 fn synthesize_merkle<F: LurkField, CS: ConstraintSystem<F>>(
     cs: &mut CS,
     g: &lurk::lem::circuit::GlobalAllocator<F>,
-    s: &lurk::lem::store::Store<F>,
+    s: &Store<F>,
     not_dummy: &Boolean,
     ptrs: &[AllocatedPtr<F>],
 ) -> Result<AllocatedPtr<F>, SynthesisError> {
     let commitment = ptrs[0].hash();
     let index = ptrs[1].hash();
     let flags = ptrs[2].hash().to_bits_le(cs.namespace(|| "flag bits"))?;
-    let mut hashes = ptrs[3].clone();
+    let commit = ptrs[3].clone();
     let root = ptrs[4].hash();
+
+    let mut hashes = open(cs, s, not_dummy, &commit)?;
 
     let t_tag = F::from_u64(2);
     let f_tag = F::from_u64(0);
@@ -73,13 +75,16 @@ fn synthesize_merkle<F: LurkField, CS: ConstraintSystem<F>>(
     loop {
         let (car, cdr, length) = chain_car_cdr(&mut cs.namespace(|| format!("car_cdr_{i}")), g, s, not_dummy, &hashes, 1)?;
         let end = alloc_equal(&mut cs.namespace(|| format!("end of list {i}")), &length, &zero)?;
-        if let Some(false) | None = end.get_value() {
+        
+        if let Some(true) | None = end.get_value() {
             break;
         }
 
         let left = synthesize_cat_and_hash(&mut cs.namespace(|| format!("left {i}")), &computed2, car[0].hash())?;
         let right = synthesize_cat_and_hash(&mut cs.namespace(|| format!("right {i}")), car[0].hash(), &computed2)?;
+
         computed2 = pick(cs.namespace(|| format!("new computed2 {i}")), &flags[i], &right, &left)?;
+
         hashes = cdr;
 
         i += 1;
@@ -162,19 +167,19 @@ fn validate_merkle_proof<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
     let commitment = z_ptrs[0].value().to_bytes();
     let index = z_ptrs[1].value().to_bytes();
     let mut flags = z_ptrs[2].value().to_bytes();
+    let commit = z_ptrs[3].value();
     let root = z_ptrs[4].value().to_bytes();
 
     flags.reverse();
 
     let mut computed = compute_cat_and_hash(commitment, index);
 
-    if !ptrs[0].is_nil() {
-        let (mut first, mut rest) = s.car_cdr(&ptrs[3]).unwrap();
+    if !ptrs[3].is_nil() {
+        let (_, hashes) = s.open(*commit).unwrap();
+        let (mut first, mut rest) = s.car_cdr(hashes).unwrap();
         let mut i = 0;
         loop {
             let first_bytes = s.hash_ptr(&first).value().to_bytes();
-            let hex_string: String = computed.iter().rev().map(|byte| format!("{:02x}", byte)).collect();
-            println!("c {}", hex_string);
 
             // Calculate the index of the byte and the bit within that byte, starting from the end
             let byte_index = flags.len() - 1 - (i / 8);
@@ -188,10 +193,8 @@ fn validate_merkle_proof<F: LurkField>(s: &Store<F>, ptrs: &[Ptr]) -> Ptr {
             // Check the bit at position i in flags, starting from the LSB of the last byte
             if (flags[byte_index] >> bit_index) & 1 == 0 {
                 computed = compute_cat_and_hash(computed, first_bytes);
-                println!("0");
             } else {
                 computed = compute_cat_and_hash(first_bytes, computed);
-                println!("1");
             }
 
             if rest.is_nil() {
@@ -295,13 +298,15 @@ mod tests {
         let h2: Fr =  bincode::deserialize(&hex::decode("dbba427f36ba3a66bf399b8b11576737d1fd5cc15c9d6963b4c7a9ee0c76331b").unwrap()).unwrap();
 
         let hashes = store.cons(store.num(h0), store.cons(store.num(h1), store.cons(store.num(h2), store.intern_nil())));
-        let hashes_ptr = store.hash_ptr(&hashes);
+
+        let commit = store.commit(hashes);
+        let commit_zptr = store.hash_ptr(&commit);
 
         let args: &[Ptr] = &[
             store.num(commitment),
             store.num(index),
             store.num(flags),
-            hashes,
+            commit,
             store.num(root),
         ];
 
@@ -323,7 +328,7 @@ mod tests {
         let root_num = AllocatedNum::alloc(cs.namespace(|| "r num"), || {Ok(root)}).unwrap();
         let r = AllocatedPtr::alloc_tag(&mut cs.namespace(|| "root"), Fr::from_u64(4), root_num).unwrap();
 
-        let hashes_hash = AllocatedNum::alloc(cs.namespace(|| "h hash"), || {Ok(hashes_ptr.1)}).unwrap();
+        let hashes_hash = AllocatedNum::alloc(cs.namespace(|| "h hash"), || {Ok(commit_zptr.1)}).unwrap();
         let h = AllocatedPtr::alloc_tag(&mut cs.namespace(|| "hashes"), Fr::from_u64(1), hashes_hash).unwrap();
 
         let ptrs: &[AllocatedPtr<Fr>] = &[
@@ -334,6 +339,7 @@ mod tests {
             r,
         ];
         let output = synthesize_merkle(&mut cs, g, store, &Boolean::Constant(true), ptrs).unwrap();
+        assert!(cs.is_satisfied());
         println!("{:?}", output);
     }
 }

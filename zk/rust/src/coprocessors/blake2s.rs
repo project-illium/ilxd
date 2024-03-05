@@ -28,6 +28,7 @@ fn synthesize_blake2s<F: LurkField, CS: ConstraintSystem<F>>(
     cs: &mut CS,
     ptrs: &[AllocatedPtr<F>],
 ) -> Result<AllocatedPtr<F>, SynthesisError> {
+
     let zero = Boolean::constant(false);
     let personalization: [u8; 8] = [0; 8];
 

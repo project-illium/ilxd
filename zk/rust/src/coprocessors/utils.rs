@@ -7,6 +7,11 @@ use bellpepper_core::{
 };
 use ff::{PrimeField, PrimeFieldBits};
 use itertools::Itertools as _;
+use lurk::{
+    lem::{pointers::ZPtr, store::Store},
+    circuit::gadgets::pointer::AllocatedPtr,
+};
+use lurk::field::LurkField;
 
 /// Gets as input the little indian representation of a number and spits out the number
 #[allow(dead_code)]
@@ -385,4 +390,22 @@ pub fn pick_const<F: PrimeField, CS: ConstraintSystem<F>>(
     );
 
     Ok(c)
+}
+
+#[allow(dead_code)]
+// Opens a commitment and returns the hash
+pub fn open<F: LurkField, CS: ConstraintSystem<F>>(
+    cs: &mut CS,
+    store: &Store<F>,
+    not_dummy: &Boolean,
+    data: &AllocatedPtr<F>,
+) -> Result<AllocatedPtr<F>, SynthesisError> {
+    let val = if not_dummy.get_value() == Some(true) {
+        let (_, ptr) = store.open(data.hash().get_value().unwrap()).expect("invalid Ptr");
+        store.hash_ptr(ptr)
+    } else {
+        ZPtr::dummy()
+    };
+
+    Ok(AllocatedPtr::alloc_infallible(&mut cs.namespace(|| "res"), || val))
 }

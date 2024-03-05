@@ -192,10 +192,6 @@ func TestCoprocessors(t *testing.T) {
 	})
 
 	t.Run("merkle", func(t *testing.T) {
-		program := `(lambda (priv pub) (letrec ((validate-merkle-proof (lambda (commitment index flags hashes root)
-                                    (eval (cons 'coproc_merkle (cons commitment (cons index (cons flags (cons hashes (cons root nil))))))))))
-                            (validate-merkle-proof (car priv) (car (cdr priv)) (car (cdr (cdr priv))) (car (cdr (cdr (cdr priv)))) pub)))`
-
 		acc := blockchain.NewAccumulator()
 		for i := 0; i < 10000; i++ {
 			r, err := zk.RandomFieldElement()
@@ -223,16 +219,17 @@ func TestCoprocessors(t *testing.T) {
 			hashes += ")"
 		}
 
-		priv := fmt.Sprintf("(cons 0x%x (cons %d (cons %d (cons %s nil))))", commitment[:], incp.Index, incp.Flags, hashes)
+		program := fmt.Sprintf(`(lambda (priv pub) (letrec ((validate-merkle-proof (lambda (commitment index flags hashes root)
+                                    (eval (cons 'coproc_merkle (cons (emit commitment) (cons (emit index) (cons (emit flags) (cons (commit hashes) (cons (emit root) nil))))))))))
+                            (validate-merkle-proof 0x%x %d %d %s pub)))`, commitment[:], incp.Index, incp.Flags, hashes)
 
-		proof, err := zk.Prove(program, zk.Expr(priv), zk.Expr(fmt.Sprintf("0x%x", acc.Root().Bytes())))
+		proof, err := zk.Prove(program, zk.Expr("nil"), zk.Expr(fmt.Sprintf("0x%x", acc.Root().Bytes())))
 		assert.NoError(t, err)
 
 		valid, err := zk.Verify(program, zk.Expr(fmt.Sprintf("0x%x", acc.Root().Bytes())), proof)
 		assert.NoError(t, err)
 		assert.True(t, valid)
 	})
-
 }
 
 func TestEval(t *testing.T) {
