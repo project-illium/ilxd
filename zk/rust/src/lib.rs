@@ -12,7 +12,7 @@ use std::{
 };
 use once_cell::sync::OnceCell;
 use lurk::{
-    eval::lang::{Lang, Coproc},
+    lang::{Lang, Coproc},
     field::LurkField,
     lem::{
         eval::{evaluate, evaluate_simple, make_cprocs_funcs_from_lang, make_eval_step_from_config, EvalConfig},
