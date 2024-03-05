@@ -44,6 +44,7 @@ func BenchmarkOneInputTwoOutput(b *testing.B) {
 	assert.NoError(b, err)
 	fmt.Printf("Proof Len: %d\n", len(proof))
 	fmt.Printf("Iterations: %d\n", iterations)
+	fmt.Printf("Seconds: %f\n", end.Seconds())
 	fmt.Printf("Iterations per second: %f\n", (float64(iterations) / float64(end.Milliseconds()) * 1000))
 }
 
