@@ -224,6 +224,9 @@ func TestDeserializeAccumulator(t *testing.T) {
 
 	index := uint64(10000)
 
+	h22 := hash.HashWithIndex(commitment, index)
+	fmt.Println(hex.EncodeToString(reverseBytes(h22)))
+
 	root, err := hex.DecodeString("0fa432c84e24bac3179bd0452413957e949e3762ff1338d7926455311e369193")
 	assert.NoError(t, err)
 
@@ -239,4 +242,11 @@ func TestDeserializeAccumulator(t *testing.T) {
 	valid, err := ValidateInclusionProof(commitment, index, [][]byte{h0, h1, h2}, flags, root)
 	assert.NoError(t, err)
 	assert.True(t, valid)
+}
+
+func reverseBytes(b []byte) []byte {
+	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
+		b[i], b[j] = b[j], b[i]
+	}
+	return b
 }
