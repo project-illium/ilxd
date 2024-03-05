@@ -33,22 +33,43 @@ fn synthesize_merkle<F: LurkField, CS: ConstraintSystem<F>>(
     not_dummy: &Boolean,
     ptrs: &[AllocatedPtr<F>],
 ) -> Result<AllocatedPtr<F>, SynthesisError> {
-    let computed = ptrs[0].hash();
+    // The element we are checking connects to the merkle root
+    let mut leaf = ptrs[0].hash().clone();
+    // Bits to determine whether we concatenate to the left or right
     let flags = ptrs[1].hash().to_bits_le(cs.namespace(|| "flag bits"))?;
+    // The number of hashes in the proof
     let hashlen_bytes = ptrs[2].hash();
+    // The commitment (hash) of the list of hashes
     let commit = ptrs[3].clone();
+    // The merkle root to validate against
     let root = ptrs[4].hash();
 
-    let hashlen = hashlen_bytes.get_value().unwrap().to_u64().unwrap();
+    // Convert hashes length from bytes
+    let hashlen = hashlen_bytes.get_value()
+        .map(|value| value.to_u64().unwrap_or(0))
+        .unwrap_or(0);
 
+    // Load the list hash from the store
     let hashes = open(cs, s, not_dummy, &commit)?;
+
+    // Load the list of hashes from the store
+    let (cars, _, _) = chain_car_cdr(&mut cs.namespace(|| "chain car cdr"), g, s, not_dummy, &hashes, hashlen as usize)?;
+
+    // For each hash
+    for (i, car) in cars.iter().enumerate() {
+        // Compute the result of cat and hashing both the left and right
+        let left = synthesize_cat_and_hash(&mut cs.namespace(|| format!("left {i}")), &leaf, car.hash())?;
+        let right = synthesize_cat_and_hash(&mut cs.namespace(|| format!("right {i}")), car.hash(), &leaf)?;
+
+        // Chose the new leaf based on the flag bit
+        leaf = pick(cs.namespace(|| format!("new computed {i}")), &flags[i], &right, &left)?;
+    }
+
+    // Check if leaf and root are equal
+    let valid = alloc_equal(&mut cs.namespace(|| "leaf root equal"), &leaf, root)?;
 
     let t_tag = F::from_u64(2);
     let f_tag = F::from_u64(0);
-
-    let zero = AllocatedNum::alloc(cs.namespace(|| "zero"), || {
-        Ok(f_tag)
-    })?;
 
     let t = AllocatedNum::alloc(cs.namespace(|| "t"), || {
         Ok(F::from_bytes(&IO_TRUE_HASH).unwrap())
@@ -57,50 +78,10 @@ fn synthesize_merkle<F: LurkField, CS: ConstraintSystem<F>>(
         Ok(F::from_bytes(&IO_FALSE_HASH).unwrap())
     })?;
 
-    let mut computed2 = computed.clone();
-
-    // If hashes is nil then this is the genesis block and we only need to compare hash(commit || index)
-    // to the root
-    let nil_hashes_tag = alloc_equal(&mut cs.namespace(|| "hashes tag is nil"), hashes.tag(), &zero)?;
-    let nil_hashes_value = alloc_equal(&mut cs.namespace(|| "hashes value is nil"), hashes.hash(), &f)?;
-    let nil_hashes: Boolean = Boolean::and(
-        &mut cs.namespace(|| "nil hashes and"),
-        &nil_hashes_tag,
-        &nil_hashes_value,
-    )?;
-    let equal_genesis_root = alloc_equal(&mut cs.namespace(|| "genesis root equal"), &computed, root)?;
-
-    // Otherwise we need to iterate over the hashes and compute root
-    let (cars, _, _) = chain_car_cdr(&mut cs.namespace(|| "chain car cdr"), g, s, not_dummy, &hashes, hashlen as usize)?;
-
-    for (i, car) in cars.iter().enumerate() {
-        let left = synthesize_cat_and_hash(&mut cs.namespace(|| format!("left {i}")), &computed2, car.hash())?;
-        let right = synthesize_cat_and_hash(&mut cs.namespace(|| format!("right {i}")), car.hash(), &computed2)?;
-
-        computed2 = pick(cs.namespace(|| format!("new computed2 {i}")), &flags[i], &right, &left)?;
-    }
-
-    let equal_computed = alloc_equal(&mut cs.namespace(|| "computed root equal"), &computed2, root)?;
-
-    // Now we can pick which output to use
-    let valid_genesis: Boolean = Boolean::and(
-        &mut cs.namespace(|| "valid genesis"),
-        &nil_hashes,
-        &equal_genesis_root,
-    )?;
-    let valid_computed: Boolean = Boolean::and(
-        &mut cs.namespace(|| "valid computed"),
-        &nil_hashes.not(),
-        &equal_computed,
-    )?;
-    let valid: Boolean = Boolean::or(
-        &mut cs.namespace(|| "valid"),
-        &valid_genesis,
-        &valid_computed,
-    )?;
-
+    // Select the response hash (t or f)
     let resp = pick(cs.namespace(|| "pick"), &valid, &t, &f)?;
 
+    // Select the response tag (sym or nil)
     let tag = pick_const(cs.namespace(|| "pick_tag"), &valid, t_tag, f_tag)?;
 
     let tag_type = tag.get_value().unwrap_or(t_tag);

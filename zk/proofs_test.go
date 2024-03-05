@@ -219,9 +219,11 @@ func TestCoprocessors(t *testing.T) {
 			hashes += ")"
 		}
 
-		program := fmt.Sprintf(`(lambda (priv pub) (letrec ((validate-merkle-proof (lambda (commitment index flags hashes root)
-                                    (eval (cons 'coproc_merkle (cons (emit commitment) (cons (emit index) (cons (emit flags) (cons (commit hashes) (cons (emit root) nil))))))))))
-                            (validate-merkle-proof 0x%x %d %d %s pub)))`, commitment[:], incp.Index, incp.Flags, hashes)
+		leaf := hash.HashWithIndex(commitment[:], incp.Index)
+
+		program := fmt.Sprintf(`(lambda (priv pub) (letrec ((validate-merkle-proof (lambda (commitment flags hashes-len hashes root)
+                                    (eval (cons 'coproc_merkle (cons (emit commitment) (cons (emit flags) (cons (emit hashes-len) (cons (emit (commit hashes)) (cons (emit root) nil))))))))))
+                            (validate-merkle-proof 0x%x %d %d %s pub)))`, leaf[:], incp.Flags, len(incp.Hashes), hashes)
 
 		proof, err := zk.Prove(program, zk.Expr("nil"), zk.Expr(fmt.Sprintf("0x%x", acc.Root().Bytes())))
 		assert.NoError(t, err)
