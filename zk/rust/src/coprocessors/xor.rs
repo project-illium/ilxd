@@ -16,7 +16,8 @@ use super::{
     or::OrCoprocessor,
     blake2s::Blake2sCoprocessor,
     sha256::Sha256Coprocessor,
-    checksig::ChecksigCoprocessor
+    checksig::ChecksigCoprocessor,
+    merkle::MerkleCoprocessor,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -127,5 +128,6 @@ pub enum MultiCoproc<F: LurkField> {
     Xor(XorCoprocessor<F>),
     Blake2s(Blake2sCoprocessor<F>),
     Sha256(Sha256Coprocessor<F>),
-    Checksig(ChecksigCoprocessor<F>)
+    Checksig(ChecksigCoprocessor<F>),
+    Merkle(MerkleCoprocessor<F>),
 }

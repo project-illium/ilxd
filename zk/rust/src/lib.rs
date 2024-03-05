@@ -44,7 +44,8 @@ use coprocessors::{
     or::OrCoprocessor,
     blake2s::Blake2sCoprocessor,
     sha256::Sha256Coprocessor,
-    checksig::ChecksigCoprocessor
+    checksig::ChecksigCoprocessor,
+    merkle::MerkleCoprocessor,
 };
 mod coprocessors;
 
@@ -278,6 +279,7 @@ fn create_public_params() -> PublicParams<Fr> {
     let cproc_sym_checksig = user_sym("coproc_checksig");
     let cproc_sym_blake2s = user_sym("coproc_blake2s");
     let cproc_sym_sha256 = user_sym("coproc_sha256");
+    let cproc_sym_merkle = user_sym("coproc_merkle");
 
     let mut lang = Lang::<Fr, MultiCoproc<Fr>>::new();
     lang.add_coprocessor(cproc_sym_and, AndCoprocessor::new());
@@ -286,6 +288,7 @@ fn create_public_params() -> PublicParams<Fr> {
     lang.add_coprocessor(cproc_sym_checksig, ChecksigCoprocessor::new());
     lang.add_coprocessor(cproc_sym_blake2s, Blake2sCoprocessor::new());
     lang.add_coprocessor(cproc_sym_sha256, Sha256Coprocessor::new());
+    lang.add_coprocessor(cproc_sym_merkle, MerkleCoprocessor::new());
     let lang_rc = Arc::new(lang.clone());
 
     let instance_primary = Instance::new(REDUCTION_COUNT, lang_rc, true, Kind::SuperNovaAuxParams);
@@ -312,6 +315,7 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     let cproc_sym_checksig = user_sym("coproc_checksig");
     let cproc_sym_blake2s = user_sym("coproc_blake2s");
     let cproc_sym_sha256 = user_sym("coproc_sha256");
+    let cproc_sym_merkle = user_sym("coproc_merkle");
 
     let call = store.read_with_default_state(expr.as_str())?;
 
@@ -322,6 +326,7 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
     lang.add_coprocessor(cproc_sym_checksig, ChecksigCoprocessor::new());
     lang.add_coprocessor(cproc_sym_blake2s, Blake2sCoprocessor::new());
     lang.add_coprocessor(cproc_sym_sha256, Sha256Coprocessor::new());
+    lang.add_coprocessor(cproc_sym_merkle, MerkleCoprocessor::new());
     let lang_rc = Arc::new(lang.clone());
 
     let lurk_step = make_eval_step_from_config(&EvalConfig::new_nivc(&lang));
@@ -418,6 +423,7 @@ fn eval_simple(
     let cproc_sym_checksig = user_sym("coproc_checksig");
     let cproc_sym_blake2s = user_sym("coproc_blake2s");
     let cproc_sym_sha256 = user_sym("coproc_sha256");
+    let cproc_sym_merkle = user_sym("coproc_merkle");
 
     let call = store.read_with_default_state(expr.as_str())?;
 
@@ -428,6 +434,7 @@ fn eval_simple(
     lang.add_coprocessor(cproc_sym_checksig, ChecksigCoprocessor::new());
     lang.add_coprocessor(cproc_sym_blake2s, Blake2sCoprocessor::new());
     lang.add_coprocessor(cproc_sym_sha256, Sha256Coprocessor::new());
+    lang.add_coprocessor(cproc_sym_merkle, MerkleCoprocessor::new());
 
     let lurk_step = make_eval_step_from_config(&EvalConfig::new_nivc(&lang));
     let cprocs = make_cprocs_funcs_from_lang(&lang);

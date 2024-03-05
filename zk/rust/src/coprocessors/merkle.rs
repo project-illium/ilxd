@@ -34,7 +34,6 @@ fn synthesize_merkle<F: LurkField, CS: ConstraintSystem<F>>(
     not_dummy: &Boolean,
     ptrs: &[AllocatedPtr<F>],
 ) -> Result<AllocatedPtr<F>, SynthesisError> {
-
     let commitment = ptrs[0].hash();
     let index = ptrs[1].hash();
     let flags = ptrs[2].hash().to_bits_le(cs.namespace(|| "flag bits"))?;
@@ -74,8 +73,8 @@ fn synthesize_merkle<F: LurkField, CS: ConstraintSystem<F>>(
     loop {
         let (car, cdr, length) = chain_car_cdr(&mut cs.namespace(|| format!("car_cdr_{i}")), g, s, not_dummy, &hashes, 1)?;
         let end = alloc_equal(&mut cs.namespace(|| format!("end of list {i}")), &length, &zero)?;
-        if end.get_value().unwrap() {
-            break
+        if let Some(false) | None = end.get_value() {
+            break;
         }
 
         let left = synthesize_cat_and_hash(&mut cs.namespace(|| format!("left {i}")), &computed2, car[0].hash())?;
@@ -264,7 +263,7 @@ impl<F: LurkField> Coprocessor<F> for MerkleCoprocessor<F> {
 impl<F: LurkField> MerkleCoprocessor<F> {
     pub fn new() -> Self {
         Self {
-            n: 2,
+            n: 5,
             _p: Default::default(),
         }
     }
