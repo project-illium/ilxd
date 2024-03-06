@@ -24,6 +24,7 @@ message Block {
 
 message BlockTxs {
     repeated Transaction transactions = 1;
+    repeated bytes proof_hashes       = 2;
 }
 
 message XThinnerBlock {

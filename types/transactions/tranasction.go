@@ -113,6 +113,22 @@ func (tx *Transaction) WID() types.ID {
 	return types.NewIDFromData(proof)
 }
 
+// DropProof sets the proof in the transaction to nil
+func (tx *Transaction) DropProof() {
+	switch t := tx.GetTx().(type) {
+	case *Transaction_StandardTransaction:
+		t.StandardTransaction.Proof = nil
+	case *Transaction_CoinbaseTransaction:
+		t.CoinbaseTransaction.Proof = nil
+	case *Transaction_MintTransaction:
+		t.MintTransaction.Proof = nil
+	case *Transaction_TreasuryTransaction:
+		t.TreasuryTransaction.Proof = nil
+	case *Transaction_StakeTransaction:
+		t.StakeTransaction.Proof = nil
+	}
+}
+
 // Outputs returns the transaction's output
 func (tx *Transaction) Outputs() []*Output {
 	outputs := make([]*Output, 0, 1)

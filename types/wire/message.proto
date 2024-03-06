@@ -87,6 +87,7 @@ message GetHeadersStreamReq {
 
 message GetBlockTxsStreamReq {
     uint32 start_height = 1;
+    bool no_proofs      = 2;
 }
 
 message GetBestReq {}
