@@ -463,9 +463,9 @@ func (cs *ChainService) handleGetBlockTxsStream(req *wire.GetBlockTxsStreamReq, 
 		}
 		txs := &blocks.BlockTxs{Transactions: block.Transactions}
 		if req.NoProofs {
-			txs.ProofHashes = make([][]byte, len(txs.Transactions))
+			txs.Wids = make([][]byte, len(txs.Transactions))
 			for i, tx := range block.Transactions {
-				txs.ProofHashes[i] = tx.WID().Bytes()
+				txs.Wids[i] = tx.WID().Bytes()
 				txs.Transactions[i].DropProof()
 			}
 		}

@@ -813,12 +813,12 @@ func (sm *SyncManager) downloadBlockTxs(p peer.ID, startHeight, endHeight uint32
 		}
 		count := 0
 		for blockTxs := range ch {
-			if noProofs && len(blockTxs.ProofHashes) != len(blockTxs.Transactions) {
+			if noProofs && len(blockTxs.Wids) != len(blockTxs.Transactions) {
 				return nil, errors.New("peer returned block transaction without requested proof hashes")
 			}
 			if noProofs {
 				for i := range blockTxs.Transactions {
-					blockTxs.Transactions[i].CacheWid(types.NewID(blockTxs.ProofHashes[i]))
+					blockTxs.Transactions[i].CacheWid(types.NewID(blockTxs.Wids[i]))
 				}
 			}
 
