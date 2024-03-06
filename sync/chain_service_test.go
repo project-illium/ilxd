@@ -127,7 +127,7 @@ func TestChainService(t *testing.T) {
 	}
 	assert.Equal(t, uint32(11), expected)
 
-	stream2, err := service1.GetBlockTxsStream(host2.ID(), 0)
+	stream2, err := service1.GetBlockTxsStream(host2.ID(), 0, false)
 	assert.NoError(t, err)
 	i := uint32(0)
 	for txs := range stream2 {

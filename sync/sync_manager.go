@@ -109,12 +109,6 @@ func (sm *SyncManager) Start() {
 
 	_, startheight, _ := sm.chain.BestBlock()
 
-	// Sync up to the checkpoints if we're not already past them.
-	if len(sm.params.Checkpoints) > 0 && startheight < sm.params.Checkpoints[len(sm.params.Checkpoints)-1].Height {
-		log.WithCaller(true).Trace("Syncing to checkpoints", log.Args("start height", startheight))
-		sm.syncToCheckpoints(startheight)
-	}
-
 	// Before we start we want to do a large peer query to see if there
 	// are any forks out there. If there are, we will sort the peers into
 	// buckets depending on which fork they are on.
@@ -136,6 +130,12 @@ func (sm *SyncManager) Start() {
 		"peers":   len(sm.network.Host().Network().Peers()),
 		"buckets": len(sm.buckets),
 	}))
+
+	// Sync up to the checkpoints if we're not already past them.
+	if len(sm.params.Checkpoints) > 0 && startheight < sm.params.Checkpoints[len(sm.params.Checkpoints)-1].Height {
+		log.WithCaller(true).Trace("Syncing to checkpoints", log.Args("start height", startheight))
+		sm.syncToCheckpoints(startheight)
+	}
 
 	// Now we can continue to sync the rest of the chain.
 syncLoop:
@@ -181,7 +181,7 @@ syncLoop:
 					"blockID": blockID.String(),
 				}))
 
-				err := sm.syncBlocks(p, height+1, height+lookaheadSize, bestID, blockID, sm.behavorFlag)
+				err := sm.syncBlocks(p, height+1, height+lookaheadSize, bestID, blockID, sm.behavorFlag, false)
 				if err != nil {
 					log.Debug("Error syncing blocks", log.ArgsFromMap(map[string]any{
 						"peer":           p,
@@ -211,7 +211,7 @@ syncLoop:
 			// Step two is sync up to fork point.
 			if forkHeight > height {
 				for _, p := range blockMap {
-					err := sm.syncBlocks(p, height+1, forkHeight, bestID, forkBlock, sm.behavorFlag)
+					err := sm.syncBlocks(p, height+1, forkHeight, bestID, forkBlock, sm.behavorFlag, false)
 					if err != nil {
 						log.Debug("Error syncing to fork point", log.ArgsFromMap(map[string]any{
 							"peer":           p,
@@ -318,7 +318,7 @@ syncLoop:
 
 			// Finally sync to the best fork.
 			currentID, height, _ := sm.chain.BestBlock()
-			err = sm.syncBlocks(blockMap[bestID], height+1, syncTo[bestID].Header.Height, currentID, syncTo[bestID].ID(), sm.behavorFlag)
+			err = sm.syncBlocks(blockMap[bestID], height+1, syncTo[bestID].Header.Height, currentID, syncTo[bestID].ID(), sm.behavorFlag, false)
 			if err != nil {
 				log.Debug("Error syncing to best fork", log.ArgsFromMap(map[string]any{
 					"peer":  blockMap[bestID],
@@ -559,7 +559,11 @@ func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) {
 				continue
 			}
 			p := peers[rand.Intn(len(peers))]
-			err := sm.syncBlocks(p, startHeight, checkpoint.Height, parent, checkpoint.BlockID, blockchain.BFFastAdd)
+			pruned, err := sm.chain.IsPruned()
+			if err != nil {
+				log.Error("Error checking pruned state", log.Args("error", err))
+			}
+			err = sm.syncBlocks(p, startHeight, checkpoint.Height, parent, checkpoint.BlockID, blockchain.BFFastAdd, pruned)
 			if err != nil {
 				log.Debug("Error syncing checkpoints", log.ArgsFromMap(map[string]any{
 					"peer":  p,
@@ -580,7 +584,7 @@ func (sm *SyncManager) downloadEvalWindow(p peer.ID, fromHeight uint32) ([]*bloc
 		return nil, err
 	}
 	blks := make([]*blocks.Block, 0, len(headers))
-	txs, err := sm.downloadBlockTxs(p, fromHeight, fromHeight+evaluationWindow-1)
+	txs, err := sm.downloadBlockTxs(p, fromHeight, fromHeight+evaluationWindow-1, false)
 	if err != nil {
 		sm.network.IncreaseBanscore(p, 0, 20, "failed to serve requested block txs")
 		return nil, fmt.Errorf("peer %s block download error %s", p, err)
@@ -594,7 +598,7 @@ func (sm *SyncManager) downloadEvalWindow(p peer.ID, fromHeight uint32) ([]*bloc
 	return blks, nil
 }
 
-func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent, expectedID types.ID, flags blockchain.BehaviorFlags) error {
+func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent, expectedID types.ID, flags blockchain.BehaviorFlags, noProofs bool) error {
 	headers, err := sm.downloadHeaders(p, fromHeight, toHeight)
 	if err != nil {
 		sm.network.IncreaseBanscore(p, 0, 20, "failed to serve requested headers")
@@ -630,7 +634,7 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 		if stop > endHeight {
 			stop = endHeight
 		}
-		txs, err := sm.downloadBlockTxs(p, start, stop)
+		txs, err := sm.downloadBlockTxs(p, start, stop, noProofs)
 		if err != nil {
 			sm.network.IncreaseBanscore(p, 0, 20, "failed to serve requested block txs")
 			return fmt.Errorf("peer %s block download error %s", p, err)
@@ -799,16 +803,25 @@ func (sm *SyncManager) downloadHeaders(p peer.ID, startHeight, endHeight uint32)
 	return headers, nil
 }
 
-func (sm *SyncManager) downloadBlockTxs(p peer.ID, startHeight, endHeight uint32) ([]*blocks.BlockTxs, error) {
+func (sm *SyncManager) downloadBlockTxs(p peer.ID, startHeight, endHeight uint32, noProofs bool) ([]*blocks.BlockTxs, error) {
 	txs := make([]*blocks.BlockTxs, 0, endHeight-startHeight)
 	height := startHeight
 	for {
-		ch, err := sm.chainService.GetBlockTxsStream(p, height)
+		ch, err := sm.chainService.GetBlockTxsStream(p, height, noProofs)
 		if err != nil {
 			return nil, err
 		}
 		count := 0
 		for blockTxs := range ch {
+			if noProofs && len(blockTxs.Wids) != len(blockTxs.Transactions) {
+				return nil, errors.New("peer returned block transaction without requested proof hashes")
+			}
+			if noProofs {
+				for i := range blockTxs.Transactions {
+					blockTxs.Transactions[i].CacheWid(types.NewID(blockTxs.Wids[i]))
+				}
+			}
+
 			txs = append(txs, blockTxs)
 			height++
 			if height > endHeight {

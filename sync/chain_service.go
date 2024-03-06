@@ -409,11 +409,12 @@ func (cs *ChainService) handleGetHeadersStream(req *wire.GetHeadersStreamReq, s 
 	return s.Close()
 }
 
-func (cs *ChainService) GetBlockTxsStream(p peer.ID, startHeight uint32) (<-chan *blocks.BlockTxs, error) {
+func (cs *ChainService) GetBlockTxsStream(p peer.ID, startHeight uint32, noProofs bool) (<-chan *blocks.BlockTxs, error) {
 	req := &wire.MsgChainServiceRequest{
 		Msg: &wire.MsgChainServiceRequest_GetBlockTxsStream{
 			GetBlockTxsStream: &wire.GetBlockTxsStreamReq{
 				StartHeight: startHeight,
+				NoProofs:    noProofs,
 			},
 		},
 	}
@@ -460,7 +461,16 @@ func (cs *ChainService) handleGetBlockTxsStream(req *wire.GetBlockTxsStreamReq, 
 		if err != nil {
 			return err
 		}
-		if err := net.WriteMsg(s, &blocks.BlockTxs{Transactions: block.Transactions}); err != nil {
+		txs := &blocks.BlockTxs{Transactions: block.Transactions}
+		if req.NoProofs {
+			txs.Wids = make([][]byte, len(txs.Transactions))
+			for i, tx := range block.Transactions {
+				txs.Wids[i] = tx.WID().Bytes()
+				txs.Transactions[i].DropProof()
+			}
+		}
+
+		if err := net.WriteMsg(s, txs); err != nil {
 			s.Close()
 			return err
 		}
