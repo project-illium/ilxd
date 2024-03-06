@@ -5,7 +5,6 @@
 package sync
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -16,7 +15,6 @@ import (
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
-	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
 	"math"
 	"math/rand"
@@ -621,86 +619,52 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 	}
 
 	var (
-		blks      []*blocks.Block
 		start     = headers[0].Height
 		endHeight = headers[len(headers)-1].Height
 		headerIdx = 0
 	)
 
 	for {
-		blks = make([]*blocks.Block, 0, len(headers))
-
-		stop := start + maxBatchSize
-		if stop > endHeight {
-			stop = endHeight
-		}
-		txs, err := sm.downloadBlockTxs(p, start, stop, noProofs)
+		txsChan, err := sm.chainService.GetBlockTxsStream(p, start, noProofs)
 		if err != nil {
 			sm.network.IncreaseBanscore(p, 0, 20, "failed to serve requested block txs")
 			return fmt.Errorf("peer %s block download error %s", p, err)
 		}
-		x := 0
-		for i := headerIdx; i < headerIdx+len(txs); i++ {
+		// Ensure channel is always drained before exiting the function
+		defer func() {
+			for range txsChan {
+				// Drain the channel to allow any producing goroutines to finish
+			}
+		}()
+
+		for txs := range txsChan {
+			if noProofs && len(txs.Wids) != len(txs.Transactions) {
+				sm.network.IncreaseBanscore(p, 0, 20, "served block without requested wids")
+				return fmt.Errorf("peer %s returned block without requested wids", p)
+			}
+			if noProofs {
+				for i := range txs.Transactions {
+					txs.Transactions[i].CacheWid(types.NewID(txs.Wids[i]))
+				}
+			}
+
 			blk := &blocks.Block{
-				Header:       headers[i],
-				Transactions: txs[x].Transactions,
+				Header:       headers[headerIdx],
+				Transactions: txs.Transactions,
 			}
-			merkleRoot := blockchain.TransactionsMerkleRoot(blk.Transactions)
-			if !bytes.Equal(merkleRoot[:], headers[i].TxRoot) {
-				sm.network.IncreaseBanscore(p, 101, 0, "served block txs with invalid merkle root")
-				return fmt.Errorf("peer %s invalid block download merkle root", p.String())
-			}
-			blks = append(blks, blk)
-			x++
-		}
-		headerIdx += len(txs)
 
-		// Here we are going to extracts all the transactions for the entire batch
-		// and validate the proofs and signatures for the whole batch concurrently.
-		// This will be faster than validating the proofs and signatures when we
-		// serially process the blocks.
-		//
-		// The proofs and signatures are added to the proof and sig caches so the
-		// blockchain will not double validate them.
-		if !sm.behavorFlag.HasFlag(blockchain.BFNoValidation) && !sm.behavorFlag.HasFlag(blockchain.BFFastAdd) &&
-			!flags.HasFlag(blockchain.BFFastAdd) && !flags.HasFlag(blockchain.BFNoValidation) {
-			toValidate := make([]*transactions.Transaction, 0, len(blks))
-			for _, blk := range blks {
-				toValidate = append(toValidate, blk.Transactions...)
-			}
-			var (
-				proofChan = make(chan error)
-				sigChan   = make(chan error)
-			)
-			defer close(proofChan)
-			defer close(sigChan)
-
-			go func() {
-				proofChan <- blockchain.NewProofValidator(sm.proofCache, sm.verifier).Validate(toValidate)
-			}()
-			go func() {
-				sigChan <- blockchain.NewSigValidator(sm.sigCache).Validate(toValidate)
-			}()
-			err = <-proofChan
-			if err != nil {
-				return fmt.Errorf("error committing block from peer %s: invalid proof in batch", p)
-			}
-			err = <-sigChan
-			if err != nil {
-				return fmt.Errorf("error committing block from peer %s: invalid signature in batch", p)
-			}
-		}
-		for _, blk := range blks {
 			if err := sm.chain.ConnectBlock(blk, flags); err != nil {
 				return fmt.Errorf("error committing block from peer %s. Height: %d, Err: %s", p, blk.Header.Height, err)
 			}
-		}
-		start = stop + 1
-		if stop == endHeight {
-			break
+
+			if headers[headerIdx].Height == endHeight {
+				return nil
+			}
+
+			headerIdx++
+			start = headers[headerIdx].Height
 		}
 	}
-	return nil
 }
 
 func (sm *SyncManager) findForkPoint(currentHeight, toHeight uint32, blockMap map[types.ID]peer.ID) (types.ID, uint32, error) {
