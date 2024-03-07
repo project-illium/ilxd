@@ -12,6 +12,7 @@ use std::{
 };
 use once_cell::sync::OnceCell;
 use lurk::{
+    dual_channel::dummy_terminal,
     lang::{Lang, Coproc},
     field::LurkField,
     lem::{
@@ -85,7 +86,7 @@ pub extern "C" fn lurk_commit(expr: *const c_char, out: *mut c_uchar) -> i32 {
         Err(_) => return -1, // Indicate error
     };
 
-    let (output, ..) = match evaluate_simple::<Fr, Coproc<Fr>>(None, ptr, store, 10000) {
+    let (output, ..) = match evaluate_simple::<Fr, Coproc<Fr>>(None, ptr, store, 1000000, &dummy_terminal()) {
         Ok((out, ..)) => (out, ..),
         Err(_) => return -1, // Indicate error
     };
@@ -298,7 +299,7 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
 
     let secret = Fr::random(OsRng);
     let priv_expr = store.read_with_default_state(private_params.as_str())?;
-    let (output, ..) = evaluate_simple::<Fr, MultiCoproc<Fr>>(None, priv_expr, store, max_steps)?;
+    let (output, ..) = evaluate_simple::<Fr, MultiCoproc<Fr>>(None, priv_expr, store, max_steps, &dummy_terminal())?;
     let comm = store.hide(secret, output[0]);
     let commitment_zpr = store.hash_ptr(&comm);
     let commitment_bytes = commitment_zpr.value().to_bytes();
@@ -326,7 +327,7 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
 
     let lurk_step = make_eval_step_from_config(&EvalConfig::new_nivc(&lang));
     let cprocs = make_cprocs_funcs_from_lang(&lang);
-    let frames = evaluate(Some((&lurk_step, &cprocs, &lang)), call, store, max_steps).unwrap();
+    let frames = evaluate(Some((&lurk_step, &cprocs, &lang)), call, store, max_steps, &dummy_terminal()).unwrap();
 
     let supernova_prover = SuperNovaProver::<Fr, MultiCoproc<Fr>>::new(
         REDUCTION_COUNT,
@@ -404,7 +405,7 @@ fn eval_simple(
 
     let secret = Fr::random(OsRng);
     let priv_expr = store.read_with_default_state(private_params.as_str())?;
-    let (output, ..) = evaluate_simple::<Fr, MultiCoproc<Fr>>(None, priv_expr, store, max_steps)?;
+    let (output, ..) = evaluate_simple::<Fr, MultiCoproc<Fr>>(None, priv_expr, store, max_steps, &dummy_terminal())?;
     let comm = store.hide(secret, output[0]);
     let commitment_zpr = store.hash_ptr(&comm);
     let commitment_bytes = commitment_zpr.value().to_bytes();
@@ -432,11 +433,11 @@ fn eval_simple(
     let lurk_step = make_eval_step_from_config(&EvalConfig::new_nivc(&lang));
     let cprocs = make_cprocs_funcs_from_lang(&lang);
 
-    let (output, iterations, _) = evaluate_simple::<Fr, MultiCoproc<Fr>>(Some((&lurk_step, &cprocs, &lang)), call, store, max_steps)?;
+    let (output, iterations) = evaluate_simple::<Fr, MultiCoproc<Fr>>(Some((&lurk_step, &cprocs, &lang)), call, store, max_steps, &dummy_terminal())?;
 
     if debug {
         let state = initial_lurk_state();
-        let frames = evaluate::<Fr, MultiCoproc<Fr>>(Some((&lurk_step, &cprocs, &lang)), call, store, max_steps)?;
+        let frames = evaluate::<Fr, MultiCoproc<Fr>>(Some((&lurk_step, &cprocs, &lang)), call, store, max_steps, &dummy_terminal())?;
         for (i, frame) in frames.iter().enumerate() {
             let expr = frame.output.get(0)
                 .map(|e| e.fmt_to_string(store, state))
