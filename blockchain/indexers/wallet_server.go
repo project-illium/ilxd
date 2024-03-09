@@ -33,8 +33,10 @@ const (
 )
 
 type UserTransaction struct {
-	Tx      *transactions.Transaction
-	ViewKey crypto.PrivKey
+	Tx          *transactions.Transaction
+	ViewKey     crypto.PrivKey
+	BlockID     types.ID
+	BlockHeight uint32
 }
 
 type Subscription struct {
@@ -248,8 +250,10 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 						idx.subMtx.RLock()
 						for _, sub := range idx.subs {
 							sub.C <- &UserTransaction{
-								Tx:      tx,
-								ViewKey: match.Key,
+								Tx:          tx,
+								ViewKey:     match.Key,
+								BlockID:     blk.ID(),
+								BlockHeight: blk.Header.Height,
 							}
 						}
 						idx.subMtx.RUnlock()
@@ -285,8 +289,10 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 						idx.subMtx.RLock()
 						for _, sub := range idx.subs {
 							sub.C <- &UserTransaction{
-								Tx:      tx,
-								ViewKey: cwk.viewKey,
+								Tx:          tx,
+								ViewKey:     cwk.viewKey,
+								BlockID:     blk.ID(),
+								BlockHeight: blk.Header.Height,
 							}
 						}
 						idx.subMtx.RUnlock()
