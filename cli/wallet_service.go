@@ -817,7 +817,7 @@ type CreateRawTransaction struct {
 	PrivateInputs      []string `short:"i" long:"input" description:"Private input data as a JSON string. To include more than one input use this option more than once. Use this or commitment."`
 	PrivateOutputs     []string `short:"o" long:"output" description:"Private output data as a JSON string. To include more than one output use this option more than once."`
 	AppendChangeOutput bool     `short:"c" long:"appendchange" description:"Append a change output to the transaction. If false you'll have to manually include the change out. If true the wallet will use its most recent address for change.'"`
-	FeePerKB           float64  `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
+	FeePerKB           string   `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
 	Serialize          bool     `short:"s" long:"serialize" description:"Serialize the output as a hex string. If false it will be JSON."`
 	opts               *options
 }
@@ -827,11 +827,15 @@ func (x *CreateRawTransaction) Execute(args []string) error {
 	if err != nil {
 		return err
 	}
+	fpkb, err := types.AmountFromILX(x.FeePerKB)
+	if err != nil {
+		return err
+	}
 	req := &pb.CreateRawTransactionRequest{
 		Inputs:             nil,
 		Outputs:            nil,
 		AppendChangeOutput: x.AppendChangeOutput,
-		FeePerKilobyte:     uint64(types.AmountFromILX(x.FeePerKB)),
+		FeePerKilobyte:     uint64(fpkb),
 	}
 
 	if len(x.PrivateInputs) > 0 {
@@ -1192,8 +1196,8 @@ func (x *SetAutoStakeRewards) Execute(args []string) error {
 
 type Spend struct {
 	Address     string   `short:"a" long:"addr" description:"An address to send coins to"`
-	Amount      float64  `short:"t" long:"amount" description:"The amount to send"`
-	FeePerKB    float64  `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
+	Amount      string   `short:"t" long:"amount" description:"The amount to send"`
+	FeePerKB    string   `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
 	Commitments []string `short:"c" long:"commitment" description:"Optionally specify which input commitment(s) to spend. If this field is omitted the wallet will automatically select (only non-staked) inputs commitments. Serialized as hex strings. Use this option more than once to add more than one input commitment."`
 	SpendAll    bool     `long:"all" description:"If true the amount option will be ignored and all the funds will be swept from the wallet to the provided address, minus the transaction fee."`
 	opts        *options
@@ -1219,9 +1223,13 @@ func (x *Spend) Execute(args []string) error {
 		return err
 	}
 	if x.SpendAll {
+		fpkb, err := types.AmountFromILX(x.FeePerKB)
+		if err != nil {
+			return err
+		}
 		resp, err := client.SweepWallet(makeContext(x.opts.AuthToken), &pb.SweepWalletRequest{
 			ToAddress:        x.Address,
-			FeePerKilobyte:   uint64(types.AmountFromILX(x.FeePerKB)),
+			FeePerKilobyte:   uint64(fpkb),
 			InputCommitments: commitments,
 		})
 		if err != nil {
@@ -1231,10 +1239,18 @@ func (x *Spend) Execute(args []string) error {
 
 		spinner.Success(hex.EncodeToString(resp.Transaction_ID))
 	} else {
+		amt, err := types.AmountFromILX(x.Amount)
+		if err != nil {
+			return err
+		}
+		fpkb, err := types.AmountFromILX(x.FeePerKB)
+		if err != nil {
+			return err
+		}
 		resp, err := client.Spend(makeContext(x.opts.AuthToken), &pb.SpendRequest{
 			ToAddress:        x.Address,
-			Amount:           uint64(types.AmountFromILX(x.Amount)),
-			FeePerKilobyte:   uint64(types.AmountFromILX(x.FeePerKB)),
+			Amount:           uint64(amt),
+			FeePerKilobyte:   uint64(fpkb),
 			InputCommitments: commitments,
 		})
 		if err != nil {
@@ -1250,8 +1266,8 @@ func (x *Spend) Execute(args []string) error {
 
 type TimelockCoins struct {
 	LockUntil   int64    `short:"l" long:"lockuntil" description:"A unix timestamp to lock the coins until (in seconds)."`
-	Amount      float64  `short:"t" long:"amount" description:"The amount to lockup"`
-	FeePerKB    float64  `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
+	Amount      string   `short:"t" long:"amount" description:"The amount to lockup"`
+	FeePerKB    string   `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
 	Commitments []string `short:"c" long:"commitment" description:"Optionally specify which input commitment(s) to lock. If this field is omitted the wallet will automatically select (only non-staked) inputs commitments. Serialized as hex strings. Use this option more than once to add more than one input commitment."`
 	opts        *options
 }
@@ -1275,11 +1291,19 @@ func (x *TimelockCoins) Execute(args []string) error {
 	if err != nil {
 		return err
 	}
+	amt, err := types.AmountFromILX(x.Amount)
+	if err != nil {
+		return err
+	}
+	fpkb, err := types.AmountFromILX(x.FeePerKB)
+	if err != nil {
+		return err
+	}
 
 	resp, err := client.TimelockCoins(makeContext(x.opts.AuthToken), &pb.TimelockCoinsRequest{
 		LockUntil:        x.LockUntil,
-		Amount:           uint64(types.AmountFromILX(x.Amount)),
-		FeePerKilobyte:   uint64(types.AmountFromILX(x.FeePerKB)),
+		Amount:           uint64(amt),
+		FeePerKilobyte:   uint64(fpkb),
 		InputCommitments: commitments,
 	})
 	if err != nil {
