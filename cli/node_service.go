@@ -244,12 +244,12 @@ func (x *GetMinFeePerKilobyte) Execute(args []string) error {
 		return err
 	}
 
-	fmt.Println(resp.FeePerKilobyte)
+	fmt.Println(types.Amount(resp.FeePerKilobyte).ToILX())
 	return nil
 }
 
 type SetMinFeePerKilobyte struct {
-	Fee  uint64 `short:"f" long:"feeperkb" description:"The fee per kilobyte to set"`
+	Fee  string `short:"f" long:"feeperkb" description:"The fee per kilobyte to set"`
 	opts *options
 }
 
@@ -258,8 +258,12 @@ func (x *SetMinFeePerKilobyte) Execute(args []string) error {
 	if err != nil {
 		return err
 	}
+	fpkb, err := types.AmountFromILX(x.Fee)
+	if err != nil {
+		return err
+	}
 	_, err = client.SetMinFeePerKilobyte(makeContext(x.opts.AuthToken), &pb.SetMinFeePerKilobyteRequest{
-		FeePerKilobyte: x.Fee,
+		FeePerKilobyte: uint64(fpkb),
 	})
 	if err != nil {
 		return err
@@ -284,12 +288,12 @@ func (x *GetMinStake) Execute(args []string) error {
 		return err
 	}
 
-	fmt.Println(resp.MinStakeAmount)
+	fmt.Println(types.Amount(resp.MinStakeAmount).ToILX())
 	return nil
 }
 
 type SetMinStake struct {
-	Amount uint64 `short:"m" long:"minstake" description:"The minimum stake amount to set"`
+	Amount string `short:"m" long:"minstake" description:"The minimum stake amount to set"`
 	opts   *options
 }
 
@@ -299,8 +303,12 @@ func (x *SetMinStake) Execute(args []string) error {
 		return err
 	}
 
+	amt, err := types.AmountFromILX(x.Amount)
+	if err != nil {
+		return err
+	}
 	_, err = client.SetMinStake(makeContext(x.opts.AuthToken), &pb.SetMinStakeRequest{
-		MinStakeAmount: x.Amount,
+		MinStakeAmount: uint64(amt),
 	})
 	if err != nil {
 		return err

@@ -456,14 +456,12 @@ message GetMerkleProofRequest {
 message GetMerkleProofResponse {
     // Block header information for the corresponding transaction
     BlockInfo block       = 1;
-    // Is the proof hashes corresponding to the witness hash tree.
-    repeated bytes Uhashes = 2;
-    // Is the proof hashes corresponding to the witness hash tree.
-    repeated bytes Whashes = 3;
+    // Is the proof hashes linking the tx to the root
+    repeated bytes hashes  = 2;
     // The least significant bit in flags corresponds to the last hash in `hashes`. The second least
     // significant to the second to last hash, and so on. The bit signifies whether the hash should be
     // prepended (0) or appended (1) when hashing each level in the tree.
-    uint32 flags           = 4;
+    uint32 flags           = 3;
 }
 
 message GetValidatorRequest {
