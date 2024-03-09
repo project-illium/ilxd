@@ -4,7 +4,11 @@
 
 package types
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"fmt"
+	"strconv"
+)
 
 const NanosPerILX = 1e9
 
@@ -12,6 +16,11 @@ const NanosPerILX = 1e9
 // The total number of nanoillium issued is not expected to overflow an uint64
 // for 250 years from genesis.
 type Amount uint64
+
+// AmountFromILX returns an amount (in nanoillium) from an ILX float
+func AmountFromILX(ilx float64) Amount {
+	return Amount(ilx * NanosPerILX)
+}
 
 // ToBytes returns the byte representation of the amount
 func (a Amount) ToBytes() []byte {
@@ -23,4 +32,22 @@ func (a Amount) ToBytes() []byte {
 // ToILX returns the amount, formatted as ILX
 func (a Amount) ToILX() float64 {
 	return float64(a) / NanosPerILX
+}
+
+// MarshalJSON returns the amount in ILX as a float string
+func (a *Amount) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("%.9f", a.ToILX())), nil
+}
+
+// UnmarshalJSON unmarshals an ILX float string to an Amount.
+func (a *Amount) UnmarshalJSON(data []byte) error {
+	str := string(data)
+	str = str[1 : len(str)-1]
+
+	val, err := strconv.ParseFloat(str, 64)
+	if err != nil {
+		return err
+	}
+	*a = Amount(val * NanosPerILX)
+	return nil
 }

@@ -40,7 +40,7 @@ func (x *GetBalance) Execute(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(resp.Balance)
+	fmt.Println(types.Amount(resp.Balance).ToILX())
 	return nil
 }
 
@@ -205,15 +205,19 @@ func (x *GetTransactions) Execute(args []string) error {
 	}
 	type tx struct {
 		Txid     types.HexEncodable `json:"txid"`
-		NetCoins int64              `json:"netCoins"`
+		NetCoins float64            `json:"netCoins"`
 		Inputs   []interface{}      `json:"inputs"`
 		Outputs  []interface{}      `json:"outputs"`
 	}
 	txs := make([]tx, 0, len(resp.Txs))
 	for _, rtx := range resp.Txs {
+		amt := types.Amount(rtx.NetCoins).ToILX()
+		if rtx.NetCoins < 0 {
+			amt = types.Amount(rtx.NetCoins*-1).ToILX() * -1
+		}
 		txs = append(txs, tx{
 			Txid:     rtx.Transaction_ID,
-			NetCoins: rtx.NetCoins,
+			NetCoins: amt,
 			Inputs:   pbIOtoIO(rtx.Inputs),
 			Outputs:  pbIOtoIO(rtx.Outputs),
 		})
@@ -243,7 +247,7 @@ func (x *GetUtxos) Execute(args []string) error {
 	type utxo struct {
 		Address     string             `json:"address"`
 		Commitment  types.HexEncodable `json:"commitment"`
-		Amount      uint64             `json:"amount"`
+		Amount      types.Amount       `json:"amount"`
 		WatchOnly   bool               `json:"watchOnly"`
 		Staked      bool               `json:"staked"`
 		LockedUntil int64              `json:"lockedUntil"`
@@ -253,7 +257,7 @@ func (x *GetUtxos) Execute(args []string) error {
 		utxos = append(utxos, utxo{
 			Address:     ut.Address,
 			Commitment:  ut.Commitment,
-			Amount:      ut.Amount,
+			Amount:      types.Amount(ut.Amount),
 			WatchOnly:   ut.WatchOnly,
 			Staked:      ut.Staked,
 			LockedUntil: ut.LockedUntill,
@@ -813,7 +817,7 @@ type CreateRawTransaction struct {
 	PrivateInputs      []string `short:"i" long:"input" description:"Private input data as a JSON string. To include more than one input use this option more than once. Use this or commitment."`
 	PrivateOutputs     []string `short:"o" long:"output" description:"Private output data as a JSON string. To include more than one output use this option more than once."`
 	AppendChangeOutput bool     `short:"c" long:"appendchange" description:"Append a change output to the transaction. If false you'll have to manually include the change out. If true the wallet will use its most recent address for change.'"`
-	FeePerKB           uint64   `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
+	FeePerKB           float64  `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
 	Serialize          bool     `short:"s" long:"serialize" description:"Serialize the output as a hex string. If false it will be JSON."`
 	opts               *options
 }
@@ -827,7 +831,7 @@ func (x *CreateRawTransaction) Execute(args []string) error {
 		Inputs:             nil,
 		Outputs:            nil,
 		AppendChangeOutput: x.AppendChangeOutput,
-		FeePerKilobyte:     x.FeePerKB,
+		FeePerKilobyte:     uint64(types.AmountFromILX(x.FeePerKB)),
 	}
 
 	if len(x.PrivateInputs) > 0 {
@@ -860,9 +864,9 @@ func (x *CreateRawTransaction) Execute(args []string) error {
 
 	for _, out := range x.PrivateOutputs {
 		output := struct {
-			Address string `json:"address"`
-			Amount  uint64 `json:"amount"`
-			State   string `json:"state"`
+			Address string       `json:"address"`
+			Amount  types.Amount `json:"amount"`
+			State   string       `json:"state"`
 		}{}
 		if err := json.Unmarshal([]byte(out), &output); err != nil {
 			return err
@@ -876,7 +880,7 @@ func (x *CreateRawTransaction) Execute(args []string) error {
 		}
 		req.Outputs = append(req.Outputs, &pb.CreateRawTransactionRequest_Output{
 			Address: output.Address,
-			Amount:  output.Amount,
+			Amount:  uint64(output.Amount),
 			State:   state,
 		})
 	}
@@ -1041,7 +1045,6 @@ type ProveRawTransaction struct {
 }
 
 func (x *ProveRawTransaction) Execute(args []string) error {
-
 	var privKeys []crypto.PrivKey
 	for _, k := range x.PrivateKeys {
 		privKeyBytes, err := hex.DecodeString(k)
@@ -1189,8 +1192,8 @@ func (x *SetAutoStakeRewards) Execute(args []string) error {
 
 type Spend struct {
 	Address     string   `short:"a" long:"addr" description:"An address to send coins to"`
-	Amount      uint64   `short:"t" long:"amount" description:"The amount to send"`
-	FeePerKB    uint64   `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
+	Amount      float64  `short:"t" long:"amount" description:"The amount to send"`
+	FeePerKB    float64  `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
 	Commitments []string `short:"c" long:"commitment" description:"Optionally specify which input commitment(s) to spend. If this field is omitted the wallet will automatically select (only non-staked) inputs commitments. Serialized as hex strings. Use this option more than once to add more than one input commitment."`
 	SpendAll    bool     `long:"all" description:"If true the amount option will be ignored and all the funds will be swept from the wallet to the provided address, minus the transaction fee."`
 	opts        *options
@@ -1218,7 +1221,7 @@ func (x *Spend) Execute(args []string) error {
 	if x.SpendAll {
 		resp, err := client.SweepWallet(makeContext(x.opts.AuthToken), &pb.SweepWalletRequest{
 			ToAddress:        x.Address,
-			FeePerKilobyte:   x.FeePerKB,
+			FeePerKilobyte:   uint64(types.AmountFromILX(x.FeePerKB)),
 			InputCommitments: commitments,
 		})
 		if err != nil {
@@ -1230,8 +1233,8 @@ func (x *Spend) Execute(args []string) error {
 	} else {
 		resp, err := client.Spend(makeContext(x.opts.AuthToken), &pb.SpendRequest{
 			ToAddress:        x.Address,
-			Amount:           x.Amount,
-			FeePerKilobyte:   x.FeePerKB,
+			Amount:           uint64(types.AmountFromILX(x.Amount)),
+			FeePerKilobyte:   uint64(types.AmountFromILX(x.FeePerKB)),
 			InputCommitments: commitments,
 		})
 		if err != nil {
@@ -1247,8 +1250,8 @@ func (x *Spend) Execute(args []string) error {
 
 type TimelockCoins struct {
 	LockUntil   int64    `short:"l" long:"lockuntil" description:"A unix timestamp to lock the coins until (in seconds)."`
-	Amount      uint64   `short:"t" long:"amount" description:"The amount to lockup"`
-	FeePerKB    uint64   `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
+	Amount      float64  `short:"t" long:"amount" description:"The amount to lockup"`
+	FeePerKB    float64  `short:"f" long:"feeperkb" description:"The fee per kilobyte to pay for this transaction. If zero the wallet will use its default fee."`
 	Commitments []string `short:"c" long:"commitment" description:"Optionally specify which input commitment(s) to lock. If this field is omitted the wallet will automatically select (only non-staked) inputs commitments. Serialized as hex strings. Use this option more than once to add more than one input commitment."`
 	opts        *options
 }
@@ -1275,8 +1278,8 @@ func (x *TimelockCoins) Execute(args []string) error {
 
 	resp, err := client.TimelockCoins(makeContext(x.opts.AuthToken), &pb.TimelockCoinsRequest{
 		LockUntil:        x.LockUntil,
-		Amount:           x.Amount,
-		FeePerKilobyte:   x.FeePerKB,
+		Amount:           uint64(types.AmountFromILX(x.Amount)),
+		FeePerKilobyte:   uint64(types.AmountFromILX(x.FeePerKB)),
 		InputCommitments: commitments,
 	})
 	if err != nil {
@@ -1496,14 +1499,14 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 func pbIOtoIO(ios []*pb.WalletTransaction_IO) []interface{} {
 	ret := make([]interface{}, 0, len(ios))
 	type txIO struct {
-		Address string `json:"address"`
-		Amount  uint64 `json:"amount"`
+		Address string       `json:"address"`
+		Amount  types.Amount `json:"amount"`
 	}
 	for _, io := range ios {
 		if io.GetTxIo() != nil {
 			ret = append(ret, &txIO{
 				Address: io.GetTxIo().Address,
-				Amount:  io.GetTxIo().Amount,
+				Amount:  types.Amount(io.GetTxIo().Amount),
 			})
 		}
 		if io.GetUnknown() != nil {

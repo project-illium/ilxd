@@ -301,17 +301,8 @@ func (s *GrpcServer) GetMerkleProof(ctx context.Context, req *pb.GetMerkleProofR
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	uids := make([]types.ID, len(blk.Transactions))
-	wids := make([]types.ID, len(blk.Transactions))
-	for i, tx := range blk.Transactions {
-		uids[i] = tx.UID()
-		wids[i] = tx.WID()
-	}
-
-	uMerkles := blockchain.BuildMerkleTreeStore(uids)
-	wMerkles := blockchain.BuildMerkleTreeStore(wids)
-	uhashes, flags := blockchain.MerkleInclusionProof(uMerkles, tx.UID())
-	whashes, _ := blockchain.MerkleInclusionProof(wMerkles, tx.WID())
+	merkles := blockchain.BuildMerkleTreeStore(blk.Txids())
+	hashes, flags := blockchain.MerkleInclusionProof(merkles, tx.ID())
 	resp := &pb.GetMerkleProofResponse{
 		Block: &pb.BlockInfo{
 			Block_ID:    id[:],
@@ -325,9 +316,8 @@ func (s *GrpcServer) GetMerkleProof(ctx context.Context, req *pb.GetMerkleProofR
 			Size:        uint32(size),
 			NumTxs:      uint32(len(blk.Transactions)),
 		},
-		Uhashes: uhashes,
-		Whashes: whashes,
-		Flags:   flags,
+		Hashes: hashes,
+		Flags:  flags,
 	}
 	child, err := s.chain.GetHeaderByHeight(blk.Header.Height + 1)
 	if err == nil {

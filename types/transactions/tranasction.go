@@ -273,7 +273,7 @@ type standardTxJSON struct {
 	Nullifiers []types.HexEncodable `json:"nullifiers"`
 	TxoRoot    types.HexEncodable   `json:"txo_root"`
 	Locktime   *locktimeJSON        `json:"locktime,omitempty"`
-	Fee        uint64               `json:"fee"`
+	Fee        types.Amount         `json:"fee"`
 	Proof      types.HexEncodable   `json:"proof"`
 }
 
@@ -356,7 +356,7 @@ func (tx *StandardTransaction) MarshalJSON() ([]byte, error) {
 		Outputs:    tx.Outputs,
 		Nullifiers: nullifiers,
 		TxoRoot:    tx.TxoRoot,
-		Fee:        tx.Fee,
+		Fee:        types.Amount(tx.Fee),
 		Proof:      tx.Proof,
 	}
 	if tx.Locktime != nil {
@@ -381,7 +381,7 @@ func (tx *StandardTransaction) UnmarshalJSON(data []byte) error {
 		Outputs:    newTx.Outputs,
 		Nullifiers: nullifiers,
 		TxoRoot:    newTx.TxoRoot,
-		Fee:        newTx.Fee,
+		Fee:        uint64(newTx.Fee),
 		Proof:      newTx.Proof,
 	}
 	if newTx.Locktime != nil {
@@ -395,7 +395,7 @@ func (tx *StandardTransaction) UnmarshalJSON(data []byte) error {
 
 type coinbaseTxJSON struct {
 	Validator_ID types.HexEncodable `json:"validator_ID"`
-	NewCoins     uint64             `json:"new_coins"`
+	NewCoins     types.Amount       `json:"new_coins"`
 	Outputs      []*Output          `json:"outputs"`
 	Signature    types.HexEncodable `json:"signature"`
 	Proof        types.HexEncodable `json:"proof"`
@@ -454,7 +454,7 @@ func (tx *CoinbaseTransaction) ToCircuitParams() (zk.Parameters, error) {
 func (tx *CoinbaseTransaction) MarshalJSON() ([]byte, error) {
 	c := &coinbaseTxJSON{
 		Validator_ID: tx.Validator_ID,
-		NewCoins:     tx.NewCoins,
+		NewCoins:     types.Amount(tx.NewCoins),
 		Outputs:      tx.Outputs,
 		Signature:    tx.Signature,
 		Proof:        tx.Proof,
@@ -469,7 +469,7 @@ func (tx *CoinbaseTransaction) UnmarshalJSON(data []byte) error {
 	}
 	*tx = CoinbaseTransaction{
 		Validator_ID: newTx.Validator_ID,
-		NewCoins:     newTx.NewCoins,
+		NewCoins:     uint64(newTx.NewCoins),
 		Outputs:      newTx.Outputs,
 		Signature:    newTx.Signature,
 		Proof:        newTx.Proof,
@@ -479,7 +479,7 @@ func (tx *CoinbaseTransaction) UnmarshalJSON(data []byte) error {
 
 type stakeTxJSON struct {
 	Validator_ID types.HexEncodable `json:"validator_ID"`
-	Amount       uint64             `json:"amount"`
+	Amount       types.Amount       `json:"amount"`
 	Nullifier    types.HexEncodable `json:"nullifier"`
 	TxoRoot      types.HexEncodable `json:"txo_root"`
 	LockedUntil  int64              `json:"locked_until"`
@@ -542,7 +542,7 @@ func (tx *StakeTransaction) ToCircuitParams() (zk.Parameters, error) {
 func (tx *StakeTransaction) MarshalJSON() ([]byte, error) {
 	s := &stakeTxJSON{
 		Validator_ID: tx.Validator_ID,
-		Amount:       tx.Amount,
+		Amount:       types.Amount(tx.Amount),
 		Nullifier:    tx.Nullifier,
 		TxoRoot:      tx.TxoRoot,
 		LockedUntil:  tx.LockedUntil,
@@ -559,7 +559,7 @@ func (tx *StakeTransaction) UnmarshalJSON(data []byte) error {
 	}
 	*tx = StakeTransaction{
 		Validator_ID: newTx.Validator_ID,
-		Amount:       newTx.Amount,
+		Amount:       uint64(newTx.Amount),
 		Nullifier:    newTx.Nullifier,
 		TxoRoot:      newTx.TxoRoot,
 		LockedUntil:  newTx.LockedUntil,
@@ -570,7 +570,7 @@ func (tx *StakeTransaction) UnmarshalJSON(data []byte) error {
 }
 
 type treasuryTxJSON struct {
-	Amount       uint64             `json:"amount"`
+	Amount       types.Amount       `json:"amount"`
 	Outputs      []*Output          `json:"outputs"`
 	ProposalHash types.HexEncodable `json:"proposal_hash"`
 	Proof        types.HexEncodable `json:"proof"`
@@ -626,7 +626,7 @@ func (tx *TreasuryTransaction) ToCircuitParams() (zk.Parameters, error) {
 
 func (tx *TreasuryTransaction) MarshalJSON() ([]byte, error) {
 	t := &treasuryTxJSON{
-		Amount:       tx.Amount,
+		Amount:       types.Amount(tx.Amount),
 		Outputs:      tx.Outputs,
 		ProposalHash: tx.ProposalHash,
 		Proof:        tx.Proof,
@@ -640,7 +640,7 @@ func (tx *TreasuryTransaction) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*tx = TreasuryTransaction{
-		Amount:       newTx.Amount,
+		Amount:       uint64(newTx.Amount),
 		Outputs:      newTx.Outputs,
 		ProposalHash: newTx.ProposalHash,
 		Proof:        newTx.Proof,
@@ -654,7 +654,7 @@ type mintTxJSON struct {
 	DocumentHash types.HexEncodable        `json:"document_hash"`
 	NewTokens    uint64                    `json:"new_tokens"`
 	Outputs      []*Output                 `json:"outputs"`
-	Fee          uint64                    `json:"fee"`
+	Fee          types.Amount              `json:"fee"`
 	Nullifiers   []types.HexEncodable      `json:"nullifiers"`
 	TxoRoot      types.HexEncodable        `json:"txo_root"`
 	MintKey      types.HexEncodable        `json:"mint_key"`
@@ -747,7 +747,7 @@ func (tx *MintTransaction) MarshalJSON() ([]byte, error) {
 		DocumentHash: tx.DocumentHash,
 		NewTokens:    tx.NewTokens,
 		Outputs:      tx.Outputs,
-		Fee:          tx.Fee,
+		Fee:          types.Amount(tx.Fee),
 		Nullifiers:   nullifiers,
 		TxoRoot:      tx.TxoRoot,
 		MintKey:      tx.MintKey,
@@ -778,7 +778,7 @@ func (tx *MintTransaction) UnmarshalJSON(data []byte) error {
 		DocumentHash: newTx.DocumentHash,
 		NewTokens:    newTx.NewTokens,
 		Outputs:      newTx.Outputs,
-		Fee:          newTx.Fee,
+		Fee:          uint64(newTx.Fee),
 		Nullifiers:   nullifiers,
 		TxoRoot:      newTx.TxoRoot,
 		MintKey:      newTx.MintKey,
