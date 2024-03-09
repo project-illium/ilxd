@@ -655,7 +655,9 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 			}
 		}
 	case blockchain.NTNewEpoch:
-		log.Info("New blockchain epoch")
+		if s.isCurrent() {
+			log.Info("New blockchain epoch")
+		}
 		validator, err := s.blockchain.GetValidator(s.network.Host().ID())
 		if err == nil && validator.UnclaimedCoins > 0 && s.isCurrent() {
 			tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.coinbaseAddr, s.networkKey)
