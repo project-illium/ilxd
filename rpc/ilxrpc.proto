@@ -361,11 +361,11 @@ message GetBlockchainInfoResponse {
     int64 block_time         = 4;
     // When `tx_index` is true, the node has full transaction index enabled
     bool tx_index            = 5;
-    // The total number of coins in circulation
+    // The total number of coins in circulation in nanoillium
     uint64 circulating_supply = 6;
-    // The total number of coins staked
+    // The total number of coins staked in nanoillium
     uint64 total_staked      = 7;
-    // The balance of the treasury
+    // The balance of the treasury in nanoillium
     uint64 treasury_balance  = 8;
 }
 
@@ -475,9 +475,9 @@ message GetValidatorResponse {
 
 message GetValidatorSetInfoRequest{}
 message GetValidatorSetInfoResponse{
-    // The total number of coins staked on the network
+    // The total number of coins staked on the network in nanoillium
     uint64 total_staked   = 1;
-    // The total stake weighted by time locks.
+    // The total stake weighted by time locks in nanoillium
     uint64 stake_weight   = 2;
     // The total number of validators on the network
     uint32 num_validators = 3;
@@ -643,7 +643,7 @@ message ProveAndSubmitResponse {
 // WalletService
 message GetBalanceRequest {}
 message GetBalanceResponse {
-    // Balance response
+    // Balance response in nanoillium
     uint64 balance = 1;
 }
 
@@ -847,7 +847,7 @@ message CreateRawTransactionRequest {
     // change output and send the remainder of the coins (minus a fee)
     // to the change output.
     bool append_change_output = 3;
-    // If append_change_output is true you can specify the fee amount to use.
+    // If append_change_output is true you can specify the fee amount to use in nanoillium.
     // If zero the wallet will use its internal fee policy.
     uint64 fee_per_kilobyte   = 4;
 
@@ -865,7 +865,7 @@ message CreateRawTransactionRequest {
     message Output {
         // Address to send coins to
         string address = 1;
-        // The amount to send
+        // The amount to send in nanoillium
         uint64 amount  = 2;
         // An optional state field
         bytes state    = 3;
@@ -920,9 +920,9 @@ message SetAutoStakeRewardsResponse {}
 message SpendRequest {
     // Address to send funds to
     string to_address                = 1;
-    // Amount to send
+    // Amount to send in nanoillium
     uint64 amount                    = 2;
-    // The fee to use for the transaction.
+    // The fee to use for the transaction in nanoillium.
     // If zero the wallet will use its internal fee policy.
     uint64 fee_per_kilobyte          = 3;
     // An optional list of input commitments to spend. If this
@@ -941,11 +941,11 @@ message SpendResponse {
 }
 
 message TimelockCoinsRequest {
-    // Amount of coins to lock
+    // Amount of coins to lock in nanoillium
     uint64 amount                    = 1;
     // The unix time (in seconds) to lock the coins until
     int64 lock_until                 = 2;
-    // The fee to use for the transaction.
+    // The fee to use for the transaction in nanoillium.
     // If zero the wallet will use its internal fee policy.
     uint64 fee_per_kilobyte          = 3;
     // An optional list of input commitments to spend. If this
@@ -967,7 +967,7 @@ message SweepWalletRequest {
     // Address to send funds to
     string to_address                = 1;
 
-    // The fee to use for the transaction.
+    // The fee to use for the transaction in nanoillium.
     // If zero the wallet will use its internal fee policy.
     uint64 fee_per_kilobyte          = 2;
 
@@ -1065,24 +1065,24 @@ message SetLogLevelResponse {}
 
 message GetMinFeePerKilobyteRequest {}
 message GetMinFeePerKilobyteResponse {
-    // Fee per kilobyte response
+    // Fee per kilobyte response in nanoillium
     uint64 fee_per_kilobyte = 1;
 }
 
 message SetMinFeePerKilobyteRequest {
-    // Fee per byte to set
+    // Fee per byte to set in nanoillium
     uint64 fee_per_kilobyte = 1;
 }
 message SetMinFeePerKilobyteResponse {}
 
 message GetMinStakeRequest {}
 message GetMinStakeResponse {
-    // Minimum stake response
+    // Minimum stake response in nanoillium
     uint64 min_stake_amount = 1;
 }
 
 message SetMinStakeRequest {
-    // Minimum stake amount to set
+    // Minimum stake amount to set in nanoillium
     uint64 min_stake_amount = 1;
 }
 message SetMinStakeResponse {}
@@ -1199,13 +1199,13 @@ message BlockInfo {
 message Validator {
         // The validator ID encoded in bytes.
         bytes validator_ID        = 1;
-        // The number of coins staked by this validator.
+        // The number of coins staked by this validator in nanoillium.
         uint64 total_stake        = 2;
-        // The total stake weighted by time lock.
+        // The total stake weighted by time lock in nanoillium.
         uint64 stake_weight       = 3;
         // The nullifiers for the utxos the validator has staked.
         repeated Stake stake      = 4;
-        // The total of any unclaimed validator rewards.
+        // The total of any unclaimed validator rewards in nanoillium.
         uint64 unclaimed_coins    = 5;
         // The number of blocks this validator has created this epoch.
         uint32 epoch_blocks       = 6;
@@ -1213,7 +1213,7 @@ message Validator {
         message Stake {
             // The nullifier that is staked
             bytes nullifier           = 1;
-            // The amount staked
+            // The amount staked in nanoillium
             uint64 amount             = 2;
             // The timestamp that this utxo is timelocked until
             int64 timelocked_until    = 3;
@@ -1229,7 +1229,7 @@ message Validator {
 message Utxo {
     // The commitment associated with the output
     bytes commitment    = 1;
-    // The amount of coins
+    // The amount of coins in nanoillium
     uint64 amount       = 2;
     // The address that the utxo is associated with
     string address      = 3;
@@ -1253,7 +1253,7 @@ message RawTransaction {
 }
 
 message PrivateInput {
-    // The amount of the input
+    // The amount of the input in nanoillium
     uint64 amount                 = 1;
     // Input asset ID
     bytes asset_ID                = 2;
@@ -1277,7 +1277,7 @@ message PrivateInput {
 message PrivateOutput {
     // Output scriptHash
     bytes script_hash = 1;
-    // Output amount
+    // Output amount in nanoillium
     uint64 amount     = 2;
     // Output salt
     bytes salt        = 3;
@@ -1313,7 +1313,7 @@ message Peer {
 message WalletTransaction {
     // Transaction ID
     bytes transaction_ID = 1;
-    // The net number of coins coming into the wallet
+    // The net number of coins coming into the wallet in nanoillium
     // Positive = receive
     // Negative = send
     int64 netCoins      = 2;
@@ -1336,7 +1336,7 @@ message WalletTransaction {
         message TxIO {
             // Address associated with the input or output
             string address = 1;
-            // Amount of coins associated with the input or output
+            // Amount of coins associated with the input or output in nanoillium
             uint64 amount  = 2;
         }
 
