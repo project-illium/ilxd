@@ -14,16 +14,18 @@ func TestAmountJsonMarshaling(t *testing.T) {
 
 	assert.Equal(t, 230584300.921369395, a.ToILX())
 
-	assert.Equal(t, a, AmountFromILX("230584300.921369395"))
+	a2, err := AmountFromILX("230584300.921369395")
+	assert.NoError(t, err)
+	assert.Equal(t, a, a2)
 
 	j, err := a.MarshalJSON()
 	assert.NoError(t, err)
 
 	assert.Equal(t, "230584300.921369395", string(j))
 
-	var a2 Amount
-	err = a2.UnmarshalJSON(j)
+	var a3 Amount
+	err = a3.UnmarshalJSON(j)
 	assert.NoError(t, err)
 
-	assert.Equal(t, a, a2)
+	assert.Equal(t, a, a3)
 }
