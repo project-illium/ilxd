@@ -1018,7 +1018,11 @@ func (s *GrpcServer) SubscribeWalletTransactions(req *pb.SubscribeWalletTransact
 					Transaction: &pb.WalletTransaction{
 						Transaction_ID: walletTx.Txid.Bytes(),
 						NetCoins:       int64(walletTx.AmountIn) - int64(walletTx.AmountOut),
+						Inputs:         ioToPBio(walletTx.Inputs),
+						Outputs:        ioToPBio(walletTx.Outputs),
 					},
+					Block_ID:    walletTx.BlockID.Bytes(),
+					BlockHeight: walletTx.BlockHeight,
 				})
 				if err == io.EOF {
 					return nil

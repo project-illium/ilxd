@@ -82,6 +82,8 @@ func (s *GrpcServer) SubscribeTransactions(req *pb.SubscribeTransactionsRequest,
 					if key.Equals(userTx.ViewKey) {
 						err := stream.Send(&pb.TransactionNotification{
 							Transaction: userTx.Tx,
+							Block_ID:    userTx.BlockID.Bytes(),
+							BlockHeight: userTx.BlockHeight,
 						})
 						if err == io.EOF {
 							return nil
