@@ -498,7 +498,6 @@ message GetAccumulatorCheckpointRequest{
         // An error will be returned if there is no checkpoint before
         // the provided height.
         uint32 height   = 1;
-
         // The timestamp of the accumulator checkpoint to return.
         // If there is no checkpoint at that timestamp, the *prior*
         // checkpoint found in the chain will be returned.
@@ -533,7 +532,6 @@ message SubscribeBlocksRequest {
     // When full_block is true, a complete marshaled block is sent.
     // Default is false, block metadata is sent. See `BlockInfo`.
     bool full_block        = 1;
-
     // When full_transactions is true, provide full transaction info
     // for a marshaled block.
     //
@@ -548,14 +546,12 @@ message SubscribeCompressedBlocksRequest {}
 message RegisterViewKeyRequest {
     // A view key to register with the server.
     bytes view_key                  = 1;
-
     // The locking script associated with the address belonging
     // to the view key serialized as <scriptCommitment><lockingParams...>
     //
     // The server needs this in order to compute the nullifier and detect
     // spend transactions.
     bytes serializedLockingScript = 2;
-
     // The date the address was created. The server will scan historical blocks
     // for matching transactions from the birthday forward. Please don't use an
     // earlier birthday than needed as it puts more stress on the server.
@@ -573,7 +569,6 @@ message SubscribeTransactionsRequest {
 message GetWalletTransactionsRequest{
     // The view key to query transactions
     bytes view_key = 1;
-
     // The number of transactions to skip, starting with the oldest first.
     // Does not affect results of unconfirmed transactions.
     uint32 nb_skip = 2;
@@ -688,14 +683,11 @@ message GetAddressInfoRequest {
 message GetAddressInfoResponse {
     // The address to import
     string address          = 1;
-
     // This is the serialized locking script
     // <scriptCommitment><lockingParams>
     bytes lockingScript   = 2;
-
     //  The private view key for the address
     bytes viewPrivateKey     = 3;
-
     // Is this address watch only
     bool watchOnly          = 4;
 }
@@ -728,7 +720,6 @@ message GetPrivateKeyResponse {
 message ImportAddressRequest {
     // The address to import
     string address          = 1;
-
     // The address contains a scriptHash. We also
     // need what's behind the hash in order to
     // import an address and detect spends.
@@ -736,11 +727,9 @@ message ImportAddressRequest {
     // This is the serialized locking script
     // <scriptCommitment><lockingParams>
     bytes lockingScript   = 2;
-
     // The view private key needed to decrypt and
     // detect transactions.
     bytes viewPrivateKey    = 3;
-
     // Should the wallet rescan the blockchain looking for
     // transactions for this address.
     bool rescan             = 4;
@@ -771,7 +760,6 @@ message CreateMultisigAddressRequest {
     // The number of keys required to sign the tranaction to
     // release the funds.
     uint32 threshold       = 2;
-
     // A view key to use with the address
     bytes view_pubkey      = 3;
 }
@@ -966,11 +954,9 @@ message TimelockCoinsResponse {
 message SweepWalletRequest {
     // Address to send funds to
     string to_address                = 1;
-
     // The fee to use for the transaction in nanoillium.
     // If zero the wallet will use its internal fee policy.
     uint64 fee_per_kilobyte          = 2;
-
     // An optional list of input commitments to sweep. If this
     // is empty the entire wallet will be swept.
     //
@@ -1116,7 +1102,6 @@ message UpdateTreasuryWhitelistResponse {}
 message ReconsiderBlockRequest {
     // Block ID to reconsider.
     bytes block_ID = 1;
-
     // We likely don't have the block and will have to download it from
     // another peer. You can set the peer here. If empty we will try to find
     // it form a few random peers.
@@ -1143,9 +1128,9 @@ message WalletTransactionNotification {
     // been added to the blockchain.
     WalletTransaction transaction = 1;
     // The ID of the block containing the transaction
-    bytes block_ID          = 2;
+    bytes block_ID                = 2;
     // The height of the block containing the transaction
-    uint32 block_height     = 3;
+    uint32 block_height           = 3;
 }
 
 message WalletSyncNotification {
@@ -1206,17 +1191,17 @@ message BlockInfo {
 
 message Validator {
         // The validator ID encoded in bytes.
-        bytes validator_ID        = 1;
+        bytes validator_ID     = 1;
         // The number of coins staked by this validator in nanoillium.
-        uint64 total_stake        = 2;
+        uint64 total_stake     = 2;
         // The total stake weighted by time lock in nanoillium.
-        uint64 stake_weight       = 3;
+        uint64 stake_weight    = 3;
         // The nullifiers for the utxos the validator has staked.
-        repeated Stake stake      = 4;
+        repeated Stake stake   = 4;
         // The total of any unclaimed validator rewards in nanoillium.
-        uint64 unclaimed_coins    = 5;
+        uint64 unclaimed_coins = 5;
         // The number of blocks this validator has created this epoch.
-        uint32 epoch_blocks       = 6;
+        uint32 epoch_blocks    = 6;
 
         message Stake {
             // The nullifier that is staked
