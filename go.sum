@@ -828,6 +828,8 @@ github.com/project-illium/walletlib v0.0.0-20240223175359-2d0592c5b456 h1:91R20r
 github.com/project-illium/walletlib v0.0.0-20240223175359-2d0592c5b456/go.mod h1:XnownGej/NgqfP0r+HlNEOr4P9roVSgbio7BlCjaS2g=
 github.com/project-illium/walletlib v0.0.0-20240309235208-af9688b3fa12 h1:ObGzU6aOGhgtoSpaNZvbbrXGy+EfDvKpFbQfqXFFdDY=
 github.com/project-illium/walletlib v0.0.0-20240309235208-af9688b3fa12/go.mod h1:XnownGej/NgqfP0r+HlNEOr4P9roVSgbio7BlCjaS2g=
+github.com/project-illium/walletlib v0.0.0-20240310000229-fd3a87645cd5 h1:LcrMwz4G2+HnUHWEr/C4p3GTbDwSc8t8d8HeqmbOBDA=
+github.com/project-illium/walletlib v0.0.0-20240310000229-fd3a87645cd5/go.mod h1:+TL+lbKswyaqNE7gDbtLdxUJx7ikzHgiyBf5+DlmINo=
 github.com/project-illium/weightedrand/v2 v2.1.0 h1:8zVDjthKwP0yfHt3uC3fTEqH0KJ5AwCL02YYx+cpdb8=
 github.com/project-illium/weightedrand/v2 v2.1.0/go.mod h1:/AeYfjb6TF9oSmsWXWZQ6H2+5NAQB6zdcCJbhDZxAd0=
 github.com/prometheus/client_golang v0.8.0/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
