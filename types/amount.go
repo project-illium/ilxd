@@ -20,6 +20,9 @@ type Amount uint64
 
 // AmountFromILX returns an amount (in nanoillium) from an ILX float string
 func AmountFromILX(floatString string) (Amount, error) {
+	if strings.TrimSpace(floatString) == "" {
+		return 0, nil
+	}
 	amt, err := parseFormattedAmount(floatString)
 	if err != nil {
 		return Amount(0), err
@@ -88,11 +91,13 @@ func parseFormattedAmount(formattedStr string) (uint64, error) {
 
 	// Add trailing zeros if necessary to ensure the length is at least 9.
 	// This accounts for cases where the original number had trailing zeros that were dropped.
-	if dotIndex := strings.Index(formattedStr, "."); dotIndex != -1 {
-		missingZeros := 9 - (len(formattedStr) - dotIndex - 1)
-		for i := 0; i < missingZeros; i++ {
-			noDecimalStr += "0"
-		}
+	dotIndex := strings.Index(formattedStr, ".")
+	missingZeros := 9 - (len(formattedStr) - dotIndex - 1)
+	if dotIndex == -1 {
+		missingZeros = 9
+	}
+	for i := 0; i < missingZeros; i++ {
+		noDecimalStr += "0"
 	}
 
 	// Convert back to uint64.
