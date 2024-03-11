@@ -393,9 +393,11 @@ func (b *Blockchain) connectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	}
 
 	// Notify subscribers of new block.
-	b.sendNotification(NTBlockConnected, blk)
-	if newEpoch {
-		b.sendNotification(NTNewEpoch, nil)
+	if !flags.HasFlag(BFNoNotification) {
+		b.sendNotification(NTBlockConnected, blk)
+		if newEpoch {
+			b.sendNotification(NTNewEpoch, nil)
+		}
 	}
 
 	return nil
@@ -463,7 +465,7 @@ func (b *Blockchain) ReindexChainState() error {
 			return err
 		}
 
-		flags := BFNoDupBlockCheck | BFFastAdd
+		flags := BFNoDupBlockCheck | BFFastAdd | BFNoNotification
 		if i == 0 {
 			flags = BFNoDupBlockCheck | BFFastAdd | BFGenesisValidation
 		}

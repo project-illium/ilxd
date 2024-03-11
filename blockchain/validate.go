@@ -55,6 +55,10 @@ const (
 	// using special validation rules.
 	BFGenesisValidation
 
+	// BFNoNotification is used to signal that the subscribes should not
+	// be notified about any events in the block.
+	BFNoNotification
+
 	// BFNoFlush skips flushing memory caches to disk.
 	BFNoFlush
 
