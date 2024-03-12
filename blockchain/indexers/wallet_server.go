@@ -316,6 +316,7 @@ func (idx *WalletServerIndex) GetTransactionsIDs(ds repo.Datastore, viewKey cryp
 	if err != nil {
 		return nil, err
 	}
+	defer dbtx.Discard(context.Background())
 
 	key, err := crypto.MarshalPrivateKey(viewKey)
 	if err != nil {
@@ -397,6 +398,7 @@ func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey crypto.
 	if err != nil {
 		return err
 	}
+	defer dbtx.Discard(context.Background())
 
 	timeBytes, err := time.Now().MarshalBinary()
 	if err != nil {

@@ -16,6 +16,7 @@ import (
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/walletlib"
+	"strings"
 	"sync"
 	"time"
 )
@@ -44,19 +45,28 @@ var (
 )
 
 // NewAddrIndex returns a new AddrIndex
-func NewAddrIndex(ds repo.Datastore, networkParams *params.NetworkParams) *AddrIndex {
+func NewAddrIndex(ds repo.Datastore, networkParams *params.NetworkParams) (*AddrIndex, error) {
+	outputIndex := uint64(0)
+	val, err := dsFetchIndexValue(ds, &AddrIndex{}, repo.AddrIndexOutputIndexKey)
+	if err != nil && !errors.Is(err, datastore.ErrNotFound) {
+		return nil, err
+	} else if err == nil {
+		outputIndex = binary.BigEndian.Uint64(val)
+	}
+
 	publicAddrScriptHash = zk.PublicAddressScriptHash()
 	publicAddrScriptCommitment = zk.PublicAddressScriptCommitment()
 	a := &AddrIndex{
-		nullifiers: make(map[types.Nullifier]walletlib.Address),
-		toDelete:   make(map[types.Nullifier]bool),
-		params:     networkParams,
-		stateMtx:   sync.RWMutex{},
-		ds:         ds,
-		quit:       make(chan struct{}),
+		nullifiers:  make(map[types.Nullifier]walletlib.Address),
+		toDelete:    make(map[types.Nullifier]bool),
+		params:      networkParams,
+		stateMtx:    sync.RWMutex{},
+		outputIndex: outputIndex,
+		ds:          ds,
+		quit:        make(chan struct{}),
 	}
 	go a.run()
-	return a
+	return a, nil
 }
 
 // Key returns the key of the index as a string.
@@ -76,16 +86,12 @@ func (idx *AddrIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error 
 	idx.stateMtx.Lock()
 	defer idx.stateMtx.Unlock()
 
-	for i, tx := range blk.Transactions {
+	for _, tx := range blk.Transactions {
 		for _, n := range tx.Nullifiers() {
 			addr, err := idx.fetchUtxoAddress(dbtx, n)
 			if err == nil {
-				valueBytes := make([]byte, 36)
-				binary.BigEndian.PutUint32(valueBytes[:4], uint32(i))
-				copy(valueBytes[4:], blk.ID().Bytes())
-
-				dsKey := repo.AddrIndexAddrKeyPrefix + addr.String() + "/" + tx.ID().String()
-				if err := dsPutIndexValue(dbtx, idx, dsKey, valueBytes); err != nil {
+				dsKey := repo.WalletServerTxKeyPrefix + addr.String() + "/" + tx.ID().String()
+				if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
 					return err
 				}
 				delete(idx.nullifiers, n)
@@ -108,17 +114,13 @@ func (idx *AddrIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error 
 					continue
 				}
 
-				valueBytes := make([]byte, 36)
-				binary.BigEndian.PutUint32(valueBytes[:4], uint32(i))
-				copy(valueBytes[4:], blk.ID().Bytes())
-
 				nullifier, err := types.CalculateNullifier(idx.outputIndex-1, note.Salt, publicAddrScriptCommitment)
 				if err != nil {
 					continue
 				}
 
 				dsKey := repo.AddrIndexAddrKeyPrefix + addr.String() + "/" + tx.ID().String()
-				if err := dsPutIndexValue(dbtx, idx, dsKey, valueBytes); err != nil {
+				if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
 					return err
 				}
 
@@ -144,6 +146,34 @@ func (idx *AddrIndex) fetchUtxoAddress(dbtx datastore.Txn, n types.Nullifier) (w
 		return nil, err
 	}
 	return walletlib.DecodeAddress(string(val), idx.params)
+}
+
+// GetTransactionsIDs returns the transaction IDs stored for the given address
+func (idx *AddrIndex) GetTransactionsIDs(ds repo.Datastore, addr walletlib.Address) ([]types.ID, error) {
+	dbtx, err := ds.NewTransaction(context.Background(), false)
+	if err != nil {
+		return nil, err
+	}
+	defer dbtx.Discard(context.Background())
+
+	query, err := dsPrefixQueryIndexValue(dbtx, &AddrIndex{}, repo.AddrIndexAddrKeyPrefix+addr.String())
+	if err != nil {
+		return nil, err
+	}
+
+	var txids []types.ID
+	for r := range query.Next() {
+		v := strings.Split(r.Key, "/")
+		txidStr := v[len(v)-1]
+
+		txid, err := types.NewIDFromString(txidStr)
+		if err != nil {
+			return nil, err
+		}
+		txids = append(txids, txid)
+	}
+
+	return txids, dbtx.Commit(context.Background())
 }
 
 func (idx *AddrIndex) maybeFlush() {
@@ -174,6 +204,12 @@ func (idx *AddrIndex) flush() error {
 		if err := dsDeleteIndexValue(dbtx, idx, dsKey); err != nil {
 			return err
 		}
+	}
+	outputsBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(outputsBytes, idx.outputIndex)
+
+	if err := dsPutIndexValue(dbtx, idx, repo.AddrIndexOutputIndexKey, outputsBytes); err != nil {
+		return err
 	}
 
 	if err := dsPutIndexerHeight(dbtx, idx, idx.height); err != nil {

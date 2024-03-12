@@ -78,6 +78,8 @@ const (
 	AddrIndexAddrKeyPrefix = "addr/"
 	// AddrIndexNulliferKeyPrefix is the nullifier key prefix used by the address index.
 	AddrIndexNulliferKeyPrefix = "nullifier/"
+	// AddrIndexOutputIndexKey is the outputs datastore key used by the address index.
+	AddrIndexOutputIndexKey = "outputs/"
 )
 
 type Datastore interface {
