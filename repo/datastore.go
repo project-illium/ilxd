@@ -60,6 +60,8 @@ const (
 	TxIndexKey = "txindex"
 	// WalletServerIndexKey is the datastore key for the wallet server index.
 	WalletServerIndexKey = "walletserverindex"
+	// AddrIndexKey is the datastore key for the address index.
+	AddrIndexKey = "addrindex"
 	// WalletServerAccumulatorKey is the accumulator key used by the wallet server index.
 	WalletServerAccumulatorKey = "accumulator"
 	// WalletServerBestBlockKey is the best block key used by the wallet server index.
@@ -72,6 +74,10 @@ const (
 	WalletServerNullifierKeyPrefix = "nullifier/"
 	// WalletServerTxKeyPrefix is the tx key prefix used by the wallet server index.
 	WalletServerTxKeyPrefix = "tx/"
+	// AddrIndexAddrKeyPrefix is the address key prefix used by the address index.
+	AddrIndexAddrKeyPrefix = "addr/"
+	// AddrIndexNulliferKeyPrefix is the nullifier key prefix used by the address index.
+	AddrIndexNulliferKeyPrefix = "nullifier/"
 )
 
 type Datastore interface {
