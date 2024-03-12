@@ -90,7 +90,7 @@ func (idx *AddrIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error 
 		for _, n := range tx.Nullifiers() {
 			addr, err := idx.fetchUtxoAddress(dbtx, n)
 			if err == nil {
-				dsKey := repo.WalletServerTxKeyPrefix + addr.String() + "/" + tx.ID().String()
+				dsKey := repo.AddrIndexAddrKeyPrefix + addr.String() + "/" + tx.ID().String()
 				if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
 					return err
 				}
@@ -192,6 +192,7 @@ func (idx *AddrIndex) flush() error {
 	if err != nil {
 		return err
 	}
+	defer dbtx.Discard(context.Background())
 
 	for n, addr := range idx.nullifiers {
 		dsKey := repo.AddrIndexNulliferKeyPrefix + n.String()
