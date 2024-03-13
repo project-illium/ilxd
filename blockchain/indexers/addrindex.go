@@ -33,7 +33,7 @@ const (
 
 type AddrIndex struct {
 	outputIndex uint64
-	nullifiers  map[types.Nullifier]pb.DBAddrAmount
+	nullifiers  map[types.Nullifier]*pb.DBAddrAmount
 	toDelete    map[types.Nullifier]bool
 	height      uint32
 	params      *params.NetworkParams
@@ -60,7 +60,7 @@ func NewAddrIndex(ds repo.Datastore, networkParams *params.NetworkParams) (*Addr
 	publicAddrScriptHash = zk.PublicAddressScriptHash()
 	publicAddrScriptCommitment = zk.PublicAddressScriptCommitment()
 	a := &AddrIndex{
-		nullifiers:  make(map[types.Nullifier]pb.DBAddrAmount),
+		nullifiers:  make(map[types.Nullifier]*pb.DBAddrAmount),
 		toDelete:    make(map[types.Nullifier]bool),
 		params:      networkParams,
 		stateMtx:    sync.RWMutex{},
@@ -142,7 +142,7 @@ func (idx *AddrIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error 
 					return err
 				}
 
-				idx.nullifiers[nullifier] = pb.DBAddrAmount{
+				idx.nullifiers[nullifier] = &pb.DBAddrAmount{
 					Address: addr.String(),
 					Amount:  uint64(note.Amount),
 				}
@@ -181,7 +181,7 @@ func (idx *AddrIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error 
 
 func (idx *AddrIndex) fetchUtxoAddress(dbtx datastore.Txn, n types.Nullifier) (*pb.DBAddrAmount, error) {
 	if addr, ok := idx.nullifiers[n]; ok {
-		return &addr, nil
+		return addr, nil
 	}
 	if idx.toDelete[n] {
 		return nil, errors.New("utxo not found")
@@ -261,7 +261,7 @@ func (idx *AddrIndex) flush() error {
 
 	for n, addr := range idx.nullifiers {
 		dsKey := repo.AddrIndexNulliferKeyPrefix + n.String()
-		ser, err := proto.Marshal(&addr)
+		ser, err := proto.Marshal(addr)
 		if err != nil {
 			return err
 		}

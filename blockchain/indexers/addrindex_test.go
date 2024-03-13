@@ -72,6 +72,7 @@ func TestAddrIndex(t *testing.T) {
 	}
 
 	err = idx.ConnectBlock(dbtx, blk1)
+	assert.NoError(t, err)
 	nullifier, err := types.CalculateNullifier(2, salt, publicAddrScriptCommitment)
 	assert.NoError(t, err)
 
@@ -102,6 +103,7 @@ func TestAddrIndex(t *testing.T) {
 		},
 	}
 	err = idx.ConnectBlock(dbtx, blk2)
+	assert.NoError(t, err)
 	assert.NoError(t, dbtx.Commit(context.Background()))
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(3), idx.outputIndex)

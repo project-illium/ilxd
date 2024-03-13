@@ -57,8 +57,9 @@ type GrpcServerConfig struct {
 	DisableWalletServer  bool
 	DisableProverServer  bool
 
-	TxIndex *indexers.TxIndex
-	WSIndex *indexers.WalletServerIndex
+	TxIndex   *indexers.TxIndex
+	WSIndex   *indexers.WalletServerIndex
+	AddrIndex *indexers.AddrIndex
 }
 
 // GrpcServer is the gRPC server implementation. It holds all the objects
@@ -81,6 +82,7 @@ type GrpcServer struct {
 
 	txIndex              *indexers.TxIndex
 	wsIndex              *indexers.WalletServerIndex
+	addrIndex            *indexers.AddrIndex
 	provingServiceActive bool
 
 	httpServer *http.Server
@@ -114,6 +116,8 @@ func NewGrpcServer(cfg *GrpcServerConfig) *GrpcServer {
 		autoStakeFunc:        cfg.AutoStakeFunc,
 		networkKeyFunc:       cfg.NetworkKeyFunc,
 		txIndex:              cfg.TxIndex,
+		wsIndex:              cfg.WSIndex,
+		addrIndex:            cfg.AddrIndex,
 		provingServiceActive: !cfg.DisableProverServer,
 		policy:               cfg.Policy,
 		httpServer:           cfg.HTTPServer,
