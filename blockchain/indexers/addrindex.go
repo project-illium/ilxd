@@ -164,11 +164,11 @@ func (idx *AddrIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error 
 			}
 		}
 		if txMetadata != nil {
-			dsKey := repo.AddrIndexMetadataPrefixKey + tx.ID().String()
 			ser, err := proto.Marshal(txMetadata)
 			if err != nil {
 				return err
 			}
+			dsKey := repo.AddrIndexMetadataPrefixKey + tx.ID().String()
 			if err := dsPutIndexValue(dbtx, idx, dsKey, ser); err != nil {
 				return err
 			}
@@ -228,7 +228,7 @@ func (idx *AddrIndex) GetTransactionsIDs(ds repo.Datastore, addr walletlib.Addre
 
 // GetTransactionMetadata returns the input and output metadata for a transaction
 // if the index has it.
-// A datastore.NotFound error will be returned if it does not exist in the index.
+// A datastore.ErrNotFound error will be returned if it does not exist in the index.
 func (idx *AddrIndex) GetTransactionMetadata(ds repo.Datastore, txid types.ID) (*pb.DBMetadata, error) {
 	val, err := dsFetchIndexValue(ds, idx, repo.AddrIndexMetadataPrefixKey+txid.String())
 	if err != nil {

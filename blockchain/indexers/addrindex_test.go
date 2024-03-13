@@ -6,6 +6,8 @@ package indexers
 
 import (
 	"context"
+	"errors"
+	"github.com/ipfs/go-datastore"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
@@ -53,7 +55,7 @@ func TestAddrIndex(t *testing.T) {
 	ciphertext, err := note.ToPublicCiphertext()
 	assert.NoError(t, err)
 
-	err = idx.ConnectBlock(dbtx, &blocks.Block{
+	blk1 := &blocks.Block{
 		Header: &blocks.BlockHeader{
 			Height: 1,
 		},
@@ -67,7 +69,9 @@ func TestAddrIndex(t *testing.T) {
 				},
 			}),
 		},
-	})
+	}
+
+	err = idx.ConnectBlock(dbtx, blk1)
 	nullifier, err := types.CalculateNullifier(2, salt, publicAddrScriptCommitment)
 	assert.NoError(t, err)
 
@@ -87,7 +91,7 @@ func TestAddrIndex(t *testing.T) {
 	dbtx, err = ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 
-	err = idx.ConnectBlock(dbtx, &blocks.Block{
+	blk2 := &blocks.Block{
 		Header: &blocks.BlockHeader{
 			Height: 2,
 		},
@@ -96,7 +100,8 @@ func TestAddrIndex(t *testing.T) {
 				Nullifiers: [][]byte{nullifier[:]},
 			}),
 		},
-	})
+	}
+	err = idx.ConnectBlock(dbtx, blk2)
 	assert.NoError(t, dbtx.Commit(context.Background()))
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(3), idx.outputIndex)
@@ -107,4 +112,22 @@ func TestAddrIndex(t *testing.T) {
 	txs, err = idx.GetTransactionsIDs(ds, addr)
 	assert.NoError(t, err)
 	assert.Len(t, txs, 2)
+
+	_, err = idx.GetTransactionMetadata(ds, params.RegestParams.GenesisBlock.Transactions[0].ID())
+	assert.True(t, errors.Is(err, datastore.ErrNotFound))
+	_, err = idx.GetTransactionMetadata(ds, params.RegestParams.GenesisBlock.Transactions[1].ID())
+	assert.True(t, errors.Is(err, datastore.ErrNotFound))
+	metadata, err := idx.GetTransactionMetadata(ds, blk1.Transactions[0].ID())
+	assert.NoError(t, err)
+	assert.Len(t, metadata.Inputs, 0)
+	assert.Len(t, metadata.Outputs, 1)
+	assert.NotNil(t, metadata.GetOutputs()[0].GetTxIo())
+	assert.Nil(t, metadata.GetOutputs()[0].GetUnknown())
+
+	metadata, err = idx.GetTransactionMetadata(ds, blk2.Transactions[0].ID())
+	assert.NoError(t, err)
+	assert.Len(t, metadata.Inputs, 1)
+	assert.Len(t, metadata.Outputs, 0)
+	assert.NotNil(t, metadata.GetInputs()[0].GetTxIo())
+	assert.Nil(t, metadata.GetInputs()[0].GetUnknown())
 }
