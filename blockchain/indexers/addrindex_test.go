@@ -107,7 +107,4 @@ func TestAddrIndex(t *testing.T) {
 	txs, err = idx.GetTransactionsIDs(ds, addr)
 	assert.NoError(t, err)
 	assert.Len(t, txs, 2)
-
-	dbtx, err = ds.NewTransaction(context.Background(), false)
-	assert.NoError(t, err)
 }

@@ -1061,23 +1061,23 @@ func (s *GrpcServer) SubscribeWalletSyncNotifications(req *pb.SubscribeWalletSyn
 	}
 }
 
-func ioToPBio(ios []walletlib.IO) []*pb.WalletTransaction_IO {
-	ret := make([]*pb.WalletTransaction_IO, 0, len(ios))
+func ioToPBio(ios []walletlib.IO) []*pb.IOMetadata {
+	ret := make([]*pb.IOMetadata, 0, len(ios))
 	for _, io := range ios {
 		switch t := io.(type) {
 		case *walletlib.TxIO:
-			ret = append(ret, &pb.WalletTransaction_IO{
-				IoType: &pb.WalletTransaction_IO_TxIo{
-					TxIo: &pb.WalletTransaction_IO_TxIO{
+			ret = append(ret, &pb.IOMetadata{
+				IoType: &pb.IOMetadata_TxIo{
+					TxIo: &pb.IOMetadata_TxIO{
 						Address: t.Address.String(),
 						Amount:  uint64(t.Amount),
 					},
 				},
 			})
 		case *walletlib.Unknown:
-			ret = append(ret, &pb.WalletTransaction_IO{
-				IoType: &pb.WalletTransaction_IO_Unknown_{
-					Unknown: &pb.WalletTransaction_IO_Unknown{},
+			ret = append(ret, &pb.IOMetadata{
+				IoType: &pb.IOMetadata_Unknown_{
+					Unknown: &pb.IOMetadata_Unknown{},
 				},
 			})
 		}

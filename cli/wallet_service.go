@@ -1520,7 +1520,7 @@ func proveRawTransactionLocally(rawTx *pb.RawTransaction, privKeys []crypto.Priv
 	return nil, errors.New("tx must be either standard, stake, or treasury type")
 }
 
-func pbIOtoIO(ios []*pb.WalletTransaction_IO) []interface{} {
+func pbIOtoIO(ios []*pb.IOMetadata) []interface{} {
 	ret := make([]interface{}, 0, len(ios))
 	type txIO struct {
 		Address string       `json:"address"`

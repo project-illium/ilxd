@@ -10,12 +10,15 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/ipfs/go-datastore"
+	"github.com/project-illium/ilxd/blockchain/indexers/pb"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
+	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
 	"github.com/project-illium/walletlib"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"sync"
 	"time"
@@ -30,7 +33,7 @@ const (
 
 type AddrIndex struct {
 	outputIndex uint64
-	nullifiers  map[types.Nullifier]walletlib.Address
+	nullifiers  map[types.Nullifier]pb.DBAddrAmount
 	toDelete    map[types.Nullifier]bool
 	height      uint32
 	params      *params.NetworkParams
@@ -57,7 +60,7 @@ func NewAddrIndex(ds repo.Datastore, networkParams *params.NetworkParams) (*Addr
 	publicAddrScriptHash = zk.PublicAddressScriptHash()
 	publicAddrScriptCommitment = zk.PublicAddressScriptCommitment()
 	a := &AddrIndex{
-		nullifiers:  make(map[types.Nullifier]walletlib.Address),
+		nullifiers:  make(map[types.Nullifier]pb.DBAddrAmount),
 		toDelete:    make(map[types.Nullifier]bool),
 		params:      networkParams,
 		stateMtx:    sync.RWMutex{},
@@ -87,19 +90,34 @@ func (idx *AddrIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error 
 	defer idx.stateMtx.Unlock()
 
 	for _, tx := range blk.Transactions {
-		for _, n := range tx.Nullifiers() {
-			addr, err := idx.fetchUtxoAddress(dbtx, n)
+		var txMetadata *pb.DBMetadata
+		for i, n := range tx.Nullifiers() {
+			addrAndAmount, err := idx.fetchUtxoAddress(dbtx, n)
 			if err == nil {
-				dsKey := repo.AddrIndexAddrKeyPrefix + addr.String() + "/" + tx.ID().String()
+				dsKey := repo.AddrIndexAddrKeyPrefix + addrAndAmount.Address + "/" + tx.ID().String()
 				if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
 					return err
 				}
 				delete(idx.nullifiers, n)
 				idx.toDelete[n] = true
+				if txMetadata == nil {
+					txMetadata, err = idx.loadOrNewMetadata(dbtx, tx)
+					if err != nil {
+						return err
+					}
+				}
+				txMetadata.Inputs[i] = &pb.DBMetadata_IOMetadata{
+					IoType: &pb.DBMetadata_IOMetadata_TxIo{
+						TxIo: &pb.DBMetadata_IOMetadata_TxIO{
+							Address: addrAndAmount.Address,
+							Amount:  addrAndAmount.Amount,
+						},
+					},
+				}
 			}
 		}
 
-		for _, out := range tx.Outputs() {
+		for i, out := range tx.Outputs() {
 			idx.outputIndex++
 			if len(out.Ciphertext) >= 160 && bytes.Equal(out.Ciphertext[0:32], publicAddrScriptHash) {
 				note := &types.SpendNote{}
@@ -124,7 +142,35 @@ func (idx *AddrIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error 
 					return err
 				}
 
-				idx.nullifiers[nullifier] = addr
+				idx.nullifiers[nullifier] = pb.DBAddrAmount{
+					Address: addr.String(),
+					Amount:  uint64(note.Amount),
+				}
+
+				if txMetadata == nil {
+					txMetadata, err = idx.loadOrNewMetadata(dbtx, tx)
+					if err != nil {
+						return err
+					}
+				}
+				txMetadata.Outputs[i] = &pb.DBMetadata_IOMetadata{
+					IoType: &pb.DBMetadata_IOMetadata_TxIo{
+						TxIo: &pb.DBMetadata_IOMetadata_TxIO{
+							Address: addr.String(),
+							Amount:  uint64(note.Amount),
+						},
+					},
+				}
+			}
+		}
+		if txMetadata != nil {
+			dsKey := repo.AddrIndexMetadataPrefixKey + tx.ID().String()
+			ser, err := proto.Marshal(txMetadata)
+			if err != nil {
+				return err
+			}
+			if err := dsPutIndexValue(dbtx, idx, dsKey, ser); err != nil {
+				return err
 			}
 		}
 	}
@@ -133,9 +179,9 @@ func (idx *AddrIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error 
 	return nil
 }
 
-func (idx *AddrIndex) fetchUtxoAddress(dbtx datastore.Txn, n types.Nullifier) (walletlib.Address, error) {
+func (idx *AddrIndex) fetchUtxoAddress(dbtx datastore.Txn, n types.Nullifier) (*pb.DBAddrAmount, error) {
 	if addr, ok := idx.nullifiers[n]; ok {
-		return addr, nil
+		return &addr, nil
 	}
 	if idx.toDelete[n] {
 		return nil, errors.New("utxo not found")
@@ -145,7 +191,11 @@ func (idx *AddrIndex) fetchUtxoAddress(dbtx datastore.Txn, n types.Nullifier) (w
 	if err != nil {
 		return nil, err
 	}
-	return walletlib.DecodeAddress(string(val), idx.params)
+	ret := new(pb.DBAddrAmount)
+	if err := proto.Unmarshal(val, ret); err != nil {
+		return nil, err
+	}
+	return ret, nil
 }
 
 // GetTransactionsIDs returns the transaction IDs stored for the given address
@@ -176,6 +226,21 @@ func (idx *AddrIndex) GetTransactionsIDs(ds repo.Datastore, addr walletlib.Addre
 	return txids, dbtx.Commit(context.Background())
 }
 
+// GetTransactionMetadata returns the input and output metadata for a transaction
+// if the index has it.
+// A datastore.NotFound error will be returned if it does not exist in the index.
+func (idx *AddrIndex) GetTransactionMetadata(ds repo.Datastore, txid types.ID) (*pb.DBMetadata, error) {
+	val, err := dsFetchIndexValue(ds, idx, repo.AddrIndexMetadataPrefixKey+txid.String())
+	if err != nil {
+		return nil, err
+	}
+	metadata := new(pb.DBMetadata)
+	if err := proto.Unmarshal(val, metadata); err != nil {
+		return nil, err
+	}
+	return metadata, nil
+}
+
 func (idx *AddrIndex) maybeFlush() {
 	idx.stateMtx.Lock()
 	defer idx.stateMtx.Unlock()
@@ -196,7 +261,11 @@ func (idx *AddrIndex) flush() error {
 
 	for n, addr := range idx.nullifiers {
 		dsKey := repo.AddrIndexNulliferKeyPrefix + n.String()
-		if err := dsPutIndexValue(dbtx, idx, dsKey, []byte(addr.String())); err != nil {
+		ser, err := proto.Marshal(&addr)
+		if err != nil {
+			return err
+		}
+		if err := dsPutIndexValue(dbtx, idx, dsKey, ser); err != nil {
 			return err
 		}
 	}
@@ -261,4 +330,39 @@ func (idx *AddrIndex) Close(ds repo.Datastore) error {
 
 func DropAddrIndex(ds repo.Datastore) error {
 	return dsDropIndex(ds, &AddrIndex{})
+}
+
+func (idx *AddrIndex) loadOrNewMetadata(dbtx datastore.Txn, tx *transactions.Transaction) (*pb.DBMetadata, error) {
+	dsKey := repo.AddrIndexMetadataPrefixKey + tx.ID().String()
+	val, err := dsFetchIndexValueWithTx(dbtx, idx, dsKey)
+	if err != nil && !errors.Is(err, datastore.ErrNotFound) {
+		return nil, err
+	}
+	if err == nil {
+		m := new(pb.DBMetadata)
+		if err := proto.Unmarshal(val, m); err != nil {
+			return nil, err
+		}
+		return m, nil
+	}
+
+	m := &pb.DBMetadata{
+		Inputs:  make([]*pb.DBMetadata_IOMetadata, len(tx.Nullifiers())),
+		Outputs: make([]*pb.DBMetadata_IOMetadata, len(tx.Outputs())),
+	}
+	for i := range tx.Nullifiers() {
+		m.Inputs[i] = &pb.DBMetadata_IOMetadata{
+			IoType: &pb.DBMetadata_IOMetadata_Unknown_{
+				Unknown: &pb.DBMetadata_IOMetadata_Unknown{},
+			},
+		}
+	}
+	for i := range tx.Outputs() {
+		m.Outputs[i] = &pb.DBMetadata_IOMetadata{
+			IoType: &pb.DBMetadata_IOMetadata_Unknown_{
+				Unknown: &pb.DBMetadata_IOMetadata_Unknown{},
+			},
+		}
+	}
+	return m, nil
 }

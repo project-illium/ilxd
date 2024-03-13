@@ -1,0 +1,33 @@
+syntax = "proto3";
+option go_package = "../pb";
+
+message DBMetadata {
+  repeated IOMetadata inputs = 1;
+  repeated IOMetadata outputs = 2;
+
+  message IOMetadata {
+    // Either address/amount information or unknown
+    // if input or output did not belong to this wallet
+    // and can't be decrypted.
+    oneof io_type {
+      TxIO tx_io      = 1;
+      Unknown unknown = 2;
+    }
+
+    message TxIO {
+      // Address associated with the input or output
+      string address = 1;
+      // Amount of coins associated with the input or output in nanoillium
+      uint64 amount  = 2;
+    }
+
+    // Represents an input or output not belonging to
+    // the wallet.
+    message Unknown {}
+  }
+}
+
+message DBAddrAmount {
+  string address = 1;
+  uint64 amount  = 2;
+}
