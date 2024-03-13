@@ -37,7 +37,14 @@ service BlockchainService {
     // GetTransaction returns the transaction for the given transaction ID.
     //
     // **Requires TxIndex**
+    // **Input/Output metadata requires AddrIndex**
     rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse) {}
+
+    // GetAddressTransactions returns a list of transactions for the given address
+    // Note: only public address are indexed
+    //
+    // **Requires AddrIndex**
+    rpc GetAddressTransactions(GetAddressTransactionsRequest) returns (GetAddressTransactionsResponse) {}
 
     // GetMerkleProof returns a Merkle (SPV) proof for a specific transaction
     // in the provided block.
@@ -446,7 +453,41 @@ message GetTransactionRequest {
 }
 message GetTransactionResponse {
     // The transaction response
-    Transaction tx = 1;
+    Transaction tx     = 1;
+    // The input and output metadata will
+    // only only be non-nil if the address
+    // index is enabled.
+    //
+    // Further it will only metadata for public
+    // inputs or outputs will be included otherwise
+    // it will be `unknown`.
+    repeated IOMetadata inputs  = 2;
+    repeated IOMetadata outputs = 3;
+}
+
+message GetAddressTransactionsRequest {
+    // The address to get transactions for
+    string address = 1;
+    // The number of transactions to skip, starting with the oldest first.
+    // Does not affect results of unconfirmed transactions.
+    uint32 nb_skip = 2;
+    // Specify the number of transactions to fetch.
+    uint32 nb_fetch = 3;
+}
+message GetAddressTransactionsResponse {
+    // The list of transactions
+    repeated TransactionWithMetadata txs = 1;
+
+    message TransactionWithMetadata {
+        // The transaction response
+        Transaction tx = 1;
+
+        // Metadata will only metadata for public
+        // inputs or outputs will be included otherwise
+        // it will be `unknown`.
+        repeated IOMetadata inputs  = 2;
+        repeated IOMetadata outputs = 3;
+    }
 }
 
 message GetMerkleProofRequest {
