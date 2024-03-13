@@ -34,7 +34,7 @@ require (
 	go.opencensus.io v0.24.0
 	golang.org/x/crypto v0.17.0
 	google.golang.org/grpc v1.56.3
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/protobuf v1.33.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
