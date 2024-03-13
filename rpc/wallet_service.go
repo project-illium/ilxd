@@ -164,7 +164,7 @@ func (s *GrpcServer) GetNewAddress(ctx context.Context, req *pb.GetNewAddressReq
 
 // GetTransactions returns the list of transactions for the wallet
 func (s *GrpcServer) GetTransactions(ctx context.Context, req *pb.GetTransactionsRequest) (*pb.GetTransactionsResponse, error) {
-	txs, err := s.wallet.Transactions()
+	txs, err := s.wallet.Transactions(int(req.NbSkip), int(req.NbFetch))
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
