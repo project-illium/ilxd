@@ -6,12 +6,15 @@ package rpc
 
 import (
 	"context"
+	"errors"
+	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/rpc/pb"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
+	"github.com/project-illium/walletlib"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"time"
@@ -273,8 +276,176 @@ func (s *GrpcServer) GetTransaction(ctx context.Context, req *pb.GetTransactionR
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
-	return &pb.GetTransactionResponse{
+	resp := &pb.GetTransactionResponse{
 		Tx: tx,
+	}
+	if s.addrIndex != nil {
+		metadata, err := s.addrIndex.GetTransactionMetadata(s.ds, tx.ID())
+		if err != nil && !errors.Is(err, datastore.ErrNotFound) {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		if errors.Is(err, datastore.ErrNotFound) {
+			resp.Inputs = make([]*pb.IOMetadata, len(tx.Nullifiers()))
+			for i := 0; i < len(resp.Inputs); i++ {
+				resp.Inputs[i] = &pb.IOMetadata{
+					IoType: &pb.IOMetadata_Unknown_{
+						Unknown: &pb.IOMetadata_Unknown{},
+					},
+				}
+			}
+			resp.Outputs = make([]*pb.IOMetadata, len(tx.Outputs()))
+			for i := 0; i < len(resp.Outputs); i++ {
+				resp.Outputs[i] = &pb.IOMetadata{
+					IoType: &pb.IOMetadata_Unknown_{
+						Unknown: &pb.IOMetadata_Unknown{},
+					},
+				}
+			}
+		} else {
+			resp.Inputs = make([]*pb.IOMetadata, len(metadata.Inputs))
+			for i := 0; i < len(resp.Inputs); i++ {
+				if metadata.Inputs[i].GetTxIo() != nil {
+					resp.Inputs[i] = &pb.IOMetadata{
+						IoType: &pb.IOMetadata_TxIo{
+							TxIo: &pb.IOMetadata_TxIO{
+								Address: metadata.Inputs[i].GetTxIo().Address,
+								Amount:  metadata.Inputs[i].GetTxIo().Amount,
+							},
+						},
+					}
+				} else {
+					resp.Inputs[i] = &pb.IOMetadata{
+						IoType: &pb.IOMetadata_Unknown_{
+							Unknown: &pb.IOMetadata_Unknown{},
+						},
+					}
+				}
+			}
+			resp.Outputs = make([]*pb.IOMetadata, len(metadata.Outputs))
+			for i := 0; i < len(resp.Outputs); i++ {
+				if metadata.Outputs[i].GetTxIo() != nil {
+					resp.Outputs[i] = &pb.IOMetadata{
+						IoType: &pb.IOMetadata_TxIo{
+							TxIo: &pb.IOMetadata_TxIO{
+								Address: metadata.Outputs[i].GetTxIo().Address,
+								Amount:  metadata.Outputs[i].GetTxIo().Amount,
+							},
+						},
+					}
+				} else {
+					resp.Outputs[i] = &pb.IOMetadata{
+						IoType: &pb.IOMetadata_Unknown_{
+							Unknown: &pb.IOMetadata_Unknown{},
+						},
+					}
+				}
+			}
+		}
+	}
+	return resp, nil
+}
+
+// GetAddressTransactions returns a list of transactions for the given address
+// Note: only public address are indexed
+//
+// **Requires AddrIndex**
+func (s *GrpcServer) GetAddressTransactions(ctx context.Context, req *pb.GetAddressTransactionsRequest) (*pb.GetAddressTransactionsResponse, error) {
+	if s.addrIndex == nil {
+		return nil, status.Error(codes.Unavailable, "addr index is not available")
+	}
+
+	addr, err := walletlib.DecodeAddress(req.Address, s.chainParams)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "malformed address")
+	}
+	txids, err := s.addrIndex.GetTransactionsIDs(s.ds, addr)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	n := len(txids)
+	if req.NbFetch > 0 && int(req.NbFetch) < n {
+		n = int(req.NbFetch)
+	}
+	txs := make([]*pb.GetAddressTransactionsResponse_TransactionWithMetadata, 0, n)
+	for i := int(req.NbSkip); i < len(txids); i++ {
+		tx, err := s.txIndex.GetTransaction(s.ds, txids[i])
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		txwm := &pb.GetAddressTransactionsResponse_TransactionWithMetadata{
+			Tx: tx,
+		}
+
+		metadata, err := s.addrIndex.GetTransactionMetadata(s.ds, tx.ID())
+		if err != nil && !errors.Is(err, datastore.ErrNotFound) {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		if errors.Is(err, datastore.ErrNotFound) {
+			txwm.Inputs = make([]*pb.IOMetadata, len(tx.Nullifiers()))
+			for i := 0; i < len(txwm.Inputs); i++ {
+				txwm.Inputs[i] = &pb.IOMetadata{
+					IoType: &pb.IOMetadata_Unknown_{
+						Unknown: &pb.IOMetadata_Unknown{},
+					},
+				}
+			}
+			txwm.Outputs = make([]*pb.IOMetadata, len(tx.Outputs()))
+			for i := 0; i < len(txwm.Outputs); i++ {
+				txwm.Outputs[i] = &pb.IOMetadata{
+					IoType: &pb.IOMetadata_Unknown_{
+						Unknown: &pb.IOMetadata_Unknown{},
+					},
+				}
+			}
+		} else {
+			txwm.Inputs = make([]*pb.IOMetadata, len(metadata.Inputs))
+			for i := 0; i < len(txwm.Inputs); i++ {
+				if metadata.Inputs[i].GetTxIo() != nil {
+					txwm.Inputs[i] = &pb.IOMetadata{
+						IoType: &pb.IOMetadata_TxIo{
+							TxIo: &pb.IOMetadata_TxIO{
+								Address: metadata.Inputs[i].GetTxIo().Address,
+								Amount:  metadata.Inputs[i].GetTxIo().Amount,
+							},
+						},
+					}
+				} else {
+					txwm.Inputs[i] = &pb.IOMetadata{
+						IoType: &pb.IOMetadata_Unknown_{
+							Unknown: &pb.IOMetadata_Unknown{},
+						},
+					}
+				}
+			}
+			txwm.Outputs = make([]*pb.IOMetadata, len(metadata.Outputs))
+			for i := 0; i < len(txwm.Outputs); i++ {
+				if metadata.Outputs[i].GetTxIo() != nil {
+					txwm.Outputs[i] = &pb.IOMetadata{
+						IoType: &pb.IOMetadata_TxIo{
+							TxIo: &pb.IOMetadata_TxIO{
+								Address: metadata.Outputs[i].GetTxIo().Address,
+								Amount:  metadata.Outputs[i].GetTxIo().Amount,
+							},
+						},
+					}
+				} else {
+					txwm.Outputs[i] = &pb.IOMetadata{
+						IoType: &pb.IOMetadata_Unknown_{
+							Unknown: &pb.IOMetadata_Unknown{},
+						},
+					}
+				}
+			}
+		}
+
+		txs = append(txs, txwm)
+		if len(txs) >= n {
+			break
+		}
+	}
+	return &pb.GetAddressTransactionsResponse{
+		Txs: txs,
 	}, nil
 }
 

@@ -36,9 +36,6 @@ const (
 	DefaultMinimumStake   = 175000000000
 	DefaultMaxMessageSize = 1 << 23 // 8 MiB
 	DefaultSoftLimit      = 1 << 20 // 1 MiB
-
-	DefaultMaxBanscore = 100
-	DefaultBanDuration = time.Hour * 24
 )
 
 var (
@@ -69,6 +66,8 @@ type Config struct {
 	DropTxIndex        bool          `long:"droptxindex" description:"Delete the tx index from the database"`
 	WSIndex            bool          `long:"wsindex" description:"Enable the wallet server index to serve lite wallets"`
 	DropWSIndex        bool          `long:"dropwsindex" description:"Delete the wallet server index from the database"`
+	AddrIndex          bool          `long:"addrindex" description:"Enable the address index"`
+	DropAddrIndex      bool          `long:"dropaddrindex" description:"Delete the address index from the database"`
 	MaxBanscore        uint32        `long:"maxbanscore" description:"The maximum ban score a peer is allowed to have before getting banned" default:"100"`
 	BanDuration        time.Duration `long:"banduration" description:"The duration for which banned peers are banned for" default:"24h"`
 	WalletSeed         string        `long:"walletseed" description:"A mnemonic seed to initialize the node with. This can only be used on first startup."`

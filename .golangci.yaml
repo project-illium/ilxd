@@ -3,6 +3,7 @@ issues:
     - "Error return value of `rand.Read` is not checked"
     - "Error return value of `crand.Read` is not checked"
     - "copylocks: call of json.Marshal copies lock value: github.com/project-illium/ilxd/types/blocks.Block contains google.golang.org/protobuf/internal/impl.MessageState contains sync.Mutex"
+    - "copylocks: assignment copies lock value to _: (github.com/project-illium/ilxd/blockchain/indexers/pb.DBAddrAmount, bool) contains github.com/project-illium/ilxd/blockchain/indexers/pb.DBAddrAmount contains google.golang.org/protobuf/internal/impl.MessageState contains sync.Mutex"
     - "lostcancel: this return statement may be reached without using the cancel var defined on line 104"
     - "Error return value of `s.processBlock` is not checked"
     - "Error return value of `vc.host.Connect` is not checked"

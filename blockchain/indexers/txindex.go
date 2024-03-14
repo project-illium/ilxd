@@ -98,10 +98,13 @@ func (idx *TxIndex) GetContainingBlockID(ds repo.Datastore, txid types.ID) (type
 	return types.NewID(valueBytes[4:]), nil
 }
 
+// Close is called when the index manager shuts down and gives the indexer
+// an opportunity to do some cleanup.
 func (idx *TxIndex) Close(ds repo.Datastore) error {
 	return nil
 }
 
+// DropTxIndex drops the tx index from the datastore
 func DropTxIndex(ds repo.Datastore) error {
 	return dsDropIndex(ds, &TxIndex{})
 }

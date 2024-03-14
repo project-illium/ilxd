@@ -196,6 +196,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		indexerList []indexers.Indexer
 		txIndex     *indexers.TxIndex
 		wsIndex     *indexers.WalletServerIndex
+		addrIndex   *indexers.AddrIndex
 	)
 	if !config.NoTxIndex && !config.DropTxIndex {
 		txIndex = indexers.NewTxIndex()
@@ -208,6 +209,14 @@ func BuildServer(config *repo.Config) (*Server, error) {
 			return nil, err
 		}
 		indexerList = append(indexerList, wsIndex)
+	}
+
+	if config.AddrIndex && !config.DropAddrIndex {
+		addrIndex, err = indexers.NewAddrIndex(ds, netParams)
+		if err != nil {
+			return nil, err
+		}
+		indexerList = append(indexerList, addrIndex)
 	}
 
 	if config.WSIndex && config.NoTxIndex {
@@ -413,6 +422,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		TxMemPool:            mpool,
 		TxIndex:              txIndex,
 		WSIndex:              wsIndex,
+		AddrIndex:            addrIndex,
 		DisableNodeService:   config.RPCOpts.DisableNodeService,
 		DisableWalletService: config.RPCOpts.DisableWalletService,
 		DisableWalletServer:  config.RPCOpts.DisableWalletServerService || wsIndex == nil,
