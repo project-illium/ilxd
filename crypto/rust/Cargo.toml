@@ -24,3 +24,17 @@ serde = "1.0.196"
 [lib]
 crate-type = ["staticlib"]
 
+[profile.docker]
+inherits = 'release'
+opt-level = 3
+debug = false
+split-debuginfo = 'off' 
+strip = "none"
+debug-assertions = false
+overflow-checks = false
+lto = false
+panic = 'unwind'
+incremental = false
+codegen-units = 16
+rpath = false
+

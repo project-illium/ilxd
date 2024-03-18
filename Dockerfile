@@ -1,23 +1,17 @@
 # Build Stage for Rust
 FROM rust:latest as rust-builder
 WORKDIR /app
-RUN --mount=type=cache,target=/tmp/docker-cache \
-  --mount=type=bind,target=. \
-  CARGO_TARGET_DIR="/build" \
-  make VERBOSE=1 rust-bindings
-RUN ls /tmp
+RUN --mount=type=bind,target=. \
+  make rust-bindings
 
 # Build Stage for Go
 FROM golang:1.21 AS go-builder
-# Copy the source tree with compiled Rust from the previous stage
-COPY --from=rust-builder /build/*.[ad] /build
-RUN ls /build
 # Set necessary environment variables for Go
 ENV GOPATH=/go
 ENV PATH=$GOPATH/bin:$PATH
 # Build the Go application
-RUN --mount=type=bind,target=. \
-  make build
+RUN --mount=type=bind,target=.,rw \
+  make go 
 #RUN go build -ldflags="-r /app/lib" -o /app/ilxd *.go
 
 # Final Stage

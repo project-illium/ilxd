@@ -16,7 +16,9 @@ else
 	cd cli && go build -o $(GOPATH)/bin/ilxcli
 endif
 
-.PHONY: build
+build: go rust-bindings
+
+.PHONY: go
 build: rust-bindings
 ifdef CUDA
 	go build -tags=cuda $(ARGS) *.go
