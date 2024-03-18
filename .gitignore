@@ -3,6 +3,7 @@
 *.so
 *.pyc
 ilxd
+cli/cli
 
 # Folders
 _obj
