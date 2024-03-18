@@ -628,20 +628,25 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 			}
 			s.autoStakeLock.RUnlock()
 			if len(toStake) > 0 {
-				for txid := range toStake {
-					for _, tx := range blk.Transactions {
-						if tx.ID() == txid {
-							if err := s.wallet.Stake([]types.ID{types.NewID(tx.GetCoinbaseTransaction().Outputs[0].Commitment)}); err != nil {
-								log.WithCaller(true).Error("Autostaking coinbase failed",
-									log.Args("error", err))
-								continue
+				// There is a race between this function and the wallet connect function.
+				// Ideally we would handle this better but for now just calling this function
+				// after a delay will work.
+				time.AfterFunc(time.Second*60, func() {
+					for txid := range toStake {
+						for _, tx := range blk.Transactions {
+							if tx.ID() == txid {
+								if err := s.wallet.Stake([]types.ID{types.NewID(tx.GetCoinbaseTransaction().Outputs[0].Commitment)}); err != nil {
+									log.WithCaller(true).Error("Autostaking coinbase failed",
+										log.Args("error", err))
+									continue
+								}
+								s.autoStakeLock.Lock()
+								delete(s.coinbasesToStake, txid)
+								s.autoStakeLock.Unlock()
 							}
-							s.autoStakeLock.Lock()
-							delete(s.coinbasesToStake, txid)
-							s.autoStakeLock.Unlock()
 						}
 					}
-				}
+				})
 			}
 		}
 	case blockchain.NTAddValidator:
