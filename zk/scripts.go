@@ -36,6 +36,7 @@ var timeLockedMultisigCommitment []byte
 var publicAddressScriptLurk embed.FS
 var publicAddressScriptData string
 var publicAddressScriptCommitment []byte
+var publicAddressScriptHash []byte
 
 //go:embed lurk/standard_validation.lurk
 var standardValidationScriptLurk embed.FS
@@ -115,6 +116,10 @@ func init() {
 		panic(err)
 	}
 	publicAddressScriptCommitment, err = LurkCommit(publicAddressScriptData)
+	if err != nil {
+		panic(err)
+	}
+	publicAddressScriptHash, err = LurkCommit(fmt.Sprintf("(cons 0x%x nil)", publicAddressScriptCommitment))
 	if err != nil {
 		panic(err)
 	}
@@ -201,6 +206,14 @@ func PublicAddressScript() string {
 func PublicAddressScriptCommitment() []byte {
 	ret := make([]byte, len(publicAddressScriptCommitment))
 	copy(ret, publicAddressScriptCommitment)
+	return ret
+}
+
+// PublicAddressScriptHash is the script hash used by the public
+// address script.
+func PublicAddressScriptHash() []byte {
+	ret := make([]byte, len(publicAddressScriptHash))
+	copy(ret, publicAddressScriptHash)
 	return ret
 }
 

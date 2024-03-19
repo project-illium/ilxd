@@ -26,7 +26,7 @@ require (
 	github.com/nixberg/chacha-rng-go v0.1.0
 	github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225223941-cb4e1394a11d
 	github.com/project-illium/logger v0.0.0-20240118200101-2fb0847599c9
-	github.com/project-illium/walletlib v0.0.0-20240311161436-568d1f942faa
+	github.com/project-illium/walletlib v0.0.0-20240313225124-2f657e86f102
 	github.com/project-illium/weightedrand/v2 v2.1.0
 	github.com/pterm/pterm v0.12.75
 	github.com/stretchr/testify v1.8.4
@@ -34,7 +34,7 @@ require (
 	go.opencensus.io v0.24.0
 	golang.org/x/crypto v0.17.0
 	google.golang.org/grpc v1.56.3
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/protobuf v1.33.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 

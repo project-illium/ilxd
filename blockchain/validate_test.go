@@ -1842,3 +1842,15 @@ func TestValidateLocktime(t *testing.T) {
 	locktime.Precision = -1200
 	assert.False(t, ValidateLocktime(time.Now().Add(time.Second), locktime))
 }
+
+func TestConnectGenesisBlocks(t *testing.T) {
+	tests := []*params.NetworkParams{
+		&params.RegestParams,
+		&params.AlphanetParams,
+	}
+
+	for _, netparams := range tests {
+		_, err := NewBlockchain(DefaultOptions(), Params(netparams), Verifier(&zk.LurkVerifier{}))
+		assert.NoError(t, err)
+	}
+}
