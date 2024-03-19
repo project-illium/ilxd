@@ -1,0 +1,17 @@
+##
+# Docker ignores for stuff that would slow down the build. This does not include all the .gitignore entries,
+# since the build layers are discarded in dev environments, and not present in clean checkouts
+
+# Build products
+*.o
+*.so
+*.a
+*.pyc
+**/rust/target/
+**/rust/debug/
+ilxd
+
+# GIT repo
+.git
+
+
