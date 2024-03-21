@@ -636,7 +636,7 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 					errChan <- fmt.Errorf("error committing block batch: %s", err)
 					return
 				}
-
+				batch = sm.chain.BlockBatch()
 			}
 		}
 
