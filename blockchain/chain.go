@@ -318,14 +318,11 @@ func (b *Blockchain) connectBlock(dbtx datastore.Txn, blk *blocks.Block, flags B
 			return err
 		}
 	} else {
-		prevHeader, err := b.index.Tip().Header()
-		if err != nil {
-			return err
+
+		if b.params.Name == params.RegestParams.Name && b.index.Tip().Height() == 0 {
+			b.index.tip.timestamp = time.Now().Unix()
 		}
-		if b.params.Name == params.RegestParams.Name && prevHeader.Height == 0 {
-			prevHeader.Timestamp = time.Now().Unix()
-		}
-		prevEpoch := (prevHeader.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
+		prevEpoch := (b.index.Tip().Timestamp() - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
 		blkEpoch := (blk.Header.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
 		if blkEpoch > prevEpoch {
 			coinbase := calculateNextCoinbaseDistribution(b.params, blkEpoch)

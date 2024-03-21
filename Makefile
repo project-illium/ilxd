@@ -10,11 +10,9 @@ protos:
 
 install:
 ifdef CUDA
-	@$(MAKE) build ARGS="-tags=cuda -o $(GOPATH)/bin/ilxd"
-	cd cli && go build -tags=cuda -o $(GOPATH)/bin/ilxcli
+	@$(MAKE) build ARGS="-tags=cuda -o $(GOPATH)/bin/"
 else
-	@$(MAKE) build ARGS="-o $(GOPATH)/bin/ilxd"
-	cd cli && go build -o $(GOPATH)/bin/ilxcli
+	@$(MAKE) build ARGS="-o $(GOPATH)/bin/"
 endif
 
 build: rust-bindings go
@@ -22,11 +20,11 @@ build: rust-bindings go
 .PHONY: go
 go:
 ifdef CUDA
-	go build -tags=cuda $(ARGS)
-	cd cli && go build -tags=cuda $(ARGS)
+	go build -tags=cuda $(ARGS)ilxd
+	cd cli && go build -tags=cuda $(ARGS)ilxcli
 else
-	go build $(ARGS)
-	cd cli && go build $(ARGS)
+	go build $(ARGS)ilxd
+	cd cli && go build $(ARGS)ilxcli
 endif
 
 .PHONY: rust-bindings

@@ -91,11 +91,8 @@ func (b *Blockchain) checkBlockContext(header *blocks.BlockHeader) error {
 	if types.NewID(header.Parent) != tip.ID() {
 		return ruleError(ErrDoesNotConnect, "block parent does not extend tip")
 	}
-	prevHeader, err := tip.Header()
-	if err != nil {
-		return err
-	}
-	if header.Timestamp <= prevHeader.Timestamp {
+
+	if header.Timestamp <= tip.Timestamp() {
 		return ruleError(ErrInvalidTimestamp, "timestamp is too early")
 	}
 	// The block timestamp is not allowed to be too far ahead of our local clock.
