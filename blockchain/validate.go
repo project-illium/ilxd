@@ -62,6 +62,10 @@ const (
 	// BFNoFlush skips flushing memory caches to disk.
 	BFNoFlush
 
+	// BFBatchCommit skips the database commit and allows committing
+	// as a batch.
+	BFBatchCommit
+
 	// BFNone is a convenience value to specifically indicate no flags.
 	BFNone BehaviorFlags = 0
 )
