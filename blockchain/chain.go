@@ -170,11 +170,11 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 func (b *Blockchain) BlockBatch() *Batch {
 	b.stateLock.Lock()
 	return &Batch{
-		chain: b,
-		blks:  nil,
-		ops:   0,
-		size:  0,
-		wg:    sync.WaitGroup{},
+		chain:    b,
+		blks:     nil,
+		ops:      0,
+		size:     0,
+		blockWGs: make(map[types.ID]*sync.WaitGroup),
 	}
 }
 

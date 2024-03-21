@@ -7,6 +7,7 @@ package blockchain
 import (
 	"context"
 	"errors"
+	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"sync"
 )
@@ -24,8 +25,8 @@ type Batch struct {
 	blks      []*blocks.Block
 	ops       int
 	size      int
-	wg        sync.WaitGroup
 	committed bool
+	blockWGs  map[types.ID]*sync.WaitGroup
 }
 
 // AddBlock adds a block to the batch. It will be added to the chain
@@ -38,16 +39,18 @@ func (b *Batch) AddBlock(blk *blocks.Block) error {
 	proofVal := NewProofValidator(b.chain.proofCache, b.chain.verifier)
 	sigVal := NewSigValidator(b.chain.sigCache)
 
-	b.wg.Add(len(blk.Transactions) * 2)
+	wg := &sync.WaitGroup{}
+	wg.Add(len(blk.Transactions) * 2)
 
 	go func() {
 		proofVal.Validate(blk.Transactions)
-		b.wg.Done()
+		wg.Done()
 	}()
 	go func() {
 		sigVal.Validate(blk.Transactions)
-		b.wg.Done()
+		wg.Done()
 	}()
+	b.blockWGs[blk.ID()] = wg
 
 	ops, size, err := datastoreTxnLimits(blk, 10)
 	if err != nil {
@@ -88,8 +91,6 @@ func (b *Batch) Commit(flags BehaviorFlags) error {
 	b.committed = true
 	defer b.chain.stateLock.Unlock()
 
-	b.wg.Wait()
-
 	dbtx, err := b.chain.ds.NewTransaction(context.Background(), false)
 	if err != nil {
 		return err
@@ -98,6 +99,7 @@ func (b *Batch) Commit(flags BehaviorFlags) error {
 
 	defer dbtx.Discard(context.Background())
 	for _, blk := range b.blks {
+		b.blockWGs[blk.ID()].Wait()
 		if _, err := b.chain.validateBlock(blk, flags); err != nil {
 			if err := dbtx.Commit(context.Background()); err != nil {
 				return err

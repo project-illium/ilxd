@@ -261,13 +261,6 @@ func (bi *blockIndex) GetNodeByID(blockID types.ID) (*blockNode, error) {
 	return node, nil
 }
 
-// Clone returns a copy of the block index
-func (bi *blockIndex) Clone() *blockIndex {
-	idx := NewBlockIndex(bi.ds)
-	idx.tip = bi.tip
-	return idx
-}
-
 func (bi *blockIndex) limitCache() {
 	if len(bi.cacheByID) > blockIndexCacheSize {
 		for id, node := range bi.cacheByID {
