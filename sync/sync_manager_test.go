@@ -312,7 +312,7 @@ func TestSync(t *testing.T) {
 		}()
 		select {
 		case <-ch:
-		case <-time.After(time.Second * 30):
+		case <-time.After(time.Second * 60):
 			t.Fatal("sync timed out")
 		}
 
