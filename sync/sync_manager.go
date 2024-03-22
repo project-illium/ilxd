@@ -632,7 +632,6 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 			errChan <- err
 			return
 		}
-		defer batch.Discard()
 
 		for blk := range processChan {
 			if err := batch.AddBlock(blk, flags); errors.Is(err, blockchain.ErrMaxBatchSize) {

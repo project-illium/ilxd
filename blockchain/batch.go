@@ -38,8 +38,8 @@ type Batch struct {
 	errResp   error
 }
 
-// AddBlock adds a block to the batch. It will be added to the chain
-// when commit is called.
+// AddBlock adds a block to the batch. It connects the block in a separate
+// goroutine and returns immediately.
 //
 // If the block would put the batch over the maximum ops or size limit
 // for a database transaction an ErrMaxBatchSize is returned and the
@@ -79,16 +79,6 @@ func (b *Batch) AddBlock(blk *blocks.Block, flags BehaviorFlags) error {
 		wg:    wg,
 	}
 	return nil
-}
-
-// Discard discards the current batch without committing anything
-func (b *Batch) Discard() {
-	if !b.committed {
-		b.committed = true
-		b.dbtx.Discard(context.Background())
-		close(b.blockChan)
-		b.chain.stateLock.Unlock()
-	}
 }
 
 // Commit will commit the batch to disk.
