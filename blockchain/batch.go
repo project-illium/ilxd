@@ -90,6 +90,9 @@ func (b *Batch) Commit(flags BehaviorFlags) error {
 	}
 	b.committed = true
 	defer b.chain.stateLock.Unlock()
+	if len(b.blks) == 0 {
+		return nil
+	}
 
 	dbtx, err := b.chain.ds.NewTransaction(context.Background(), false)
 	if err != nil {

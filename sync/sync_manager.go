@@ -637,6 +637,7 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 					return
 				}
 				batch = sm.chain.BlockBatch()
+				batch.AddBlock(blk)
 			}
 		}
 
