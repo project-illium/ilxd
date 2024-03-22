@@ -167,15 +167,22 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 }
 
 // BlockBatch returns a new Batch
-func (b *Blockchain) BlockBatch() *Batch {
+func (b *Blockchain) BlockBatch() (*Batch, error) {
 	b.stateLock.Lock()
-	return &Batch{
-		chain:    b,
-		blks:     nil,
-		ops:      0,
-		size:     0,
-		blockWGs: make(map[types.ID]*sync.WaitGroup),
+	dbtx, err := b.ds.NewTransaction(context.Background(), false)
+	if err != nil {
+		return nil, err
 	}
+	batch := &Batch{
+		dbtx:      dbtx,
+		wg:        &sync.WaitGroup{},
+		chain:     b,
+		ops:       0,
+		size:      0,
+		blockChan: make(chan *batchWork, 2000),
+	}
+	go batch.handler()
+	return batch, nil
 }
 
 // Close flushes all caches to disk and makes the node safe to shutdown.

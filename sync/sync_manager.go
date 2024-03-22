@@ -627,21 +627,29 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 	)
 
 	go func() {
-		batch := sm.chain.BlockBatch()
+		batch, err := sm.chain.BlockBatch()
+		if err != nil {
+			errChan <- err
+			return
+		}
 		defer batch.Discard()
 
 		for blk := range processChan {
-			if err := batch.AddBlock(blk); errors.Is(err, blockchain.ErrMaxBatchSize) {
-				if err := batch.Commit(flags); err != nil {
+			if err := batch.AddBlock(blk, flags); errors.Is(err, blockchain.ErrMaxBatchSize) {
+				if err := batch.Commit(); err != nil {
 					errChan <- fmt.Errorf("error committing block batch: %s", err)
 					return
 				}
-				batch = sm.chain.BlockBatch()
-				batch.AddBlock(blk)
+				batch, err = sm.chain.BlockBatch()
+				if err != nil {
+					errChan <- err
+					return
+				}
+				batch.AddBlock(blk, flags)
 			}
 		}
 
-		if err := batch.Commit(flags); err != nil {
+		if err := batch.Commit(); err != nil {
 			errChan <- fmt.Errorf("error committing block batch: %s", err)
 			return
 		}
