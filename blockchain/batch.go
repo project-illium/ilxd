@@ -120,6 +120,7 @@ func (b *Batch) handler() {
 		if _, err := b.chain.validateBlock(work.blk, flags); err != nil {
 			b.errResp = fmt.Errorf("batch validate error at height: %d, err: %s", work.blk.Header.Height, err)
 			b.wg.Done()
+			b.committed = true
 			go b.Commit()
 			continue
 		}
@@ -127,6 +128,7 @@ func (b *Batch) handler() {
 		if err != nil {
 			b.errResp = fmt.Errorf("batch connect error at height: %d, err: %s", work.blk.Header.Height, err)
 			b.wg.Done()
+			b.committed = true
 			go b.Commit()
 			continue
 		}
