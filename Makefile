@@ -8,11 +8,13 @@ protos:
 	protoc -I=rpc -I=types/transactions -I=types/blocks --go_out=rpc/pb --go-grpc_out=rpc/pb --go_opt=paths=source_relative,Mtransactions.proto=github.com/project-illium/ilxd/types/transactions,Mblocks.proto=github.com/project-illium/ilxd/types/blocks --go-grpc_opt=paths=source_relative rpc/ilxrpc.proto
 	protoc -I=blockchain/indexers/pb --go_out=blockchain/indexers/pb blockchain/indexers/pb/db_indexer_models.proto
 
-install:
+install: rust-bindings
 ifdef CUDA
-	@$(MAKE) build ARGS="-tags=cuda -o $(GOPATH)/bin/"
+	go build -tags=cuda -o $(GOPATH)/bin/ilxd
+	cd cli && go build -tags=cuda -o $(GOPATH)/bin/ilxcli
 else
-	@$(MAKE) build ARGS="-o $(GOPATH)/bin/"
+	go build -o $(GOPATH)/bin/ilxd
+	cd cli && go build -o $(GOPATH)/bin/ilxcli
 endif
 
 build: rust-bindings go
@@ -20,11 +22,11 @@ build: rust-bindings go
 .PHONY: go
 go:
 ifdef CUDA
-	go build -tags=cuda $(ARGS)ilxd
-	cd cli && go build -tags=cuda $(ARGS)ilxcli
+	go build -tags=cuda $(ARGS)
+	cd cli && go build -tags=cuda $(ARGS)
 else
-	go build $(ARGS)ilxd
-	cd cli && go build $(ARGS)ilxcli
+	go build $(ARGS)
+	cd cli && go build $(ARGS)
 endif
 
 .PHONY: rust-bindings
