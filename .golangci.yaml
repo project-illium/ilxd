@@ -28,3 +28,5 @@ issues:
     - ".print` is unused"
     - "func `generateBlocksDat` is unused"
     - "copylocks: call of json.MarshalIndent copies lock value: github.com/project-illium/ilxd/rpc/pb.RawTransaction contains google.golang.org/protobuf/internal/impl.MessageState contains sync.Mutex"
+    - "Error return value of `proofVal.Validate` is not checked"
+    - "Error return value of `sigVal.Validate` is not checked"

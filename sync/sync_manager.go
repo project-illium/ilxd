@@ -619,11 +619,35 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 	}
 
 	var (
-		start     = headers[0].Height
-		endHeight = headers[len(headers)-1].Height
-		headerIdx = 0
+		start       = headers[0].Height
+		endHeight   = headers[len(headers)-1].Height
+		headerIdx   = 0
+		processChan = make(chan *blocks.Block, maxBatchSize)
+		errChan     = make(chan error)
 	)
 
+	go func() {
+		batch := sm.chain.BlockBatch()
+		defer batch.Discard()
+
+		for blk := range processChan {
+			if err := batch.AddBlock(blk); errors.Is(err, blockchain.ErrMaxBatchSize) {
+				if err := batch.Commit(flags); err != nil {
+					errChan <- fmt.Errorf("error committing block batch: %s", err)
+					return
+				}
+				batch = sm.chain.BlockBatch()
+			}
+		}
+
+		if err := batch.Commit(flags); err != nil {
+			errChan <- fmt.Errorf("error committing block batch: %s", err)
+			return
+		}
+		close(errChan)
+	}()
+
+blockLoop:
 	for {
 		txsChan, err := sm.chainService.GetBlockTxsStream(p, start, noProofs)
 		if err != nil {
@@ -648,23 +672,22 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 				}
 			}
 
-			blk := &blocks.Block{
+			processChan <- &blocks.Block{
 				Header:       headers[headerIdx],
 				Transactions: txs.Transactions,
 			}
 
-			if err := sm.chain.ConnectBlock(blk, flags); err != nil {
-				return fmt.Errorf("error committing block from peer %s. Height: %d, Err: %s", p, blk.Header.Height, err)
-			}
-
 			if headers[headerIdx].Height == endHeight {
-				return nil
+				close(processChan)
+				break blockLoop
 			}
 
 			headerIdx++
 			start = headers[headerIdx].Height
 		}
 	}
+	err = <-errChan
+	return err
 }
 
 func (sm *SyncManager) findForkPoint(currentHeight, toHeight uint32, blockMap map[types.ID]peer.ID) (types.ID, uint32, error) {

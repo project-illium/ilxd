@@ -62,6 +62,10 @@ const (
 	// BFNoFlush skips flushing memory caches to disk.
 	BFNoFlush
 
+	// BFBatchCommit skips the database commit and allows committing
+	// as a batch.
+	BFBatchCommit
+
 	// BFNone is a convenience value to specifically indicate no flags.
 	BFNone BehaviorFlags = 0
 )
@@ -87,11 +91,8 @@ func (b *Blockchain) checkBlockContext(header *blocks.BlockHeader) error {
 	if types.NewID(header.Parent) != tip.ID() {
 		return ruleError(ErrDoesNotConnect, "block parent does not extend tip")
 	}
-	prevHeader, err := tip.Header()
-	if err != nil {
-		return err
-	}
-	if header.Timestamp <= prevHeader.Timestamp {
+
+	if header.Timestamp <= tip.Timestamp() {
 		return ruleError(ErrInvalidTimestamp, "timestamp is too early")
 	}
 	// The block timestamp is not allowed to be too far ahead of our local clock.

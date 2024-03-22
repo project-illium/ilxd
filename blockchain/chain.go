@@ -166,6 +166,18 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 	return b, nil
 }
 
+// BlockBatch returns a new Batch
+func (b *Blockchain) BlockBatch() *Batch {
+	b.stateLock.Lock()
+	return &Batch{
+		chain:    b,
+		blks:     nil,
+		ops:      0,
+		size:     0,
+		blockWGs: make(map[types.ID]*sync.WaitGroup),
+	}
+}
+
 // Close flushes all caches to disk and makes the node safe to shutdown.
 func (b *Blockchain) Close() error {
 	b.stateLock.Lock()
@@ -232,10 +244,16 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	b.stateLock.Lock()
 	defer b.stateLock.Unlock()
 
-	return b.connectBlock(blk, flags)
+	dbtx, err := b.ds.NewTransaction(context.Background(), false)
+	if err != nil {
+		return err
+	}
+	defer dbtx.Discard(context.Background())
+
+	return b.connectBlock(dbtx, blk, flags)
 }
 
-func (b *Blockchain) connectBlock(blk *blocks.Block, flags BehaviorFlags) (err error) {
+func (b *Blockchain) connectBlock(dbtx datastore.Txn, blk *blocks.Block, flags BehaviorFlags) (err error) {
 	if !flags.HasFlag(BFGenesisValidation) {
 		if err := b.checkBlockContext(blk.Header); err != nil {
 			return err
@@ -257,12 +275,6 @@ func (b *Blockchain) connectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 			return err
 		}
 	}
-
-	dbtx, err := b.ds.NewTransaction(context.Background(), false)
-	if err != nil {
-		return err
-	}
-	defer dbtx.Discard(context.Background())
 
 	if err := dsPutBlock(dbtx, blk); err != nil {
 		return err
@@ -306,14 +318,11 @@ func (b *Blockchain) connectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 			return err
 		}
 	} else {
-		prevHeader, err := b.index.Tip().Header()
-		if err != nil {
-			return err
+
+		if b.params.Name == params.RegestParams.Name && b.index.Tip().Height() == 0 {
+			b.index.tip.timestamp = time.Now().Unix()
 		}
-		if b.params.Name == params.RegestParams.Name && prevHeader.Height == 0 {
-			prevHeader.Timestamp = time.Now().Unix()
-		}
-		prevEpoch := (prevHeader.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
+		prevEpoch := (b.index.Tip().Timestamp() - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
 		blkEpoch := (blk.Header.Timestamp - b.params.GenesisBlock.Header.Timestamp) / b.params.EpochLength
 		if blkEpoch > prevEpoch {
 			coinbase := calculateNextCoinbaseDistribution(b.params, blkEpoch)
@@ -365,9 +374,12 @@ func (b *Blockchain) connectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 		return err
 	}
 
-	if err := dbtx.Commit(context.Background()); err != nil {
-		return err
+	if !flags.HasFlag(BFBatchCommit) {
+		if err := dbtx.Commit(context.Background()); err != nil {
+			return err
+		}
 	}
+
 	// Now that we know the disk updated correctly we can update the cache. Ideally this would
 	// be done in a commit hook, but that's a bigger change to the db interface.
 	if blockContainsOutputs {
@@ -452,6 +464,16 @@ func (b *Blockchain) ReindexChainState() error {
 	}
 
 	i := uint32(0)
+	dbtx, err = b.ds.NewTransaction(context.Background(), false)
+	if err != nil {
+		return err
+	}
+
+	var (
+		ops  = 0
+		size = 0
+	)
+
 	for {
 		blockID, err := dsFetchBlockIDFromHeight(b.ds, i)
 		if errors.Is(err, datastore.ErrNotFound) {
@@ -464,15 +486,47 @@ func (b *Blockchain) ReindexChainState() error {
 		if err != nil {
 			return err
 		}
-
-		flags := BFNoDupBlockCheck | BFFastAdd | BFNoNotification
-		if i == 0 {
-			flags = BFNoDupBlockCheck | BFFastAdd | BFGenesisValidation
+		bannedNullifiers, err := b.validatorSet.ComputeBannedNullifiers(blk)
+		if err != nil {
+			return err
 		}
-		if err := b.connectBlock(blk, flags); err != nil {
+
+		o, s, err := datastoreTxnLimits(blk, bannedNullifiers)
+		if err != nil {
+			return err
+		}
+		ops += o
+		size += s
+
+		if ops > dsMaxBatchCount || size > dsMaxBatchSize {
+			if err := dbtx.Commit(context.Background()); err != nil {
+				return err
+			}
+			dbtx, err = b.ds.NewTransaction(context.Background(), false)
+			if err != nil {
+				return err
+			}
+			ops = 0
+			size = 0
+		}
+
+		flags := BFNoDupBlockCheck | BFFastAdd | BFNoNotification | BFNoValidation | BFBatchCommit
+		if i == 0 {
+			flags = BFNoDupBlockCheck | BFFastAdd | BFGenesisValidation | BFNoValidation | BFBatchCommit
+		}
+		if _, err := b.validateBlock(blk, flags); err != nil {
+			if err := dbtx.Commit(context.Background()); err != nil {
+				return err
+			}
+			return err
+		}
+		if err := b.connectBlock(dbtx, blk, flags); err != nil {
 			return err
 		}
 		i++
+	}
+	if err := dbtx.Commit(context.Background()); err != nil {
+		return err
 	}
 	log.Info("Finished reindex")
 	return nil
