@@ -617,6 +617,10 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 			return fmt.Errorf("peer %s returned headers that do not connect", p)
 		}
 	}
+	log.Info("Downloaded headers", log.ArgsFromMap(map[string]any{
+		"from height": fromHeight,
+		"to height":   headers[len(headers)-1].Height,
+	}))
 
 	var (
 		start       = headers[0].Height
@@ -645,6 +649,11 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 					return
 				}
 				batch.AddBlock(blk, flags)
+			}
+			if blk.Header.Height%1000 == 0 {
+				log.Info("Connected blocks", log.ArgsFromMap(map[string]any{
+					"through": blk.Header.Height,
+				}))
 			}
 		}
 

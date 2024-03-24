@@ -22,20 +22,26 @@ type batchWork struct {
 	wg    *sync.WaitGroup
 }
 
+type validateWork struct {
+	blk *blocks.Block
+	wg  *sync.WaitGroup
+}
+
 // Batch represents a batch of blocks that can be connected to the chain
 // using only a single database transaction. This is faster than opening
 // a new transaction for each individual block.
 //
 // This is used primarily during IBD.
 type Batch struct {
-	chain     *Blockchain
-	ops       int
-	size      int
-	committed bool
-	blockChan chan *batchWork
-	wg        *sync.WaitGroup
-	dbtx      datastore.Txn
-	errResp   error
+	chain        *Blockchain
+	ops          int
+	size         int
+	committed    bool
+	blockChan    chan *batchWork
+	validateChan chan *validateWork
+	wg           *sync.WaitGroup
+	dbtx         datastore.Txn
+	errResp      error
 }
 
 // AddBlock adds a block to the batch. It connects the block in a separate
@@ -53,21 +59,14 @@ func (b *Batch) AddBlock(blk *blocks.Block, flags BehaviorFlags) error {
 		return ErrMaxBatchSize
 	}
 
-	proofVal := NewProofValidator(b.chain.proofCache, b.chain.verifier)
-	sigVal := NewSigValidator(b.chain.sigCache)
-
 	var wg *sync.WaitGroup
 	if !(flags.HasFlag(BFFastAdd) || flags.HasFlag(BFNoValidation)) {
 		wg = &sync.WaitGroup{}
 		wg.Add(2)
-		go func() {
-			proofVal.Validate(blk.Transactions)
-			wg.Done()
-		}()
-		go func() {
-			sigVal.Validate(blk.Transactions)
-			wg.Done()
-		}()
+		b.validateChan <- &validateWork{
+			blk: blk,
+			wg:  wg,
+		}
 	}
 
 	b.ops += ops
@@ -100,11 +99,28 @@ func (b *Batch) Commit() error {
 	b.committed = true
 	defer b.chain.stateLock.Unlock()
 	close(b.blockChan)
+	close(b.validateChan)
 
 	if err := b.dbtx.Commit(context.Background()); err != nil {
 		return err
 	}
 	return b.errResp
+}
+
+func (b *Batch) worker() {
+	for work := range b.validateChan {
+		go func() {
+			validator := NewProofValidator(b.chain.proofCache, b.chain.verifier)
+			validator.Validate(work.blk.Transactions)
+			work.wg.Done()
+		}()
+		go func() {
+			validator := NewSigValidator(b.chain.sigCache)
+			validator.Validate(work.blk.Transactions)
+			work.wg.Done()
+		}()
+		work.wg.Wait()
+	}
 }
 
 func (b *Batch) handler() {

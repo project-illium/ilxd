@@ -16,6 +16,7 @@ import (
 	"github.com/project-illium/ilxd/types/transactions"
 	"github.com/project-illium/ilxd/zk"
 	"math"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -174,12 +175,16 @@ func (b *Blockchain) BlockBatch() (*Batch, error) {
 		return nil, err
 	}
 	batch := &Batch{
-		dbtx:      dbtx,
-		wg:        &sync.WaitGroup{},
-		chain:     b,
-		ops:       0,
-		size:      0,
-		blockChan: make(chan *batchWork, 2000),
+		dbtx:         dbtx,
+		wg:           &sync.WaitGroup{},
+		chain:        b,
+		ops:          0,
+		size:         0,
+		blockChan:    make(chan *batchWork, 2000),
+		validateChan: make(chan *validateWork, runtime.NumCPU()*3),
+	}
+	for i := 0; i < runtime.NumCPU()*3; i++ {
+		go batch.worker()
 	}
 	go batch.handler()
 	return batch, nil
