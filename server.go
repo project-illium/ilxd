@@ -222,6 +222,9 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	if config.WSIndex && config.NoTxIndex {
 		return nil, errors.New("tx index must be used with wallet server index")
 	}
+	if config.AddrIndex && config.NoTxIndex {
+		return nil, errors.New("tx index must be used with addr index")
+	}
 
 	blockchainOpts := []blockchain.Option{
 		blockchain.Params(netParams),
@@ -249,6 +252,11 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	}
 	if config.DropWSIndex {
 		if err := indexers.DropWalletServerIndex(ds); err != nil {
+			return nil, err
+		}
+	}
+	if config.DropAddrIndex {
+		if err := indexers.DropAddrIndex(ds); err != nil {
 			return nil, err
 		}
 	}
