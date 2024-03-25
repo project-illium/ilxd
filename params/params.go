@@ -6,7 +6,6 @@ package params
 
 import (
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"math"
 	"path"
@@ -20,11 +19,6 @@ const (
 	networkAlphanet = "alphanet"
 	networkRegtest  = "regtest"
 )
-
-type Checkpoint struct {
-	BlockID types.ID
-	Height  uint32
-}
 
 // NetworkParams holds configuration information for different
 // networks.

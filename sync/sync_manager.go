@@ -18,6 +18,7 @@ import (
 	"github.com/project-illium/ilxd/zk"
 	"math"
 	"math/rand"
+	"sort"
 	"sync"
 	"time"
 )
@@ -543,7 +544,9 @@ func (sm *SyncManager) populatePeerBuckets() error {
 func (sm *SyncManager) syncToCheckpoints(currentHeight uint32) {
 	startHeight := currentHeight + 1
 	parent := sm.params.GenesisBlock.ID()
-	for z, checkpoint := range sm.params.Checkpoints {
+	checkpoints := sm.params.Checkpoints
+	sort.Sort(params.CheckpointSorter(checkpoints))
+	for z, checkpoint := range checkpoints {
 		if currentHeight > checkpoint.Height {
 			continue
 		}
@@ -638,6 +641,15 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 		}
 		lastHeight := uint32(0)
 		for blk := range processChan {
+			select {
+			case <-sm.quit:
+				if err := batch.Commit(); err != nil {
+					errChan <- fmt.Errorf("error committing block batch: %s", err)
+					return
+				}
+				return
+			default:
+			}
 			lastHeight = blk.Header.Height
 			if err := batch.AddBlock(blk, flags); errors.Is(err, blockchain.ErrMaxBatchSize) {
 				if err := batch.Commit(); err != nil {
@@ -670,6 +682,12 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 
 blockLoop:
 	for {
+		select {
+		case <-sm.quit:
+			close(processChan)
+			return nil
+		default:
+		}
 		txsChan, err := sm.chainService.GetBlockTxsStream(p, start, noProofs)
 		if err != nil {
 			sm.network.IncreaseBanscore(p, 0, 20, "failed to serve requested block txs")
@@ -683,6 +701,12 @@ blockLoop:
 		}()
 
 		for txs := range txsChan {
+			select {
+			case <-sm.quit:
+				close(processChan)
+				return nil
+			default:
+			}
 			if noProofs && len(txs.Wids) != len(txs.Transactions) {
 				sm.network.IncreaseBanscore(p, 0, 20, "served block without requested wids")
 				return fmt.Errorf("peer %s returned block without requested wids", p)

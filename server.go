@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ipfs/go-datastore"
@@ -130,6 +131,14 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	} else {
 		netParams = &params.MainnetParams
 		return nil, errors.New("the mainnet is not yet live. use --alpha or --regtest")
+	}
+
+	if config.Checkpoint != "" {
+		cp := params.Checkpoint{}
+		if err := json.Unmarshal([]byte(config.Checkpoint), &cp); err != nil {
+			return nil, err
+		}
+		netParams.Checkpoints = append(netParams.Checkpoints, cp)
 	}
 
 	var (

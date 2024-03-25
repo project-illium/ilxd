@@ -16,6 +16,7 @@ type rawTxJSON struct {
 	Outputs []*PrivateOutput          `json:"privateOutputs"`
 }
 
+// MarshalJSON implements the json marshal interface
 func (r *RawTransaction) MarshalJSON() ([]byte, error) {
 	s := &rawTxJSON{
 		Tx:      r.Tx,
@@ -25,6 +26,7 @@ func (r *RawTransaction) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s)
 }
 
+// UnmarshalJSON implements the json unmarshal interface
 func (r *RawTransaction) UnmarshalJSON(data []byte) error {
 	newTx := &rawTxJSON{}
 	if err := json.Unmarshal(data, newTx); err != nil {
@@ -50,6 +52,7 @@ type privateInputJSON struct {
 	UnlockingParams string               `json:"unlockingParams"`
 }
 
+// MarshalJSON implements the json marshal interface
 func (i *PrivateInput) MarshalJSON() ([]byte, error) {
 	params := make([]types.HexEncodable, 0, len(i.LockingParams))
 	for _, p := range i.LockingParams {
@@ -68,6 +71,7 @@ func (i *PrivateInput) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s)
 }
 
+// UnmarshalJSON implements the json unmarshal interface
 func (i *PrivateInput) UnmarshalJSON(data []byte) error {
 	input := &privateInputJSON{}
 	if err := json.Unmarshal(data, input); err != nil {
@@ -100,6 +104,7 @@ type privateOutputJSON struct {
 	State      types.HexEncodable `json:"state"`
 }
 
+// MarshalJSON implements the json marshal interface
 func (o *PrivateOutput) MarshalJSON() ([]byte, error) {
 	s := &privateOutputJSON{
 		Amount:     types.Amount(o.Amount),
@@ -111,6 +116,7 @@ func (o *PrivateOutput) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s)
 }
 
+// UnmarshalJSON implements the json unmarshal interface
 func (o *PrivateOutput) UnmarshalJSON(data []byte) error {
 	input := &privateOutputJSON{}
 	if err := json.Unmarshal(data, input); err != nil {
@@ -134,6 +140,7 @@ type txoProofJSON struct {
 	Index      uint64               `json:"index"`
 }
 
+// MarshalJSON implements the json marshal interface
 func (t *TxoProof) MarshalJSON() ([]byte, error) {
 	hashes := make([]types.HexEncodable, 0, len(t.Hashes))
 	for _, h := range t.Hashes {
@@ -148,6 +155,7 @@ func (t *TxoProof) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s)
 }
 
+// UnmarshalJSON implements the json unmarshal interface
 func (t *TxoProof) UnmarshalJSON(data []byte) error {
 	input := &txoProofJSON{}
 	if err := json.Unmarshal(data, input); err != nil {
