@@ -636,8 +636,9 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 			errChan <- err
 			return
 		}
-
+		lastHeight := uint32(0)
 		for blk := range processChan {
+			lastHeight = blk.Header.Height
 			if err := batch.AddBlock(blk, flags); errors.Is(err, blockchain.ErrMaxBatchSize) {
 				if err := batch.Commit(); err != nil {
 					errChan <- fmt.Errorf("error committing block batch: %s", err)
@@ -648,18 +649,21 @@ func (sm *SyncManager) syncBlocks(p peer.ID, fromHeight, toHeight uint32, parent
 					errChan <- err
 					return
 				}
-				batch.AddBlock(blk, flags)
-			}
-			if blk.Header.Height%1000 == 0 {
 				log.Info("Connected blocks", log.ArgsFromMap(map[string]any{
-					"through": blk.Header.Height,
+					"through": blk.Header.Height - 1,
 				}))
+				batch.AddBlock(blk, flags)
 			}
 		}
 
 		if err := batch.Commit(); err != nil {
 			errChan <- fmt.Errorf("error committing block batch: %s", err)
 			return
+		}
+		if lastHeight > 0 {
+			log.Info("Connected blocks", log.ArgsFromMap(map[string]any{
+				"through": lastHeight,
+			}))
 		}
 		close(errChan)
 	}()
