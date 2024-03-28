@@ -380,6 +380,8 @@ message GetBlockchainInfoResponse {
     uint64 treasury_balance  = 8;
     // The total size of the database on disk
     uint64 blockchain_size   = 9;
+    // The current epoch number (also total number of epochs)
+    uint32 epoch             = 10;
 }
 
 message GetBlockInfoRequest {

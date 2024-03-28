@@ -110,6 +110,7 @@ func (s *GrpcServer) GetBlockchainInfo(ctx context.Context, req *pb.GetBlockchai
 		TotalStaked:       uint64(totalStaked),
 		TreasuryBalance:   uint64(treasuryBal),
 		BlockchainSize:    size,
+		Epoch:             uint32(ts.Unix()-s.chainParams.GenesisBlock.Header.Timestamp) / uint32(s.chainParams.EpochLength),
 	}, nil
 }
 
