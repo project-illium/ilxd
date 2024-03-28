@@ -95,6 +95,11 @@ func (s *GrpcServer) GetBlockchainInfo(ctx context.Context, req *pb.GetBlockchai
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	size, err := s.ds.DiskUsage(context.Background())
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	return &pb.GetBlockchainInfoResponse{
 		Network:           nt,
 		BestHeight:        height,
@@ -104,6 +109,7 @@ func (s *GrpcServer) GetBlockchainInfo(ctx context.Context, req *pb.GetBlockchai
 		CirculatingSupply: uint64(currentSupply),
 		TotalStaked:       uint64(totalStaked),
 		TreasuryBalance:   uint64(treasuryBal),
+		BlockchainSize:    size,
 	}, nil
 }
 

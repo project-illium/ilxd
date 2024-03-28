@@ -378,6 +378,8 @@ message GetBlockchainInfoResponse {
     uint64 total_staked      = 7;
     // The balance of the treasury in nanoillium
     uint64 treasury_balance  = 8;
+    // The total size of the database on disk
+    uint64 blockchain_size   = 9;
 }
 
 message GetBlockInfoRequest {

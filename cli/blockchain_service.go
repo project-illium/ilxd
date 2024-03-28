@@ -97,6 +97,7 @@ func (x *GetBlockchainInfo) Execute(args []string) error {
 		CirculatingSupply types.Amount       `json:"circulatingSupply"`
 		TotalStaked       types.Amount       `json:"totalStaked"`
 		TreasuryBalance   types.Amount       `json:"treasuryBalance"`
+		BlockchainSize    uint64             `json:"blockchainSize"`
 	}{
 		Network:           resp.Network.String(),
 		BestHeight:        resp.BestHeight,
@@ -106,6 +107,7 @@ func (x *GetBlockchainInfo) Execute(args []string) error {
 		CirculatingSupply: types.Amount(resp.CirculatingSupply),
 		TotalStaked:       types.Amount(resp.TotalStaked),
 		TreasuryBalance:   types.Amount(resp.TreasuryBalance),
+		BlockchainSize:    resp.BlockchainSize,
 	}
 
 	out, err := json.MarshalIndent(&s, "", "    ")
