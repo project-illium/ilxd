@@ -1238,6 +1238,8 @@ message BlockInfo {
     uint32 size       = 9;
     // The number of transactions in the block.
     uint32 num_txs    = 10;
+    // The total transaction fees in the block.
+    uint64 total_fees = 11;
 }
 
 message Validator {

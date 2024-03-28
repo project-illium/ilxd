@@ -138,6 +138,7 @@ func (s *GrpcServer) GetBlockInfo(ctx context.Context, req *pb.GetBlockInfoReque
 			Producer_ID: blk.Header.Producer_ID,
 			Size:        uint32(size),
 			NumTxs:      uint32(len(blk.Transactions)),
+			TotalFees:   uint64(computeTotalFees(blk)),
 		},
 	}
 	child, err := s.chain.GetHeaderByHeight(blk.Header.Height + 1)
@@ -503,6 +504,7 @@ func (s *GrpcServer) GetMerkleProof(ctx context.Context, req *pb.GetMerkleProofR
 			Producer_ID: blk.Header.Producer_ID,
 			Size:        uint32(size),
 			NumTxs:      uint32(len(blk.Transactions)),
+			TotalFees:   uint64(computeTotalFees(blk)),
 		},
 		Hashes: hashes,
 		Flags:  flags,
@@ -656,6 +658,7 @@ func (s *GrpcServer) SubscribeBlocks(req *pb.SubscribeBlocksRequest, stream pb.B
 							Producer_ID: blk.Header.Producer_ID,
 							Size:        uint32(size),
 							NumTxs:      uint32(len(blk.Transactions)),
+							TotalFees:   uint64(computeTotalFees(blk)),
 						},
 						Transactions: make([]*pb.TransactionData, 0, len(blk.Transactions)),
 					}
@@ -730,4 +733,17 @@ func (s *GrpcServer) SubscribeCompressedBlocks(req *pb.SubscribeCompressedBlocks
 			}
 		}
 	}
+}
+
+func computeTotalFees(blk *blocks.Block) types.Amount {
+	total := types.Amount(0)
+	for _, tx := range blk.Transactions {
+		if tx.GetStandardTransaction() != nil {
+			total += types.Amount(tx.GetStandardTransaction().Fee)
+		}
+		if tx.GetMintTransaction() != nil {
+			total += types.Amount(tx.GetMintTransaction().Fee)
+		}
+	}
+	return total
 }
