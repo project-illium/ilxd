@@ -64,29 +64,29 @@ func (idx *TxIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error {
 
 // GetTransaction looks up the block id and position in the transaction index then fetches the
 // transaction from the db and returns it.
-func (idx *TxIndex) GetTransaction(ds repo.Datastore, txid types.ID) (*transactions.Transaction, error) {
+func (idx *TxIndex) GetTransaction(ds repo.Datastore, txid types.ID) (*transactions.Transaction, types.ID, error) {
 	valueBytes, err := dsFetchIndexValue(ds, idx, txid.String())
 	if err != nil {
-		return nil, err
+		return nil, types.ID{}, err
 	}
 	pos := binary.BigEndian.Uint32(valueBytes[:4])
 	blockID := types.NewID(valueBytes[4:])
 
 	ser, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockTxsKeyPrefix+blockID.String()))
 	if err != nil {
-		return nil, err
+		return nil, types.ID{}, err
 	}
 
 	var dsTxs pb.DBTxs
 	if err := proto.Unmarshal(ser, &dsTxs); err != nil {
-		return nil, err
+		return nil, types.ID{}, err
 	}
 
 	if int(pos) > len(dsTxs.Transactions)-1 {
-		return nil, errors.New("tx index position out of range")
+		return nil, types.ID{}, errors.New("tx index position out of range")
 	}
 
-	return dsTxs.Transactions[pos], nil
+	return dsTxs.Transactions[pos], blockID, nil
 }
 
 // GetContainingBlockID returns the ID of the block containing the transaction.

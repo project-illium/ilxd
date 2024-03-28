@@ -822,12 +822,6 @@ github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225223941-cb4e1394
 github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225223941-cb4e1394a11d/go.mod h1:OScaOLXoSTVJn4yOH8n88NgLJpdIVSoVcSUMffw4CGk=
 github.com/project-illium/logger v0.0.0-20240118200101-2fb0847599c9 h1:tjuJ2PyUFqqaf7n40VWgDTHz6kq4NDGdc2XEW2RZBao=
 github.com/project-illium/logger v0.0.0-20240118200101-2fb0847599c9/go.mod h1:GL6B2FAMr7v1FEC+rCSkf5JBKKFpGf8Hjz3uZsJ60pQ=
-github.com/project-illium/walletlib v0.0.0-20240311161436-568d1f942faa h1:dcmPoiwdyaPi4H7R68hz0u05nPR51p4pcKcodiI2Y9Q=
-github.com/project-illium/walletlib v0.0.0-20240311161436-568d1f942faa/go.mod h1:+TL+lbKswyaqNE7gDbtLdxUJx7ikzHgiyBf5+DlmINo=
-github.com/project-illium/walletlib v0.0.0-20240312145656-e369e2cfbb32 h1:/dS9R5NqNg29rhOK2vbLbaojfVMj6l38tvAUW9NNTpo=
-github.com/project-illium/walletlib v0.0.0-20240312145656-e369e2cfbb32/go.mod h1:+TL+lbKswyaqNE7gDbtLdxUJx7ikzHgiyBf5+DlmINo=
-github.com/project-illium/walletlib v0.0.0-20240313225124-2f657e86f102 h1:067YA8o1ncl/kN9l+vvbXNB4MOQTTPBBZttkpUVNL3w=
-github.com/project-illium/walletlib v0.0.0-20240313225124-2f657e86f102/go.mod h1:+TL+lbKswyaqNE7gDbtLdxUJx7ikzHgiyBf5+DlmINo=
 github.com/project-illium/walletlib v0.0.0-20240326161312-7fb83508aa41 h1:beakvkhUmjpLs4RgUMQTlyt2tdbLm6HRrJdZYyLW5LY=
 github.com/project-illium/walletlib v0.0.0-20240326161312-7fb83508aa41/go.mod h1:+TL+lbKswyaqNE7gDbtLdxUJx7ikzHgiyBf5+DlmINo=
 github.com/project-illium/weightedrand/v2 v2.1.0 h1:8zVDjthKwP0yfHt3uC3fTEqH0KJ5AwCL02YYx+cpdb8=

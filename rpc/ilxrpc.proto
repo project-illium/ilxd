@@ -453,7 +453,11 @@ message GetTransactionRequest {
 }
 message GetTransactionResponse {
     // The transaction response
-    Transaction tx     = 1;
+    Transaction tx              = 1;
+    // The ID of the containing block
+    bytes block_ID              = 2;
+    // The height of the containing block
+    uint32 height               = 3;
     // The input and output metadata will
     // only only be non-nil if the address
     // index is enabled.
@@ -461,8 +465,8 @@ message GetTransactionResponse {
     // Further it will only metadata for public
     // inputs or outputs will be included otherwise
     // it will be `unknown`.
-    repeated IOMetadata inputs  = 2;
-    repeated IOMetadata outputs = 3;
+    repeated IOMetadata inputs  = 4;
+    repeated IOMetadata outputs = 5;
 }
 
 message GetAddressTransactionsRequest {
@@ -479,13 +483,16 @@ message GetAddressTransactionsResponse {
 
     message TransactionWithMetadata {
         // The transaction response
-        Transaction tx = 1;
-
+        Transaction tx              = 1;
+        // The ID of the containing block
+        bytes block_ID              = 2;
+        // The height of the containing block
+        uint32 height               = 3;
         // Metadata will only metadata for public
         // inputs or outputs will be included otherwise
         // it will be `unknown`.
-        repeated IOMetadata inputs  = 2;
-        repeated IOMetadata outputs = 3;
+        repeated IOMetadata inputs  = 4;
+        repeated IOMetadata outputs = 5;
     }
 }
 

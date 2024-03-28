@@ -42,7 +42,6 @@ func (s *GrpcServer) GetMempoolInfo(ctx context.Context, req *pb.GetMempoolInfoR
 
 // GetMempool returns all the transactions in the mempool
 func (s *GrpcServer) GetMempool(ctx context.Context, req *pb.GetMempoolRequest) (*pb.GetMempoolResponse, error) {
-
 	txs := s.txMemPool.GetTransactions()
 	td := make([]*pb.TransactionData, 0, len(txs))
 	for _, tx := range txs {
@@ -267,17 +266,26 @@ func (s *GrpcServer) GetCompressedBlocks(ctx context.Context, req *pb.GetCompres
 }
 
 // GetTransaction returns the transaction for the given transaction ID.
+//
+// **Requires TxIndex**
+// **Input/Output metadata requires AddrIndex**
 func (s *GrpcServer) GetTransaction(ctx context.Context, req *pb.GetTransactionRequest) (*pb.GetTransactionResponse, error) {
 	if s.txIndex == nil {
 		return nil, status.Error(codes.Unavailable, "tx index is not available")
 	}
 
-	tx, err := s.txIndex.GetTransaction(s.ds, types.NewID(req.Transaction_ID))
+	tx, blockID, err := s.txIndex.GetTransaction(s.ds, types.NewID(req.Transaction_ID))
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
+	height, err := s.chain.GetBlockHeight(blockID)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 	resp := &pb.GetTransactionResponse{
-		Tx: tx,
+		Tx:       tx,
+		Block_ID: blockID.Bytes(),
+		Height:   height,
 	}
 	if s.addrIndex != nil {
 		metadata, err := s.addrIndex.GetTransactionMetadata(s.ds, tx.ID())
@@ -369,12 +377,18 @@ func (s *GrpcServer) GetAddressTransactions(ctx context.Context, req *pb.GetAddr
 	}
 	txs := make([]*pb.GetAddressTransactionsResponse_TransactionWithMetadata, 0, n)
 	for i := int(req.NbSkip); i < len(txids); i++ {
-		tx, err := s.txIndex.GetTransaction(s.ds, txids[i])
+		tx, blockID, err := s.txIndex.GetTransaction(s.ds, txids[i])
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		height, err := s.chain.GetBlockHeight(blockID)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		txwm := &pb.GetAddressTransactionsResponse_TransactionWithMetadata{
-			Tx: tx,
+			Tx:       tx,
+			Block_ID: blockID.Bytes(),
+			Height:   height,
 		}
 
 		metadata, err := s.addrIndex.GetTransactionMetadata(s.ds, tx.ID())
@@ -449,12 +463,15 @@ func (s *GrpcServer) GetAddressTransactions(ctx context.Context, req *pb.GetAddr
 	}, nil
 }
 
-// GetMerkleProof returns a Merkle (SPV) proof for a specific transaction in the provided block.
+// GetMerkleProof returns a Merkle (SPV) proof for a specific transaction
+// in the provided block.
+//
+// **Requires TxIndex**
 func (s *GrpcServer) GetMerkleProof(ctx context.Context, req *pb.GetMerkleProofRequest) (*pb.GetMerkleProofResponse, error) {
 	if s.txIndex == nil {
 		return nil, status.Error(codes.Unavailable, "tx index is not available")
 	}
-	tx, err := s.txIndex.GetTransaction(s.ds, types.NewID(req.Transaction_ID))
+	tx, _, err := s.txIndex.GetTransaction(s.ds, types.NewID(req.Transaction_ID))
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
