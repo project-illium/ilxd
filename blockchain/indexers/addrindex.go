@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/ipfs/go-datastore"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain/indexers/pb"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
@@ -173,6 +174,16 @@ func (idx *AddrIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error 
 				return err
 			}
 		}
+		if tx.GetCoinbaseTransaction() != nil {
+			peerID, err := peer.IDFromBytes(tx.GetCoinbaseTransaction().Validator_ID)
+			if err != nil {
+				return err
+			}
+			dsKey := repo.AddrIndexValidatorTxPrefixKey + peerID.String() + "/" + tx.ID().String()
+			if err := dsPutIndexValue(dbtx, idx, dsKey, nil); err != nil {
+				return err
+			}
+		}
 	}
 	idx.height = blk.Header.Height
 	go idx.maybeFlush()
@@ -207,6 +218,34 @@ func (idx *AddrIndex) GetTransactionsIDs(ds repo.Datastore, addr walletlib.Addre
 	defer dbtx.Discard(context.Background())
 
 	query, err := dsPrefixQueryIndexValue(dbtx, &AddrIndex{}, repo.AddrIndexAddrKeyPrefix+addr.String())
+	if err != nil {
+		return nil, err
+	}
+
+	var txids []types.ID
+	for r := range query.Next() {
+		v := strings.Split(r.Key, "/")
+		txidStr := v[len(v)-1]
+
+		txid, err := types.NewIDFromString(txidStr)
+		if err != nil {
+			return nil, err
+		}
+		txids = append(txids, txid)
+	}
+
+	return txids, dbtx.Commit(context.Background())
+}
+
+// GetValidatorCoinbases returns the transaction IDs for the validator's coinbase transactions.
+func (idx *AddrIndex) GetValidatorCoinbases(ds repo.Datastore, validatorID peer.ID) ([]types.ID, error) {
+	dbtx, err := ds.NewTransaction(context.Background(), false)
+	if err != nil {
+		return nil, err
+	}
+	defer dbtx.Discard(context.Background())
+
+	query, err := dsPrefixQueryIndexValue(dbtx, &AddrIndex{}, repo.AddrIndexValidatorTxPrefixKey+validatorID.String())
 	if err != nil {
 		return nil, err
 	}
