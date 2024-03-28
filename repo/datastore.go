@@ -82,6 +82,8 @@ const (
 	AddrIndexOutputIndexKey = "outputs/"
 	// AddrIndexMetadataPrefixKey is the metadata prefix datastore key used by the address index.
 	AddrIndexMetadataPrefixKey = "metadata/"
+	// AddrIndexValidatorTxPrefixKey is the validator transaction datastore key prefix used by the address index.
+	AddrIndexValidatorTxPrefixKey = "validatortx/"
 )
 
 type Datastore interface {

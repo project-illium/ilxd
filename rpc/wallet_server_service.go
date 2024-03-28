@@ -144,7 +144,7 @@ func (s *GrpcServer) GetWalletTransactions(ctx context.Context, req *pb.GetWalle
 		if height < startHeight {
 			break
 		}
-		tx, err := s.txIndex.GetTransaction(s.ds, txids[i])
+		tx, _, err := s.txIndex.GetTransaction(s.ds, txids[i])
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}

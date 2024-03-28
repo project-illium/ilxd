@@ -42,7 +42,6 @@ func (s *GrpcServer) GetMempoolInfo(ctx context.Context, req *pb.GetMempoolInfoR
 
 // GetMempool returns all the transactions in the mempool
 func (s *GrpcServer) GetMempool(ctx context.Context, req *pb.GetMempoolRequest) (*pb.GetMempoolResponse, error) {
-
 	txs := s.txMemPool.GetTransactions()
 	td := make([]*pb.TransactionData, 0, len(txs))
 	for _, tx := range txs {
@@ -96,6 +95,11 @@ func (s *GrpcServer) GetBlockchainInfo(ctx context.Context, req *pb.GetBlockchai
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	size, err := s.ds.DiskUsage(context.Background())
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	return &pb.GetBlockchainInfoResponse{
 		Network:           nt,
 		BestHeight:        height,
@@ -105,6 +109,8 @@ func (s *GrpcServer) GetBlockchainInfo(ctx context.Context, req *pb.GetBlockchai
 		CirculatingSupply: uint64(currentSupply),
 		TotalStaked:       uint64(totalStaked),
 		TreasuryBalance:   uint64(treasuryBal),
+		BlockchainSize:    size,
+		Epoch:             uint32(ts.Unix()-s.chainParams.GenesisBlock.Header.Timestamp) / uint32(s.chainParams.EpochLength),
 	}, nil
 }
 
@@ -139,6 +145,7 @@ func (s *GrpcServer) GetBlockInfo(ctx context.Context, req *pb.GetBlockInfoReque
 			Producer_ID: blk.Header.Producer_ID,
 			Size:        uint32(size),
 			NumTxs:      uint32(len(blk.Transactions)),
+			TotalFees:   uint64(computeTotalFees(blk)),
 		},
 	}
 	child, err := s.chain.GetHeaderByHeight(blk.Header.Height + 1)
@@ -150,7 +157,8 @@ func (s *GrpcServer) GetBlockInfo(ctx context.Context, req *pb.GetBlockInfoReque
 	return resp, nil
 }
 
-// GetBlock returns the detailed data for a block.
+// GetBlock returns a BlockInfo metadata object plus the transactions either
+// as IDs or full transactions.
 func (s *GrpcServer) GetBlock(ctx context.Context, req *pb.GetBlockRequest) (*pb.GetBlockResponse, error) {
 	var (
 		blk *blocks.Block
@@ -164,7 +172,61 @@ func (s *GrpcServer) GetBlock(ctx context.Context, req *pb.GetBlockRequest) (*pb
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
-	return &pb.GetBlockResponse{
+	id := blk.Header.ID()
+	size, err := blk.SerializedSize()
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	resp := &pb.GetBlockResponse{
+		BlockInfo: &pb.BlockInfo{
+			Block_ID:    id[:],
+			Version:     blk.Header.Version,
+			Height:      blk.Header.Height,
+			Parent:      blk.Header.Parent,
+			Child:       nil,
+			Timestamp:   blk.Header.Timestamp,
+			TxRoot:      blk.Header.TxRoot,
+			Producer_ID: blk.Header.Producer_ID,
+			Size:        uint32(size),
+			NumTxs:      uint32(len(blk.Transactions)),
+			TotalFees:   uint64(computeTotalFees(blk)),
+		},
+		Transactions: make([]*pb.TransactionData, 0, len(blk.Transactions)),
+	}
+	for _, tx := range blk.Transactions {
+		if req.FullTransactions {
+			resp.Transactions = append(resp.Transactions, &pb.TransactionData{
+				TxidsOrTxs: &pb.TransactionData_Transaction{
+					Transaction: tx,
+				},
+			})
+		} else {
+			id := tx.ID()
+			resp.Transactions = append(resp.Transactions, &pb.TransactionData{
+				TxidsOrTxs: &pb.TransactionData_Transaction_ID{
+					Transaction_ID: id[:],
+				},
+			})
+		}
+	}
+	return resp, nil
+}
+
+// GetRawBlock returns the raw block in protobuf format
+func (s *GrpcServer) GetRawBlock(ctx context.Context, req *pb.GetRawBlockRequest) (*pb.GetRawBlockResponse, error) {
+	var (
+		blk *blocks.Block
+		err error
+	)
+	if len(req.GetBlock_ID()) == 0 {
+		blk, err = s.chain.GetBlockByHeight(req.GetHeight())
+	} else {
+		blk, err = s.chain.GetBlockByID(types.NewID(req.GetBlock_ID()))
+	}
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	return &pb.GetRawBlockResponse{
 		Block: blk,
 	}, nil
 }
@@ -267,17 +329,26 @@ func (s *GrpcServer) GetCompressedBlocks(ctx context.Context, req *pb.GetCompres
 }
 
 // GetTransaction returns the transaction for the given transaction ID.
+//
+// **Requires TxIndex**
+// **Input/Output metadata requires AddrIndex**
 func (s *GrpcServer) GetTransaction(ctx context.Context, req *pb.GetTransactionRequest) (*pb.GetTransactionResponse, error) {
 	if s.txIndex == nil {
 		return nil, status.Error(codes.Unavailable, "tx index is not available")
 	}
 
-	tx, err := s.txIndex.GetTransaction(s.ds, types.NewID(req.Transaction_ID))
+	tx, blockID, err := s.txIndex.GetTransaction(s.ds, types.NewID(req.Transaction_ID))
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
+	height, err := s.chain.GetBlockHeight(blockID)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 	resp := &pb.GetTransactionResponse{
-		Tx: tx,
+		Tx:       tx,
+		Block_ID: blockID.Bytes(),
+		Height:   height,
 	}
 	if s.addrIndex != nil {
 		metadata, err := s.addrIndex.GetTransactionMetadata(s.ds, tx.ID())
@@ -369,12 +440,18 @@ func (s *GrpcServer) GetAddressTransactions(ctx context.Context, req *pb.GetAddr
 	}
 	txs := make([]*pb.GetAddressTransactionsResponse_TransactionWithMetadata, 0, n)
 	for i := int(req.NbSkip); i < len(txids); i++ {
-		tx, err := s.txIndex.GetTransaction(s.ds, txids[i])
+		tx, blockID, err := s.txIndex.GetTransaction(s.ds, txids[i])
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		height, err := s.chain.GetBlockHeight(blockID)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		txwm := &pb.GetAddressTransactionsResponse_TransactionWithMetadata{
-			Tx: tx,
+			Tx:       tx,
+			Block_ID: blockID.Bytes(),
+			Height:   height,
 		}
 
 		metadata, err := s.addrIndex.GetTransactionMetadata(s.ds, tx.ID())
@@ -449,12 +526,15 @@ func (s *GrpcServer) GetAddressTransactions(ctx context.Context, req *pb.GetAddr
 	}, nil
 }
 
-// GetMerkleProof returns a Merkle (SPV) proof for a specific transaction in the provided block.
+// GetMerkleProof returns a Merkle (SPV) proof for a specific transaction
+// in the provided block.
+//
+// **Requires TxIndex**
 func (s *GrpcServer) GetMerkleProof(ctx context.Context, req *pb.GetMerkleProofRequest) (*pb.GetMerkleProofResponse, error) {
 	if s.txIndex == nil {
 		return nil, status.Error(codes.Unavailable, "tx index is not available")
 	}
-	tx, err := s.txIndex.GetTransaction(s.ds, types.NewID(req.Transaction_ID))
+	tx, _, err := s.txIndex.GetTransaction(s.ds, types.NewID(req.Transaction_ID))
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
@@ -486,6 +566,7 @@ func (s *GrpcServer) GetMerkleProof(ctx context.Context, req *pb.GetMerkleProofR
 			Producer_ID: blk.Header.Producer_ID,
 			Size:        uint32(size),
 			NumTxs:      uint32(len(blk.Transactions)),
+			TotalFees:   uint64(computeTotalFees(blk)),
 		},
 		Hashes: hashes,
 		Flags:  flags,
@@ -572,6 +653,32 @@ func (s *GrpcServer) GetValidatorSet(ctx context.Context, req *pb.GetValidatorSe
 	return resp, nil
 }
 
+// GetValidatorCoinbases returns a list of coinbase txids for the validator.
+//
+// **Requires AddrIndex**
+func (s *GrpcServer) GetValidatorCoinbases(ctx context.Context, req *pb.GetValidatorCoinbasesRequest) (*pb.GetValidatorCoinbasesResponse, error) {
+	if s.addrIndex == nil {
+		return nil, status.Error(codes.Unavailable, "addr index is not available")
+	}
+
+	pid, err := peer.IDFromBytes(req.Validator_ID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	txids, err := s.addrIndex.GetValidatorCoinbases(s.ds, pid)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	resp := &pb.GetValidatorCoinbasesResponse{
+		Txids: make([][]byte, len(txids)),
+	}
+	for i, txid := range txids {
+		resp.Txids[i] = txid.Bytes()
+	}
+	return resp, nil
+}
+
 // GetAccumulatorCheckpoint returns the accumulator at the requested height.
 func (s *GrpcServer) GetAccumulatorCheckpoint(ctx context.Context, req *pb.GetAccumulatorCheckpointRequest) (*pb.GetAccumulatorCheckpointResponse, error) {
 	var (
@@ -639,6 +746,7 @@ func (s *GrpcServer) SubscribeBlocks(req *pb.SubscribeBlocksRequest, stream pb.B
 							Producer_ID: blk.Header.Producer_ID,
 							Size:        uint32(size),
 							NumTxs:      uint32(len(blk.Transactions)),
+							TotalFees:   uint64(computeTotalFees(blk)),
 						},
 						Transactions: make([]*pb.TransactionData, 0, len(blk.Transactions)),
 					}
@@ -713,4 +821,17 @@ func (s *GrpcServer) SubscribeCompressedBlocks(req *pb.SubscribeCompressedBlocks
 			}
 		}
 	}
+}
+
+func computeTotalFees(blk *blocks.Block) types.Amount {
+	total := types.Amount(0)
+	for _, tx := range blk.Transactions {
+		if tx.GetStandardTransaction() != nil {
+			total += types.Amount(tx.GetStandardTransaction().Fee)
+		}
+		if tx.GetMintTransaction() != nil {
+			total += types.Amount(tx.GetMintTransaction().Fee)
+		}
+	}
+	return total
 }

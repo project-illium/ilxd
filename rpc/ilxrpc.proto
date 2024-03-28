@@ -20,8 +20,12 @@ service BlockchainService {
     // GetBlockInfo returns a BlockHeader plus some extra metadata.
     rpc GetBlockInfo(GetBlockInfoRequest)returns (GetBlockInfoResponse) {}
 
-    // GetBlock returns the detailed data for a block.
+    // GetBlock returns a BlockInfo metadata object plus the transactions either
+    // as IDs or full transactions.
     rpc GetBlock(GetBlockRequest) returns (GetBlockResponse) {}
+
+    // GetRawBlock returns the raw block in protobuf format
+    rpc GetRawBlock(GetRawBlockRequest) returns (GetRawBlockResponse) {}
 
     // GetCompressedBlock returns a block that is stripped down to just the outputs.
     // It is the bare minimum information a client side wallet needs to compute its internal
@@ -61,6 +65,11 @@ service BlockchainService {
 
     // GetValidatorSet returns all the validators in the current validator set.
     rpc GetValidatorSet(GetValidatorSetRequest) returns (GetValidatorSetResponse) {}
+
+    // GetValidatorCoinbases returns a list of coinbase txids for the validator.
+    //
+    // **Requires AddrIndex**
+    rpc GetValidatorCoinbases(GetValidatorCoinbasesRequest) returns (GetValidatorCoinbasesResponse) {}
 
     // GetAccumulatorCheckpoint returns the accumulator at the requested height.
     // If there is no checkpoint at that height, the *prior* checkpoint found in the
@@ -374,6 +383,10 @@ message GetBlockchainInfoResponse {
     uint64 total_staked      = 7;
     // The balance of the treasury in nanoillium
     uint64 treasury_balance  = 8;
+    // The total size of the database on disk
+    uint64 blockchain_size   = 9;
+    // The current epoch number (also total number of epochs)
+    uint32 epoch             = 10;
 }
 
 message GetBlockInfoRequest {
@@ -396,8 +409,30 @@ message GetBlockRequest {
         // The block number
         uint32 height   = 2;
     }
+
+    // Default is false, only the transaction IDs are included for
+    // a marshaled block.
+    bool full_transactions = 3;
 }
 message GetBlockResponse {
+    // The BlockInfo (including header data) for the block
+    BlockInfo block_info                  = 1;
+    // The blocks transactions (if requested).
+    //
+    // The transactions will either be returned in for or just the txids depending
+    // on the request.
+    repeated TransactionData transactions = 2;
+}
+
+message GetRawBlockRequest {
+    oneof id_or_height {
+        // The block hash as a byte array
+        bytes block_ID = 1;
+        // The block number
+        uint32 height   = 2;
+    }
+}
+message GetRawBlockResponse {
     // The full block response
     Block block = 1;
 }
@@ -453,7 +488,11 @@ message GetTransactionRequest {
 }
 message GetTransactionResponse {
     // The transaction response
-    Transaction tx     = 1;
+    Transaction tx              = 1;
+    // The ID of the containing block
+    bytes block_ID              = 2;
+    // The height of the containing block
+    uint32 height               = 3;
     // The input and output metadata will
     // only only be non-nil if the address
     // index is enabled.
@@ -461,8 +500,8 @@ message GetTransactionResponse {
     // Further it will only metadata for public
     // inputs or outputs will be included otherwise
     // it will be `unknown`.
-    repeated IOMetadata inputs  = 2;
-    repeated IOMetadata outputs = 3;
+    repeated IOMetadata inputs  = 4;
+    repeated IOMetadata outputs = 5;
 }
 
 message GetAddressTransactionsRequest {
@@ -479,13 +518,16 @@ message GetAddressTransactionsResponse {
 
     message TransactionWithMetadata {
         // The transaction response
-        Transaction tx = 1;
-
+        Transaction tx              = 1;
+        // The ID of the containing block
+        bytes block_ID              = 2;
+        // The height of the containing block
+        uint32 height               = 3;
         // Metadata will only metadata for public
         // inputs or outputs will be included otherwise
         // it will be `unknown`.
-        repeated IOMetadata inputs  = 2;
-        repeated IOMetadata outputs = 3;
+        repeated IOMetadata inputs  = 4;
+        repeated IOMetadata outputs = 5;
     }
 }
 
@@ -511,6 +553,15 @@ message GetValidatorRequest {
 message GetValidatorResponse {
     // The validator response
     Validator validator = 1;
+}
+
+message GetValidatorCoinbasesRequest {
+    // A serialized validator ID
+    bytes validator_ID = 1;
+}
+message GetValidatorCoinbasesResponse {
+    // Coinbase transactions
+    repeated bytes txids = 1;
 }
 
 message GetValidatorSetInfoRequest{}
@@ -1231,6 +1282,8 @@ message BlockInfo {
     uint32 size       = 9;
     // The number of transactions in the block.
     uint32 num_txs    = 10;
+    // The total transaction fees in the block.
+    uint64 total_fees = 11;
 }
 
 message Validator {

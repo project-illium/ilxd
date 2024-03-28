@@ -31,8 +31,11 @@ type BlockchainServiceClient interface {
 	GetBlockchainInfo(ctx context.Context, in *GetBlockchainInfoRequest, opts ...grpc.CallOption) (*GetBlockchainInfoResponse, error)
 	// GetBlockInfo returns a BlockHeader plus some extra metadata.
 	GetBlockInfo(ctx context.Context, in *GetBlockInfoRequest, opts ...grpc.CallOption) (*GetBlockInfoResponse, error)
-	// GetBlock returns the detailed data for a block.
+	// GetBlock returns a BlockInfo metadata object plus the transactions either
+	// as IDs or full transactions.
 	GetBlock(ctx context.Context, in *GetBlockRequest, opts ...grpc.CallOption) (*GetBlockResponse, error)
+	// GetRawBlock returns the raw block in protobuf format
+	GetRawBlock(ctx context.Context, in *GetRawBlockRequest, opts ...grpc.CallOption) (*GetRawBlockResponse, error)
 	// GetCompressedBlock returns a block that is stripped down to just the outputs.
 	// It is the bare minimum information a client side wallet needs to compute its internal
 	// state.
@@ -63,6 +66,10 @@ type BlockchainServiceClient interface {
 	GetValidatorSetInfo(ctx context.Context, in *GetValidatorSetInfoRequest, opts ...grpc.CallOption) (*GetValidatorSetInfoResponse, error)
 	// GetValidatorSet returns all the validators in the current validator set.
 	GetValidatorSet(ctx context.Context, in *GetValidatorSetRequest, opts ...grpc.CallOption) (*GetValidatorSetResponse, error)
+	// GetValidatorCoinbases returns a list of coinbase txids for the validator.
+	//
+	// **Requires AddrIndex**
+	GetValidatorCoinbases(ctx context.Context, in *GetValidatorCoinbasesRequest, opts ...grpc.CallOption) (*GetValidatorCoinbasesResponse, error)
 	// GetAccumulatorCheckpoint returns the accumulator at the requested height.
 	// If there is no checkpoint at that height, the *prior* checkpoint found in the
 	// chain will be returned. If there is no prior checkpoint (as is prior to the first)
@@ -126,6 +133,15 @@ func (c *blockchainServiceClient) GetBlockInfo(ctx context.Context, in *GetBlock
 func (c *blockchainServiceClient) GetBlock(ctx context.Context, in *GetBlockRequest, opts ...grpc.CallOption) (*GetBlockResponse, error) {
 	out := new(GetBlockResponse)
 	err := c.cc.Invoke(ctx, "/pb.BlockchainService/GetBlock", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *blockchainServiceClient) GetRawBlock(ctx context.Context, in *GetRawBlockRequest, opts ...grpc.CallOption) (*GetRawBlockResponse, error) {
+	out := new(GetRawBlockResponse)
+	err := c.cc.Invoke(ctx, "/pb.BlockchainService/GetRawBlock", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -207,6 +223,15 @@ func (c *blockchainServiceClient) GetValidatorSetInfo(ctx context.Context, in *G
 func (c *blockchainServiceClient) GetValidatorSet(ctx context.Context, in *GetValidatorSetRequest, opts ...grpc.CallOption) (*GetValidatorSetResponse, error) {
 	out := new(GetValidatorSetResponse)
 	err := c.cc.Invoke(ctx, "/pb.BlockchainService/GetValidatorSet", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *blockchainServiceClient) GetValidatorCoinbases(ctx context.Context, in *GetValidatorCoinbasesRequest, opts ...grpc.CallOption) (*GetValidatorCoinbasesResponse, error) {
+	out := new(GetValidatorCoinbasesResponse)
+	err := c.cc.Invoke(ctx, "/pb.BlockchainService/GetValidatorCoinbases", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -308,8 +333,11 @@ type BlockchainServiceServer interface {
 	GetBlockchainInfo(context.Context, *GetBlockchainInfoRequest) (*GetBlockchainInfoResponse, error)
 	// GetBlockInfo returns a BlockHeader plus some extra metadata.
 	GetBlockInfo(context.Context, *GetBlockInfoRequest) (*GetBlockInfoResponse, error)
-	// GetBlock returns the detailed data for a block.
+	// GetBlock returns a BlockInfo metadata object plus the transactions either
+	// as IDs or full transactions.
 	GetBlock(context.Context, *GetBlockRequest) (*GetBlockResponse, error)
+	// GetRawBlock returns the raw block in protobuf format
+	GetRawBlock(context.Context, *GetRawBlockRequest) (*GetRawBlockResponse, error)
 	// GetCompressedBlock returns a block that is stripped down to just the outputs.
 	// It is the bare minimum information a client side wallet needs to compute its internal
 	// state.
@@ -340,6 +368,10 @@ type BlockchainServiceServer interface {
 	GetValidatorSetInfo(context.Context, *GetValidatorSetInfoRequest) (*GetValidatorSetInfoResponse, error)
 	// GetValidatorSet returns all the validators in the current validator set.
 	GetValidatorSet(context.Context, *GetValidatorSetRequest) (*GetValidatorSetResponse, error)
+	// GetValidatorCoinbases returns a list of coinbase txids for the validator.
+	//
+	// **Requires AddrIndex**
+	GetValidatorCoinbases(context.Context, *GetValidatorCoinbasesRequest) (*GetValidatorCoinbasesResponse, error)
 	// GetAccumulatorCheckpoint returns the accumulator at the requested height.
 	// If there is no checkpoint at that height, the *prior* checkpoint found in the
 	// chain will be returned. If there is no prior checkpoint (as is prior to the first)
@@ -376,6 +408,9 @@ func (UnimplementedBlockchainServiceServer) GetBlockInfo(context.Context, *GetBl
 func (UnimplementedBlockchainServiceServer) GetBlock(context.Context, *GetBlockRequest) (*GetBlockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBlock not implemented")
 }
+func (UnimplementedBlockchainServiceServer) GetRawBlock(context.Context, *GetRawBlockRequest) (*GetRawBlockResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRawBlock not implemented")
+}
 func (UnimplementedBlockchainServiceServer) GetCompressedBlock(context.Context, *GetCompressedBlockRequest) (*GetCompressedBlockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCompressedBlock not implemented")
 }
@@ -402,6 +437,9 @@ func (UnimplementedBlockchainServiceServer) GetValidatorSetInfo(context.Context,
 }
 func (UnimplementedBlockchainServiceServer) GetValidatorSet(context.Context, *GetValidatorSetRequest) (*GetValidatorSetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetValidatorSet not implemented")
+}
+func (UnimplementedBlockchainServiceServer) GetValidatorCoinbases(context.Context, *GetValidatorCoinbasesRequest) (*GetValidatorCoinbasesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetValidatorCoinbases not implemented")
 }
 func (UnimplementedBlockchainServiceServer) GetAccumulatorCheckpoint(context.Context, *GetAccumulatorCheckpointRequest) (*GetAccumulatorCheckpointResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAccumulatorCheckpoint not implemented")
@@ -514,6 +552,24 @@ func _BlockchainService_GetBlock_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BlockchainServiceServer).GetBlock(ctx, req.(*GetBlockRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BlockchainService_GetRawBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRawBlockRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockchainServiceServer).GetRawBlock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.BlockchainService/GetRawBlock",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockchainServiceServer).GetRawBlock(ctx, req.(*GetRawBlockRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -680,6 +736,24 @@ func _BlockchainService_GetValidatorSet_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlockchainService_GetValidatorCoinbases_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetValidatorCoinbasesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockchainServiceServer).GetValidatorCoinbases(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.BlockchainService/GetValidatorCoinbases",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockchainServiceServer).GetValidatorCoinbases(ctx, req.(*GetValidatorCoinbasesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BlockchainService_GetAccumulatorCheckpoint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetAccumulatorCheckpointRequest)
 	if err := dec(in); err != nil {
@@ -786,6 +860,10 @@ var BlockchainService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BlockchainService_GetBlock_Handler,
 		},
 		{
+			MethodName: "GetRawBlock",
+			Handler:    _BlockchainService_GetRawBlock_Handler,
+		},
+		{
 			MethodName: "GetCompressedBlock",
 			Handler:    _BlockchainService_GetCompressedBlock_Handler,
 		},
@@ -820,6 +898,10 @@ var BlockchainService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetValidatorSet",
 			Handler:    _BlockchainService_GetValidatorSet_Handler,
+		},
+		{
+			MethodName: "GetValidatorCoinbases",
+			Handler:    _BlockchainService_GetValidatorCoinbases_Handler,
 		},
 		{
 			MethodName: "GetAccumulatorCheckpoint",
