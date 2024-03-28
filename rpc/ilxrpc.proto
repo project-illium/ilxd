@@ -66,6 +66,11 @@ service BlockchainService {
     // GetValidatorSet returns all the validators in the current validator set.
     rpc GetValidatorSet(GetValidatorSetRequest) returns (GetValidatorSetResponse) {}
 
+    // GetValidatorCoinbases returns a list of coinbase txids for the validator.
+    //
+    // **Requires AddrIndex**
+    rpc GetValidatorCoinbases(GetValidatorCoinbasesRequest) returns (GetValidatorCoinbasesResponse) {}
+
     // GetAccumulatorCheckpoint returns the accumulator at the requested height.
     // If there is no checkpoint at that height, the *prior* checkpoint found in the
     // chain will be returned. If there is no prior checkpoint (as is prior to the first)
@@ -548,6 +553,15 @@ message GetValidatorRequest {
 message GetValidatorResponse {
     // The validator response
     Validator validator = 1;
+}
+
+message GetValidatorCoinbasesRequest {
+    // A serialized validator ID
+    bytes validator_ID = 1;
+}
+message GetValidatorCoinbasesResponse {
+    // Coinbase transactions
+    repeated bytes txids = 1;
 }
 
 message GetValidatorSetInfoRequest{}

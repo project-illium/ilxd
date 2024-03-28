@@ -66,6 +66,8 @@ type BlockchainServiceClient interface {
 	GetValidatorSetInfo(ctx context.Context, in *GetValidatorSetInfoRequest, opts ...grpc.CallOption) (*GetValidatorSetInfoResponse, error)
 	// GetValidatorSet returns all the validators in the current validator set.
 	GetValidatorSet(ctx context.Context, in *GetValidatorSetRequest, opts ...grpc.CallOption) (*GetValidatorSetResponse, error)
+	// GetValidatorCoinbases returns a list of coinbase txids for the validator.
+	GetValidatorCoinbases(ctx context.Context, in *GetValidatorCoinbasesRequest, opts ...grpc.CallOption) (*GetValidatorCoinbasesResponse, error)
 	// GetAccumulatorCheckpoint returns the accumulator at the requested height.
 	// If there is no checkpoint at that height, the *prior* checkpoint found in the
 	// chain will be returned. If there is no prior checkpoint (as is prior to the first)
@@ -225,6 +227,15 @@ func (c *blockchainServiceClient) GetValidatorSet(ctx context.Context, in *GetVa
 	return out, nil
 }
 
+func (c *blockchainServiceClient) GetValidatorCoinbases(ctx context.Context, in *GetValidatorCoinbasesRequest, opts ...grpc.CallOption) (*GetValidatorCoinbasesResponse, error) {
+	out := new(GetValidatorCoinbasesResponse)
+	err := c.cc.Invoke(ctx, "/pb.BlockchainService/GetValidatorCoinbases", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *blockchainServiceClient) GetAccumulatorCheckpoint(ctx context.Context, in *GetAccumulatorCheckpointRequest, opts ...grpc.CallOption) (*GetAccumulatorCheckpointResponse, error) {
 	out := new(GetAccumulatorCheckpointResponse)
 	err := c.cc.Invoke(ctx, "/pb.BlockchainService/GetAccumulatorCheckpoint", in, out, opts...)
@@ -355,6 +366,8 @@ type BlockchainServiceServer interface {
 	GetValidatorSetInfo(context.Context, *GetValidatorSetInfoRequest) (*GetValidatorSetInfoResponse, error)
 	// GetValidatorSet returns all the validators in the current validator set.
 	GetValidatorSet(context.Context, *GetValidatorSetRequest) (*GetValidatorSetResponse, error)
+	// GetValidatorCoinbases returns a list of coinbase txids for the validator.
+	GetValidatorCoinbases(context.Context, *GetValidatorCoinbasesRequest) (*GetValidatorCoinbasesResponse, error)
 	// GetAccumulatorCheckpoint returns the accumulator at the requested height.
 	// If there is no checkpoint at that height, the *prior* checkpoint found in the
 	// chain will be returned. If there is no prior checkpoint (as is prior to the first)
@@ -420,6 +433,9 @@ func (UnimplementedBlockchainServiceServer) GetValidatorSetInfo(context.Context,
 }
 func (UnimplementedBlockchainServiceServer) GetValidatorSet(context.Context, *GetValidatorSetRequest) (*GetValidatorSetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetValidatorSet not implemented")
+}
+func (UnimplementedBlockchainServiceServer) GetValidatorCoinbases(context.Context, *GetValidatorCoinbasesRequest) (*GetValidatorCoinbasesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetValidatorCoinbases not implemented")
 }
 func (UnimplementedBlockchainServiceServer) GetAccumulatorCheckpoint(context.Context, *GetAccumulatorCheckpointRequest) (*GetAccumulatorCheckpointResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAccumulatorCheckpoint not implemented")
@@ -716,6 +732,24 @@ func _BlockchainService_GetValidatorSet_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlockchainService_GetValidatorCoinbases_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetValidatorCoinbasesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockchainServiceServer).GetValidatorCoinbases(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.BlockchainService/GetValidatorCoinbases",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockchainServiceServer).GetValidatorCoinbases(ctx, req.(*GetValidatorCoinbasesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BlockchainService_GetAccumulatorCheckpoint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetAccumulatorCheckpointRequest)
 	if err := dec(in); err != nil {
@@ -860,6 +894,10 @@ var BlockchainService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetValidatorSet",
 			Handler:    _BlockchainService_GetValidatorSet_Handler,
+		},
+		{
+			MethodName: "GetValidatorCoinbases",
+			Handler:    _BlockchainService_GetValidatorCoinbases_Handler,
 		},
 		{
 			MethodName: "GetAccumulatorCheckpoint",

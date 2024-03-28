@@ -653,6 +653,32 @@ func (s *GrpcServer) GetValidatorSet(ctx context.Context, req *pb.GetValidatorSe
 	return resp, nil
 }
 
+// GetValidatorCoinbases returns a list of coinbase txids for the validator.
+//
+// **Requires AddrIndex**
+func (s *GrpcServer) GetValidatorCoinbases(ctx context.Context, req *pb.GetValidatorCoinbasesRequest) (*pb.GetValidatorCoinbasesResponse, error) {
+	if s.addrIndex == nil {
+		return nil, status.Error(codes.Unavailable, "addr index is not available")
+	}
+
+	pid, err := peer.IDFromBytes(req.Validator_ID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	txids, err := s.addrIndex.GetValidatorCoinbases(s.ds, pid)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	resp := &pb.GetValidatorCoinbasesResponse{
+		Txids: make([][]byte, len(txids)),
+	}
+	for i, txid := range txids {
+		resp.Txids[i] = txid.Bytes()
+	}
+	return resp, nil
+}
+
 // GetAccumulatorCheckpoint returns the accumulator at the requested height.
 func (s *GrpcServer) GetAccumulatorCheckpoint(ctx context.Context, req *pb.GetAccumulatorCheckpointRequest) (*pb.GetAccumulatorCheckpointResponse, error) {
 	var (
