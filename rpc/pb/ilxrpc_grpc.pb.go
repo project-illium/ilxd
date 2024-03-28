@@ -31,8 +31,11 @@ type BlockchainServiceClient interface {
 	GetBlockchainInfo(ctx context.Context, in *GetBlockchainInfoRequest, opts ...grpc.CallOption) (*GetBlockchainInfoResponse, error)
 	// GetBlockInfo returns a BlockHeader plus some extra metadata.
 	GetBlockInfo(ctx context.Context, in *GetBlockInfoRequest, opts ...grpc.CallOption) (*GetBlockInfoResponse, error)
-	// GetBlock returns the detailed data for a block.
+	// GetBlock returns a BlockInfo metadata object plus the transactions either
+	// as IDs or full transactions.
 	GetBlock(ctx context.Context, in *GetBlockRequest, opts ...grpc.CallOption) (*GetBlockResponse, error)
+	// GetRawBlock returns the raw block in protobuf format
+	GetRawBlock(ctx context.Context, in *GetRawBlockRequest, opts ...grpc.CallOption) (*GetRawBlockResponse, error)
 	// GetCompressedBlock returns a block that is stripped down to just the outputs.
 	// It is the bare minimum information a client side wallet needs to compute its internal
 	// state.
@@ -126,6 +129,15 @@ func (c *blockchainServiceClient) GetBlockInfo(ctx context.Context, in *GetBlock
 func (c *blockchainServiceClient) GetBlock(ctx context.Context, in *GetBlockRequest, opts ...grpc.CallOption) (*GetBlockResponse, error) {
 	out := new(GetBlockResponse)
 	err := c.cc.Invoke(ctx, "/pb.BlockchainService/GetBlock", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *blockchainServiceClient) GetRawBlock(ctx context.Context, in *GetRawBlockRequest, opts ...grpc.CallOption) (*GetRawBlockResponse, error) {
+	out := new(GetRawBlockResponse)
+	err := c.cc.Invoke(ctx, "/pb.BlockchainService/GetRawBlock", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -308,8 +320,11 @@ type BlockchainServiceServer interface {
 	GetBlockchainInfo(context.Context, *GetBlockchainInfoRequest) (*GetBlockchainInfoResponse, error)
 	// GetBlockInfo returns a BlockHeader plus some extra metadata.
 	GetBlockInfo(context.Context, *GetBlockInfoRequest) (*GetBlockInfoResponse, error)
-	// GetBlock returns the detailed data for a block.
+	// GetBlock returns a BlockInfo metadata object plus the transactions either
+	// as IDs or full transactions.
 	GetBlock(context.Context, *GetBlockRequest) (*GetBlockResponse, error)
+	// GetRawBlock returns the raw block in protobuf format
+	GetRawBlock(context.Context, *GetRawBlockRequest) (*GetRawBlockResponse, error)
 	// GetCompressedBlock returns a block that is stripped down to just the outputs.
 	// It is the bare minimum information a client side wallet needs to compute its internal
 	// state.
@@ -375,6 +390,9 @@ func (UnimplementedBlockchainServiceServer) GetBlockInfo(context.Context, *GetBl
 }
 func (UnimplementedBlockchainServiceServer) GetBlock(context.Context, *GetBlockRequest) (*GetBlockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBlock not implemented")
+}
+func (UnimplementedBlockchainServiceServer) GetRawBlock(context.Context, *GetRawBlockRequest) (*GetRawBlockResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRawBlock not implemented")
 }
 func (UnimplementedBlockchainServiceServer) GetCompressedBlock(context.Context, *GetCompressedBlockRequest) (*GetCompressedBlockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCompressedBlock not implemented")
@@ -514,6 +532,24 @@ func _BlockchainService_GetBlock_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BlockchainServiceServer).GetBlock(ctx, req.(*GetBlockRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BlockchainService_GetRawBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRawBlockRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockchainServiceServer).GetRawBlock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.BlockchainService/GetRawBlock",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockchainServiceServer).GetRawBlock(ctx, req.(*GetRawBlockRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -784,6 +820,10 @@ var BlockchainService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBlock",
 			Handler:    _BlockchainService_GetBlock_Handler,
+		},
+		{
+			MethodName: "GetRawBlock",
+			Handler:    _BlockchainService_GetRawBlock_Handler,
 		},
 		{
 			MethodName: "GetCompressedBlock",

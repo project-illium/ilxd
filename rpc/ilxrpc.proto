@@ -20,8 +20,12 @@ service BlockchainService {
     // GetBlockInfo returns a BlockHeader plus some extra metadata.
     rpc GetBlockInfo(GetBlockInfoRequest)returns (GetBlockInfoResponse) {}
 
-    // GetBlock returns the detailed data for a block.
+    // GetBlock returns a BlockInfo metadata object plus the transactions either
+    // as IDs or full transactions.
     rpc GetBlock(GetBlockRequest) returns (GetBlockResponse) {}
+
+    // GetRawBlock returns the raw block in protobuf format
+    rpc GetRawBlock(GetRawBlockRequest) returns (GetRawBlockResponse) {}
 
     // GetCompressedBlock returns a block that is stripped down to just the outputs.
     // It is the bare minimum information a client side wallet needs to compute its internal
@@ -396,8 +400,30 @@ message GetBlockRequest {
         // The block number
         uint32 height   = 2;
     }
+
+    // Default is false, only the transaction IDs are included for
+    // a marshaled block.
+    bool full_transactions = 3;
 }
 message GetBlockResponse {
+    // The BlockInfo (including header data) for the block
+    BlockInfo block_info                  = 1;
+    // The blocks transactions (if requested).
+    //
+    // The transactions will either be returned in for or just the txids depending
+    // on the request.
+    repeated TransactionData transactions = 2;
+}
+
+message GetRawBlockRequest {
+    oneof id_or_height {
+        // The block hash as a byte array
+        bytes block_ID = 1;
+        // The block number
+        uint32 height   = 2;
+    }
+}
+message GetRawBlockResponse {
     // The full block response
     Block block = 1;
 }

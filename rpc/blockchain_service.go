@@ -150,7 +150,8 @@ func (s *GrpcServer) GetBlockInfo(ctx context.Context, req *pb.GetBlockInfoReque
 	return resp, nil
 }
 
-// GetBlock returns the detailed data for a block.
+// GetBlock returns a BlockInfo metadata object plus the transactions either
+// as IDs or full transactions.
 func (s *GrpcServer) GetBlock(ctx context.Context, req *pb.GetBlockRequest) (*pb.GetBlockResponse, error) {
 	var (
 		blk *blocks.Block
@@ -164,7 +165,61 @@ func (s *GrpcServer) GetBlock(ctx context.Context, req *pb.GetBlockRequest) (*pb
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
-	return &pb.GetBlockResponse{
+	id := blk.Header.ID()
+	size, err := blk.SerializedSize()
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	resp := &pb.GetBlockResponse{
+		BlockInfo: &pb.BlockInfo{
+			Block_ID:    id[:],
+			Version:     blk.Header.Version,
+			Height:      blk.Header.Height,
+			Parent:      blk.Header.Parent,
+			Child:       nil,
+			Timestamp:   blk.Header.Timestamp,
+			TxRoot:      blk.Header.TxRoot,
+			Producer_ID: blk.Header.Producer_ID,
+			Size:        uint32(size),
+			NumTxs:      uint32(len(blk.Transactions)),
+			TotalFees:   uint64(computeTotalFees(blk)),
+		},
+		Transactions: make([]*pb.TransactionData, 0, len(blk.Transactions)),
+	}
+	for _, tx := range blk.Transactions {
+		if req.FullTransactions {
+			resp.Transactions = append(resp.Transactions, &pb.TransactionData{
+				TxidsOrTxs: &pb.TransactionData_Transaction{
+					Transaction: tx,
+				},
+			})
+		} else {
+			id := tx.ID()
+			resp.Transactions = append(resp.Transactions, &pb.TransactionData{
+				TxidsOrTxs: &pb.TransactionData_Transaction_ID{
+					Transaction_ID: id[:],
+				},
+			})
+		}
+	}
+	return resp, nil
+}
+
+// GetRawBlock returns the raw block in protobuf format
+func (s *GrpcServer) GetRawBlock(ctx context.Context, req *pb.GetRawBlockRequest) (*pb.GetRawBlockResponse, error) {
+	var (
+		blk *blocks.Block
+		err error
+	)
+	if len(req.GetBlock_ID()) == 0 {
+		blk, err = s.chain.GetBlockByHeight(req.GetHeight())
+	} else {
+		blk, err = s.chain.GetBlockByID(types.NewID(req.GetBlock_ID()))
+	}
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	return &pb.GetRawBlockResponse{
 		Block: blk,
 	}, nil
 }

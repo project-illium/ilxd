@@ -188,21 +188,21 @@ func (x *GetBlock) Execute(args []string) error {
 	if err != nil {
 		return err
 	}
-	var req *pb.GetBlockRequest
+	var req *pb.GetRawBlockRequest
 	if x.BlockID != "" {
 		b, err := hex.DecodeString(x.BlockID)
 		if err != nil {
 			return err
 		}
-		req = &pb.GetBlockRequest{
-			IdOrHeight: &pb.GetBlockRequest_Block_ID{Block_ID: b},
+		req = &pb.GetRawBlockRequest{
+			IdOrHeight: &pb.GetRawBlockRequest_Block_ID{Block_ID: b},
 		}
 	} else {
-		req = &pb.GetBlockRequest{
-			IdOrHeight: &pb.GetBlockRequest_Height{Height: uint32(x.Height)},
+		req = &pb.GetRawBlockRequest{
+			IdOrHeight: &pb.GetRawBlockRequest_Height{Height: uint32(x.Height)},
 		}
 	}
-	resp, err := client.GetBlock(makeContext(x.opts.AuthToken), req)
+	resp, err := client.GetRawBlock(makeContext(x.opts.AuthToken), req)
 	if err != nil {
 		return err
 	}
