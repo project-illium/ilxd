@@ -34,6 +34,7 @@ func serializeValidator(v *Validator) ([]byte, error) {
 		Stikes:          v.Strikes,
 		CoinbasePenalty: v.CoinbasePenalty,
 		ExpectedBlocks:  float32(v.ExpectedBlocks),
+		ValidatorSince:  timestamppb.New(v.ValidatorSince),
 	}
 
 	for v, stake := range v.Nullifiers {
@@ -71,6 +72,7 @@ func deserializeValidator(ser []byte) (*Validator, error) {
 		Strikes:         vProto.Stikes,
 		CoinbasePenalty: vProto.CoinbasePenalty,
 		ExpectedBlocks:  float64(vProto.ExpectedBlocks),
+		ValidatorSince:  vProto.ValidatorSince.AsTime(),
 	}
 
 	for _, n := range vProto.Nullifiers {
