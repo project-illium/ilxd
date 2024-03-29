@@ -598,6 +598,7 @@ func (s *GrpcServer) GetValidator(ctx context.Context, req *pb.GetValidatorReque
 			StakeWeight:    uint64(validator.WeightedStake),
 			UnclaimedCoins: uint64(validator.UnclaimedCoins),
 			EpochBlocks:    validator.EpochBlocks,
+			ValidatorSince: validator.ValidatorSince.Unix(),
 		},
 	}
 	for nullifier, stake := range validator.Nullifiers {
