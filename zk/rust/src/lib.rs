@@ -295,7 +295,7 @@ fn create_public_params() -> PublicParams<Fr> {
 }
 
 fn create_proof(lurk_program: String, private_params: String, public_params: String, max_steps: usize) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Box<dyn Error>> {
-    let store = &Store::<Fr>::default();
+    let store = &Arc::new(Store::<Fr>::default());
 
     let secret = Fr::random(OsRng);
     let priv_expr = store.read_with_default_state(private_params.as_str())?;
@@ -336,7 +336,7 @@ fn create_proof(lurk_program: String, private_params: String, public_params: Str
 
     let pp = get_public_params();
 
-    let (proof, _z0, zi, _num_steps) = supernova_prover.prove_from_frames(&pp, &frames, store)?;
+    let (proof, _z0, zi, _num_steps) = supernova_prover.prove_from_frames(&pp, &frames, store, None)?;
     let compressed_proof = proof.compress(&pp).unwrap();
 
     let mut ret_tag = zi[0].to_bytes();
