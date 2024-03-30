@@ -1299,6 +1299,8 @@ message Validator {
         uint64 unclaimed_coins = 5;
         // The number of blocks this validator has created this epoch.
         uint32 epoch_blocks    = 6;
+        // The block time this node first became a validator.
+        int64 validator_since  = 7;
 
         message Stake {
             // The nullifier that is staked

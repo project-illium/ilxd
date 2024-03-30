@@ -425,6 +425,7 @@ func (x *GetValidator) Execute(args []string) error {
 		StakeWeight    types.Amount `json:"stakeWeight"`
 		UnclaimedCoins types.Amount `json:"unclaimedCoins"`
 		EpochBlocks    uint32       `json:"epochBlocks"`
+		ValidatorSince time.Time    `json:"validatorSince"`
 		Stake          []*stake     `json:"stake"`
 	}{
 		ValidatorID:    respID.String(),
@@ -433,6 +434,7 @@ func (x *GetValidator) Execute(args []string) error {
 		Stake:          stk,
 		UnclaimedCoins: types.Amount(resp.Validator.UnclaimedCoins),
 		EpochBlocks:    resp.Validator.EpochBlocks,
+		ValidatorSince: time.Unix(resp.Validator.ValidatorSince, 0),
 	}
 
 	out, err := json.MarshalIndent(&v, "", "    ")

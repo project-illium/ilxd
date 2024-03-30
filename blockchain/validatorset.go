@@ -78,6 +78,7 @@ type Validator struct {
 	Strikes         uint32
 	CoinbasePenalty bool
 	ExpectedBlocks  float64
+	ValidatorSince  time.Time
 }
 
 // Clone returns a copy of the validator
@@ -435,6 +436,7 @@ func (vs *ValidatorSet) ConnectBlock(blk *blocks.Block, validatorReward types.Am
 						Nullifiers:     make(map[types.Nullifier]Stake),
 						UnclaimedCoins: 0,
 						EpochBlocks:    0,
+						ValidatorSince: blockTime,
 					}
 				} else {
 					valNew = &Validator{}

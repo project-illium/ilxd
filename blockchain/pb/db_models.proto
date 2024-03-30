@@ -5,15 +5,16 @@ import "transactions.proto";
 import "google/protobuf/timestamp.proto";
 
 message DBValidator {
-        string peer_id                = 1;
-        uint64 total_stake            = 2;
-        uint64 weighted_stake         = 3;
-        repeated Nullifier nullifiers = 4;
-        uint64 unclaimed_coins        = 5;
-        uint32 epochBLocks            = 6;
-        uint32 stikes                 = 7;
-        bool coinbase_penalty         = 8;
-        float expected_blocks         = 9;
+        string peer_id                             = 1;
+        uint64 total_stake                         = 2;
+        uint64 weighted_stake                      = 3;
+        repeated Nullifier nullifiers              = 4;
+        uint64 unclaimed_coins                     = 5;
+        uint32 epochBLocks                         = 6;
+        uint32 stikes                              = 7;
+        bool coinbase_penalty                      = 8;
+        float expected_blocks                      = 9;
+        google.protobuf.Timestamp validator_since = 10;
 
         message Nullifier {
                 bytes hash                           = 1;
