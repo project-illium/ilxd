@@ -22,7 +22,9 @@ import (
 
 const (
 	maxTimeBetweenFlushes = time.Minute * 15
-	ValidatorExpiration   = time.Hour * 24 * 7 * 26
+	// ValidatorExpiration is the maximum time a nullifier will remain the validator set
+	// without restaking.
+	ValidatorExpiration = time.Hour * 24 * 7 * 52
 )
 
 // setConsistencyStatus (SCS) codes are used to indicate the
