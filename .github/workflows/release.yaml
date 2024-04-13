@@ -48,10 +48,9 @@ jobs:
             os: ubuntu-latest
             goarch: 'amd64'
             image: null
-          #- platform : darwin
-          #  os: macos-latest
-          #  goarch: 'amd64'
-          #  image: null
+          - platform : darwin
+            os: macos-latest
+            image: null
 
     steps:
       - name: Checkout code
@@ -82,12 +81,8 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Add Rust target for macOS x86_64
-        if: matrix.platform == 'darwin'
-        run: rustup target add x86_64-apple-darwin
-
-      - name: Build Rust bindings for linux
-        if: matrix.platform == 'linux'
+      - name: Build Rust bindings for linux and mac
+        if: matrix.platform == 'linux' || matrix.platform == 'darwin'
         shell: bash
         run: |
           export OPENSSL_STATIC=1
