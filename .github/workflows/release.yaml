@@ -81,8 +81,12 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: Add Rust target for macOS
+        if: matrix.platform == 'darwin'
+        run: rustup target add aarch64-apple-darwin
+
       - name: Build Rust bindings for linux and mac
-        if: matrix.platform == 'linux' || matrix.platform == 'darwin'
+        if: matrix.platform == 'linux'
         shell: bash
         run: |
           export OPENSSL_STATIC=1
@@ -90,13 +94,13 @@ jobs:
           cd ../..
           cd zk/rust && cargo build --release
 
-      #- name: Build Rust bindings for darwin
-      #  if: matrix.platform == 'darwin'
-      #  shell: bash
-      #  run: |
-      #    cd crypto/rust && cargo build --target=x86_64-apple-darwin --release
-      #    cd ../..
-      #    cd zk/rust && cargo build --target=x86_64-apple-darwin --release
+      - name: Build Rust bindings for darwin
+        if: matrix.platform == 'darwin'
+        shell: bash
+        run: |
+          cd crypto/rust && cargo build --target aarch64-apple-darwin --release
+          cd ../..
+          cd zk/rust && cargo build --target aarch64-apple-darwin --release
 
       - name: Compile ilxd and ilxcli for ${{ matrix.platform }} ${{ matrix.goarch }}
         shell: bash
