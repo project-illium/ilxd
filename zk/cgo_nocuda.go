@@ -13,6 +13,6 @@ package zk
 #cgo windows CFLAGS: -Irust/target/release
 #cgo windows LDFLAGS: -Lrust/target/release -l:libillium_zk.lib
 #cgo darwin CFLAGS: -Irust/target/release -Irust/target/aarch64-apple-darwin
-#cgo darwin LDFLAGS: -Lrust/target/release -Lrust/target/aarch64-apple-darwin -l:libillium_zk.a -lc++ -lssl -lcrypto -framework SystemConfiguration
+#cgo darwin LDFLAGS: -Lrust/target/release -Lrust/target/aarch64-apple-darwin -lillium_zk -lc++ -lssl -lcrypto -framework SystemConfiguration
 */
 import "C"
