@@ -85,7 +85,7 @@ jobs:
         if: matrix.platform == 'darwin'
         run: rustup target add aarch64-apple-darwin
 
-      - name: Build Rust bindings for linux and mac
+      - name: Build Rust bindings for linux
         if: matrix.platform == 'linux'
         shell: bash
         run: |
@@ -101,6 +101,9 @@ jobs:
           cd crypto/rust && cargo build --target aarch64-apple-darwin --release
           cd ../..
           cd zk/rust && cargo build --target aarch64-apple-darwin --release
+
+      - name: List files in the library directory
+        run: ls -l zk/rust/target
 
       - name: Compile ilxd and ilxcli for ${{ matrix.platform }} ${{ matrix.goarch }}
         shell: bash
