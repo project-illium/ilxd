@@ -103,7 +103,7 @@ jobs:
           cd zk/rust && cargo build --target aarch64-apple-darwin --release
 
       - name: List files in the library directory
-        run: ls -l zk/rust/target
+        run: ls -d zk/rust/*
 
       - name: Compile ilxd and ilxcli for ${{ matrix.platform }} ${{ matrix.goarch }}
         shell: bash
