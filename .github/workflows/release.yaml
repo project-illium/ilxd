@@ -51,7 +51,7 @@ jobs:
           - platform : darwin
             os: macos-latest
             goarch: 'arm64'
-            image: null
+            image: macos-14
 
     steps:
       - name: Checkout code
