@@ -50,6 +50,7 @@ jobs:
             image: null
           - platform : darwin
             os: macos-latest
+            goarch: 'arm64'
             image: null
 
     steps:
