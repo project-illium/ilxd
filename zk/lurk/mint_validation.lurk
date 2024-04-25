@@ -143,7 +143,7 @@
                ))
 
                ;; validate-amounts makes sure the output amounts do not exceed the input
-               ;; amounts, taking into consideration fees and any coinbase or mint.
+               ;; amounts, taking into consideration fees and mint.
                (validate-amounts (lambda (in-map out-map fee mint-id mint-amount)
                      (let (
                             (out-asset (car out-map))

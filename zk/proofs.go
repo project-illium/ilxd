@@ -54,6 +54,7 @@ import "C"
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"sync"
 	"unsafe"
 )
@@ -80,6 +81,36 @@ type Expr string
 
 func (p Expr) ToExpr() (string, error) {
 	return string(p), nil
+}
+
+// List builds a list expression from a slice
+func List(args ...any) Expr {
+	s := ""
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+			s += fmt.Sprintf("(cons 0x%d ", v)
+		case string:
+			s += fmt.Sprintf("(cons \"%s\" ", v)
+		case []byte:
+			s += fmt.Sprintf("(cons 0x%x ", v)
+		case bool:
+			if v {
+				s += "(cons t "
+			} else {
+				s += "(cons nil "
+			}
+		default:
+			s += fmt.Sprintf("(cons %v ", v)
+		}
+	}
+	if len(s) > 0 {
+		s += "nil"
+	}
+	for i := 0; i < len(args); i++ {
+		s += ")"
+	}
+	return Expr(s)
 }
 
 // LoadZKPublicParameters loads the lurk public parameters from disk
