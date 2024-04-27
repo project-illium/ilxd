@@ -7,8 +7,10 @@
 #     to be picked out of the source tree. They'll be in /build/release.
 #
 FROM rust:latest as rust-builder
+
 WORKDIR /src
-COPY . /src
+COPY . .
+
 RUN CARGO_TARGET_DIR=/build make rust-bindings
 
 ##
@@ -18,29 +20,30 @@ RUN CARGO_TARGET_DIR=/build make rust-bindings
 #   - Build the go apps, leaving the build products (executables) in the /build directory.
 #
 FROM golang:1.21 AS go-builder
-RUN apt update && apt install -y libssl-dev
+
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y libssl-dev
+
 WORKDIR /src
 COPY --from=rust-builder /src /src
 COPY --from=rust-builder /build /build
 
-# Set necessary environment variables for Go, and build the apps
-ENV GOPATH=/go
-ENV PATH=$GOPATH/bin:$PATH
+# build the apps
 RUN CGO_LDFLAGS="-L/build/release" ARGS="-o /build" make go
  
-
 ##
 # Final build stage: 
 #   - copy the ilxd and ilxcli binaries from the Go stage.
 #
-FROM debian:latest
-WORKDIR /app
+FROM debian:bookworm-slim
+
 # Copy the compiled Go binary from the build stage
-COPY --from=go-builder /build/ilxd /app
-COPY --from=go-builder /build/cli /app/ilxcli
+COPY --from=go-builder /build/ilxd /usr/local/bin/ilxd
+COPY --from=go-builder /build/cli /usr/local/bin/ilxcli
+
 # Expose necessary ports
 EXPOSE 9002
 EXPOSE 5001
-ENV PATH="/app:${PATH}"
-ENTRYPOINT ["/app/ilxd"]
+
+ENTRYPOINT ["ilxd"]
 CMD ["--alpha", "--loglevel=debug"]
