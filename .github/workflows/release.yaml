@@ -135,7 +135,7 @@ jobs:
       - name: Build Docker Image
         if: matrix.platform == 'linux'
         run: |
-          docker build . -t projectillium/ilxd:${GITHUB_REF#refs/tags/}
+          docker build . -t projectillium/ilxd:${GITHUB_REF#refs/tags/} -t projectillium/ilxd:latest
 
       - name: Login to Docker Hub
         uses: docker/login-action@v1
@@ -146,6 +146,7 @@ jobs:
       - name: Push Docker Image to Docker Hub
         run: |
           docker push projectillium/ilxd:${GITHUB_REF#refs/tags/}
+          docker push projectillium/ilxd:latest
 
       - name: Download upload_url artifact
         uses: actions/download-artifact@v2
