@@ -59,6 +59,17 @@ and verifying time.
 $ CUDA=1 make install
 ```
 
+### Running with Docker
+Using docker run:
+```
+$ docker run -d -p 9002:9002 -p 5001:5001 projectillium/ilxd:v0.0.11-alpha --alpha
+```
+
+Using docker-compose:
+```
+$ docker-compose up
+```
+
 ### Usage
 Vist [docs.illium.org](https://docs.illium.org/node) for a comprehensive guide to running a node.
 
