@@ -692,7 +692,8 @@ func (s *Server) handleBlockchainNotification(ntf *blockchain.Notification) {
 		}
 		validator, err := s.blockchain.GetValidator(s.network.Host().ID())
 		if err == nil && validator.UnclaimedCoins > 0 && s.isCurrent() {
-			tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.coinbaseAddr, s.networkKey, s.blockchain.GetEpoch())
+			epochID, epochHeight := s.blockchain.GetEpoch()
+			tx, err := s.wallet.BuildCoinbaseTransaction(validator.UnclaimedCoins, s.coinbaseAddr, s.networkKey, epochID, epochHeight)
 			if err != nil {
 				log.WithCaller(true).Error("Error building auto coinbase transaction",
 					log.Args("error", err))
