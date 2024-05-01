@@ -61,6 +61,7 @@ type Blockchain struct {
 	notifications     []NotificationCallback
 	prune             bool
 	notificationsLock sync.RWMutex
+	lastEpoch         types.ID
 
 	// stateLock protects concurrent access to the chain state
 	stateLock sync.RWMutex
@@ -124,6 +125,12 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 				return nil, err
 			}
 		}
+
+		epochID, err := dsFetchEpochID(b.ds)
+		if err != nil && !errors.Is(err, datastore.ErrNotFound) {
+			return nil, err
+		}
+		b.lastEpoch = epochID
 	}
 	if err := b.validatorSet.Init(b.index.Tip()); err != nil {
 		return nil, err
@@ -190,7 +197,7 @@ func (b *Blockchain) BlockBatch() (*Batch, error) {
 	return batch, nil
 }
 
-// Close flushes all caches to disk and makes the node safe to shutdown.
+// Close flushes all caches to disk and makes the node safe to shut down
 func (b *Blockchain) Close() error {
 	b.stateLock.Lock()
 	defer b.stateLock.Unlock()
@@ -207,7 +214,7 @@ func (b *Blockchain) Close() error {
 	return b.accumulatorDB.Flush(FlushRequired, tip.height)
 }
 
-// IsPruned returns whether the blockchain has every been pruned.
+// IsPruned returns whether the blockchain has every been pruned
 func (b *Blockchain) IsPruned() (bool, error) {
 	return dsFetchPrunedFlag(b.ds)
 }
@@ -341,6 +348,11 @@ func (b *Blockchain) connectBlock(dbtx datastore.Txn, blk *blocks.Block, flags B
 			if err := dsIncrementCurrentSupply(dbtx, coinbase); err != nil {
 				return err
 			}
+
+			if err := dsPutEpochID(dbtx, b.index.Tip().blockID.Clone()); err != nil {
+				return err
+			}
+			b.lastEpoch = b.index.Tip().blockID.Clone()
 
 			treasuryCredit := float64(coinbase) / (float64(100) / b.params.TreasuryPercentage)
 			if err := dsCreditTreasury(dbtx, types.Amount(treasuryCredit)); err != nil {
@@ -544,7 +556,7 @@ func (b *Blockchain) ReindexChainState() error {
 	return nil
 }
 
-// WeightedRandomValidator returns a validator weighted by their current stake.
+// WeightedRandomValidator returns a validator weighted by their current stake
 func (b *Blockchain) WeightedRandomValidator() peer.ID {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -552,7 +564,7 @@ func (b *Blockchain) WeightedRandomValidator() peer.ID {
 	return b.validatorSet.WeightedRandomValidator()
 }
 
-// BestBlock returns the ID, height, and timestamp of the block at the tip of the chain.
+// BestBlock returns the ID, height, and timestamp of the block at the tip of the chain
 func (b *Blockchain) BestBlock() (types.ID, uint32, time.Time) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -561,7 +573,7 @@ func (b *Blockchain) BestBlock() (types.ID, uint32, time.Time) {
 	return tip.blockID, tip.height, time.Unix(tip.timestamp, 0)
 }
 
-// GetBlockByHeight returns the block at the given height. The block will be loaded from disk.
+// GetBlockByHeight returns the block at the given height. The block will be loaded from disk
 func (b *Blockchain) GetBlockByHeight(height uint32) (*blocks.Block, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -573,7 +585,7 @@ func (b *Blockchain) GetBlockByHeight(height uint32) (*blocks.Block, error) {
 	return node.Block()
 }
 
-// GetBlockByID returns the block with the given ID. The block will be loaded from disk.
+// GetBlockByID returns the block with the given ID. The block will be loaded from disk
 func (b *Blockchain) GetBlockByID(blockID types.ID) (*blocks.Block, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -585,7 +597,7 @@ func (b *Blockchain) GetBlockByID(blockID types.ID) (*blocks.Block, error) {
 	return node.Block()
 }
 
-// GetBlockIDByHeight returns the ID of the block at the given height.
+// GetBlockIDByHeight returns the ID of the block at the given height
 func (b *Blockchain) GetBlockIDByHeight(height uint32) (types.ID, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -597,7 +609,7 @@ func (b *Blockchain) GetBlockIDByHeight(height uint32) (types.ID, error) {
 	return node.ID(), nil
 }
 
-// GetHeaderByHeight returns the header at the given height. The header will be loaded from disk.
+// GetHeaderByHeight returns the header at the given height. The header will be loaded from disk
 func (b *Blockchain) GetHeaderByHeight(height uint32) (*blocks.BlockHeader, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -609,7 +621,7 @@ func (b *Blockchain) GetHeaderByHeight(height uint32) (*blocks.BlockHeader, erro
 	return node.Header()
 }
 
-// GetBlockHeight returns the height of the block with the given ID.
+// GetBlockHeight returns the height of the block with the given ID
 func (b *Blockchain) GetBlockHeight(blkID types.ID) (uint32, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -621,7 +633,7 @@ func (b *Blockchain) GetBlockHeight(blkID types.ID) (uint32, error) {
 	return node.height, nil
 }
 
-// HasBlock returns whether the block exists in the chain.
+// HasBlock returns whether the block exists in the chain
 func (b *Blockchain) HasBlock(blockID types.ID) bool {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -630,7 +642,7 @@ func (b *Blockchain) HasBlock(blockID types.ID) bool {
 	return err == nil
 }
 
-// TreasuryBalance returns the current balance of the treasury.
+// TreasuryBalance returns the current balance of the treasury
 func (b *Blockchain) TreasuryBalance() (types.Amount, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -638,7 +650,7 @@ func (b *Blockchain) TreasuryBalance() (types.Amount, error) {
 	return dsFetchTreasuryBalance(b.ds)
 }
 
-// TxoRootExists returns whether the given root exists in the txo root set.
+// TxoRootExists returns whether the given root exists in the txo root set
 func (b *Blockchain) TxoRootExists(txoRoot types.ID) (bool, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -646,7 +658,7 @@ func (b *Blockchain) TxoRootExists(txoRoot types.ID) (bool, error) {
 	return b.txoRootSet.RootExists(txoRoot)
 }
 
-// NullifierExists returns whether a nullifier exists in the nullifier set.
+// NullifierExists returns whether a nullifier exists in the nullifier set
 func (b *Blockchain) NullifierExists(n types.Nullifier) (bool, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -668,7 +680,7 @@ func (b *Blockchain) GetValidator(validatorID peer.ID) (*Validator, error) {
 	return ret, nil
 }
 
-// ValidatorExists returns whether the validator exists in the set.
+// ValidatorExists returns whether the validator exists in the set
 func (b *Blockchain) ValidatorExists(validatorID peer.ID) bool {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -734,12 +746,12 @@ func (b *Blockchain) GetInclusionProof(commitment types.ID) (*InclusionProof, ty
 	return proof, b.index.Tip().ID(), err
 }
 
-// Params returns the current chain parameters use by the blockchain.
+// Params returns the current chain parameters use by the blockchain
 func (b *Blockchain) Params() *params.NetworkParams {
 	return b.params
 }
 
-// CurrentSupply returns the current circulating supply of coins.
+// CurrentSupply returns the current circulating supply of coins
 func (b *Blockchain) CurrentSupply() (types.Amount, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -762,7 +774,7 @@ func (b *Blockchain) CurrentSupply() (types.Amount, error) {
 	return supply, nil
 }
 
-// TotalStaked returns the total number of coins staked in the validator set.
+// TotalStaked returns the total number of coins staked in the validator set
 func (b *Blockchain) TotalStaked() types.Amount {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -779,7 +791,7 @@ func (b *Blockchain) TotalStakeWeight() types.Amount {
 	return b.validatorSet.totalWeightedStake()
 }
 
-// ValidatorSetSize returns the number of validators in the validator set.
+// ValidatorSetSize returns the number of validators in the validator set
 func (b *Blockchain) ValidatorSetSize() int {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -787,7 +799,7 @@ func (b *Blockchain) ValidatorSetSize() int {
 	return len(b.validatorSet.validators)
 }
 
-// Validators returns the full list of validators.
+// Validators returns the full list of validators
 func (b *Blockchain) Validators() []*Validator {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -801,7 +813,7 @@ func (b *Blockchain) Validators() []*Validator {
 	return ret
 }
 
-// IsProducerUnderLimit returns whether the given validator is currently under the block production limit.
+// IsProducerUnderLimit returns whether the given validator is currently under the block production limit
 func (b *Blockchain) IsProducerUnderLimit(validatorID peer.ID) (bool, uint32, uint32, error) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
@@ -811,6 +823,14 @@ func (b *Blockchain) IsProducerUnderLimit(validatorID peer.ID) (bool, uint32, ui
 		return false, 0, 0, err
 	}
 	return current < max, current, max, nil
+}
+
+// GetEpoch returns the last epoch ID in the blockchain
+func (b *Blockchain) GetEpoch() types.ID {
+	b.stateLock.RLock()
+	defer b.stateLock.RUnlock()
+
+	return b.lastEpoch
 }
 
 func (b *Blockchain) isInitialized() (bool, error) {

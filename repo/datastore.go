@@ -55,6 +55,8 @@ const (
 	CachedAddrInfoDatastoreKey = "/ilxd/peerstore/addrinfo/"
 	// TreasuryWhitelistDatastoreKeyPrefix is the datastore key prefix for the treasury whitelist.
 	TreasuryWhitelistDatastoreKeyPrefix = "/ilxd/whitelist/"
+	// EpochDatastoreKey is the datastore key used for tracking the last epoch.
+	EpochDatastoreKey = "/ilxd/epoch/"
 
 	// TxIndexKey is the datastore key for the transaction index.
 	TxIndexKey = "txindex"

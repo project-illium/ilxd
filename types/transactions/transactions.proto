@@ -32,9 +32,10 @@ message StandardTransaction {
 message CoinbaseTransaction {
     bytes validator_ID       = 1;
     uint64 new_coins         = 2;
-    repeated Output outputs  = 3;
-    bytes signature          = 4;
-    bytes proof              = 5;
+    bytes epoch              = 3;
+    repeated Output outputs  = 4;
+    bytes signature          = 5;
+    bytes proof              = 6;
 }
 
 message StakeTransaction {

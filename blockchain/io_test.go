@@ -6,6 +6,7 @@ package blockchain
 
 import (
 	"context"
+	"crypto/rand"
 	"github.com/go-test/deep"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
@@ -368,4 +369,18 @@ func TestIncrementFetchCurrentSupply(t *testing.T) {
 	supply, err = dsFetchCurrentSupply(dbtx)
 	assert.NoError(t, err)
 	assert.Equal(t, types.Amount(999), supply)
+}
+
+func TestPutGetEpoch(t *testing.T) {
+	ds := mock.NewMapDatastore()
+	dbtx, err := ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
+	r := make([]byte, 32)
+	rand.Read(r[:])
+	assert.NoError(t, dsPutEpochID(dbtx, types.NewID(r)))
+	assert.NoError(t, dbtx.Commit(context.Background()))
+
+	id, err := dsFetchEpochID(ds)
+	assert.NoError(t, err)
+	assert.Equal(t, r, id.Bytes())
 }

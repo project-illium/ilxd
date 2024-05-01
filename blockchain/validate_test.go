@@ -237,6 +237,7 @@ func TestValidateBlock(t *testing.T) {
 	ds := mock.NewMapDatastore()
 	verifier := &zk.MockVerifier{}
 	verifier.SetValid(true)
+
 	b := Blockchain{
 		ds:           ds,
 		proofCache:   NewProofCache(30),
@@ -244,6 +245,7 @@ func TestValidateBlock(t *testing.T) {
 		nullifierSet: NewNullifierSet(ds, 10),
 		validatorSet: NewValidatorSet(&params.RegestParams, ds),
 		verifier:     verifier,
+		lastEpoch:    types.NewID(bytes.Repeat([]byte{0x11}, 32)),
 	}
 	assert.NoError(t, dsInitTreasury(ds))
 	dbtx, err := ds.NewTransaction(context.Background(), false)
@@ -901,6 +903,7 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorIDBytes,
 						NewCoins:     10000,
+						Epoch:        b.lastEpoch.Bytes(),
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -929,6 +932,7 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorIDBytes,
 						NewCoins:     11000,
+						Epoch:        b.lastEpoch.Bytes(),
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -957,6 +961,7 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorIDBytes,
 						NewCoins:     0,
+						Epoch:        b.lastEpoch.Bytes(),
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -985,6 +990,36 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorID2Bytes,
 						NewCoins:     10000,
+						Epoch:        b.lastEpoch.Bytes(),
+						Outputs: []*transactions.Output{
+							{
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
+							},
+						},
+					}),
+				}
+
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: ruleError(ErrInvalidTx, ""),
+		},
+		{
+			name: "coinbase transaction invalid epoch",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+						Validator_ID: validatorID2Bytes,
+						NewCoins:     10000,
+						Epoch:        types.ID{}.Bytes(),
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -1013,6 +1048,7 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorIDBytes,
 						NewCoins:     10000,
+						Epoch:        b.lastEpoch.Bytes(),
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -1022,7 +1058,8 @@ func TestValidateBlock(t *testing.T) {
 					}),
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorIDBytes,
-						NewCoins:     10002,
+						NewCoins:     10001,
+						Epoch:        b.lastEpoch.Bytes(),
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
