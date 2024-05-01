@@ -372,8 +372,14 @@ func (m *Mempool) handleValidateTransaction(tx *transactions.Transaction) error 
 			return policyError(ErrPoorValidatorUptime, "coinbase for peer with poor uptime")
 		}
 
-		if !bytes.Equal(m.cfg.chainView.GetEpoch().Bytes(), t.CoinbaseTransaction.Epoch) {
-			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction invalid epoch")
+		epochID, epochHeight := m.cfg.chainView.GetEpoch()
+
+		if !bytes.Equal(epochID.Bytes(), t.CoinbaseTransaction.Epoch_ID) {
+			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction invalid epoch ID")
+		}
+
+		if epochHeight != t.CoinbaseTransaction.EpochHeight {
+			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction invalid epoch height")
 		}
 
 	case *transactions.Transaction_StandardTransaction:
@@ -508,8 +514,14 @@ func (m *Mempool) processTransaction(tx *transactions.Transaction) error {
 			return policyError(ErrPoorValidatorUptime, "coinbase for peer with poor uptime")
 		}
 
-		if !bytes.Equal(m.cfg.chainView.GetEpoch().Bytes(), t.CoinbaseTransaction.Epoch) {
-			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction invalid epoch")
+		epochID, epochHeight := m.cfg.chainView.GetEpoch()
+
+		if !bytes.Equal(epochID.Bytes(), t.CoinbaseTransaction.Epoch_ID) {
+			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction invalid epoch ID")
+		}
+
+		if epochHeight != t.CoinbaseTransaction.EpochHeight {
+			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction invalid epoch height")
 		}
 
 		// There is an unlikely scenario where a coinbase could sit in the mempool

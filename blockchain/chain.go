@@ -61,7 +61,8 @@ type Blockchain struct {
 	notifications     []NotificationCallback
 	prune             bool
 	notificationsLock sync.RWMutex
-	lastEpoch         types.ID
+	lastEpochID       types.ID
+	lastEpochHeight   uint32
 
 	// stateLock protects concurrent access to the chain state
 	stateLock sync.RWMutex
@@ -126,11 +127,12 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 			}
 		}
 
-		epochID, err := dsFetchEpochID(b.ds)
+		epochID, epochHeight, err := dsFetchEpoch(b.ds)
 		if err != nil && !errors.Is(err, datastore.ErrNotFound) {
 			return nil, err
 		}
-		b.lastEpoch = epochID
+		b.lastEpochID = epochID
+		b.lastEpochHeight = epochHeight
 	}
 	if err := b.validatorSet.Init(b.index.Tip()); err != nil {
 		return nil, err
@@ -349,10 +351,11 @@ func (b *Blockchain) connectBlock(dbtx datastore.Txn, blk *blocks.Block, flags B
 				return err
 			}
 
-			if err := dsPutEpochID(dbtx, b.index.Tip().blockID.Clone()); err != nil {
+			if err := dsPutEpoch(dbtx, b.index.Tip().blockID.Clone(), b.index.Tip().Height()); err != nil {
 				return err
 			}
-			b.lastEpoch = b.index.Tip().blockID.Clone()
+			b.lastEpochID = b.index.Tip().blockID.Clone()
+			b.lastEpochHeight = b.index.Tip().Height()
 
 			treasuryCredit := float64(coinbase) / (float64(100) / b.params.TreasuryPercentage)
 			if err := dsCreditTreasury(dbtx, types.Amount(treasuryCredit)); err != nil {
@@ -825,12 +828,12 @@ func (b *Blockchain) IsProducerUnderLimit(validatorID peer.ID) (bool, uint32, ui
 	return current < max, current, max, nil
 }
 
-// GetEpoch returns the last epoch ID in the blockchain
-func (b *Blockchain) GetEpoch() types.ID {
+// GetEpoch returns the last epoch ID and height in the blockchain
+func (b *Blockchain) GetEpoch() (types.ID, uint32) {
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
 
-	return b.lastEpoch
+	return b.lastEpochID, b.lastEpochHeight
 }
 
 func (b *Blockchain) isInitialized() (bool, error) {

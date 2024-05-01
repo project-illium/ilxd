@@ -377,10 +377,11 @@ func TestPutGetEpoch(t *testing.T) {
 	assert.NoError(t, err)
 	r := make([]byte, 32)
 	rand.Read(r[:])
-	assert.NoError(t, dsPutEpochID(dbtx, types.NewID(r)))
+	assert.NoError(t, dsPutEpoch(dbtx, types.NewID(r), 5))
 	assert.NoError(t, dbtx.Commit(context.Background()))
 
-	id, err := dsFetchEpochID(ds)
+	id, height, err := dsFetchEpoch(ds)
 	assert.NoError(t, err)
 	assert.Equal(t, r, id.Bytes())
+	assert.Equal(t, uint32(5), height)
 }

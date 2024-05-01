@@ -239,13 +239,14 @@ func TestValidateBlock(t *testing.T) {
 	verifier.SetValid(true)
 
 	b := Blockchain{
-		ds:           ds,
-		proofCache:   NewProofCache(30),
-		txoRootSet:   NewTxoRootSet(ds, 10),
-		nullifierSet: NewNullifierSet(ds, 10),
-		validatorSet: NewValidatorSet(&params.RegestParams, ds),
-		verifier:     verifier,
-		lastEpoch:    types.NewID(bytes.Repeat([]byte{0x11}, 32)),
+		ds:              ds,
+		proofCache:      NewProofCache(30),
+		txoRootSet:      NewTxoRootSet(ds, 10),
+		nullifierSet:    NewNullifierSet(ds, 10),
+		validatorSet:    NewValidatorSet(&params.RegestParams, ds),
+		verifier:        verifier,
+		lastEpochID:     types.NewID(bytes.Repeat([]byte{0x11}, 32)),
+		lastEpochHeight: 1,
 	}
 	assert.NoError(t, dsInitTreasury(ds))
 	dbtx, err := ds.NewTransaction(context.Background(), false)
@@ -903,7 +904,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorIDBytes,
 						NewCoins:     10000,
-						Epoch:        b.lastEpoch.Bytes(),
+						Epoch_ID:     b.lastEpochID.Bytes(),
+						EpochHeight:  b.lastEpochHeight,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -932,7 +934,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorIDBytes,
 						NewCoins:     11000,
-						Epoch:        b.lastEpoch.Bytes(),
+						Epoch_ID:     b.lastEpochID.Bytes(),
+						EpochHeight:  b.lastEpochHeight,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -961,7 +964,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorIDBytes,
 						NewCoins:     0,
-						Epoch:        b.lastEpoch.Bytes(),
+						Epoch_ID:     b.lastEpochID.Bytes(),
+						EpochHeight:  b.lastEpochHeight,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -990,7 +994,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorID2Bytes,
 						NewCoins:     10000,
-						Epoch:        b.lastEpoch.Bytes(),
+						Epoch_ID:     b.lastEpochID.Bytes(),
+						EpochHeight:  b.lastEpochHeight,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -1013,13 +1018,44 @@ func TestValidateBlock(t *testing.T) {
 			expectedErr: ruleError(ErrInvalidTx, ""),
 		},
 		{
-			name: "coinbase transaction invalid epoch",
+			name: "coinbase transaction invalid epoch ID",
 			block: func(blk *blocks.Block) (*blocks.Block, error) {
 				blk.Transactions = []*transactions.Transaction{
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorID2Bytes,
 						NewCoins:     10000,
-						Epoch:        types.ID{}.Bytes(),
+						Epoch_ID:     types.ID{}.Bytes(),
+						EpochHeight:  b.lastEpochHeight,
+						Outputs: []*transactions.Output{
+							{
+								Commitment: make([]byte, types.CommitmentLen),
+								Ciphertext: make([]byte, CiphertextLen),
+							},
+						},
+					}),
+				}
+
+				merkleRoot := TransactionsMerkleRoot(blk.Transactions)
+				header.TxRoot = merkleRoot[:]
+				header, err := signHeader(proto.Clone(header).(*blocks.BlockHeader))
+				if err != nil {
+					return nil, err
+				}
+				blk.Header = header
+				return blk, nil
+			},
+			flags:       BFFastAdd,
+			expectedErr: ruleError(ErrInvalidTx, ""),
+		},
+		{
+			name: "coinbase transaction invalid epoch height",
+			block: func(blk *blocks.Block) (*blocks.Block, error) {
+				blk.Transactions = []*transactions.Transaction{
+					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+						Validator_ID: validatorID2Bytes,
+						NewCoins:     10000,
+						Epoch_ID:     b.lastEpochID.Bytes(),
+						EpochHeight:  999,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -1048,7 +1084,8 @@ func TestValidateBlock(t *testing.T) {
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorIDBytes,
 						NewCoins:     10000,
-						Epoch:        b.lastEpoch.Bytes(),
+						Epoch_ID:     b.lastEpochID.Bytes(),
+						EpochHeight:  b.lastEpochHeight,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
@@ -1058,12 +1095,13 @@ func TestValidateBlock(t *testing.T) {
 					}),
 					transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 						Validator_ID: validatorIDBytes,
-						NewCoins:     10001,
-						Epoch:        b.lastEpoch.Bytes(),
+						NewCoins:     10000,
+						Epoch_ID:     b.lastEpochID.Bytes(),
+						EpochHeight:  b.lastEpochHeight,
 						Outputs: []*transactions.Output{
 							{
 								Commitment: make([]byte, types.CommitmentLen),
-								Ciphertext: make([]byte, CiphertextLen),
+								Ciphertext: bytes.Repeat([]byte{0xfe}, CiphertextLen),
 							},
 						},
 					}),

@@ -409,7 +409,8 @@ func TestMempool(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 				Validator_ID: valBytes,
 				NewCoins:     10000,
-				Epoch:        view.epoch.Bytes(),
+				Epoch_ID:     view.epochID.Bytes(),
+				EpochHeight:  view.epochHeight,
 				Outputs: []*transactions.Output{
 					{
 						Commitment: make([]byte, types.CommitmentLen),
@@ -438,7 +439,8 @@ func TestMempool(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 				Validator_ID: valBytes,
 				NewCoins:     10000,
-				Epoch:        view.epoch.Bytes(),
+				Epoch_ID:     view.epochID.Bytes(),
+				EpochHeight:  view.epochHeight,
 				Outputs: []*transactions.Output{
 					{
 						Commitment: bytes.Repeat([]byte{0x11}, types.CommitmentLen),
@@ -463,11 +465,45 @@ func TestMempool(t *testing.T) {
 			expectedErr: ruleError(ErrDuplicateCoinbase, ""),
 		},
 		{
-			name: "coinbase invalid epoch",
+			name: "coinbase invalid epoch ID",
 			tx: transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 				Validator_ID: valBytes,
 				NewCoins:     20000,
-				Epoch:        types.ID{}.Bytes(),
+				Epoch_ID:     types.ID{}.Bytes(),
+				EpochHeight:  view.epochHeight,
+				Outputs: []*transactions.Output{
+					{
+						Commitment: bytes.Repeat([]byte{0x11}, types.CommitmentLen),
+						Ciphertext: make([]byte, blockchain.CiphertextLen),
+					},
+				},
+				Signature: nil,
+				Proof:     make([]byte, 1000),
+			}),
+			signFunc: func(tx *transactions.Transaction) error {
+				view.validators[validatorID] = &blockchain.Validator{
+					UnclaimedCoins: 20000,
+				}
+				h, err := tx.GetCoinbaseTransaction().SigHash()
+				if err != nil {
+					return err
+				}
+				sig, err := sk.Sign(h)
+				if err != nil {
+					return err
+				}
+				tx.GetCoinbaseTransaction().Signature = sig
+				return nil
+			},
+			expectedErr: ruleError(blockchain.ErrInvalidTx, ""),
+		},
+		{
+			name: "coinbase invalid epoch height",
+			tx: transactions.WrapTransaction(&transactions.CoinbaseTransaction{
+				Validator_ID: valBytes,
+				NewCoins:     20000,
+				Epoch_ID:     view.epochID.Bytes(),
+				EpochHeight:  999,
 				Outputs: []*transactions.Output{
 					{
 						Commitment: bytes.Repeat([]byte{0x11}, types.CommitmentLen),
@@ -499,7 +535,8 @@ func TestMempool(t *testing.T) {
 			tx: transactions.WrapTransaction(&transactions.CoinbaseTransaction{
 				Validator_ID: valBytes,
 				NewCoins:     20000,
-				Epoch:        view.epoch.Bytes(),
+				Epoch_ID:     view.epochID.Bytes(),
+				EpochHeight:  view.epochHeight,
 				Outputs: []*transactions.Output{
 					{
 						Commitment: bytes.Repeat([]byte{0x11}, types.CommitmentLen),
@@ -784,7 +821,8 @@ func newMockBlockchainView() *mockBlockchainView {
 		txoRoots:        make(map[types.ID]bool),
 		nullifiers:      make(map[types.Nullifier]bool),
 		validators:      make(map[peer.ID]*blockchain.Validator),
-		epoch:           types.NewID(bytes.Repeat([]byte{0x11}, 32)),
+		epochID:         types.NewID(bytes.Repeat([]byte{0x11}, 32)),
+		epochHeight:     1,
 	}
 }
 
@@ -799,7 +837,8 @@ type mockBlockchainView struct {
 	txoRoots        map[types.ID]bool
 	nullifiers      map[types.Nullifier]bool
 	validators      map[peer.ID]*blockchain.Validator
-	epoch           types.ID
+	epochID         types.ID
+	epochHeight     uint32
 }
 
 func (m *mockBlockchainView) TreasuryBalance() (types.Amount, error) {
@@ -822,6 +861,6 @@ func (m *mockBlockchainView) GetValidator(validatorID peer.ID) (*blockchain.Vali
 	return val, nil
 }
 
-func (m *mockBlockchainView) GetEpoch() types.ID {
-	return m.epoch
+func (m *mockBlockchainView) GetEpoch() (types.ID, uint32) {
+	return m.epochID, m.epochHeight
 }
