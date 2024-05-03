@@ -1,0 +1,23 @@
+volumes:
+  ilxd-data: null
+  
+services:
+  illium-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: "--alpha --loglevel=debug"
+    restart: always
+    ports:
+      - "9002:9002"
+      - "5001:5001"
+    volumes:
+      - ilxd-data:/root/.ilxd
+    # GPU Acceleration
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
