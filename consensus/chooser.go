@@ -8,6 +8,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
+	"sync"
 	"time"
 )
 
@@ -19,6 +20,7 @@ type backoffTime struct {
 // BackoffChooser wraps the WeightedRandomChooser with a map
 // that tracks exponential backoffs for peer dials.
 type BackoffChooser struct {
+	mu      sync.Mutex
 	peerMap map[peer.ID]*backoffTime
 	chooser blockchain.WeightedChooser
 	valconn ValidatorSetConnection
@@ -37,6 +39,8 @@ func NewBackoffChooser(chooser blockchain.WeightedChooser, valconn ValidatorSetC
 // If the selected validator is undergoing a backoff weight time
 // then "" will be returned.
 func (b *BackoffChooser) WeightedRandomValidator() peer.ID {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	peer := b.chooser.WeightedRandomValidator()
 	if bot, ok := b.peerMap[peer]; ok {
 		if time.Now().After(bot.backoffUntil) {
@@ -54,6 +58,8 @@ func (b *BackoffChooser) WeightedRandomValidator() peer.ID {
 // RegisterDialFailure increases the exponential backoff time for
 // the given peer.
 func (b *BackoffChooser) RegisterDialFailure(p peer.ID) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.valconn.RegisterDialFailure(p)
 	bot, ok := b.peerMap[p]
 	if ok {
@@ -81,6 +87,8 @@ func (b *BackoffChooser) RegisterDialFailure(p peer.ID) {
 // RegisterDialSuccess deletes the exponential backoff for the
 // given peer.
 func (b *BackoffChooser) RegisterDialSuccess(p peer.ID) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.valconn.RegisterDialSuccess(p)
 	_, ok := b.peerMap[p]
 	if ok {
