@@ -123,8 +123,8 @@ func (x *GetBlockchainInfo) Execute(args []string) error {
 
 type GetBlockInfo struct {
 	opts    *options
-	BlockID string `short:"i" long:"id" description:"Block ID to look up. Either us this or the height."`
-	Height  int    `short:"t" long:"height" description:"Block height. Either us this or the ID"`
+	BlockID string `short:"i" long:"id" description:"Block ID to look up. Either use this or the height."`
+	Height  int    `short:"t" long:"height" description:"Block height. Either use this or the ID"`
 }
 
 func (x *GetBlockInfo) Execute(args []string) error {
@@ -183,8 +183,8 @@ func (x *GetBlockInfo) Execute(args []string) error {
 
 type GetBlock struct {
 	opts    *options
-	BlockID string `short:"i" long:"id" description:"Block ID to look up. Either us this or the height."`
-	Height  int    `short:"t" long:"height" description:"Block height. Either us this or the ID"`
+	BlockID string `short:"i" long:"id" description:"Block ID to look up. Either use this or the height."`
+	Height  int    `short:"t" long:"height" description:"Block height. Either use this or the ID"`
 }
 
 func (x *GetBlock) Execute(args []string) error {
@@ -234,8 +234,8 @@ func (x *GetBlock) Execute(args []string) error {
 
 type GetCompressedBlock struct {
 	opts    *options
-	BlockID string `short:"i" long:"id" description:"Block ID to look up. Either us this or the height."`
-	Height  int    `short:"t" long:"height" description:"Block height. Either us this or the ID"`
+	BlockID string `short:"i" long:"id" description:"Block ID to look up. Either use this or the height."`
+	Height  int    `short:"t" long:"height" description:"Block height. Either use this or the ID"`
 }
 
 func (x *GetCompressedBlock) Execute(args []string) error {
