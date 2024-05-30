@@ -45,6 +45,10 @@ func (id ID) Bytes() []byte {
 }
 
 func (id *ID) SetBytes(data []byte) {
+	if len(data) == 0 {
+		*id = ID{}
+		return
+	}
 	copy(id[:], data)
 }
 

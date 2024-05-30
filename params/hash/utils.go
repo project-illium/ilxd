@@ -22,6 +22,9 @@ func HashMerkleBranches(left []byte, right []byte) []byte {
 
 // HashWithIndex prepends the index to data before hashing.
 func HashWithIndex(data []byte, index uint64) []byte {
+	if data == nil {
+		data = []byte{}
+	}
 	d := make([]byte, len(data)+32)
 	copy(d[24:32], nElementsToBytes(index))
 	copy(d[32:], data)

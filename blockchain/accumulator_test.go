@@ -163,6 +163,35 @@ func TestAccumulator_Clone(t *testing.T) {
 	}
 }
 
+func TestAccumulator_InsertNilData(t *testing.T) {
+	acc := NewAccumulator()
+	acc.Insert(nil, true)
+
+	// Ensure the accumulator is still empty
+	assert.Equal(t, uint64(0), acc.NumElements())
+	assert.Equal(t, types.ID{}, acc.Root())
+}
+
+func TestAccumulator_DropProofNilData(t *testing.T) {
+	acc := NewAccumulator()
+	acc.DropProof(nil)
+
+	// Ensure the accumulator is still empty
+	assert.Equal(t, uint64(0), acc.NumElements())
+	assert.Equal(t, types.ID{}, acc.Root())
+}
+
+func TestAccumulator_EmptyRoot(t *testing.T) {
+	acc := NewAccumulator()
+	assert.Equal(t, types.ID{}, acc.Root())
+}
+
+func TestAccumulator_GetProofEmpty(t *testing.T) {
+	acc := NewAccumulator()
+	_, err := acc.GetProof([]byte{0x01})
+	assert.Error(t, err)
+}
+
 func accumulatorDeepEqual(a, b *Accumulator) bool {
 	if len(a.acc) != len(b.acc) {
 		return false
