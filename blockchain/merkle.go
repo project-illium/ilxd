@@ -67,6 +67,9 @@ func nextPowerOfTwo(n int) int {
 // Since this function uses nodes that are pointers to the hashes, empty nodes
 // will be nil.
 func BuildMerkleTreeStore(data []types.ID) [][]byte {
+	if len(data) == 0 {
+		return [][]byte{}
+	}
 	// Calculate how many entries are required to hold the binary merkle
 	// tree as a linear array and create an array of that size.
 	nextPoT := nextPowerOfTwo(len(data))

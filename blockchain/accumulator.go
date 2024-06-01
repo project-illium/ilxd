@@ -80,6 +80,10 @@ func NewAccumulator() *Accumulator {
 // NewAccumulatorFromData returns a new accumulator from the raw data.
 // The proof store will be initialized but empty.
 func NewAccumulatorFromData(hashes [][]byte, nElements uint64) *Accumulator {
+	if hashes == nil {
+		hashes = [][]byte{}
+	}
+
 	return &Accumulator{
 		acc:       hashes,
 		nElements: nElements,
@@ -97,6 +101,14 @@ func NewAccumulatorFromData(hashes [][]byte, nElements uint64) *Accumulator {
 // 'protect' true. This must be done at the time of adding as it's not possible
 // to go back and protect previous items after the accumulator has been mutated.
 func (a *Accumulator) Insert(data []byte, protect bool) {
+	if data == nil {
+		log.Warn("accumulator::Insert Attempted to insert nil data into the accumulator.")
+		return
+	}
+	if len(data) == 0 {
+		log.Warn("accumulator::Insert Attempted to insert empty data into the accumulator.")
+		return
+	}
 	datacpy := make([]byte, len(data))
 	copy(datacpy, data)
 	n := hash.HashWithIndex(datacpy, a.nElements)
@@ -177,7 +189,14 @@ func (a *Accumulator) Insert(data []byte, protect bool) {
 // Root returns the root hash of the accumulator. This is not cached
 // and a new hash is calculated each time this method is called.
 func (a *Accumulator) Root() types.ID {
+	if len(a.acc) == 0 {
+		return types.ID{}
+	}
+
 	merkles := BuildMerkleTreeStore(reverseIDs(byteSliceToIDs(a.acc)))
+	if len(merkles) == 0 {
+		return types.ID{}
+	}
 	return types.NewID(merkles[len(merkles)-1])
 }
 
@@ -236,6 +255,11 @@ func (a *Accumulator) GetProof(data []byte) (*InclusionProof, error) {
 //
 // This is NOT safe for concurrent access.
 func (a *Accumulator) DropProof(data []byte) {
+	if data == nil {
+		log.Warn("accumulator::DropProof Attempted to drop proof for nil data.")
+		return
+	}
+
 	ixd, ok := a.lookupMap[types.NewID(data)]
 	if !ok {
 		return
