@@ -13,7 +13,10 @@ import (
 )
 
 func TestNewTestHarness(t *testing.T) {
-	h, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(1))
+	f, err := BlocksData.Open("blocks/blocks.dat")
+	assert.NoError(t, err)
+
+	h, err := NewTestHarness(DefaultOptions(), NTxsPerBlock(1), LoadBlocks(f, 10000))
 	assert.NoError(t, err)
 
 	err = h.GenerateBlocks(5)

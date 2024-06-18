@@ -26,4 +26,7 @@ type ChainView interface {
 
 	// GetValidator returns the validator for the given ID
 	GetValidator(validatorID peer.ID) (*blockchain.Validator, error)
+
+	// GetEpoch returns the last epoch ID and height in the blockchain
+	GetEpoch() (types.ID, uint32)
 }

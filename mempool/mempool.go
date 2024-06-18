@@ -5,6 +5,7 @@
 package mempool
 
 import (
+	"bytes"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain"
 	"github.com/project-illium/ilxd/policy"
@@ -371,6 +372,16 @@ func (m *Mempool) handleValidateTransaction(tx *transactions.Transaction) error 
 			return policyError(ErrPoorValidatorUptime, "coinbase for peer with poor uptime")
 		}
 
+		epochID, epochHeight := m.cfg.chainView.GetEpoch()
+
+		if !bytes.Equal(epochID.Bytes(), t.CoinbaseTransaction.Epoch_ID) {
+			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction invalid epoch ID")
+		}
+
+		if epochHeight != t.CoinbaseTransaction.EpochHeight {
+			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction invalid epoch height")
+		}
+
 	case *transactions.Transaction_StandardTransaction:
 		for _, n := range t.StandardTransaction.Nullifiers {
 			if _, ok := m.nullifiers[types.NewNullifier(n)]; ok {
@@ -501,6 +512,16 @@ func (m *Mempool) processTransaction(tx *transactions.Transaction) error {
 
 		if !m.cfg.policy.GetValidatorAcceptableCoinbase(validatorID) {
 			return policyError(ErrPoorValidatorUptime, "coinbase for peer with poor uptime")
+		}
+
+		epochID, epochHeight := m.cfg.chainView.GetEpoch()
+
+		if !bytes.Equal(epochID.Bytes(), t.CoinbaseTransaction.Epoch_ID) {
+			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction invalid epoch ID")
+		}
+
+		if epochHeight != t.CoinbaseTransaction.EpochHeight {
+			return ruleError(blockchain.ErrInvalidTx, "coinbase transaction invalid epoch height")
 		}
 
 		// There is an unlikely scenario where a coinbase could sit in the mempool

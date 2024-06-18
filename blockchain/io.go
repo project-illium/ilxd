@@ -614,6 +614,27 @@ func dsFetchPrunedFlag(ds repo.Datastore) (bool, error) {
 	return !errors.Is(err, datastore.ErrNotFound), nil
 }
 
+func dsPutEpoch(dbtx datastore.Txn, blockID types.ID, height uint32) error {
+	val := make([]byte, 36)
+	blockBytes := blockID.Bytes()
+	for i := 0; i < 32; i++ {
+		val[i] = blockBytes[i]
+	}
+	binary.BigEndian.PutUint32(val[32:], height)
+
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.EpochDatastoreKey), val)
+}
+
+func dsFetchEpoch(ds datastore.Datastore) (types.ID, uint32, error) {
+	val, err := ds.Get(context.Background(), datastore.NewKey(repo.EpochDatastoreKey))
+	if err != nil {
+		return types.ID{}, 0, err
+	}
+	id := types.NewID(val[:32])
+	height := binary.BigEndian.Uint32(val[32:])
+	return id, height, nil
+}
+
 // The database implementation limits the number of put operations in
 // a transaction as well as the size of the transaction (in bytes).
 //

@@ -325,9 +325,13 @@ func (h *TestHarness) GenerateNewCoinbase() (*SpendableNote, error) {
 		return nil, err
 	}
 
+	epochID, epochHeight := h.chain.GetEpoch()
+
 	tx := &transactions.CoinbaseTransaction{
 		Validator_ID: valBytes,
 		NewCoins:     uint64(val.UnclaimedCoins),
+		Epoch_ID:     epochID.Bytes(),
+		EpochHeight:  epochHeight,
 		Outputs: []*transactions.Output{
 			{
 				Commitment: commitment.Bytes(),

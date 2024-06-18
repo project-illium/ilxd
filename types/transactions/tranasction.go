@@ -396,6 +396,8 @@ func (tx *StandardTransaction) UnmarshalJSON(data []byte) error {
 type coinbaseTxJSON struct {
 	Validator_ID types.HexEncodable `json:"validator_ID"`
 	NewCoins     types.Amount       `json:"new_coins"`
+	EpochID      types.HexEncodable `json:"epochID"`
+	EpochHeight  uint32             `json:"epochHeight"`
 	Outputs      []*Output          `json:"outputs"`
 	Signature    types.HexEncodable `json:"signature"`
 	Proof        types.HexEncodable `json:"proof"`
@@ -414,6 +416,8 @@ func (tx *CoinbaseTransaction) Deserialize(data []byte) error {
 	tx.Proof = newTx.Proof
 	tx.Outputs = newTx.Outputs
 	tx.NewCoins = newTx.NewCoins
+	tx.Epoch_ID = newTx.Epoch_ID
+	tx.EpochHeight = newTx.EpochHeight
 	tx.Validator_ID = newTx.Validator_ID
 	return nil
 }
@@ -455,6 +459,8 @@ func (tx *CoinbaseTransaction) MarshalJSON() ([]byte, error) {
 	c := &coinbaseTxJSON{
 		Validator_ID: tx.Validator_ID,
 		NewCoins:     types.Amount(tx.NewCoins),
+		EpochID:      tx.Epoch_ID,
+		EpochHeight:  tx.EpochHeight,
 		Outputs:      tx.Outputs,
 		Signature:    tx.Signature,
 		Proof:        tx.Proof,
@@ -470,6 +476,8 @@ func (tx *CoinbaseTransaction) UnmarshalJSON(data []byte) error {
 	*tx = CoinbaseTransaction{
 		Validator_ID: newTx.Validator_ID,
 		NewCoins:     uint64(newTx.NewCoins),
+		Epoch_ID:     newTx.EpochID,
+		EpochHeight:  newTx.EpochHeight,
 		Outputs:      newTx.Outputs,
 		Signature:    newTx.Signature,
 		Proof:        newTx.Proof,

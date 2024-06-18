@@ -211,6 +211,14 @@ func (b *Blockchain) validateBlock(blk *blocks.Block, flags BehaviorFlags) (int,
 					return i, ruleError(ErrInvalidTx, "coinbase transaction creates invalid number of coins")
 				}
 				blockCoinbases[validatorID] = true
+
+				if !bytes.Equal(tx.CoinbaseTransaction.Epoch_ID, b.lastEpochID.Bytes()) {
+					return i, ruleError(ErrInvalidTx, "coinbase epoch ID not valid")
+				}
+
+				if tx.CoinbaseTransaction.EpochHeight != b.lastEpochHeight {
+					return i, ruleError(ErrInvalidTx, "coinbase epoch height not valid")
+				}
 			}
 		case *transactions.Transaction_StakeTransaction:
 			stakeTransactions = append(stakeTransactions, tx.StakeTransaction)
