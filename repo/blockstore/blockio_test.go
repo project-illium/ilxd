@@ -3,3 +3,127 @@
 // license that can be found in the LICENSE file.
 
 package blockstore
+
+import (
+	"context"
+	"github.com/project-illium/ilxd/params"
+	"github.com/project-illium/ilxd/types/blocks"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func TestDeSerializeBlockLoc(t *testing.T) {
+	location := BlockLocation{
+		blockFileNum: 1,
+		fileOffset:   2,
+		blockLen:     3,
+	}
+	ser := SerializeBlockLoc(location)
+
+	location2 := DeSerializeBlockLoc(ser)
+	assert.Equal(t, location.blockFileNum, location2.blockFileNum)
+	assert.Equal(t, location.fileOffset, location2.fileOffset)
+	assert.Equal(t, location.blockLen, location2.blockLen)
+}
+
+func TestPutGetMany(t *testing.T) {
+	blk := params.RegestParams.GenesisBlock
+
+	ds, err := NewMockFlatFilestore(&params.RegestParams)
+	assert.NoError(t, err)
+	defer ds.Close()
+
+	ser, err := blk.Serialize()
+	assert.NoError(t, err)
+
+	for i := 0; i < 100000; i++ {
+		loc, err := ds.PutBlockData(0, ser)
+		assert.NoError(t, err)
+
+		blkData, err := ds.FetchBlockData(loc)
+		assert.NoError(t, err)
+
+		blk2 := new(blocks.Block)
+		err = blk2.Deserialize(blkData)
+		assert.NoError(t, err)
+
+		assert.Equal(t, blk.ID(), blk2.ID())
+	}
+}
+
+func TestFlatFilestore_DeleteBefore(t *testing.T) {
+	blk := params.RegestParams.GenesisBlock
+
+	ds, err := NewMockFlatFilestore(&params.RegestParams)
+	assert.NoError(t, err)
+	defer ds.Close()
+
+	ser, err := blk.Serialize()
+	assert.NoError(t, err)
+
+	for i := uint32(0); i < 40000; i++ {
+		_, err := ds.PutBlockData(i, ser)
+		assert.NoError(t, err)
+	}
+
+	err = ds.DeleteBefore(22000)
+	assert.NoError(t, err)
+
+	assert.Len(t, ds.fileBlockHeights, 0)
+}
+
+func TestTransaction(t *testing.T) {
+	blk := params.RegestParams.GenesisBlock
+
+	ds, err := NewMockFlatFilestore(&params.RegestParams)
+	assert.NoError(t, err)
+	defer ds.Close()
+
+	ser, err := blk.Serialize()
+	assert.NoError(t, err)
+
+	btx, err := ds.NewBlockstoreTransaction(context.Background(), false)
+	assert.NoError(t, err)
+
+	locs := make([]BlockLocation, 0, 40000)
+
+	for i := uint32(0); i < 40000; i++ {
+		loc, err := btx.PutBlockData(i, ser)
+		assert.NoError(t, err)
+
+		locs = append(locs, loc)
+	}
+
+	err = btx.Commit(context.Background())
+	assert.NoError(t, err)
+
+	btx, err = ds.NewBlockstoreTransaction(context.Background(), false)
+	assert.NoError(t, err)
+
+	for _, loc := range locs {
+		_, err = btx.FetchBlockData(loc)
+		assert.NoError(t, err)
+	}
+
+	btx.Discard(context.Background())
+
+	btx, err = ds.NewBlockstoreTransaction(context.Background(), false)
+	assert.NoError(t, err)
+
+	locs = make([]BlockLocation, 0, 40000)
+
+	for i := uint32(0); i < 40000; i++ {
+		loc, err := btx.PutBlockData(i, ser)
+		assert.NoError(t, err)
+
+		locs = append(locs, loc)
+	}
+	
+	err = btx.Rollback(context.Background())
+	assert.NoError(t, err)
+
+	for _, loc := range locs {
+		_, err = btx.FetchBlockData(loc)
+		assert.Error(t, err)
+	}
+}

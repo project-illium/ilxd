@@ -255,6 +255,7 @@ func (s *FlatFilestore) NewBlockstoreTransaction(ctx context.Context, readOnly b
 		store:         s,
 		oldBlkFileNum: oldBlkFileNum,
 		oldBlkOffset:  oldBlkOffset,
+		mtx:           sync.Mutex{},
 	}
 	return tx, nil
 }
@@ -274,12 +275,16 @@ type Txn struct {
 	store         *FlatFilestore
 	oldBlkFileNum uint32
 	oldBlkOffset  uint32
+	mtx           sync.Mutex
 	closed        bool
 }
 
 // PutBlockData puts the block data, usually serialized transactions,
 // to the datastore.
 func (tx *Txn) PutBlockData(height uint32, blockData []byte) (BlockLocation, error) {
+	tx.mtx.Lock()
+	defer tx.mtx.Unlock()
+
 	if tx.readOnly {
 		return BlockLocation{}, errors.New("tx is read only")
 	}
@@ -288,11 +293,17 @@ func (tx *Txn) PutBlockData(height uint32, blockData []byte) (BlockLocation, err
 
 // FetchBlockData returns the block data from the datastore
 func (tx *Txn) FetchBlockData(location BlockLocation) ([]byte, error) {
+	tx.mtx.Lock()
+	defer tx.mtx.Unlock()
+
 	return tx.store.FetchBlockData(location)
 }
 
 // Commit commits the transaction to disk
 func (tx *Txn) Commit(ctx context.Context) error {
+	tx.mtx.Lock()
+	defer tx.mtx.Unlock()
+
 	if tx.closed {
 		panic("managed transaction commit not allowed")
 	}
@@ -300,8 +311,18 @@ func (tx *Txn) Commit(ctx context.Context) error {
 	return nil
 }
 
+func (tx *Txn) Discard(ctx context.Context) {
+	tx.mtx.Lock()
+	defer tx.mtx.Unlock()
+
+	tx.closed = true
+}
+
 // Rollback deletes any changes made to the database after the transaction was opened
 func (tx *Txn) Rollback(ctx context.Context) error {
+	tx.mtx.Lock()
+	defer tx.mtx.Unlock()
+
 	if tx.closed {
 		panic("managed transaction commit not allowed")
 	}
