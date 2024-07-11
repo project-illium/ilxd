@@ -6,7 +6,7 @@ package blockchain
 
 import (
 	"errors"
-	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"sync"
@@ -18,7 +18,7 @@ const blockIndexCacheSize = 1000
 // and height as well as links to the parent and child making it
 // possible to traverse the chain back and forward from this blocknode.
 type blockNode struct {
-	ds        repo.Datastore
+	ds        datastore.Datastore
 	blockID   types.ID
 	height    uint32
 	timestamp int64
@@ -105,7 +105,7 @@ func (bn *blockNode) Child() (*blockNode, error) {
 // by iterating over the parents. This index also stores a cache, limited by
 // blockIndexCacheSize, to make lookups by height or ID faster.
 type blockIndex struct {
-	ds            repo.Datastore
+	ds            datastore.Datastore
 	tip           *blockNode
 	cacheByID     map[types.ID]*blockNode
 	cacheByHeight map[uint32]*blockNode
@@ -113,7 +113,7 @@ type blockIndex struct {
 }
 
 // NewBlockIndex returns a new blockIndex.
-func NewBlockIndex(ds repo.Datastore) *blockIndex {
+func NewBlockIndex(ds datastore.Datastore) *blockIndex {
 	return &blockIndex{
 		ds:            ds,
 		cacheByID:     make(map[types.ID]*blockNode),

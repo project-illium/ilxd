@@ -4,8 +4,6 @@
 
 package blockstore
 
-import "context"
-
 // Blockstore is an interface to a custom datastore for storing blocks.
 // This is separated from the main database interface to enable optimized
 // writes.
@@ -19,7 +17,4 @@ type Blockstore interface {
 
 	// DeleteBefore deletes all block data before the provided height
 	DeleteBefore(height uint32) error
-
-	// NewBlockstoreTransaction returns a new transaction for the Blockstore
-	NewBlockstoreTransaction(ctx context.Context, readOnly bool) (*Txn, error)
 }

@@ -4,14 +4,6 @@
 
 package repo
 
-import (
-	"github.com/ipfs/go-datastore"
-	badger "github.com/ipfs/go-ds-badger"
-	"github.com/project-illium/ilxd/params"
-	"github.com/project-illium/ilxd/repo/blockstore"
-	"path"
-)
-
 const (
 	// NetworkKeyDatastoreKey is the datastore key for the network (libp2p) private key.
 	NetworkKeyDatastoreKey = "/ilxd/libp2pkey/"
@@ -89,42 +81,3 @@ const (
 	// AddrIndexValidatorTxPrefixKey is the validator transaction datastore key prefix used by the address index.
 	AddrIndexValidatorTxPrefixKey = "validatortx/"
 )
-
-type Datastore interface {
-	datastore.Datastore
-	datastore.Batching
-	datastore.PersistentDatastore
-	datastore.TxnDatastore
-	blockstore.Blockstore
-}
-
-type ilxdDatastore struct {
-	*badger.Datastore
-	*blockstore.FlatFilestore
-}
-
-func (ds *ilxdDatastore) Close() error {
-	if err := ds.Datastore.Close(); err != nil {
-		return err
-	}
-	return ds.FlatFilestore.Close()
-}
-
-func NewIlxdDatastore(dataDir string, params *params.NetworkParams) (Datastore, error) {
-	badgerOpts := &badger.DefaultOptions
-	badgerOpts.MaxTableSize = 256 << 20
-	ds, err := badger.NewDatastore(dataDir, badgerOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	bs, err := blockstore.NewFlatFilestore(path.Join(dataDir, "blocks"), params)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ilxdDatastore{
-		Datastore:     ds,
-		FlatFilestore: bs,
-	}, nil
-}

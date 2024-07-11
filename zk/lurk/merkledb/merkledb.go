@@ -9,9 +9,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ipfs/go-datastore"
 	"github.com/project-illium/ilxd/params/hash"
-	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types"
 	"sync"
 )
@@ -60,12 +59,12 @@ func (n *Node) copy() *Node {
 // This allows us to create a root hash for the database as well as create
 // compact inclusion and exclusion proofs for that data.
 type MerkleDB struct {
-	ds  repo.Datastore
+	ds  datastore.Datastore
 	mtx sync.RWMutex
 }
 
 // NewMerkleDB returns a new database
-func NewMerkleDB(ds repo.Datastore) (*MerkleDB, error) {
+func NewMerkleDB(ds datastore.Datastore) (*MerkleDB, error) {
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	if err != nil {
 		return nil, err

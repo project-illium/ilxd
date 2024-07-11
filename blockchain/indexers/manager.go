@@ -7,9 +7,10 @@ package indexers
 import (
 	"context"
 	"encoding/binary"
-	datastore "github.com/ipfs/go-datastore"
+	ids "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types/blocks"
 )
 
@@ -17,11 +18,11 @@ import (
 // with the blockchain.
 type IndexManager struct {
 	indexers []Indexer
-	ds       repo.Datastore
+	ds       datastore.Datastore
 }
 
 // NewIndexManager returns a new IndexManager.
-func NewIndexManager(ds repo.Datastore, indexers []Indexer) *IndexManager {
+func NewIndexManager(ds datastore.Datastore, indexers []Indexer) *IndexManager {
 	return &IndexManager{
 		indexers: indexers,
 		ds:       ds,
@@ -38,7 +39,7 @@ func (im *IndexManager) Init(tipHeight uint32, getBlock func(height uint32) (*bl
 	}
 	for _, indexer := range im.indexers {
 		height, err := dsFetchIndexHeight(dbtx, indexer)
-		if err == datastore.ErrNotFound { // New index
+		if err == ids.ErrNotFound { // New index
 			genesis, err := getBlock(0)
 			if err != nil {
 				return err
@@ -85,41 +86,41 @@ func (im *IndexManager) Close() error {
 	return nil
 }
 
-func dsPutIndexerHeight(dbtx datastore.Txn, indexer Indexer, height uint32) error {
+func dsPutIndexerHeight(dbtx ids.Txn, indexer Indexer, height uint32) error {
 	heightBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(heightBytes, height)
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.IndexerHeightKeyPrefix+indexer.Key()), heightBytes)
+	return dbtx.Put(context.Background(), ids.NewKey(repo.IndexerHeightKeyPrefix+indexer.Key()), heightBytes)
 }
 
-func dsFetchIndexHeight(dbtx datastore.Txn, indexer Indexer) (uint32, error) {
-	heightBytes, err := dbtx.Get(context.Background(), datastore.NewKey(repo.IndexerHeightKeyPrefix+indexer.Key()))
+func dsFetchIndexHeight(dbtx ids.Txn, indexer Indexer) (uint32, error) {
+	heightBytes, err := dbtx.Get(context.Background(), ids.NewKey(repo.IndexerHeightKeyPrefix+indexer.Key()))
 	if err != nil {
 		return 0, err
 	}
 	return binary.BigEndian.Uint32(heightBytes), nil
 }
 
-func dsPutIndexValue(dbtx datastore.Txn, indexer Indexer, key string, value []byte) error {
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.IndexKeyPrefix+indexer.Key()+"/"+key), value)
+func dsPutIndexValue(dbtx ids.Txn, indexer Indexer, key string, value []byte) error {
+	return dbtx.Put(context.Background(), ids.NewKey(repo.IndexKeyPrefix+indexer.Key()+"/"+key), value)
 }
 
-func dsFetchIndexValue(ds repo.Datastore, indexer Indexer, key string) ([]byte, error) {
-	return ds.Get(context.Background(), datastore.NewKey(repo.IndexKeyPrefix+indexer.Key()+"/"+key))
+func dsFetchIndexValue(ds ids.Datastore, indexer Indexer, key string) ([]byte, error) {
+	return ds.Get(context.Background(), ids.NewKey(repo.IndexKeyPrefix+indexer.Key()+"/"+key))
 }
 
-func dsFetchIndexValueWithTx(dbtx datastore.Txn, indexer Indexer, key string) ([]byte, error) {
-	return dbtx.Get(context.Background(), datastore.NewKey(repo.IndexKeyPrefix+indexer.Key()+"/"+key))
+func dsFetchIndexValueWithTx(dbtx ids.Txn, indexer Indexer, key string) ([]byte, error) {
+	return dbtx.Get(context.Background(), ids.NewKey(repo.IndexKeyPrefix+indexer.Key()+"/"+key))
 }
 
-func dsPrefixQueryIndexValue(dbtx datastore.Txn, indexer Indexer, prefix string) (query.Results, error) {
+func dsPrefixQueryIndexValue(dbtx ids.Txn, indexer Indexer, prefix string) (query.Results, error) {
 	return dbtx.Query(context.Background(), query.Query{Prefix: repo.IndexKeyPrefix + indexer.Key() + "/" + prefix})
 }
 
-func dsDeleteIndexValue(dbtx datastore.Txn, indexer Indexer, key string) error {
-	return dbtx.Delete(context.Background(), datastore.NewKey(repo.IndexKeyPrefix+indexer.Key()+"/"+key))
+func dsDeleteIndexValue(dbtx ids.Txn, indexer Indexer, key string) error {
+	return dbtx.Delete(context.Background(), ids.NewKey(repo.IndexKeyPrefix+indexer.Key()+"/"+key))
 }
 
-func dsDropIndex(ds repo.Datastore, indexer Indexer) error {
+func dsDropIndex(ds datastore.Datastore, indexer Indexer) error {
 	q := query.Query{
 		Prefix: repo.IndexKeyPrefix + indexer.Key(),
 	}
@@ -134,7 +135,7 @@ func dsDropIndex(ds repo.Datastore, indexer Indexer) error {
 	}
 
 	for result, ok := results.NextSync(); ok; result, ok = results.NextSync() {
-		if err = dbtx.Delete(context.Background(), datastore.NewKey(result.Key)); err != nil {
+		if err = dbtx.Delete(context.Background(), ids.NewKey(result.Key)); err != nil {
 			return err
 		}
 	}

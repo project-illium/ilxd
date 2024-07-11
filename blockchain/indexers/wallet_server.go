@@ -9,11 +9,12 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"github.com/ipfs/go-datastore"
+	ids "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/blockchain"
 	icrypto "github.com/project-illium/ilxd/crypto"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -71,7 +72,7 @@ type WalletServerIndex struct {
 }
 
 // NewWalletServerIndex returns a new WalletServerIndex.
-func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
+func NewWalletServerIndex(ds datastore.Datastore) (*WalletServerIndex, error) {
 	dbtx, err := ds.NewTransaction(context.Background(), true)
 	if err != nil {
 		return nil, err
@@ -138,7 +139,7 @@ func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 		return nil, err
 	}
 
-	if err == datastore.ErrNotFound {
+	if err == ids.ErrNotFound {
 		acc = blockchain.NewAccumulator()
 	} else if height > 0 {
 		accBytes, err := dsFetchIndexValue(ds, &WalletServerIndex{}, repo.WalletServerAccumulatorKey)
@@ -154,9 +155,9 @@ func NewWalletServerIndex(ds repo.Datastore) (*WalletServerIndex, error) {
 	}
 
 	bestBlock, err := dsFetchIndexValue(ds, &WalletServerIndex{}, repo.WalletServerBestBlockKey)
-	if err != nil && err != datastore.ErrNotFound {
+	if err != nil && err != ids.ErrNotFound {
 		return nil, err
-	} else if err == datastore.ErrNotFound {
+	} else if err == ids.ErrNotFound {
 		bestBlock = make([]byte, 36)
 	}
 
@@ -308,7 +309,7 @@ func (idx *WalletServerIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block
 }
 
 // GetTransactionsIDs returns the transaction IDs stored for the given viewKey
-func (idx *WalletServerIndex) GetTransactionsIDs(ds repo.Datastore, viewKey crypto.PrivKey) ([]types.ID, error) {
+func (idx *WalletServerIndex) GetTransactionsIDs(ds datastore.Datastore, viewKey crypto.PrivKey) ([]types.ID, error) {
 	if _, ok := viewKey.(*icrypto.Curve25519PrivateKey); !ok {
 		return nil, errors.New("viewKey is not curve25519 private key")
 	}
@@ -324,9 +325,9 @@ func (idx *WalletServerIndex) GetTransactionsIDs(ds repo.Datastore, viewKey cryp
 	}
 
 	_, err = dsFetchIndexValue(ds, idx, repo.WalletServerViewKeyPrefix+hex.EncodeToString(key))
-	if err != nil && err != datastore.ErrNotFound {
+	if err != nil && err != ids.ErrNotFound {
 		return nil, err
-	} else if err == datastore.ErrNotFound {
+	} else if err == ids.ErrNotFound {
 		return nil, errors.New("view key not registered")
 	}
 
@@ -376,14 +377,14 @@ func (idx *WalletServerIndex) GetTxoProofs(commitments []types.ID) ([]*blockchai
 }
 
 // Close closes the wallet server index
-func (idx *WalletServerIndex) Close(ds repo.Datastore) error {
+func (idx *WalletServerIndex) Close(ds datastore.Datastore) error {
 	close(idx.quit)
 
 	return idx.flush(ds)
 }
 
 // RegisterViewKey registers a new user with the index. It will track transactions for this user.
-func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey crypto.PrivKey, serializedLockingScript []byte) error {
+func (idx *WalletServerIndex) RegisterViewKey(ds datastore.Datastore, viewKey crypto.PrivKey, serializedLockingScript []byte) error {
 	if _, ok := viewKey.(*icrypto.Curve25519PrivateKey); !ok {
 		return errors.New("viewKey is not curve25519 private key")
 	}
@@ -417,7 +418,7 @@ func (idx *WalletServerIndex) RegisterViewKey(ds repo.Datastore, viewKey crypto.
 }
 
 // RegistrationExists returns whether the viewkey is currently registered in the index
-func (idx *WalletServerIndex) RegistrationExists(ds repo.Datastore, viewKey crypto.PrivKey) (bool, error) {
+func (idx *WalletServerIndex) RegistrationExists(ds ids.Datastore, viewKey crypto.PrivKey) (bool, error) {
 	if _, ok := viewKey.(*icrypto.Curve25519PrivateKey); !ok {
 		return false, errors.New("viewKey is not curve25519 private key")
 	}
@@ -428,7 +429,7 @@ func (idx *WalletServerIndex) RegistrationExists(ds repo.Datastore, viewKey cryp
 	}
 
 	_, err = dsFetchIndexValue(ds, idx, repo.WalletServerViewKeyPrefix+hex.EncodeToString(ser))
-	if errors.Is(err, datastore.ErrNotFound) {
+	if errors.Is(err, ids.ErrNotFound) {
 		return false, nil
 	} else if err == nil {
 		return true, nil
@@ -439,7 +440,7 @@ func (idx *WalletServerIndex) RegistrationExists(ds repo.Datastore, viewKey cryp
 // RescanViewkey loads historical blocks from disk from the provided checkpoint (or genesis if checkpoint is nil)
 // and scans them looking for transactions for the provided viewKey. If transactions are found the internal state
 // is updated.
-func (idx *WalletServerIndex) RescanViewkey(ds repo.Datastore, viewKey crypto.PrivKey, accumulatorCheckpoint *blockchain.Accumulator, checkpointHeight uint32, getBlockFunc func(uint32) (*blocks.Block, error)) error {
+func (idx *WalletServerIndex) RescanViewkey(ds datastore.Datastore, viewKey crypto.PrivKey, accumulatorCheckpoint *blockchain.Accumulator, checkpointHeight uint32, getBlockFunc func(uint32) (*blocks.Block, error)) error {
 	if _, ok := viewKey.(*icrypto.Curve25519PrivateKey); !ok {
 		return errors.New("viewKey is not curve25519 private key")
 	}
@@ -621,7 +622,7 @@ func (idx *WalletServerIndex) Subscribe() *Subscription {
 	return sub
 }
 
-func (idx *WalletServerIndex) run(ds repo.Datastore) {
+func (idx *WalletServerIndex) run(ds datastore.Datastore) {
 	staleUserTicker := time.NewTicker(staleUserTickerInterval)
 	flushTicker := time.NewTicker(flushTickerInterval)
 	for {
@@ -690,7 +691,7 @@ func (idx *WalletServerIndex) run(ds repo.Datastore) {
 	}
 }
 
-func (idx *WalletServerIndex) flush(ds repo.Datastore) error {
+func (idx *WalletServerIndex) flush(ds datastore.Datastore) error {
 	idx.stateMtx.Lock()
 	defer idx.stateMtx.Unlock()
 
@@ -719,6 +720,6 @@ func (idx *WalletServerIndex) flush(ds repo.Datastore) error {
 }
 
 // DropWalletServerIndex deletes the wallet server index from the datastore
-func DropWalletServerIndex(ds repo.Datastore) error {
+func DropWalletServerIndex(ds datastore.Datastore) error {
 	return dsDropIndex(ds, &WalletServerIndex{})
 }

@@ -8,7 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"sync"
 	"time"
 )
@@ -21,13 +21,13 @@ var ErrNoCheckpoint = errors.New("no accumulator checkpoint")
 // rather only periodically.
 type AccumulatorDB struct {
 	acc       *Accumulator
-	ds        repo.Datastore
+	ds        datastore.Datastore
 	lastFlush time.Time
 	mtx       sync.RWMutex
 }
 
 // NewAccumulatorDB returns a new AccumulatorDB
-func NewAccumulatorDB(ds repo.Datastore) *AccumulatorDB {
+func NewAccumulatorDB(ds datastore.Datastore) *AccumulatorDB {
 	return &AccumulatorDB{
 		acc: NewAccumulator(),
 		ds:  ds,

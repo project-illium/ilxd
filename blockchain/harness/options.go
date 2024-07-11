@@ -9,7 +9,7 @@ import (
 	"errors"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/project-illium/ilxd/params"
-	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types/transactions"
 	"io"
@@ -61,7 +61,7 @@ func Params(params *params.NetworkParams) Option {
 }
 
 // Datastore sets the harness' datastore
-func Datastore(ds repo.Datastore) Option {
+func Datastore(ds datastore.Datastore) Option {
 	return func(cfg *config) error {
 		cfg.datastore = ds
 		return nil
@@ -133,7 +133,7 @@ func WriteToFile(f *os.File) Option {
 
 type config struct {
 	params         *params.NetworkParams
-	datastore      repo.Datastore
+	datastore      datastore.Datastore
 	networkKey     crypto.PrivKey
 	spendKey       crypto.PrivKey
 	genesisOutputs []*transactions.Output

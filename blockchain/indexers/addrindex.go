@@ -9,11 +9,12 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"github.com/ipfs/go-datastore"
+	ids "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain/indexers/pb"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -38,7 +39,7 @@ type AddrIndex struct {
 	toDelete    map[types.Nullifier]bool
 	height      uint32
 	params      *params.NetworkParams
-	ds          repo.Datastore
+	ds          datastore.Datastore
 	stateMtx    sync.RWMutex
 	quit        chan struct{}
 }
@@ -49,10 +50,10 @@ var (
 )
 
 // NewAddrIndex returns a new AddrIndex
-func NewAddrIndex(ds repo.Datastore, networkParams *params.NetworkParams) (*AddrIndex, error) {
+func NewAddrIndex(ds datastore.Datastore, networkParams *params.NetworkParams) (*AddrIndex, error) {
 	outputIndex := uint64(0)
 	val, err := dsFetchIndexValue(ds, &AddrIndex{}, repo.AddrIndexOutputIndexKey)
-	if err != nil && !errors.Is(err, datastore.ErrNotFound) {
+	if err != nil && !errors.Is(err, ids.ErrNotFound) {
 		return nil, err
 	} else if err == nil {
 		outputIndex = binary.BigEndian.Uint64(val)
@@ -210,7 +211,7 @@ func (idx *AddrIndex) fetchUtxoAddress(dbtx datastore.Txn, n types.Nullifier) (*
 }
 
 // GetTransactionsIDs returns the transaction IDs stored for the given address
-func (idx *AddrIndex) GetTransactionsIDs(ds repo.Datastore, addr walletlib.Address) ([]types.ID, error) {
+func (idx *AddrIndex) GetTransactionsIDs(ds datastore.Datastore, addr walletlib.Address) ([]types.ID, error) {
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	if err != nil {
 		return nil, err
@@ -238,7 +239,7 @@ func (idx *AddrIndex) GetTransactionsIDs(ds repo.Datastore, addr walletlib.Addre
 }
 
 // GetValidatorCoinbases returns the transaction IDs for the validator's coinbase transactions.
-func (idx *AddrIndex) GetValidatorCoinbases(ds repo.Datastore, validatorID peer.ID) ([]types.ID, error) {
+func (idx *AddrIndex) GetValidatorCoinbases(ds datastore.Datastore, validatorID peer.ID) ([]types.ID, error) {
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	if err != nil {
 		return nil, err
@@ -267,8 +268,8 @@ func (idx *AddrIndex) GetValidatorCoinbases(ds repo.Datastore, validatorID peer.
 
 // GetTransactionMetadata returns the input and output metadata for a transaction
 // if the index has it.
-// A datastore.ErrNotFound error will be returned if it does not exist in the index.
-func (idx *AddrIndex) GetTransactionMetadata(ds repo.Datastore, txid types.ID) (*pb.DBMetadata, error) {
+// A ids.ErrNotFound error will be returned if it does not exist in the index.
+func (idx *AddrIndex) GetTransactionMetadata(ds datastore.Datastore, txid types.ID) (*pb.DBMetadata, error) {
 	val, err := dsFetchIndexValue(ds, idx, repo.AddrIndexMetadataPrefixKey+txid.String())
 	if err != nil {
 		return nil, err
@@ -361,20 +362,20 @@ func (idx *AddrIndex) run() {
 
 // Close is called when the index manager shuts down and gives the indexer
 // an opportunity to do some cleanup.
-func (idx *AddrIndex) Close(ds repo.Datastore) error {
+func (idx *AddrIndex) Close(ds datastore.Datastore) error {
 	close(idx.quit)
 
 	return idx.flush()
 }
 
-func DropAddrIndex(ds repo.Datastore) error {
+func DropAddrIndex(ds datastore.Datastore) error {
 	return dsDropIndex(ds, &AddrIndex{})
 }
 
 func (idx *AddrIndex) loadOrNewMetadata(dbtx datastore.Txn, tx *transactions.Transaction) (*pb.DBMetadata, error) {
 	dsKey := repo.AddrIndexMetadataPrefixKey + tx.ID().String()
 	val, err := dsFetchIndexValueWithTx(dbtx, idx, dsKey)
-	if err != nil && !errors.Is(err, datastore.ErrNotFound) {
+	if err != nil && !errors.Is(err, ids.ErrNotFound) {
 		return nil, err
 	}
 	if err == nil {

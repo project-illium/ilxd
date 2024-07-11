@@ -238,8 +238,8 @@ func (s *FlatFilestore) DeleteBefore(height uint32) error {
 	return s.deleteBlocks(height)
 }
 
-// NewBlockstoreTransaction returns a new transaction for the Blockstore
-func (s *FlatFilestore) NewBlockstoreTransaction(ctx context.Context, readOnly bool) (*Txn, error) {
+// NewTransaction returns a new transaction for the Blockstore
+func (s *FlatFilestore) NewTransaction(ctx context.Context, readOnly bool) (*BlkTxn, error) {
 	// Save the current block store write position for potential rollback.
 	// These variables are only updated here in this function and there can
 	// only be one write transaction active at a time, so it's safe to store
@@ -250,7 +250,7 @@ func (s *FlatFilestore) NewBlockstoreTransaction(ctx context.Context, readOnly b
 	oldBlkOffset := wc.curOffset
 	wc.RUnlock()
 
-	tx := &Txn{
+	tx := &BlkTxn{
 		readOnly:      readOnly,
 		store:         s,
 		oldBlkFileNum: oldBlkFileNum,
@@ -269,8 +269,8 @@ func (s *FlatFilestore) Close() error {
 	return nil
 }
 
-// Txn is a database transaction for the FlatFilestore
-type Txn struct {
+// BlkTxn is a database transaction for the FlatFilestore
+type BlkTxn struct {
 	readOnly      bool
 	store         *FlatFilestore
 	oldBlkFileNum uint32
@@ -281,7 +281,7 @@ type Txn struct {
 
 // PutBlockData puts the block data, usually serialized transactions,
 // to the datastore.
-func (tx *Txn) PutBlockData(height uint32, blockData []byte) (BlockLocation, error) {
+func (tx *BlkTxn) PutBlockData(height uint32, blockData []byte) (BlockLocation, error) {
 	tx.mtx.Lock()
 	defer tx.mtx.Unlock()
 
@@ -292,7 +292,7 @@ func (tx *Txn) PutBlockData(height uint32, blockData []byte) (BlockLocation, err
 }
 
 // FetchBlockData returns the block data from the datastore
-func (tx *Txn) FetchBlockData(location BlockLocation) ([]byte, error) {
+func (tx *BlkTxn) FetchBlockData(location BlockLocation) ([]byte, error) {
 	tx.mtx.Lock()
 	defer tx.mtx.Unlock()
 
@@ -300,7 +300,7 @@ func (tx *Txn) FetchBlockData(location BlockLocation) ([]byte, error) {
 }
 
 // Commit commits the transaction to disk
-func (tx *Txn) Commit(ctx context.Context) error {
+func (tx *BlkTxn) Commit(ctx context.Context) error {
 	tx.mtx.Lock()
 	defer tx.mtx.Unlock()
 
@@ -311,15 +311,8 @@ func (tx *Txn) Commit(ctx context.Context) error {
 	return nil
 }
 
-func (tx *Txn) Discard(ctx context.Context) {
-	tx.mtx.Lock()
-	defer tx.mtx.Unlock()
-
-	tx.closed = true
-}
-
-// Rollback deletes any changes made to the database after the transaction was opened
-func (tx *Txn) Rollback(ctx context.Context) error {
+// Discard deletes any changes made to the database after the transaction was opened
+func (tx *BlkTxn) Discard(ctx context.Context) {
 	tx.mtx.Lock()
 	defer tx.mtx.Unlock()
 
@@ -328,7 +321,6 @@ func (tx *Txn) Rollback(ctx context.Context) error {
 	}
 	tx.store.handleRollback(tx.oldBlkFileNum, tx.oldBlkOffset)
 	tx.closed = true
-	return nil
 }
 
 // BlockLocation identifies a particular block file and location.

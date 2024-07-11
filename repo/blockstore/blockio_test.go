@@ -82,7 +82,7 @@ func TestTransaction(t *testing.T) {
 	ser, err := blk.Serialize()
 	assert.NoError(t, err)
 
-	btx, err := ds.NewBlockstoreTransaction(context.Background(), false)
+	btx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 
 	locs := make([]BlockLocation, 0, 40000)
@@ -97,7 +97,7 @@ func TestTransaction(t *testing.T) {
 	err = btx.Commit(context.Background())
 	assert.NoError(t, err)
 
-	btx, err = ds.NewBlockstoreTransaction(context.Background(), false)
+	btx, err = ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 
 	for _, loc := range locs {
@@ -107,7 +107,7 @@ func TestTransaction(t *testing.T) {
 
 	btx.Discard(context.Background())
 
-	btx, err = ds.NewBlockstoreTransaction(context.Background(), false)
+	btx, err = ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 
 	locs = make([]BlockLocation, 0, 40000)
@@ -118,9 +118,8 @@ func TestTransaction(t *testing.T) {
 
 		locs = append(locs, loc)
 	}
-	
-	err = btx.Rollback(context.Background())
-	assert.NoError(t, err)
+
+	btx.Discard(context.Background())
 
 	for _, loc := range locs {
 		_, err = btx.FetchBlockData(loc)

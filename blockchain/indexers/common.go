@@ -5,8 +5,7 @@
 package indexers
 
 import (
-	datastore "github.com/ipfs/go-datastore"
-	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types/blocks"
 )
 
@@ -29,5 +28,5 @@ type Indexer interface {
 
 	// Close is called when the index manager shuts down and gives the indexer
 	// an opportunity to do some cleanup.
-	Close(ds repo.Datastore) error
+	Close(ds datastore.Datastore) error
 }

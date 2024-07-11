@@ -36,9 +36,9 @@ func TestPutGetDeleteBlock(t *testing.T) {
 	block := randomBlock(header, 5)
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
-	btx, err := ds.NewBlockstoreTransaction(context.Background(), false)
+	btx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
-	assert.NoError(t, dsPutBlock(dbtx, btx, block))
+	assert.NoError(t, dsPutBlock(dbtx, block))
 	assert.NoError(t, dbtx.Commit(context.Background()))
 	assert.NoError(t, btx.Commit(context.Background()))
 

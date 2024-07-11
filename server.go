@@ -65,7 +65,7 @@ type Server struct {
 	ctx          context.Context
 	config       *repo.Config
 	params       *params.NetworkParams
-	ds           repo.Datastore
+	ds           datastore.Datastore
 	network      *net.Network
 	blockchain   *blockchain.Blockchain
 	mempool      *mempool.Mempool

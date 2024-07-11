@@ -35,14 +35,14 @@ const (
 // Each datastore entry tracks the last seen time of the peer and garbage
 // collects peers that haven't been seen in over a month.
 type Peerstoreds struct {
-	ds     repo.Datastore
+	ds     datastore.Datastore
 	pstore peerstore.Peerstore
 	mtx    sync.RWMutex
 	done   chan struct{}
 }
 
 // NewPeerstoreds returns a new Peerstoreds
-func NewPeerstoreds(ds repo.Datastore, pstore peerstore.Peerstore) *Peerstoreds {
+func NewPeerstoreds(ds datastore.Datastore, pstore peerstore.Peerstore) *Peerstoreds {
 	pds := &Peerstoreds{
 		ds:     ds,
 		pstore: pstore,

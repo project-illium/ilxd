@@ -50,7 +50,7 @@ type GrpcServerConfig struct {
 	AutoStakeFunc        func(bool) error
 	NetworkKeyFunc       func() (crypto.PrivKey, error)
 	ChainParams          *params.NetworkParams
-	Ds                   repo.Datastore
+	Ds                   datastore.Datastore
 	TxMemPool            *mempool.Mempool
 	DisableNodeService   bool
 	DisableWalletService bool
@@ -67,7 +67,7 @@ type GrpcServerConfig struct {
 type GrpcServer struct {
 	chain            *blockchain.Blockchain
 	chainParams      *params.NetworkParams
-	ds               repo.Datastore
+	ds               datastore.Datastore
 	txMemPool        *mempool.Mempool
 	network          *net.Network
 	policy           *policy.Policy

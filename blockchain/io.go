@@ -11,12 +11,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dgraph-io/badger"
-	datastore "github.com/ipfs/go-datastore"
+	ids "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain/pb"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/repo/blockstore"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"google.golang.org/protobuf/proto"
@@ -190,11 +191,11 @@ func dsPutHeader(dbtx datastore.Txn, header *blocks.BlockHeader) error {
 	if err != nil {
 		return err
 	}
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+header.ID().String()), ser)
+	return dbtx.Put(context.Background(), ids.NewKey(repo.BlockKeyPrefix+header.ID().String()), ser)
 }
 
-func dsFetchHeader(ds repo.Datastore, blockID types.ID) (*blocks.BlockHeader, error) {
-	serialized, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+blockID.String()))
+func dsFetchHeader(ds datastore.Datastore, blockID types.ID) (*blocks.BlockHeader, error) {
+	serialized, err := ds.Get(context.Background(), ids.NewKey(repo.BlockKeyPrefix+blockID.String()))
 	if err != nil {
 		return nil, err
 	}
@@ -205,16 +206,16 @@ func dsFetchHeader(ds repo.Datastore, blockID types.ID) (*blocks.BlockHeader, er
 	return blockHeader, nil
 }
 
-func dsBlockExists(ds repo.Datastore, blockID types.ID) (bool, error) {
-	return ds.Has(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+blockID.String()))
+func dsBlockExists(ds datastore.Datastore, blockID types.ID) (bool, error) {
+	return ds.Has(context.Background(), ids.NewKey(repo.BlockKeyPrefix+blockID.String()))
 }
 
-func dsPutBlock(dbtx datastore.Txn, blockTxn *blockstore.Txn, blk *blocks.Block) error {
+func dsPutBlock(dbtx datastore.Txn, blk *blocks.Block) error {
 	serializedHeader, err := blk.Header.Serialize()
 	if err != nil {
 		return err
 	}
-	if err := dbtx.Put(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+blk.ID().String()), serializedHeader); err != nil {
+	if err := dbtx.Put(context.Background(), ids.NewKey(repo.BlockKeyPrefix+blk.ID().String()), serializedHeader); err != nil {
 		return err
 	}
 	txns := &pb.DBTxs{
@@ -225,30 +226,30 @@ func dsPutBlock(dbtx datastore.Txn, blockTxn *blockstore.Txn, blk *blocks.Block)
 		return err
 	}
 
-	location, err := blockTxn.PutBlockData(blk.Header.Height, serializedTxs)
+	location, err := dbtx.PutBlockData(blk.Header.Height, serializedTxs)
 	if err != nil {
 		return err
 	}
 
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockTxsKeyPrefix+blk.ID().String()), blockstore.SerializeBlockLoc(location))
+	return dbtx.Put(context.Background(), ids.NewKey(repo.BlockTxsKeyPrefix+blk.ID().String()), blockstore.SerializeBlockLoc(location))
 }
 
 func dsDeleteBlock(dbtx datastore.Txn, bs blockstore.Blockstore, blockID types.ID, height uint32) error {
-	if err := dbtx.Delete(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+blockID.String())); err != nil {
+	if err := dbtx.Delete(context.Background(), ids.NewKey(repo.BlockKeyPrefix+blockID.String())); err != nil {
 		return err
 	}
-	if err := dbtx.Delete(context.Background(), datastore.NewKey(repo.BlockTxsKeyPrefix+blockID.String())); err != nil {
+	if err := dbtx.Delete(context.Background(), ids.NewKey(repo.BlockTxsKeyPrefix+blockID.String())); err != nil {
 		return err
 	}
 	return bs.DeleteBefore(height)
 }
 
-func dsFetchBlock(ds repo.Datastore, blockID types.ID) (*blocks.Block, error) {
-	serializedHeader, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+blockID.String()))
+func dsFetchBlock(ds datastore.Datastore, blockID types.ID) (*blocks.Block, error) {
+	serializedHeader, err := ds.Get(context.Background(), ids.NewKey(repo.BlockKeyPrefix+blockID.String()))
 	if err != nil {
 		return nil, err
 	}
-	serializedLocation, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockTxsKeyPrefix+blockID.String()))
+	serializedLocation, err := ds.Get(context.Background(), ids.NewKey(repo.BlockTxsKeyPrefix+blockID.String()))
 	if err != nil {
 		return nil, err
 	}
@@ -275,11 +276,11 @@ func dsFetchBlock(ds repo.Datastore, blockID types.ID) (*blocks.Block, error) {
 }
 
 func dsPutBlockIDFromHeight(dbtx datastore.Txn, blockID types.ID, height uint32) error {
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))), blockID[:])
+	return dbtx.Put(context.Background(), ids.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))), blockID[:])
 }
 
-func dsFetchBlockIDFromHeight(ds repo.Datastore, height uint32) (types.ID, error) {
-	blockIDBytes, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))))
+func dsFetchBlockIDFromHeight(ds datastore.Datastore, height uint32) (types.ID, error) {
+	blockIDBytes, err := ds.Get(context.Background(), ids.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))))
 	if err != nil {
 		return types.ID{}, err
 	}
@@ -287,7 +288,7 @@ func dsFetchBlockIDFromHeight(ds repo.Datastore, height uint32) (types.ID, error
 }
 
 func dsFetchBlockIDFromHeightWithTx(dbtx datastore.Txn, height uint32) (types.ID, error) {
-	blockIDBytes, err := dbtx.Get(context.Background(), datastore.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))))
+	blockIDBytes, err := dbtx.Get(context.Background(), ids.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))))
 	if err != nil {
 		return types.ID{}, err
 	}
@@ -295,7 +296,7 @@ func dsFetchBlockIDFromHeightWithTx(dbtx datastore.Txn, height uint32) (types.ID
 }
 
 func dsDeleteBlockIDFromHeight(dbtx datastore.Txn, height uint32) error {
-	return dbtx.Delete(context.Background(), datastore.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))))
+	return dbtx.Delete(context.Background(), ids.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))))
 }
 
 func dsPutBlockIndexState(dbtx datastore.Txn, node *blockNode) error {
@@ -303,11 +304,11 @@ func dsPutBlockIndexState(dbtx datastore.Txn, node *blockNode) error {
 	if err != nil {
 		return err
 	}
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockIndexStateKey), ser)
+	return dbtx.Put(context.Background(), ids.NewKey(repo.BlockIndexStateKey), ser)
 }
 
-func dsFetchBlockIndexState(ds repo.Datastore) (*blockNode, error) {
-	ser, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockIndexStateKey))
+func dsFetchBlockIndexState(ds datastore.Datastore) (*blockNode, error) {
+	ser, err := ds.Get(context.Background(), ids.NewKey(repo.BlockIndexStateKey))
 	if err != nil {
 		return nil, err
 	}
@@ -320,18 +321,18 @@ func dsFetchBlockIndexState(ds repo.Datastore) (*blockNode, error) {
 }
 
 func dsDeleteBlockIndexState(dbtx datastore.Txn) error {
-	return dbtx.Delete(context.Background(), datastore.NewKey(repo.BlockIndexStateKey))
+	return dbtx.Delete(context.Background(), ids.NewKey(repo.BlockIndexStateKey))
 }
 
-func dsPutValidatorSetConsistencyStatus(ds repo.Datastore, status setConsistencyStatus) error {
+func dsPutValidatorSetConsistencyStatus(ds datastore.Datastore, status setConsistencyStatus) error {
 	b := make([]byte, 2)
 	binary.BigEndian.PutUint16(b, uint16(status))
-	return ds.Put(context.Background(), datastore.NewKey(repo.ValidatorSetConsistencyStatusKey), b)
+	return ds.Put(context.Background(), ids.NewKey(repo.ValidatorSetConsistencyStatusKey), b)
 }
 
-func dsFetchValidatorSetConsistencyStatus(ds repo.Datastore) (setConsistencyStatus, error) {
-	b, err := ds.Get(context.Background(), datastore.NewKey(repo.ValidatorSetConsistencyStatusKey))
-	if err == datastore.ErrNotFound {
+func dsFetchValidatorSetConsistencyStatus(ds datastore.Datastore) (setConsistencyStatus, error) {
+	b, err := ds.Get(context.Background(), ids.NewKey(repo.ValidatorSetConsistencyStatusKey))
+	if errors.Is(err, ids.ErrNotFound) {
 		return scsEmpty, nil
 	}
 	if err != nil {
@@ -343,12 +344,12 @@ func dsFetchValidatorSetConsistencyStatus(ds repo.Datastore) (setConsistencyStat
 func dsPutValidatorLastFlushHeight(dbtx datastore.Txn, height uint32) error {
 	b := make([]byte, 4)
 	binary.BigEndian.PutUint32(b, height)
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.ValidatorSetLastFlushHeight), b)
+	return dbtx.Put(context.Background(), ids.NewKey(repo.ValidatorSetLastFlushHeight), b)
 }
 
-func dsFetchValidatorLastFlushHeight(ds repo.Datastore) (uint32, error) {
-	b, err := ds.Get(context.Background(), datastore.NewKey(repo.ValidatorSetLastFlushHeight))
-	if err == datastore.ErrNotFound {
+func dsFetchValidatorLastFlushHeight(ds datastore.Datastore) (uint32, error) {
+	b, err := ds.Get(context.Background(), ids.NewKey(repo.ValidatorSetLastFlushHeight))
+	if errors.Is(err, ids.ErrNotFound) {
 		return 0, nil
 	}
 	if err != nil {
@@ -362,7 +363,7 @@ func dsPutValidator(dbtx datastore.Txn, v *Validator) error {
 	if err != nil {
 		return err
 	}
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.ValidatorDatastoreKeyPrefix+v.PeerID.String()), ser)
+	return dbtx.Put(context.Background(), ids.NewKey(repo.ValidatorDatastoreKeyPrefix+v.PeerID.String()), ser)
 }
 
 func dsDeleteValidatorSet(dbtx datastore.Txn) error {
@@ -376,7 +377,7 @@ func dsDeleteValidatorSet(dbtx datastore.Txn) error {
 	}
 
 	for result, ok := results.NextSync(); ok; result, ok = results.NextSync() {
-		if err := dbtx.Delete(context.Background(), datastore.NewKey(result.Key)); err != nil {
+		if err := dbtx.Delete(context.Background(), ids.NewKey(result.Key)); err != nil {
 			return err
 		}
 	}
@@ -384,10 +385,10 @@ func dsDeleteValidatorSet(dbtx datastore.Txn) error {
 }
 
 func dsDeleteValidator(dbtx datastore.Txn, id peer.ID) error {
-	return dbtx.Delete(context.Background(), datastore.NewKey(repo.ValidatorDatastoreKeyPrefix+id.String()))
+	return dbtx.Delete(context.Background(), ids.NewKey(repo.ValidatorDatastoreKeyPrefix+id.String()))
 }
 
-func dsFetchValidators(ds repo.Datastore) ([]*Validator, error) {
+func dsFetchValidators(ds datastore.Datastore) ([]*Validator, error) {
 	q := query.Query{
 		Prefix: repo.ValidatorDatastoreKeyPrefix,
 	}
@@ -408,13 +409,13 @@ func dsFetchValidators(ds repo.Datastore) ([]*Validator, error) {
 	return validators, nil
 }
 
-func dsNullifierExists(ds repo.Datastore, nullifier types.Nullifier) (bool, error) {
-	return ds.Has(context.Background(), datastore.NewKey(repo.NullifierKeyPrefix+nullifier.String()))
+func dsNullifierExists(ds datastore.Datastore, nullifier types.Nullifier) (bool, error) {
+	return ds.Has(context.Background(), ids.NewKey(repo.NullifierKeyPrefix+nullifier.String()))
 }
 
 func dsPutNullifiers(dbtx datastore.Txn, nullifiers []types.Nullifier) error {
 	for _, n := range nullifiers {
-		if err := dbtx.Put(context.Background(), datastore.NewKey(repo.NullifierKeyPrefix+n.String()), []byte{}); err != nil {
+		if err := dbtx.Put(context.Background(), ids.NewKey(repo.NullifierKeyPrefix+n.String()), []byte{}); err != nil {
 			return err
 		}
 	}
@@ -432,7 +433,7 @@ func dsDeleteNullifierSet(dbtx datastore.Txn) error {
 	}
 
 	for result, ok := results.NextSync(); ok; result, ok = results.NextSync() {
-		if err := dbtx.Delete(context.Background(), datastore.NewKey(result.Key)); err != nil {
+		if err := dbtx.Delete(context.Background(), ids.NewKey(result.Key)); err != nil {
 			return err
 		}
 	}
@@ -440,11 +441,11 @@ func dsDeleteNullifierSet(dbtx datastore.Txn) error {
 }
 
 func dsPutTxoSetRoot(dbtx datastore.Txn, txoRoot types.ID) error {
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.TxoRootKeyPrefix+txoRoot.String()), []byte{})
+	return dbtx.Put(context.Background(), ids.NewKey(repo.TxoRootKeyPrefix+txoRoot.String()), []byte{})
 }
 
-func dsTxoSetRootExists(ds repo.Datastore, txoRoot types.ID) (bool, error) {
-	return ds.Has(context.Background(), datastore.NewKey(repo.TxoRootKeyPrefix+txoRoot.String()))
+func dsTxoSetRootExists(ds datastore.Datastore, txoRoot types.ID) (bool, error) {
+	return ds.Has(context.Background(), ids.NewKey(repo.TxoRootKeyPrefix+txoRoot.String()))
 }
 
 func dsDeleteTxoRootSet(dbtx datastore.Txn) error {
@@ -458,7 +459,7 @@ func dsDeleteTxoRootSet(dbtx datastore.Txn) error {
 	}
 
 	for result, ok := results.NextSync(); ok; result, ok = results.NextSync() {
-		if err := dbtx.Delete(context.Background(), datastore.NewKey(result.Key)); err != nil {
+		if err := dbtx.Delete(context.Background(), ids.NewKey(result.Key)); err != nil {
 			return err
 		}
 	}
@@ -466,7 +467,7 @@ func dsDeleteTxoRootSet(dbtx datastore.Txn) error {
 }
 
 func dsDebitTreasury(dbtx datastore.Txn, amount types.Amount) error {
-	balanceBytes, err := dbtx.Get(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey))
+	balanceBytes, err := dbtx.Get(context.Background(), ids.NewKey(repo.TreasuryBalanceKey))
 	if err != nil {
 		return err
 	}
@@ -475,16 +476,16 @@ func dsDebitTreasury(dbtx datastore.Txn, amount types.Amount) error {
 
 	newBalance := make([]byte, 8)
 	binary.BigEndian.PutUint64(newBalance, uint64(balance))
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey), newBalance)
+	return dbtx.Put(context.Background(), ids.NewKey(repo.TreasuryBalanceKey), newBalance)
 }
 
 func dsInitTreasury(ds datastore.Datastore) error {
 	zero := make([]byte, 8)
-	return ds.Put(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey), zero)
+	return ds.Put(context.Background(), ids.NewKey(repo.TreasuryBalanceKey), zero)
 }
 
 func dsCreditTreasury(dbtx datastore.Txn, amount types.Amount) error {
-	balanceBytes, err := dbtx.Get(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey))
+	balanceBytes, err := dbtx.Get(context.Background(), ids.NewKey(repo.TreasuryBalanceKey))
 	if err != nil {
 		return err
 	}
@@ -493,12 +494,12 @@ func dsCreditTreasury(dbtx datastore.Txn, amount types.Amount) error {
 
 	newBalance := make([]byte, 8)
 	binary.BigEndian.PutUint64(newBalance, uint64(balance))
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey), newBalance)
+	return dbtx.Put(context.Background(), ids.NewKey(repo.TreasuryBalanceKey), newBalance)
 }
 
-func dsFetchTreasuryBalance(ds repo.Datastore) (types.Amount, error) {
-	balance, err := ds.Get(context.Background(), datastore.NewKey(repo.TreasuryBalanceKey))
-	if err == datastore.ErrNotFound {
+func dsFetchTreasuryBalance(ds datastore.Datastore) (types.Amount, error) {
+	balance, err := ds.Get(context.Background(), ids.NewKey(repo.TreasuryBalanceKey))
+	if errors.Is(err, ids.ErrNotFound) {
 		return 0, nil
 	} else if err != nil {
 		return 0, err
@@ -512,11 +513,11 @@ func dsPutAccumulator(dbtx datastore.Txn, accumulator *Accumulator) error {
 	if err != nil {
 		return err
 	}
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.AccumulatorStateKey), ser)
+	return dbtx.Put(context.Background(), ids.NewKey(repo.AccumulatorStateKey), ser)
 }
 
-func dsFetchAccumulator(ds repo.Datastore) (*Accumulator, error) {
-	ser, err := ds.Get(context.Background(), datastore.NewKey(repo.AccumulatorStateKey))
+func dsFetchAccumulator(ds datastore.Datastore) (*Accumulator, error) {
+	ser, err := ds.Get(context.Background(), ids.NewKey(repo.AccumulatorStateKey))
 	if err != nil {
 		return nil, err
 	}
@@ -524,7 +525,7 @@ func dsFetchAccumulator(ds repo.Datastore) (*Accumulator, error) {
 }
 
 func dsDeleteAccumulator(dbtx datastore.Txn) error {
-	return dbtx.Delete(context.Background(), datastore.NewKey(repo.AccumulatorStateKey))
+	return dbtx.Delete(context.Background(), ids.NewKey(repo.AccumulatorStateKey))
 }
 
 func dsPutAccumulatorCheckpoint(dbtx datastore.Txn, height uint32, accumulator *Accumulator) error {
@@ -532,11 +533,11 @@ func dsPutAccumulatorCheckpoint(dbtx datastore.Txn, height uint32, accumulator *
 	if err != nil {
 		return err
 	}
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.AccumulatorCheckpointKey+fmt.Sprintf("%010d", int(height))), ser)
+	return dbtx.Put(context.Background(), ids.NewKey(repo.AccumulatorCheckpointKey+fmt.Sprintf("%010d", int(height))), ser)
 }
 
-func dsFetchAccumulatorCheckpoint(ds repo.Datastore, height uint32) (*Accumulator, error) {
-	ser, err := ds.Get(context.Background(), datastore.NewKey(repo.AccumulatorCheckpointKey+fmt.Sprintf("%010d", int(height))))
+func dsFetchAccumulatorCheckpoint(ds datastore.Datastore, height uint32) (*Accumulator, error) {
+	ser, err := ds.Get(context.Background(), ids.NewKey(repo.AccumulatorCheckpointKey+fmt.Sprintf("%010d", int(height))))
 	if err != nil {
 		return nil, err
 	}
@@ -554,22 +555,22 @@ func dsDeleteAccumulatorCheckpoints(dbtx datastore.Txn) error {
 	}
 
 	for result, ok := results.NextSync(); ok; result, ok = results.NextSync() {
-		if err := dbtx.Delete(context.Background(), datastore.NewKey(result.Key)); err != nil {
+		if err := dbtx.Delete(context.Background(), ids.NewKey(result.Key)); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func dsPutAccumulatorConsistencyStatus(ds repo.Datastore, status setConsistencyStatus) error {
+func dsPutAccumulatorConsistencyStatus(ds datastore.Datastore, status setConsistencyStatus) error {
 	b := make([]byte, 2)
 	binary.BigEndian.PutUint16(b, uint16(status))
-	return ds.Put(context.Background(), datastore.NewKey(repo.AccumulatorConsistencyStatusKey), b)
+	return ds.Put(context.Background(), ids.NewKey(repo.AccumulatorConsistencyStatusKey), b)
 }
 
-func dsFetchAccumulatorConsistencyStatus(ds repo.Datastore) (setConsistencyStatus, error) {
-	b, err := ds.Get(context.Background(), datastore.NewKey(repo.AccumulatorConsistencyStatusKey))
-	if err == datastore.ErrNotFound {
+func dsFetchAccumulatorConsistencyStatus(ds datastore.Datastore) (setConsistencyStatus, error) {
+	b, err := ds.Get(context.Background(), ids.NewKey(repo.AccumulatorConsistencyStatusKey))
+	if errors.Is(err, ids.ErrNotFound) {
 		return scsEmpty, nil
 	}
 	if err != nil {
@@ -581,12 +582,12 @@ func dsFetchAccumulatorConsistencyStatus(ds repo.Datastore) (setConsistencyStatu
 func dsPutAccumulatorLastFlushHeight(dbtx datastore.Txn, height uint32) error {
 	b := make([]byte, 4)
 	binary.BigEndian.PutUint32(b, height)
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.AccumulatorLastFlushHeight), b)
+	return dbtx.Put(context.Background(), ids.NewKey(repo.AccumulatorLastFlushHeight), b)
 }
 
-func dsFetchAccumulatorLastFlushHeight(ds repo.Datastore) (uint32, error) {
-	b, err := ds.Get(context.Background(), datastore.NewKey(repo.AccumulatorLastFlushHeight))
-	if err == datastore.ErrNotFound {
+func dsFetchAccumulatorLastFlushHeight(ds datastore.Datastore) (uint32, error) {
+	b, err := ds.Get(context.Background(), ids.NewKey(repo.AccumulatorLastFlushHeight))
+	if err == ids.ErrNotFound {
 		return 0, nil
 	}
 	if err != nil {
@@ -603,32 +604,32 @@ func dsIncrementCurrentSupply(dbtx datastore.Txn, newCoins types.Amount) error {
 
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, uint64(currentSupply+newCoins))
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.CoinSupplyKey), b)
+	return dbtx.Put(context.Background(), ids.NewKey(repo.CoinSupplyKey), b)
 }
 
 func dsInitCurrentSupply(ds datastore.Datastore) error {
 	zero := make([]byte, 8)
-	return ds.Put(context.Background(), datastore.NewKey(repo.CoinSupplyKey), zero)
+	return ds.Put(context.Background(), ids.NewKey(repo.CoinSupplyKey), zero)
 }
 
 func dsFetchCurrentSupply(dbtx datastore.Txn) (types.Amount, error) {
-	b, err := dbtx.Get(context.Background(), datastore.NewKey(repo.CoinSupplyKey))
+	b, err := dbtx.Get(context.Background(), ids.NewKey(repo.CoinSupplyKey))
 	if err != nil {
 		return 0, err
 	}
 	return types.Amount(binary.BigEndian.Uint64(b)), nil
 }
 
-func dsPutPrunedFlag(ds repo.Datastore) error {
-	return ds.Put(context.Background(), datastore.NewKey(repo.PrunedBlockchainDatastoreKey), []byte{})
+func dsPutPrunedFlag(ds datastore.Datastore) error {
+	return ds.Put(context.Background(), ids.NewKey(repo.PrunedBlockchainDatastoreKey), []byte{})
 }
 
-func dsFetchPrunedFlag(ds repo.Datastore) (bool, error) {
-	_, err := ds.Get(context.Background(), datastore.NewKey(repo.PrunedBlockchainDatastoreKey))
-	if err != nil && !errors.Is(err, datastore.ErrNotFound) {
+func dsFetchPrunedFlag(ds datastore.Datastore) (bool, error) {
+	_, err := ds.Get(context.Background(), ids.NewKey(repo.PrunedBlockchainDatastoreKey))
+	if err != nil && !errors.Is(err, ids.ErrNotFound) {
 		return false, err
 	}
-	return !errors.Is(err, datastore.ErrNotFound), nil
+	return !errors.Is(err, ids.ErrNotFound), nil
 }
 
 // The database implementation limits the number of put operations in
@@ -653,13 +654,7 @@ func datastoreTxnLimits(blk *blocks.Block, bannedNullifiers int) (int, int, erro
 	if err != nil {
 		return 0, 0, err
 	}
-	txns := &pb.DBTxs{
-		Transactions: blk.Transactions,
-	}
-	serializedTxs, err := proto.Marshal(txns)
-	if err != nil {
-		return 0, 0, err
-	}
+
 	serializedNode, err := serializeBlockNode(&blockNode{
 		blockID:   types.ID{},
 		height:    0,
@@ -682,40 +677,41 @@ func datastoreTxnLimits(blk *blocks.Block, bannedNullifiers int) (int, int, erro
 	maxU32 := math.MaxUint32
 	fourBytes := make([]byte, 4)
 	eightBytes := make([]byte, 8)
+	twelveBytes := make([]byte, 12)
 	serializedViewKey := hex.EncodeToString(make([]byte, 72))
 
-	txn.Put(datastore.NewKey(repo.BlockKeyPrefix+blk.ID().String()), serializedHeader)
-	txn.Put(datastore.NewKey(repo.BlockTxsKeyPrefix+blk.ID().String()), serializedTxs)
-	txn.Put(datastore.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", maxU32)), id[:])
-	txn.Put(datastore.NewKey(repo.BlockIndexStateKey), serializedNode)
-	txn.Put(datastore.NewKey(repo.TreasuryBalanceKey), fourBytes)
-	txn.Put(datastore.NewKey(repo.TxoRootKeyPrefix+id.String()), []byte{})
-	txn.Put(datastore.NewKey(repo.CoinSupplyKey), eightBytes)
-	txn.Put(datastore.NewKey(repo.TreasuryBalanceKey), eightBytes)
-	txn.Put(datastore.NewKey(repo.AccumulatorCheckpointKey+fmt.Sprintf("%010d", maxU32)), serializedAccumulator)
-	txn.Delete(datastore.NewKey(repo.BlockByHeightKeyPrefix + fmt.Sprintf("%010d", maxU32)))
-	txn.Delete(datastore.NewKey(repo.BlockKeyPrefix + id.String()))
-	txn.Delete(datastore.NewKey(repo.BlockTxsKeyPrefix + id.String()))
-	txn.Put(datastore.NewKey(repo.IndexerHeightKeyPrefix+repo.TxIndexKey), fourBytes)
-	txn.Put(datastore.NewKey(repo.IndexerHeightKeyPrefix+repo.WalletServerIndexKey), fourBytes)
+	txn.Put(ids.NewKey(repo.BlockKeyPrefix+blk.ID().String()), serializedHeader)
+	txn.Put(ids.NewKey(repo.BlockTxsKeyPrefix+blk.ID().String()), twelveBytes)
+	txn.Put(ids.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", maxU32)), id[:])
+	txn.Put(ids.NewKey(repo.BlockIndexStateKey), serializedNode)
+	txn.Put(ids.NewKey(repo.TreasuryBalanceKey), fourBytes)
+	txn.Put(ids.NewKey(repo.TxoRootKeyPrefix+id.String()), []byte{})
+	txn.Put(ids.NewKey(repo.CoinSupplyKey), eightBytes)
+	txn.Put(ids.NewKey(repo.TreasuryBalanceKey), eightBytes)
+	txn.Put(ids.NewKey(repo.AccumulatorCheckpointKey+fmt.Sprintf("%010d", maxU32)), serializedAccumulator)
+	txn.Delete(ids.NewKey(repo.BlockByHeightKeyPrefix + fmt.Sprintf("%010d", maxU32)))
+	txn.Delete(ids.NewKey(repo.BlockKeyPrefix + id.String()))
+	txn.Delete(ids.NewKey(repo.BlockTxsKeyPrefix + id.String()))
+	txn.Put(ids.NewKey(repo.IndexerHeightKeyPrefix+repo.TxIndexKey), fourBytes)
+	txn.Put(ids.NewKey(repo.IndexerHeightKeyPrefix+repo.WalletServerIndexKey), fourBytes)
 	for range blk.Outputs() {
 		dsKey := repo.WalletServerTxKeyPrefix + serializedViewKey + "/" + id.String()
-		txn.Put(datastore.NewKey(repo.IndexKeyPrefix+repo.WalletServerIndexKey+"/"+dsKey), nil)
+		txn.Put(ids.NewKey(repo.IndexKeyPrefix+repo.WalletServerIndexKey+"/"+dsKey), nil)
 		dsKey = repo.WalletServerNullifierKeyPrefix + serializedViewKey + "/" + id.String()
-		txn.Put(datastore.NewKey(repo.IndexKeyPrefix+repo.WalletServerIndexKey+"/"+dsKey), id.Bytes())
+		txn.Put(ids.NewKey(repo.IndexKeyPrefix+repo.WalletServerIndexKey+"/"+dsKey), id.Bytes())
 	}
 	for range blk.Nullifiers() {
-		txn.Put(datastore.NewKey(repo.NullifierKeyPrefix+id.String()), id.Bytes())
+		txn.Put(ids.NewKey(repo.NullifierKeyPrefix+id.String()), id.Bytes())
 		dsKey := repo.WalletServerTxKeyPrefix + serializedViewKey + "/" + id.String()
-		txn.Put(datastore.NewKey(repo.IndexKeyPrefix+repo.WalletServerIndexKey+"/"+dsKey), nil)
+		txn.Put(ids.NewKey(repo.IndexKeyPrefix+repo.WalletServerIndexKey+"/"+dsKey), nil)
 		dsKey = repo.WalletServerNullifierKeyPrefix + serializedViewKey + "/" + id.String()
-		txn.Delete(datastore.NewKey(repo.IndexKeyPrefix + repo.WalletServerIndexKey + "/" + dsKey))
+		txn.Delete(ids.NewKey(repo.IndexKeyPrefix + repo.WalletServerIndexKey + "/" + dsKey))
 	}
 	for i := 0; i < bannedNullifiers; i++ {
-		txn.Put(datastore.NewKey(repo.NullifierKeyPrefix+id.String()), id.Bytes())
+		txn.Put(ids.NewKey(repo.NullifierKeyPrefix+id.String()), id.Bytes())
 	}
 	for range blk.Transactions {
-		txn.Put(datastore.NewKey(repo.IndexKeyPrefix+repo.TxIndexKey+"/"+id.String()), make([]byte, 36))
+		txn.Put(ids.NewKey(repo.IndexKeyPrefix+repo.TxIndexKey+"/"+id.String()), make([]byte, 36))
 	}
 	// Add a buffer just in case
 	return txn.count + 10, txn.size + 500, nil
@@ -726,7 +722,7 @@ type dbTxLimitCounter struct {
 	size  int
 }
 
-func (txn *dbTxLimitCounter) Put(key datastore.Key, value []byte) {
+func (txn *dbTxLimitCounter) Put(key ids.Key, value []byte) {
 	e := badger.Entry{
 		Key:   key.Bytes(),
 		Value: value,
@@ -735,7 +731,7 @@ func (txn *dbTxLimitCounter) Put(key datastore.Key, value []byte) {
 	txn.size += estimateSize(e, dsValueThreshold) + 10
 }
 
-func (txn *dbTxLimitCounter) Delete(key datastore.Key) {
+func (txn *dbTxLimitCounter) Delete(key ids.Key) {
 	e := badger.Entry{
 		Key: key.Bytes(),
 	}
