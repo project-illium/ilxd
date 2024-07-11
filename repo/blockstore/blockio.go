@@ -18,6 +18,7 @@ import (
 	"github.com/project-illium/ilxd/params"
 	"hash/crc32"
 	"io"
+	"math/rand"
 	"os"
 	"path"
 	"path/filepath"
@@ -210,6 +211,7 @@ type FlatFilestore struct {
 
 	fileBlockHeights map[uint32]uint32
 
+	txnMtx  sync.Mutex
 	cleanup func()
 }
 
@@ -220,7 +222,7 @@ func (s *FlatFilestore) PutBlockData(height uint32, blockData []byte) (BlockLoca
 	if err != nil {
 		return BlockLocation{}, err
 	}
-	return location, nil
+	return location, s.syncBlocks()
 }
 
 // FetchBlockData returns the block data from the datastore
@@ -240,6 +242,9 @@ func (s *FlatFilestore) DeleteBefore(height uint32) error {
 
 // NewTransaction returns a new transaction for the Blockstore
 func (s *FlatFilestore) NewTransaction(ctx context.Context, readOnly bool) (*BlkTxn, error) {
+	s.txnMtx.Lock()
+	defer s.txnMtx.Unlock()
+
 	// Save the current block store write position for potential rollback.
 	// These variables are only updated here in this function and there can
 	// only be one write transaction active at a time, so it's safe to store
@@ -288,7 +293,11 @@ func (tx *BlkTxn) PutBlockData(height uint32, blockData []byte) (BlockLocation, 
 	if tx.readOnly {
 		return BlockLocation{}, errors.New("tx is read only")
 	}
-	return tx.store.PutBlockData(height, blockData)
+	location, err := tx.store.writeBlock(blockData, height)
+	if err != nil {
+		return BlockLocation{}, err
+	}
+	return location, nil
 }
 
 // FetchBlockData returns the block data from the datastore
@@ -308,13 +317,16 @@ func (tx *BlkTxn) Commit(ctx context.Context) error {
 		panic("managed transaction commit not allowed")
 	}
 	tx.closed = true
-	return nil
+	return tx.store.syncBlocks()
 }
 
 // Discard deletes any changes made to the database after the transaction was opened
 func (tx *BlkTxn) Discard(ctx context.Context) {
 	tx.mtx.Lock()
 	defer tx.mtx.Unlock()
+	if tx.closed {
+		return
+	}
 
 	tx.store.handleRollback(tx.oldBlkFileNum, tx.oldBlkOffset)
 	tx.closed = true
@@ -1023,6 +1035,7 @@ func NewFlatFilestore(basePath string, params *params.NetworkParams) (*FlatFiles
 			curOffset:  fileOff,
 		},
 		fileBlockHeights: make(map[uint32]uint32),
+		txnMtx:           sync.Mutex{},
 	}
 	store.openFileFunc = store.openFile
 	store.openWriteFileFunc = store.openWriteFile
@@ -1036,7 +1049,7 @@ func NewFlatFilestore(basePath string, params *params.NetworkParams) (*FlatFiles
 
 // NewMockFlatFilestore returns an in-memory mock FlatFilestore for use in testing.
 func NewMockFlatFilestore(params *params.NetworkParams) (*FlatFilestore, error) {
-	tempDir := path.Join(os.TempDir(), "ilxd-mock-FlatFilestore")
+	tempDir := path.Join(os.TempDir(), "ilxd-mock-FlatFilestore", fmt.Sprintf("%d", rand.Int31()))
 	if err := os.MkdirAll(tempDir, os.ModePerm); err != nil {
 		return nil, err
 	}
@@ -1046,7 +1059,7 @@ func NewMockFlatFilestore(params *params.NetworkParams) (*FlatFilestore, error) 
 		return nil, err
 	}
 	store.cleanup = func() {
-		os.RemoveAll(tempDir)
+		//os.RemoveAll(tempDir)
 	}
 	return store, nil
 }
