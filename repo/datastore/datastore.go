@@ -10,6 +10,7 @@ import (
 	badger "github.com/ipfs/go-ds-badger"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo/blockstore"
+	"os"
 	"path"
 )
 
@@ -90,7 +91,15 @@ func NewIlxdDatastore(dataDir string, params *params.NetworkParams) (Datastore, 
 		return nil, err
 	}
 
-	bs, err := blockstore.NewFlatFilestore(path.Join(dataDir, "blocks"), params)
+	blocksDir := path.Join(dataDir, "blocks")
+	if _, err := os.Stat(blocksDir); os.IsNotExist(err) {
+		err := os.MkdirAll(blocksDir, 0700)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	bs, err := blockstore.NewFlatFilestore(blocksDir, params)
 	if err != nil {
 		return nil, err
 	}

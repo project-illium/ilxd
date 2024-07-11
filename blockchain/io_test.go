@@ -260,6 +260,9 @@ func TestDebitCreditBalanceTreasury(t *testing.T) {
 	assert.NoError(t, dsCreditTreasury(dbtx, 999))
 	assert.NoError(t, dbtx.Commit(context.Background()))
 
+	dbtx, err = ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
+
 	balance, err = dsFetchTreasuryBalance(ds)
 	assert.NoError(t, err)
 	assert.Equal(t, types.Amount(999), balance)
