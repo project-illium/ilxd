@@ -56,7 +56,7 @@ func main() {
 		log.Fatal("unknown net params")
 	}
 
-	kc, err := walletlib.NewKeychain(mock.NewMapDatastore(), netParams, params.Mnemonic)
+	kc, err := walletlib.NewKeychain(mock.NewMockDatastore(), netParams, params.Mnemonic)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -40,7 +40,7 @@ type ConnectionGater struct {
 	banDuration time.Duration
 	maxBanscore uint32
 
-	ds       repo.Datastore
+	ds       datastore.Datastore
 	addrBook peerstore.AddrBook
 }
 
@@ -50,7 +50,7 @@ const (
 )
 
 // NewConnectionGater creates a new connection gater.
-func NewConnectionGater(ds repo.Datastore, addrBook peerstore.AddrBook, banDuration time.Duration, maxBanscore uint32) (*ConnectionGater, error) {
+func NewConnectionGater(ds datastore.Datastore, addrBook peerstore.AddrBook, banDuration time.Duration, maxBanscore uint32) (*ConnectionGater, error) {
 	cg := &ConnectionGater{
 		blockedPeers: make(map[peer.ID]time.Time),
 		blockedAddrs: make(map[string]time.Time),

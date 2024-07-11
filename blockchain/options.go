@@ -6,7 +6,7 @@ package blockchain
 
 import (
 	"github.com/project-illium/ilxd/params"
-	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/zk"
 )
@@ -24,7 +24,7 @@ const (
 func DefaultOptions() Option {
 	return func(cfg *config) error {
 		cfg.params = &params.RegestParams
-		cfg.datastore = mock.NewMapDatastore()
+		cfg.datastore = mock.NewMockDatastore()
 		cfg.sigCache = NewSigCache(DefaultSigCacheSize)
 		cfg.proofCache = NewProofCache(DefaultProofCacheSize)
 		cfg.maxNullifiers = DefaultMaxNullifiers
@@ -47,10 +47,10 @@ func Params(params *params.NetworkParams) Option {
 	}
 }
 
-// Datastore is an implementation of the repo.Datastore interface
+// Datastore is an implementation of the datastore.Datastore interface
 //
 // This option is required.
-func Datastore(ds repo.Datastore) Option {
+func Datastore(ds datastore.Datastore) Option {
 	return func(cfg *config) error {
 		cfg.datastore = ds
 		return nil
@@ -131,7 +131,7 @@ func Prune() Option {
 // Config specifies the blockchain configuration.
 type config struct {
 	params        *params.NetworkParams
-	datastore     repo.Datastore
+	datastore     datastore.Datastore
 	sigCache      *SigCache
 	proofCache    *ProofCache
 	indexManager  IndexManager

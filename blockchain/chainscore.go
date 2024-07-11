@@ -20,7 +20,9 @@ func (b *Blockchain) CalcChainScore(blks []*blocks.Block, flags ...BehaviorFlags
 	b.stateLock.RLock()
 	defer b.stateLock.RUnlock()
 
-	tempds := mock.NewMapDatastore()
+	tempds := mock.NewMockDatastore()
+	defer tempds.Close()
+
 	tempChain := &Blockchain{
 		params: b.params,
 		ds:     tempds,

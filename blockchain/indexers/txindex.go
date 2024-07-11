@@ -8,9 +8,10 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	datastore "github.com/ipfs/go-datastore"
+	ids "github.com/ipfs/go-datastore"
 	"github.com/project-illium/ilxd/blockchain/pb"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -64,7 +65,7 @@ func (idx *TxIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error {
 
 // GetTransaction looks up the block id and position in the transaction index then fetches the
 // transaction from the db and returns it.
-func (idx *TxIndex) GetTransaction(ds repo.Datastore, txid types.ID) (*transactions.Transaction, types.ID, error) {
+func (idx *TxIndex) GetTransaction(ds datastore.Datastore, txid types.ID) (*transactions.Transaction, types.ID, error) {
 	valueBytes, err := dsFetchIndexValue(ds, idx, txid.String())
 	if err != nil {
 		return nil, types.ID{}, err
@@ -72,7 +73,7 @@ func (idx *TxIndex) GetTransaction(ds repo.Datastore, txid types.ID) (*transacti
 	pos := binary.BigEndian.Uint32(valueBytes[:4])
 	blockID := types.NewID(valueBytes[4:])
 
-	ser, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockTxsKeyPrefix+blockID.String()))
+	ser, err := ds.Get(context.Background(), ids.NewKey(repo.BlockTxsKeyPrefix+blockID.String()))
 	if err != nil {
 		return nil, types.ID{}, err
 	}
@@ -90,7 +91,7 @@ func (idx *TxIndex) GetTransaction(ds repo.Datastore, txid types.ID) (*transacti
 }
 
 // GetContainingBlockID returns the ID of the block containing the transaction.
-func (idx *TxIndex) GetContainingBlockID(ds repo.Datastore, txid types.ID) (types.ID, error) {
+func (idx *TxIndex) GetContainingBlockID(ds datastore.Datastore, txid types.ID) (types.ID, error) {
 	valueBytes, err := dsFetchIndexValue(ds, idx, txid.String())
 	if err != nil {
 		return types.ID{}, err
@@ -100,11 +101,11 @@ func (idx *TxIndex) GetContainingBlockID(ds repo.Datastore, txid types.ID) (type
 
 // Close is called when the index manager shuts down and gives the indexer
 // an opportunity to do some cleanup.
-func (idx *TxIndex) Close(ds repo.Datastore) error {
+func (idx *TxIndex) Close(ds datastore.Datastore) error {
 	return nil
 }
 
 // DropTxIndex drops the tx index from the datastore
-func DropTxIndex(ds repo.Datastore) error {
+func DropTxIndex(ds datastore.Datastore) error {
 	return dsDropIndex(ds, &TxIndex{})
 }

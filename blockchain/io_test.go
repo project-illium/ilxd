@@ -15,7 +15,8 @@ import (
 )
 
 func TestPutGetHeader(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
+
 	header := randomBlockHeader(5, randomID())
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
@@ -28,13 +29,18 @@ func TestPutGetHeader(t *testing.T) {
 }
 
 func TestPutGetDeleteBlock(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
+	defer ds.Close()
+
 	header := randomBlockHeader(5, randomID())
 	block := randomBlock(header, 5)
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
+	btx, err := ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
 	assert.NoError(t, dsPutBlock(dbtx, block))
 	assert.NoError(t, dbtx.Commit(context.Background()))
+	assert.NoError(t, btx.Commit(context.Background()))
 
 	exists, err := dsBlockExists(ds, block.ID())
 	assert.NoError(t, err)
@@ -46,7 +52,7 @@ func TestPutGetDeleteBlock(t *testing.T) {
 
 	dbtx, err = ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
-	assert.NoError(t, dsDeleteBlock(dbtx, block.ID()))
+	assert.NoError(t, dsDeleteBlock(dbtx, ds, block.ID(), block.Header.Height))
 	assert.NoError(t, dbtx.Commit(context.Background()))
 
 	block2, err = dsFetchBlock(ds, block.ID())
@@ -55,7 +61,7 @@ func TestPutGetDeleteBlock(t *testing.T) {
 }
 
 func TestPutGetBlockIDByHeight(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	header := randomBlockHeader(5, randomID())
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
@@ -76,7 +82,7 @@ func TestPutGetBlockIDByHeight(t *testing.T) {
 }
 
 func TestPutGetDeleteBlockIndexState(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	header := randomBlockHeader(5, randomID())
 	block := randomBlock(header, 5)
 	dbtx, err := ds.NewTransaction(context.Background(), false)
@@ -102,7 +108,7 @@ func TestPutGetDeleteBlockIndexState(t *testing.T) {
 }
 
 func TestPutGetValidatorSetConsistencyStatus(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 	assert.NoError(t, dsPutValidatorSetConsistencyStatus(ds, scsFlushOngoing))
@@ -114,7 +120,7 @@ func TestPutGetValidatorSetConsistencyStatus(t *testing.T) {
 }
 
 func TestPutGetValidatorSetLastFlushHeight(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 	assert.NoError(t, dsPutValidatorLastFlushHeight(dbtx, 100))
@@ -126,7 +132,7 @@ func TestPutGetValidatorSetLastFlushHeight(t *testing.T) {
 }
 
 func TestPutGetDeleteValidator(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 	id := randomID()
@@ -182,7 +188,7 @@ func TestPutGetDeleteValidator(t *testing.T) {
 }
 
 func TestPutExistsDeleteNullifiers(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 	n1, n2, n3 := randomID(), randomID(), randomID()
@@ -211,7 +217,7 @@ func TestPutExistsDeleteNullifiers(t *testing.T) {
 }
 
 func TestPutExistsTxoRoot(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 	n1, n2, n3 := randomID(), randomID(), randomID()
@@ -241,7 +247,7 @@ func TestPutExistsTxoRoot(t *testing.T) {
 }
 
 func TestDebitCreditBalanceTreasury(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 
@@ -253,6 +259,9 @@ func TestDebitCreditBalanceTreasury(t *testing.T) {
 
 	assert.NoError(t, dsCreditTreasury(dbtx, 999))
 	assert.NoError(t, dbtx.Commit(context.Background()))
+
+	dbtx, err = ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
 
 	balance, err = dsFetchTreasuryBalance(ds)
 	assert.NoError(t, err)
@@ -267,7 +276,7 @@ func TestDebitCreditBalanceTreasury(t *testing.T) {
 }
 
 func TestPutFetchDeleteAccumulator(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 
@@ -278,6 +287,9 @@ func TestPutFetchDeleteAccumulator(t *testing.T) {
 	acc.Insert(id[:], true)
 	assert.NoError(t, dsPutAccumulator(dbtx, acc))
 	assert.NoError(t, dbtx.Commit(context.Background()))
+
+	dbtx, err = ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
 
 	acc2, err := dsFetchAccumulator(ds)
 	assert.NoError(t, err)
@@ -328,7 +340,7 @@ func TestPutFetchDeleteAccumulator(t *testing.T) {
 }
 
 func TestPutGetAccumulatorConsistencyStatus(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 	assert.NoError(t, dsPutAccumulatorConsistencyStatus(ds, scsFlushOngoing))
@@ -340,7 +352,7 @@ func TestPutGetAccumulatorConsistencyStatus(t *testing.T) {
 }
 
 func TestPutGetAccumulatorLastFlushHeight(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 	assert.NoError(t, dsPutAccumulatorLastFlushHeight(dbtx, 100))
@@ -352,7 +364,7 @@ func TestPutGetAccumulatorLastFlushHeight(t *testing.T) {
 }
 
 func TestIncrementFetchCurrentSupply(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
 

@@ -15,7 +15,7 @@ import (
 )
 
 func TestMerkleDB(t *testing.T) {
-	db, err := NewMerkleDB(mock.NewMapDatastore())
+	db, err := NewMerkleDB(mock.NewMockDatastore())
 	assert.NoError(t, err)
 
 	r := make([]byte, 32)
@@ -76,7 +76,7 @@ func TestMerkleDB(t *testing.T) {
 }
 
 func TestPutOverride(t *testing.T) {
-	db, err := NewMerkleDB(mock.NewMapDatastore())
+	db, err := NewMerkleDB(mock.NewMockDatastore())
 	assert.NoError(t, err)
 
 	r := make([]byte, 32)
@@ -133,7 +133,7 @@ func TestPutOverride(t *testing.T) {
 }
 
 func TestRootHashAfterDelete(t *testing.T) {
-	db, err := NewMerkleDB(mock.NewMapDatastore())
+	db, err := NewMerkleDB(mock.NewMockDatastore())
 	assert.NoError(t, err)
 
 	r := make([]byte, 32)

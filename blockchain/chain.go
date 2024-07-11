@@ -7,10 +7,10 @@ package blockchain
 import (
 	"context"
 	"errors"
-	"github.com/ipfs/go-datastore"
+	ids "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/params"
-	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -48,7 +48,7 @@ const (
 // chain and saving state to the database.
 type Blockchain struct {
 	params            *params.NetworkParams
-	ds                repo.Datastore
+	ds                datastore.Datastore
 	index             *blockIndex
 	accumulatorDB     *AccumulatorDB
 	validatorSet      *ValidatorSet
@@ -144,7 +144,7 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 				}
 				defer dbtx.Discard(context.Background())
 				for {
-					if err := dsDeleteBlock(dbtx, node.blockID); err != nil {
+					if err := dsDeleteBlock(dbtx, b.ds, node.blockID, node.height); err != nil {
 						return nil, err
 					}
 					if err := dsDeleteBlockIDFromHeight(dbtx, node.height); err != nil {
@@ -372,7 +372,7 @@ func (b *Blockchain) connectBlock(dbtx datastore.Txn, blk *blocks.Block, flags B
 		if err := dsDeleteBlockIDFromHeight(dbtx, blk.Header.Height-pruneDepth); err != nil {
 			return err
 		}
-		if err := dsDeleteBlock(dbtx, blockID); err != nil {
+		if err := dsDeleteBlock(dbtx, b.ds, blockID, blk.Header.Height-pruneDepth); err != nil {
 			return err
 		}
 	}
@@ -488,7 +488,7 @@ func (b *Blockchain) ReindexChainState() error {
 
 	for {
 		blockID, err := dsFetchBlockIDFromHeight(b.ds, i)
-		if errors.Is(err, datastore.ErrNotFound) {
+		if errors.Is(err, ids.ErrNotFound) {
 			break
 		} else if err != nil {
 			return err
@@ -518,6 +518,7 @@ func (b *Blockchain) ReindexChainState() error {
 			if err != nil {
 				return err
 			}
+
 			ops = 0
 			size = 0
 		}
@@ -530,7 +531,6 @@ func (b *Blockchain) ReindexChainState() error {
 			if err := dbtx.Commit(context.Background()); err != nil {
 				return err
 			}
-			return err
 		}
 		if err := b.connectBlock(dbtx, blk, flags); err != nil {
 			return err
@@ -540,6 +540,7 @@ func (b *Blockchain) ReindexChainState() error {
 	if err := dbtx.Commit(context.Background()); err != nil {
 		return err
 	}
+
 	log.Info("Finished reindex")
 	return nil
 }
@@ -815,7 +816,7 @@ func (b *Blockchain) IsProducerUnderLimit(validatorID peer.ID) (bool, uint32, ui
 
 func (b *Blockchain) isInitialized() (bool, error) {
 	_, err := dsFetchBlockIDFromHeight(b.ds, 0)
-	if err == datastore.ErrNotFound {
+	if errors.Is(err, ids.ErrNotFound) {
 		return false, nil
 	} else if err != nil {
 		return false, err

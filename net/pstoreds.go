@@ -7,13 +7,14 @@ package net
 import (
 	"context"
 	"errors"
-	"github.com/ipfs/go-datastore"
+	ids "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/project-illium/ilxd/net/pb"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"strings"
@@ -35,14 +36,14 @@ const (
 // Each datastore entry tracks the last seen time of the peer and garbage
 // collects peers that haven't been seen in over a month.
 type Peerstoreds struct {
-	ds     repo.Datastore
+	ds     datastore.Datastore
 	pstore peerstore.Peerstore
 	mtx    sync.RWMutex
 	done   chan struct{}
 }
 
 // NewPeerstoreds returns a new Peerstoreds
-func NewPeerstoreds(ds repo.Datastore, pstore peerstore.Peerstore) *Peerstoreds {
+func NewPeerstoreds(ds datastore.Datastore, pstore peerstore.Peerstore) *Peerstoreds {
 	pds := &Peerstoreds{
 		ds:     ds,
 		pstore: pstore,
@@ -62,7 +63,7 @@ func (pds *Peerstoreds) AddrInfos() ([]peer.AddrInfo, error) {
 	query, err := pds.ds.Query(context.Background(), query.Query{
 		Prefix: repo.CachedAddrInfoDatastoreKey,
 	})
-	if err != nil && errors.Is(err, datastore.ErrNotFound) {
+	if err != nil && errors.Is(err, ids.ErrNotFound) {
 		return addrInfos, nil
 	}
 	if err != nil {
@@ -153,7 +154,7 @@ func (pds *Peerstoreds) cachePeerAddrs() error {
 			return err
 		}
 
-		if err := batch.Put(context.Background(), datastore.NewKey(repo.CachedAddrInfoDatastoreKey+p.String()), ser); err != nil {
+		if err := batch.Put(context.Background(), ids.NewKey(repo.CachedAddrInfoDatastoreKey+p.String()), ser); err != nil {
 			return err
 		}
 	}
@@ -194,7 +195,7 @@ func (pds *Peerstoreds) garbageCollect() error {
 		return err
 	}
 	for _, key := range toDelete {
-		if err := batch.Delete(context.Background(), datastore.NewKey(key)); err != nil {
+		if err := batch.Delete(context.Background(), ids.NewKey(key)); err != nil {
 			return err
 		}
 	}

@@ -15,7 +15,7 @@ import (
 )
 
 func TestValidatorSet_CommitBlock(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	vs := NewValidatorSet(&params.RegestParams, ds)
 
 	// Let's add a block producer so we can check epoch
@@ -284,7 +284,7 @@ func TestValidatorSet_CommitBlock(t *testing.T) {
 }
 
 func TestValidatorSet_Init(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	err := populateDatabase(ds, 5000)
 	assert.NoError(t, err)
 
@@ -293,11 +293,11 @@ func TestValidatorSet_Init(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Init with empty consistency state
-	vs := NewValidatorSet(&params.RegestParams, mock.NewMapDatastore())
+	vs := NewValidatorSet(&params.RegestParams, mock.NewMockDatastore())
 	assert.NoError(t, vs.Init(index.Tip()))
 
 	// Init with flush height at genesis
-	vs = NewValidatorSet(&params.RegestParams, mock.NewMapDatastore())
+	vs = NewValidatorSet(&params.RegestParams, mock.NewMockDatastore())
 	tx, err := vs.ConnectBlock(params.RegestParams.GenesisBlock, 0)
 	assert.NoError(t, err)
 	assert.NoError(t, tx.Commit(FlushRequired))
@@ -309,7 +309,7 @@ func TestValidatorSet_Init(t *testing.T) {
 }
 
 func TestValidatorSetMethods(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	vs := NewValidatorSet(&params.RegestParams, ds)
 
 	// Commit a block that creates a new validator

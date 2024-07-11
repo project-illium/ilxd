@@ -7,59 +7,107 @@ package mock
 import (
 	"context"
 	"errors"
-	datastore "github.com/ipfs/go-datastore"
+	ids "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
-	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/params"
+	"github.com/project-illium/ilxd/repo/blockstore"
+	"github.com/project-illium/ilxd/repo/datastore"
 )
 
-var _ repo.Datastore = (*MapDatastore)(nil)
-
-type MapDatastore struct {
-	datastore.MapDatastore
+type mockDatastore struct {
+	*mapDatastore
+	*blockstore.FlatFilestore
 }
 
-func NewMapDatastore() *MapDatastore {
-	ds := datastore.NewMapDatastore()
-	return &MapDatastore{MapDatastore: *ds}
+func NewMockDatastore() datastore.Datastore {
+	ds := newMapDatastore()
+	bs, _ := blockstore.NewMockFlatFilestore(&params.RegestParams)
+	return &mockDatastore{
+		mapDatastore:  ds,
+		FlatFilestore: bs,
+	}
 }
 
-func (ds *MapDatastore) DiskUsage(ctx context.Context) (uint64, error) {
-	return 0, nil
-}
+func (ds *mockDatastore) NewTransaction(ctx context.Context, readOnly bool) (datastore.Txn, error) {
+	dbtx, err := ds.mapDatastore.NewTransaction(ctx, readOnly)
+	if err != nil {
+		return nil, err
+	}
 
-func (ds *MapDatastore) NewTransaction(ctx context.Context, readOnly bool) (datastore.Txn, error) {
+	btx, err := ds.FlatFilestore.NewTransaction(ctx, readOnly)
+	if err != nil {
+		return nil, err
+	}
 	return &txn{
-		readOnly: readOnly,
-		ds:       ds,
-		puts:     make(map[datastore.Key][]byte),
-		deletes:  make(map[datastore.Key]struct{}),
+		Txn:    dbtx,
+		BlkTxn: btx,
 	}, nil
 }
 
 type txn struct {
-	readOnly bool
-	ds       *MapDatastore
-	puts     map[datastore.Key][]byte
-	deletes  map[datastore.Key]struct{}
+	ids.Txn
+	*blockstore.BlkTxn
 }
 
-func (t *txn) Get(ctx context.Context, key datastore.Key) (value []byte, err error) {
+func (dbtx *txn) Commit(ctx context.Context) error {
+	if err := dbtx.Txn.Commit(ctx); err != nil {
+		return err
+	}
+
+	return dbtx.BlkTxn.Commit(ctx)
+}
+
+func (dbtx *txn) Discard(ctx context.Context) {
+	dbtx.Txn.Discard(ctx)
+	dbtx.BlkTxn.Discard(context.Background())
+}
+
+type mapDatastore struct {
+	ids.MapDatastore
+}
+
+func newMapDatastore() *mapDatastore {
+	ds := ids.NewMapDatastore()
+	return &mapDatastore{MapDatastore: *ds}
+}
+
+func (ds *mapDatastore) DiskUsage(ctx context.Context) (uint64, error) {
+	return 0, nil
+}
+
+func (ds *mapDatastore) NewTransaction(ctx context.Context, readOnly bool) (ids.Txn, error) {
+	return &mapTxn{
+		readOnly: readOnly,
+		ds:       ds,
+		puts:     make(map[ids.Key][]byte),
+		deletes:  make(map[ids.Key]struct{}),
+	}, nil
+}
+
+type mapTxn struct {
+	readOnly bool
+	ds       *mapDatastore
+	puts     map[ids.Key][]byte
+	deletes  map[ids.Key]struct{}
+}
+
+func (t *mapTxn) Get(ctx context.Context, key ids.Key) (value []byte, err error) {
 	return t.ds.Get(ctx, key)
 }
 
-func (t *txn) Has(ctx context.Context, key datastore.Key) (exists bool, err error) {
+func (t *mapTxn) Has(ctx context.Context, key ids.Key) (exists bool, err error) {
 	return t.ds.Has(ctx, key)
 }
 
-func (t *txn) GetSize(ctx context.Context, key datastore.Key) (size int, err error) {
+func (t *mapTxn) GetSize(ctx context.Context, key ids.Key) (size int, err error) {
 	return t.ds.GetSize(ctx, key)
 }
 
-func (t *txn) Query(ctx context.Context, q query.Query) (query.Results, error) {
+func (t *mapTxn) Query(ctx context.Context, q query.Query) (query.Results, error) {
 	return t.ds.Query(ctx, q)
 }
 
-func (t *txn) Put(ctx context.Context, key datastore.Key, value []byte) error {
+func (t *mapTxn) Put(ctx context.Context, key ids.Key, value []byte) error {
 	if t.readOnly {
 		return errors.New("transaction is read only")
 	}
@@ -67,7 +115,7 @@ func (t *txn) Put(ctx context.Context, key datastore.Key, value []byte) error {
 	return nil
 }
 
-func (t *txn) Delete(ctx context.Context, key datastore.Key) error {
+func (t *mapTxn) Delete(ctx context.Context, key ids.Key) error {
 	if t.readOnly {
 		return errors.New("transaction is read only")
 	}
@@ -75,7 +123,7 @@ func (t *txn) Delete(ctx context.Context, key datastore.Key) error {
 	return nil
 }
 
-func (t *txn) Commit(ctx context.Context) error {
+func (t *mapTxn) Commit(ctx context.Context) error {
 	for k, v := range t.puts {
 		t.ds.Put(ctx, k, v)
 	}
@@ -85,7 +133,7 @@ func (t *txn) Commit(ctx context.Context) error {
 	return nil
 }
 
-func (t *txn) Discard(ctx context.Context) {
-	t.puts = make(map[datastore.Key][]byte)
-	t.deletes = make(map[datastore.Key]struct{})
+func (t *mapTxn) Discard(ctx context.Context) {
+	t.puts = make(map[ids.Key][]byte)
+	t.deletes = make(map[ids.Key]struct{})
 }

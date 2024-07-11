@@ -4,10 +4,6 @@
 
 package repo
 
-import (
-	"github.com/ipfs/go-datastore"
-)
-
 const (
 	// NetworkKeyDatastoreKey is the datastore key for the network (libp2p) private key.
 	NetworkKeyDatastoreKey = "/ilxd/libp2pkey/"
@@ -85,10 +81,3 @@ const (
 	// AddrIndexValidatorTxPrefixKey is the validator transaction datastore key prefix used by the address index.
 	AddrIndexValidatorTxPrefixKey = "validatortx/"
 )
-
-type Datastore interface {
-	datastore.Datastore
-	datastore.Batching
-	datastore.PersistentDatastore
-	datastore.TxnDatastore
-}

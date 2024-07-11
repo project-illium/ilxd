@@ -5,15 +5,14 @@
 package blockchain
 
 import (
-	datastore "github.com/ipfs/go-datastore"
-	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types"
 	"sync"
 )
 
 // NullifierSet provides cached access to the nullifier set database.
 type NullifierSet struct {
-	ds            repo.Datastore
+	ds            datastore.Datastore
 	cachedEntries map[types.Nullifier]bool
 	maxEntries    uint
 	mtx           sync.RWMutex
@@ -21,7 +20,7 @@ type NullifierSet struct {
 
 // NewNullifierSet returns a new NullifierSet. maxEntries controls how
 // much memory is used for cache purposes.
-func NewNullifierSet(ds repo.Datastore, maxEntries uint) *NullifierSet {
+func NewNullifierSet(ds datastore.Datastore, maxEntries uint) *NullifierSet {
 	return &NullifierSet{
 		ds:            ds,
 		cachedEntries: make(map[types.Nullifier]bool),

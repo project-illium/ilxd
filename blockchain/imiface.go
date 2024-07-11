@@ -5,7 +5,7 @@
 package blockchain
 
 import (
-	"github.com/ipfs/go-datastore"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types/blocks"
 )
 

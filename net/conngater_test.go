@@ -18,7 +18,7 @@ import (
 )
 
 func TestConnectionGater(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	pstore, err := pstoremem.NewPeerstore()
 	assert.NoError(t, err)
 
@@ -200,7 +200,7 @@ func TestConnectionGater(t *testing.T) {
 }
 
 func TestBanscore(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	pstore, err := pstoremem.NewPeerstore()
 	assert.NoError(t, err)
 

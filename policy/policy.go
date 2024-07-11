@@ -27,7 +27,7 @@ const minQuerySuccessRate = .5
 // This is used to determine whether to vote for blocks in
 // the consensus engine.
 type Policy struct {
-	ds                 repo.Datastore
+	ds                 datastore.Datastore
 	minFeePerKilobyte  types.Amount
 	minStake           types.Amount
 	blocksizeSoftLimit uint32
@@ -39,7 +39,7 @@ type Policy struct {
 
 // NewPolicy returns a new Policy. The datastore can be nil if you don't wish to
 // persist the treasury whitelist to disk.
-func NewPolicy(ds repo.Datastore, minFeePerKilobyte, minStake types.Amount, blocksizeSoftLimit uint32) (*Policy, error) {
+func NewPolicy(ds datastore.Datastore, minFeePerKilobyte, minStake types.Amount, blocksizeSoftLimit uint32) (*Policy, error) {
 	var treasuryWhitelist []types.ID
 	if ds != nil {
 		query, err := ds.Query(context.Background(), query.Query{

@@ -11,11 +11,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
-func HasNetworkKey(ds Datastore) (bool, error) {
+func HasNetworkKey(ds datastore.Datastore) (bool, error) {
 	return ds.Has(context.Background(), datastore.NewKey(NetworkKeyDatastoreKey))
 }
 
-func LoadNetworkKey(ds Datastore) (crypto.PrivKey, error) {
+func LoadNetworkKey(ds datastore.Datastore) (crypto.PrivKey, error) {
 	keyBytes, err := ds.Get(context.Background(), datastore.NewKey(NetworkKeyDatastoreKey))
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func LoadNetworkKey(ds Datastore) (crypto.PrivKey, error) {
 	return crypto.UnmarshalPrivateKey(keyBytes)
 }
 
-func PutNetworkKey(ds Datastore, key crypto.PrivKey) error {
+func PutNetworkKey(ds datastore.Datastore, key crypto.PrivKey) error {
 	keyBytes, err := crypto.MarshalPrivateKey(key)
 	if err != nil {
 		return err

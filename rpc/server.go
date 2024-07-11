@@ -14,7 +14,7 @@ import (
 	"github.com/project-illium/ilxd/net"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/policy"
-	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/rpc/pb"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -50,7 +50,7 @@ type GrpcServerConfig struct {
 	AutoStakeFunc        func(bool) error
 	NetworkKeyFunc       func() (crypto.PrivKey, error)
 	ChainParams          *params.NetworkParams
-	Ds                   repo.Datastore
+	Ds                   datastore.Datastore
 	TxMemPool            *mempool.Mempool
 	DisableNodeService   bool
 	DisableWalletService bool
@@ -67,7 +67,7 @@ type GrpcServerConfig struct {
 type GrpcServer struct {
 	chain            *blockchain.Blockchain
 	chainParams      *params.NetworkParams
-	ds               repo.Datastore
+	ds               datastore.Datastore
 	txMemPool        *mempool.Mempool
 	network          *net.Network
 	policy           *policy.Policy

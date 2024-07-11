@@ -14,7 +14,7 @@ import (
 )
 
 func TestNullifierSet(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	ns := NewNullifierSet(ds, 5)
 
 	nullifiers := make([]types.Nullifier, 10)

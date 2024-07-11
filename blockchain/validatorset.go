@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/params"
-	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -113,7 +113,7 @@ func (v *Validator) Clone() *Validator {
 // the change would increase overhead.
 type ValidatorSet struct {
 	params        *params.NetworkParams
-	ds            repo.Datastore
+	ds            datastore.Datastore
 	validators    map[peer.ID]*Validator
 	nullifierMap  map[types.Nullifier]*Validator
 	toDelete      map[peer.ID]struct{}
@@ -126,7 +126,7 @@ type ValidatorSet struct {
 }
 
 // NewValidatorSet returns a new, uninitialized, ValidatorSet.
-func NewValidatorSet(params *params.NetworkParams, ds repo.Datastore) *ValidatorSet {
+func NewValidatorSet(params *params.NetworkParams, ds datastore.Datastore) *ValidatorSet {
 	vs := &ValidatorSet{
 		params:       params,
 		ds:           ds,

@@ -14,7 +14,7 @@ import (
 )
 
 func TestTxoRootSet(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	txo := NewTxoRootSet(ds, 5)
 
 	txoRoots := make([]types.ID, 10)

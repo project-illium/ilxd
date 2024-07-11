@@ -4,8 +4,7 @@
 package blockchain
 
 import (
-	"github.com/ipfs/go-datastore"
-	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types"
 	"sync"
 	"time"
@@ -20,13 +19,13 @@ import (
 type TxoRootSet struct {
 	cache      map[types.ID]time.Time
 	mtx        sync.RWMutex
-	ds         repo.Datastore
+	ds         datastore.Datastore
 	maxEntries uint
 }
 
 // NewTxoRootSet returns a new TxoRootSet. maxEntries can be used to control the
 // amount of memory used by the cache.
-func NewTxoRootSet(ds repo.Datastore, maxEntires uint) *TxoRootSet {
+func NewTxoRootSet(ds datastore.Datastore, maxEntires uint) *TxoRootSet {
 	return &TxoRootSet{
 		cache:      make(map[types.ID]time.Time),
 		mtx:        sync.RWMutex{},

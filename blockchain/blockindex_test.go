@@ -9,7 +9,7 @@ import (
 	"crypto/rand"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/repo/mock"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
@@ -31,7 +31,7 @@ func randomPeerID() peer.ID {
 	return id
 }
 
-func mockBlockIndex(ds repo.Datastore, nBlocks int) (*blockIndex, error) {
+func mockBlockIndex(ds datastore.Datastore, nBlocks int) (*blockIndex, error) {
 	err := populateDatabase(ds, nBlocks)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func randomBlock(header *blocks.BlockHeader, nTxs int) *blocks.Block {
 	}
 }
 
-func populateDatabase(ds repo.Datastore, nBlocks int) error {
+func populateDatabase(ds datastore.Datastore, nBlocks int) error {
 	dbtx, err := ds.NewTransaction(context.Background(), false)
 	if err != nil {
 		return err
@@ -130,7 +130,8 @@ func populateDatabase(ds repo.Datastore, nBlocks int) error {
 func TestBlockIndex(t *testing.T) {
 	// Create a new memory datastore and populate it with
 	// 5000 block headers.
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
+
 	err := populateDatabase(ds, 5000)
 	assert.NoError(t, err)
 

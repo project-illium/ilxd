@@ -97,7 +97,7 @@ func TestValidateHeader(t *testing.T) {
 }
 
 func TestCheckBlockContext(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	err := populateDatabase(ds, 5000)
 	assert.NoError(t, err)
 
@@ -234,7 +234,7 @@ func TestCheckBlockContext(t *testing.T) {
 }
 
 func TestValidateBlock(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	verifier := &zk.MockVerifier{}
 	verifier.SetValid(true)
 	b := Blockchain{

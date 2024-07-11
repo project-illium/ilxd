@@ -11,7 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/params"
-	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
 	"time"
@@ -50,7 +50,7 @@ func PrivateKey(privKey crypto.PrivKey) Option {
 	}
 }
 
-func Datastore(ds repo.Datastore) Option {
+func Datastore(ds datastore.Datastore) Option {
 	return func(cfg *config) error {
 		cfg.datastore = ds
 		return nil
@@ -171,7 +171,7 @@ type config struct {
 	maxMessageSize    int
 	host              host.Host
 	privateKey        crypto.PrivKey
-	datastore         repo.Datastore
+	datastore         datastore.Datastore
 	acceptToMempool   func(tx *transactions.Transaction) error
 	validateBlock     func(blk *blocks.XThinnerBlock, p peer.ID) error
 	maxBanscore       uint32

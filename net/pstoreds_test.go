@@ -38,7 +38,7 @@ func randomPeer(t *testing.T, addrCount int) peer.AddrInfo {
 }
 
 func TestDatastore(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	pstore, err := pstoremem.NewPeerstore()
 	assert.NoError(t, err)
 

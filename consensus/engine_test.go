@@ -65,7 +65,7 @@ func newMockNode(mn mocknet.Mocknet) (*mockNode, error) {
 		net.MempoolValidator(func(transaction *transactions.Transaction) error {
 			return nil
 		}),
-		net.Datastore(mock.NewMapDatastore()),
+		net.Datastore(mock.NewMockDatastore()),
 		net.MaxMessageSize(repo.DefaultMaxMessageSize),
 	}...)
 	if err != nil {
