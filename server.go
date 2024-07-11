@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ipfs/go-datastore"
+	ids "github.com/ipfs/go-datastore"
 	golog "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	inet "github.com/libp2p/go-libp2p/core/network"
@@ -26,6 +26,7 @@ import (
 	policy2 "github.com/project-illium/ilxd/policy"
 	"github.com/project-illium/ilxd/policy/protocol"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/rpc"
 	"github.com/project-illium/ilxd/sync"
 	"github.com/project-illium/ilxd/types"
@@ -171,7 +172,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	}
 
 	// Setup up ilxd datastore
-	ds, err := repo.NewIlxdDatastore(config.DataDir, netParams)
+	ds, err := datastore.NewIlxdDatastore(config.DataDir, netParams)
 	if err != nil {
 		return nil, err
 	}
@@ -457,8 +458,8 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		return nil, err
 	}
 
-	autostake, err := ds.Get(context.Background(), datastore.NewKey(repo.AutostakeDatastoreKey))
-	if err != nil && !errors.Is(datastore.ErrNotFound, err) {
+	autostake, err := ds.Get(context.Background(), ids.NewKey(repo.AutostakeDatastoreKey))
+	if err != nil && !errors.Is(ids.ErrNotFound, err) {
 		return nil, err
 	}
 
@@ -734,7 +735,7 @@ func (s *Server) setAutostake(autostake bool) error {
 		b = []byte{0x01}
 	}
 	s.autoStake = autostake
-	return s.ds.Put(context.Background(), datastore.NewKey(repo.AutostakeDatastoreKey), b)
+	return s.ds.Put(context.Background(), ids.NewKey(repo.AutostakeDatastoreKey), b)
 }
 
 func (s *Server) processBlock(blk *blocks.Block, relayingPeer peer.ID, recheck bool) error {
