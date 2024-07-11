@@ -288,6 +288,9 @@ func TestPutFetchDeleteAccumulator(t *testing.T) {
 	assert.NoError(t, dsPutAccumulator(dbtx, acc))
 	assert.NoError(t, dbtx.Commit(context.Background()))
 
+	dbtx, err = ds.NewTransaction(context.Background(), false)
+	assert.NoError(t, err)
+
 	acc2, err := dsFetchAccumulator(ds)
 	assert.NoError(t, err)
 
