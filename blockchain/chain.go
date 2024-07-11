@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/blockstore"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -144,7 +145,7 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 				}
 				defer dbtx.Discard(context.Background())
 				for {
-					if err := dsDeleteBlock(dbtx, node.blockID); err != nil {
+					if err := dsDeleteBlock(dbtx, b.ds, node.blockID, node.height); err != nil {
 						return nil, err
 					}
 					if err := dsDeleteBlockIDFromHeight(dbtx, node.height); err != nil {
@@ -174,8 +175,13 @@ func (b *Blockchain) BlockBatch() (*Batch, error) {
 	if err != nil {
 		return nil, err
 	}
+	btx, err := b.ds.NewBlockstoreTransaction(context.Background(), false)
+	if err != nil {
+		return nil, err
+	}
 	batch := &Batch{
 		dbtx:         dbtx,
+		btx:          btx,
 		wg:           &sync.WaitGroup{},
 		chain:        b,
 		ops:          0,
@@ -262,10 +268,15 @@ func (b *Blockchain) ConnectBlock(blk *blocks.Block, flags BehaviorFlags) (err e
 	}
 	defer dbtx.Discard(context.Background())
 
-	return b.connectBlock(dbtx, blk, flags)
+	btx, err := b.ds.NewBlockstoreTransaction(context.Background(), false)
+	if err != nil {
+		return err
+	}
+
+	return b.connectBlock(dbtx, btx, blk, flags)
 }
 
-func (b *Blockchain) connectBlock(dbtx datastore.Txn, blk *blocks.Block, flags BehaviorFlags) (err error) {
+func (b *Blockchain) connectBlock(dbtx datastore.Txn, btx *blockstore.Txn, blk *blocks.Block, flags BehaviorFlags) (err error) {
 	if !flags.HasFlag(BFGenesisValidation) {
 		if err := b.checkBlockContext(blk.Header); err != nil {
 			return err
@@ -288,7 +299,7 @@ func (b *Blockchain) connectBlock(dbtx datastore.Txn, blk *blocks.Block, flags B
 		}
 	}
 
-	if err := dsPutBlock(dbtx, blk); err != nil {
+	if err := dsPutBlock(dbtx, btx, blk); err != nil {
 		return err
 	}
 	if err := dsPutBlockIDFromHeight(dbtx, blk.ID(), blk.Header.Height); err != nil {
@@ -372,7 +383,7 @@ func (b *Blockchain) connectBlock(dbtx datastore.Txn, blk *blocks.Block, flags B
 		if err := dsDeleteBlockIDFromHeight(dbtx, blk.Header.Height-pruneDepth); err != nil {
 			return err
 		}
-		if err := dsDeleteBlock(dbtx, blockID); err != nil {
+		if err := dsDeleteBlock(dbtx, b.ds, blockID, blk.Header.Height-pruneDepth); err != nil {
 			return err
 		}
 	}
@@ -388,6 +399,10 @@ func (b *Blockchain) connectBlock(dbtx datastore.Txn, blk *blocks.Block, flags B
 
 	if !flags.HasFlag(BFBatchCommit) {
 		if err := dbtx.Commit(context.Background()); err != nil {
+			btx.Rollback(context.Background())
+			return err
+		}
+		if err := btx.Commit(context.Background()); err != nil {
 			return err
 		}
 	}
@@ -480,6 +495,10 @@ func (b *Blockchain) ReindexChainState() error {
 	if err != nil {
 		return err
 	}
+	btx, err := b.ds.NewBlockstoreTransaction(context.Background(), false)
+	if err != nil {
+		return err
+	}
 
 	var (
 		ops  = 0
@@ -512,12 +531,21 @@ func (b *Blockchain) ReindexChainState() error {
 
 		if ops > dsMaxBatchCount || size > dsMaxBatchSize {
 			if err := dbtx.Commit(context.Background()); err != nil {
+				btx.Rollback(context.Background())
+				return err
+			}
+			if err := btx.Commit(context.Background()); err != nil {
 				return err
 			}
 			dbtx, err = b.ds.NewTransaction(context.Background(), false)
 			if err != nil {
 				return err
 			}
+			btx, err = b.ds.NewBlockstoreTransaction(context.Background(), false)
+			if err != nil {
+				return err
+			}
+
 			ops = 0
 			size = 0
 		}
@@ -528,18 +556,27 @@ func (b *Blockchain) ReindexChainState() error {
 		}
 		if _, err := b.validateBlock(blk, flags); err != nil {
 			if err := dbtx.Commit(context.Background()); err != nil {
+				btx.Rollback(context.Background())
+				return err
+			}
+			if err := btx.Commit(context.Background()); err != nil {
 				return err
 			}
 			return err
 		}
-		if err := b.connectBlock(dbtx, blk, flags); err != nil {
+		if err := b.connectBlock(dbtx, btx, blk, flags); err != nil {
 			return err
 		}
 		i++
 	}
 	if err := dbtx.Commit(context.Background()); err != nil {
+		btx.Rollback(context.Background())
 		return err
 	}
+	if err := btx.Commit(context.Background()); err != nil {
+		return err
+	}
+
 	log.Info("Finished reindex")
 	return nil
 }

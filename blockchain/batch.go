@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ipfs/go-datastore"
+	"github.com/project-illium/ilxd/repo/blockstore"
 	"github.com/project-illium/ilxd/types/blocks"
 	"sync"
 )
@@ -41,6 +42,7 @@ type Batch struct {
 	validateChan chan *validateWork
 	wg           *sync.WaitGroup
 	dbtx         datastore.Txn
+	btx          *blockstore.Txn
 	errResp      error
 }
 
@@ -102,6 +104,10 @@ func (b *Batch) Commit() error {
 	close(b.validateChan)
 
 	if err := b.dbtx.Commit(context.Background()); err != nil {
+		b.btx.Rollback(context.Background())
+		return err
+	}
+	if err := b.btx.Commit(context.Background()); err != nil {
 		return err
 	}
 	return b.errResp
@@ -140,7 +146,7 @@ func (b *Batch) handler() {
 			go b.Commit()
 			continue
 		}
-		err := b.chain.connectBlock(b.dbtx, work.blk, flags)
+		err := b.chain.connectBlock(b.dbtx, b.btx, work.blk, flags)
 		if err != nil {
 			b.errResp = fmt.Errorf("batch connect error at height: %d, err: %s", work.blk.Header.Height, err)
 			b.wg.Done()

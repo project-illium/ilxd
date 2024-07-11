@@ -75,7 +75,7 @@ func generateMockNetwork(numNodes, numBlocks int) (*mockNetwork, error) {
 }
 
 func makeMockNode(mn mocknet.Mocknet, chain *blockchain.Blockchain) (*mockNode, error) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 
 	host, err := mn.GenPeer()
 	if err != nil {

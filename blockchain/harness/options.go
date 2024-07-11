@@ -42,7 +42,7 @@ func DefaultOptions() Option {
 		cfg.networkKey = networkPriv
 		cfg.spendKey = spendPriv
 		cfg.params = &params.RegestParams
-		cfg.datastore = mock.NewMapDatastore()
+		cfg.datastore = mock.NewMockDatastore()
 		cfg.nTxsPerBlock = 1
 		cfg.initialCoins = (1 << 60) / 10
 		return nil

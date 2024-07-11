@@ -24,7 +24,7 @@ const (
 func DefaultOptions() Option {
 	return func(cfg *config) error {
 		cfg.params = &params.RegestParams
-		cfg.datastore = mock.NewMapDatastore()
+		cfg.datastore = mock.NewMockDatastore()
 		cfg.sigCache = NewSigCache(DefaultSigCacheSize)
 		cfg.proofCache = NewProofCache(DefaultProofCacheSize)
 		cfg.maxNullifiers = DefaultMaxNullifiers

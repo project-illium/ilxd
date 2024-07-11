@@ -19,7 +19,7 @@ import (
 )
 
 func TestAddrIndex(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 
 	idx, err := NewAddrIndex(ds, &params.RegestParams)
 	assert.NoError(t, err)

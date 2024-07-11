@@ -22,7 +22,7 @@ import (
 )
 
 func TestWalletServerIndex(t *testing.T) {
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 
 	idx, err := NewWalletServerIndex(ds)
 	assert.NoError(t, err)
@@ -161,7 +161,7 @@ func TestWalletServerIndex(t *testing.T) {
 	sub.Close()
 
 	// Test rescanning
-	ds = mock.NewMapDatastore()
+	ds = mock.NewMockDatastore()
 	idx, err = NewWalletServerIndex(ds)
 	assert.NoError(t, err)
 	idx.bestBlockHeight = 2

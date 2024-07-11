@@ -13,6 +13,7 @@ import (
 	"github.com/project-illium/ilxd/mempool"
 	"github.com/project-illium/ilxd/policy"
 	"github.com/project-illium/ilxd/policy/protocol"
+	"github.com/project-illium/ilxd/repo/blockstore"
 	"github.com/project-illium/ilxd/sync"
 	"github.com/project-illium/walletlib"
 	"github.com/pterm/pterm"
@@ -65,6 +66,7 @@ func setupLogging(logDir, level string, testnet bool) error {
 	indexers.UseLogger(log)
 	policy.UseLogger(log)
 	protocol.UseLogger(log)
+	blockstore.UseLogger(log)
 	return nil
 }
 

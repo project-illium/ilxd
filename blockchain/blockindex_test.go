@@ -87,6 +87,11 @@ func populateDatabase(ds repo.Datastore, nBlocks int) error {
 		return err
 	}
 
+	btx, err := ds.NewBlockstoreTransaction(context.Background(), false)
+	if err != nil {
+		return err
+	}
+
 	prev := randomBlockHeader(0, [32]byte{})
 	prev.Timestamp = time.Now().Add(-time.Second * time.Duration(nBlocks)).Unix()
 	if err := dsPutHeader(dbtx, prev); err != nil {
@@ -104,7 +109,7 @@ func populateDatabase(ds repo.Datastore, nBlocks int) error {
 
 		blk := randomBlock(header, 5)
 
-		if err := dsPutBlock(dbtx, blk); err != nil {
+		if err := dsPutBlock(dbtx, btx, blk); err != nil {
 			return err
 		}
 
@@ -124,13 +129,18 @@ func populateDatabase(ds repo.Datastore, nBlocks int) error {
 		return err
 	}
 
-	return dbtx.Commit(context.Background())
+	if err := dbtx.Commit(context.Background()); err != nil {
+		btx.Rollback(context.Background())
+		return err
+	}
+	return btx.Commit(context.Background())
 }
 
 func TestBlockIndex(t *testing.T) {
 	// Create a new memory datastore and populate it with
 	// 5000 block headers.
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
+
 	err := populateDatabase(ds, 5000)
 	assert.NoError(t, err)
 

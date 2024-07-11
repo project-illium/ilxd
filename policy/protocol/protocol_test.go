@@ -24,7 +24,7 @@ import (
 func TestPolicyProtocol(t *testing.T) {
 	mn := mocknet.New()
 
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 
 	host1, err := mn.GenPeer()
 	assert.NoError(t, err)

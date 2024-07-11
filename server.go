@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ipfs/go-datastore"
-	badger "github.com/ipfs/go-ds-badger"
 	golog "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	inet "github.com/libp2p/go-libp2p/core/network"
@@ -171,10 +170,8 @@ func BuildServer(config *repo.Config) (*Server, error) {
 		s.coinbaseAddr = addr
 	}
 
-	// Setup up badger datastore
-	badgerOpts := &badger.DefaultOptions
-	badgerOpts.MaxTableSize = 256 << 20
-	ds, err := badger.NewDatastore(config.DataDir, badgerOpts)
+	// Setup up ilxd datastore
+	ds, err := repo.NewIlxdDatastore(config.DataDir, netParams)
 	if err != nil {
 		return nil, err
 	}

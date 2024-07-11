@@ -16,6 +16,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/blockchain/pb"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/blockstore"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"google.golang.org/protobuf/proto"
@@ -208,7 +209,7 @@ func dsBlockExists(ds repo.Datastore, blockID types.ID) (bool, error) {
 	return ds.Has(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+blockID.String()))
 }
 
-func dsPutBlock(dbtx datastore.Txn, blk *blocks.Block) error {
+func dsPutBlock(dbtx datastore.Txn, blockTxn *blockstore.Txn, blk *blocks.Block) error {
 	serializedHeader, err := blk.Header.Serialize()
 	if err != nil {
 		return err
@@ -223,14 +224,23 @@ func dsPutBlock(dbtx datastore.Txn, blk *blocks.Block) error {
 	if err != nil {
 		return err
 	}
-	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockTxsKeyPrefix+blk.ID().String()), serializedTxs)
+
+	location, err := blockTxn.PutBlockData(blk.Header.Height, serializedTxs)
+	if err != nil {
+		return err
+	}
+
+	return dbtx.Put(context.Background(), datastore.NewKey(repo.BlockTxsKeyPrefix+blk.ID().String()), blockstore.SerializeBlockLoc(location))
 }
 
-func dsDeleteBlock(dbtx datastore.Txn, blockID types.ID) error {
+func dsDeleteBlock(dbtx datastore.Txn, bs blockstore.Blockstore, blockID types.ID, height uint32) error {
 	if err := dbtx.Delete(context.Background(), datastore.NewKey(repo.BlockKeyPrefix+blockID.String())); err != nil {
 		return err
 	}
-	return dbtx.Delete(context.Background(), datastore.NewKey(repo.BlockTxsKeyPrefix+blockID.String()))
+	if err := dbtx.Delete(context.Background(), datastore.NewKey(repo.BlockTxsKeyPrefix+blockID.String())); err != nil {
+		return err
+	}
+	return bs.DeleteBefore(height)
 }
 
 func dsFetchBlock(ds repo.Datastore, blockID types.ID) (*blocks.Block, error) {
@@ -238,7 +248,7 @@ func dsFetchBlock(ds repo.Datastore, blockID types.ID) (*blocks.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	serializedTxs, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockTxsKeyPrefix+blockID.String()))
+	serializedLocation, err := ds.Get(context.Background(), datastore.NewKey(repo.BlockTxsKeyPrefix+blockID.String()))
 	if err != nil {
 		return nil, err
 	}
@@ -247,8 +257,15 @@ func dsFetchBlock(ds repo.Datastore, blockID types.ID) (*blocks.Block, error) {
 		return nil, err
 	}
 
+	location := blockstore.DeSerializeBlockLoc(serializedLocation)
+
+	blockData, err := ds.FetchBlockData(location)
+	if err != nil {
+		return nil, err
+	}
+
 	var dsTxs pb.DBTxs
-	if err := proto.Unmarshal(serializedTxs, &dsTxs); err != nil {
+	if err := proto.Unmarshal(blockData, &dsTxs); err != nil {
 		return nil, err
 	}
 	return &blocks.Block{

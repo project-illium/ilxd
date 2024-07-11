@@ -9,25 +9,29 @@ import (
 	"errors"
 	datastore "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
+	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/blockstore"
 )
 
-var _ repo.Datastore = (*MapDatastore)(nil)
+var _ repo.Datastore = (*MockDatastore)(nil)
 
-type MapDatastore struct {
+type MockDatastore struct {
 	datastore.MapDatastore
+	blockstore.Blockstore
 }
 
-func NewMapDatastore() *MapDatastore {
+func NewMapDatastore() *MockDatastore {
 	ds := datastore.NewMapDatastore()
-	return &MapDatastore{MapDatastore: *ds}
+	bs, _ := blockstore.NewMockFlatFilestore(&params.RegestParams)
+	return &MockDatastore{MapDatastore: *ds, Blockstore: bs}
 }
 
-func (ds *MapDatastore) DiskUsage(ctx context.Context) (uint64, error) {
+func (ds *MockDatastore) DiskUsage(ctx context.Context) (uint64, error) {
 	return 0, nil
 }
 
-func (ds *MapDatastore) NewTransaction(ctx context.Context, readOnly bool) (datastore.Txn, error) {
+func (ds *MockDatastore) NewTransaction(ctx context.Context, readOnly bool) (datastore.Txn, error) {
 	return &txn{
 		readOnly: readOnly,
 		ds:       ds,
@@ -38,7 +42,7 @@ func (ds *MapDatastore) NewTransaction(ctx context.Context, readOnly bool) (data
 
 type txn struct {
 	readOnly bool
-	ds       *MapDatastore
+	ds       *MockDatastore
 	puts     map[datastore.Key][]byte
 	deletes  map[datastore.Key]struct{}
 }

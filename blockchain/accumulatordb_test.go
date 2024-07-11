@@ -14,7 +14,7 @@ import (
 
 func TestAccumulatorDB_Commit(t *testing.T) {
 	// Create a new accumulator and fill it with entries.
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
 	adb := NewAccumulatorDB(ds)
 	acc := NewAccumulator()
 	start := time.Now()
@@ -74,7 +74,8 @@ func TestAccumulatorDB_Commit(t *testing.T) {
 
 func TestAccumulatorDB_Init(t *testing.T) {
 	// Create a new accumulator and fill it with entries.
-	ds := mock.NewMapDatastore()
+	ds := mock.NewMockDatastore()
+
 	adb := NewAccumulatorDB(ds)
 	acc := NewAccumulator()
 
