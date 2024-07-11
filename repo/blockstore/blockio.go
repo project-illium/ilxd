@@ -1042,7 +1042,7 @@ func NewMockFlatFilestore(params *params.NetworkParams) (*FlatFilestore, error) 
 		return nil, err
 	}
 	store.cleanup = func() {
-		//os.RemoveAll(tempDir)
+		os.RemoveAll(tempDir)
 	}
 	return store, nil
 }
