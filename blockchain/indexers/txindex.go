@@ -11,6 +11,7 @@ import (
 	ids "github.com/ipfs/go-datastore"
 	"github.com/project-illium/ilxd/blockchain/pb"
 	"github.com/project-illium/ilxd/repo"
+	"github.com/project-illium/ilxd/repo/blockstore"
 	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
@@ -73,7 +74,12 @@ func (idx *TxIndex) GetTransaction(ds datastore.Datastore, txid types.ID) (*tran
 	pos := binary.BigEndian.Uint32(valueBytes[:4])
 	blockID := types.NewID(valueBytes[4:])
 
-	ser, err := ds.Get(context.Background(), ids.NewKey(repo.BlockTxsKeyPrefix+blockID.String()))
+	serializedLocation, err := ds.Get(context.Background(), ids.NewKey(repo.BlockTxsKeyPrefix+blockID.String()))
+	if err != nil {
+		return nil, types.ID{}, err
+	}
+
+	ser, err := ds.FetchBlockData(blockstore.DeSerializeBlockLoc(serializedLocation))
 	if err != nil {
 		return nil, types.ID{}, err
 	}
