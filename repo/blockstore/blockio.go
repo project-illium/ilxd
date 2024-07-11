@@ -316,9 +316,6 @@ func (tx *BlkTxn) Discard(ctx context.Context) {
 	tx.mtx.Lock()
 	defer tx.mtx.Unlock()
 
-	if tx.closed {
-		panic("managed transaction commit not allowed")
-	}
 	tx.store.handleRollback(tx.oldBlkFileNum, tx.oldBlkOffset)
 	tx.closed = true
 }
