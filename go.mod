@@ -25,7 +25,7 @@ require (
 	github.com/nixberg/chacha-rng-go v0.1.0
 	github.com/project-illium/go-libp2p-tor-transport v0.0.0-20240225223941-cb4e1394a11d
 	github.com/project-illium/logger v0.0.0-20240118200101-2fb0847599c9
-	github.com/project-illium/walletlib v0.0.0-20240711184856-39e9b32c4377
+	github.com/project-illium/walletlib v0.0.0-20240711211937-252c4f1cc76e
 	github.com/project-illium/weightedrand/v2 v2.1.0
 	github.com/pterm/pterm v0.12.75
 	github.com/stretchr/testify v1.8.4
