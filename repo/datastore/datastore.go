@@ -86,7 +86,17 @@ func (dbtx *txn) Discard(ctx context.Context) {
 	dbtx.BlkTxn.Discard(context.Background())
 }
 
-func NewIlxdDatastore(dataDir string, params *params.NetworkParams) (Datastore, error) {
+func NewIlxdDatastore(dataDir string, opts ...Option) (Datastore, error) {
+	var cfg config
+	for _, opt := range opts {
+		if err := opt(&cfg); err != nil {
+			return nil, err
+		}
+	}
+	if cfg.params == nil {
+		cfg.params = &params.RegestParams
+	}
+
 	badgerOpts := &badger.DefaultOptions
 	badgerOpts.MaxTableSize = 256 << 20
 	ds, err := badger.NewDatastore(dataDir, badgerOpts)
@@ -95,6 +105,11 @@ func NewIlxdDatastore(dataDir string, params *params.NetworkParams) (Datastore, 
 	}
 
 	blocksDir := path.Join(dataDir, "blocks")
+	if cfg.noBlockstore {
+		// Empty blocks directory stops it from persisting
+		// data to disk.
+		blocksDir = ""
+	}
 	if _, err := os.Stat(blocksDir); os.IsNotExist(err) {
 		err := os.MkdirAll(blocksDir, 0700)
 		if err != nil {
@@ -102,7 +117,7 @@ func NewIlxdDatastore(dataDir string, params *params.NetworkParams) (Datastore, 
 		}
 	}
 
-	bs, err := blockstore.NewFlatFilestore(blocksDir, params)
+	bs, err := blockstore.NewFlatFilestore(blocksDir, cfg.params)
 	if err != nil {
 		return nil, err
 	}

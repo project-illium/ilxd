@@ -172,7 +172,7 @@ func BuildServer(config *repo.Config) (*Server, error) {
 	}
 
 	// Setup up ilxd datastore
-	ds, err := datastore.NewIlxdDatastore(config.DataDir, netParams)
+	ds, err := datastore.NewIlxdDatastore(config.DataDir, datastore.WithParams(netParams))
 	if err != nil {
 		return nil, err
 	}
