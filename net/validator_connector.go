@@ -153,7 +153,7 @@ func (vc *ValidatorConnector) update() {
 			if val.PeerID != vc.ownID {
 				connectedStake += val.WeightedStake
 			}
-		case inet.NotConnected, inet.CanConnect:
+		case inet.NotConnected:
 			if val.PeerID != vc.ownID {
 				go vc.host.Connect(context.Background(), peer.AddrInfo{ID: val.PeerID})
 			}

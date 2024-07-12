@@ -889,7 +889,7 @@ func (sm *SyncManager) syncPeers() []peer.ID {
 peerLoop:
 	for _, p := range sm.network.Host().Network().Peers() {
 		for _, conn := range sm.network.Host().Network().ConnsToPeer(p) {
-			if conn.Stat().Transient {
+			if conn.Stat().Limited {
 				continue peerLoop
 			}
 		}
