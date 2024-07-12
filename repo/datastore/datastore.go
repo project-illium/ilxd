@@ -109,11 +109,12 @@ func NewIlxdDatastore(dataDir string, opts ...Option) (Datastore, error) {
 		// Empty blocks directory stops it from persisting
 		// data to disk.
 		blocksDir = ""
-	}
-	if _, err := os.Stat(blocksDir); os.IsNotExist(err) {
-		err := os.MkdirAll(blocksDir, 0700)
-		if err != nil {
-			return nil, err
+	} else {
+		if _, err := os.Stat(blocksDir); os.IsNotExist(err) {
+			err := os.MkdirAll(blocksDir, 0700)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

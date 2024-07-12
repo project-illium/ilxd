@@ -1022,9 +1022,16 @@ func NewFlatFilestore(basePath string, params *params.NetworkParams) (*FlatFiles
 	// Look for the end of the latest block to file to determine what the
 	// write cursor position is from the viewpoing of the block files on
 	// disk.
-	fileNum, fileOff, err := scanBlockFiles(basePath)
-	if err != nil {
-		return nil, err
+	var (
+		fileNum int
+		fileOff uint32
+		err     error
+	)
+	if basePath != "" {
+		fileNum, fileOff, err = scanBlockFiles(basePath)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if fileNum == -1 {
 		fileNum = 0
