@@ -20,7 +20,7 @@ type mockDatastore struct {
 }
 
 func NewMockDatastore() datastore.Datastore {
-	ds := newMapDatastore()
+	ds := NewMapDatastore()
 	bs, _ := blockstore.NewMockFlatFilestore(&params.RegestParams)
 	return &mockDatastore{
 		mapDatastore:  ds,
@@ -66,7 +66,7 @@ type mapDatastore struct {
 	ids.MapDatastore
 }
 
-func newMapDatastore() *mapDatastore {
+func NewMapDatastore() *mapDatastore {
 	ds := ids.NewMapDatastore()
 	return &mapDatastore{MapDatastore: *ds}
 }
