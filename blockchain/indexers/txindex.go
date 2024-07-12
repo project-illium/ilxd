@@ -7,16 +7,13 @@ package indexers
 import (
 	"context"
 	"encoding/binary"
-	"errors"
 	ids "github.com/ipfs/go-datastore"
-	"github.com/project-illium/ilxd/blockchain/pb"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/repo/blockstore"
 	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
 	"github.com/project-illium/ilxd/types/transactions"
-	"google.golang.org/protobuf/proto"
 )
 
 var _ Indexer = (*TxIndex)(nil)
@@ -49,14 +46,20 @@ func (idx *TxIndex) Name() string {
 // The indexer can use this opportunity to parse it and store it in
 // the database. The database transaction must be respected.
 func (idx *TxIndex) ConnectBlock(dbtx datastore.Txn, blk *blocks.Block) error {
-	for i, tx := range blk.Transactions {
+	index := 0
+	for _, tx := range blk.Transactions {
 		valueBytes := make([]byte, 36)
-		binary.BigEndian.PutUint32(valueBytes[:4], uint32(i))
+		binary.BigEndian.PutUint32(valueBytes[:4], uint32(index))
 		copy(valueBytes[4:], blk.ID().Bytes())
 
 		if err := dsPutIndexValue(dbtx, idx, tx.ID().String(), valueBytes); err != nil {
 			return err
 		}
+		size, err := tx.SerializedSize()
+		if err != nil {
+			return err
+		}
+		index += 4 + size
 	}
 	if err := dsPutIndexerHeight(dbtx, idx, blk.Header.Height); err != nil {
 		return err
@@ -74,26 +77,30 @@ func (idx *TxIndex) GetTransaction(ds datastore.Datastore, txid types.ID) (*tran
 	pos := binary.BigEndian.Uint32(valueBytes[:4])
 	blockID := types.NewID(valueBytes[4:])
 
-	serializedLocation, err := ds.Get(context.Background(), ids.NewKey(repo.BlockTxsKeyPrefix+blockID.String()))
+	serializedLocation, err := ds.Get(context.Background(), ids.NewKey(repo.BlockKeyPrefix+blockID.String()))
 	if err != nil {
 		return nil, types.ID{}, err
 	}
 
-	ser, err := ds.FetchBlockData(blockstore.DeSerializeBlockLoc(serializedLocation))
+	loc := blockstore.DeSerializeBlockLoc(serializedLocation)
+
+	serializedLen, err := ds.FetchBlockRegion(loc, loc.HeaderLen+pos, 4)
 	if err != nil {
 		return nil, types.ID{}, err
 	}
 
-	var dsTxs pb.DBTxs
-	if err := proto.Unmarshal(ser, &dsTxs); err != nil {
+	txLen := binary.BigEndian.Uint32(serializedLen)
+	serializedTx, err := ds.FetchBlockRegion(loc, loc.HeaderLen+pos+4, txLen)
+	if err != nil {
 		return nil, types.ID{}, err
 	}
 
-	if int(pos) > len(dsTxs.Transactions)-1 {
-		return nil, types.ID{}, errors.New("tx index position out of range")
+	tx := new(transactions.Transaction)
+	if err := tx.Deserialize(serializedTx); err != nil {
+		return nil, types.ID{}, err
 	}
 
-	return dsTxs.Transactions[pos], blockID, nil
+	return tx, blockID, nil
 }
 
 // GetContainingBlockID returns the ID of the block containing the transaction.

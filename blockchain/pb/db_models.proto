@@ -25,10 +25,6 @@ message DBValidator {
         }
 }
 
-message DBTxs {
-        repeated Transaction transactions = 1;
-}
-
 message DBBlockNode {
         bytes blockID   = 1;
         uint32 height   = 2;

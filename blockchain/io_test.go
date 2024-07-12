@@ -14,20 +14,6 @@ import (
 	"time"
 )
 
-func TestPutGetHeader(t *testing.T) {
-	ds := mock.NewMockDatastore()
-
-	header := randomBlockHeader(5, randomID())
-	dbtx, err := ds.NewTransaction(context.Background(), false)
-	assert.NoError(t, err)
-	assert.NoError(t, dsPutHeader(dbtx, header))
-	assert.NoError(t, dbtx.Commit(context.Background()))
-
-	header2, err := dsFetchHeader(ds, header.ID())
-	assert.NoError(t, err)
-	assert.Empty(t, deep.Equal(header, header2))
-}
-
 func TestPutGetDeleteBlock(t *testing.T) {
 	ds := mock.NewMockDatastore()
 	defer ds.Close()
@@ -50,14 +36,14 @@ func TestPutGetDeleteBlock(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, deep.Equal(block, block2))
 
+	header2, err := dsFetchHeader(ds, block.ID())
+	assert.NoError(t, err)
+	assert.Empty(t, deep.Equal(block.Header, header2))
+
 	dbtx, err = ds.NewTransaction(context.Background(), false)
 	assert.NoError(t, err)
-	assert.NoError(t, dsDeleteBlock(dbtx, ds, block.ID(), block.Header.Height))
+	assert.NoError(t, dsDeleteBlock(dbtx, block.Header.Height))
 	assert.NoError(t, dbtx.Commit(context.Background()))
-
-	block2, err = dsFetchBlock(ds, block.ID())
-	assert.Error(t, err)
-	assert.Nil(t, block2)
 }
 
 func TestPutGetBlockIDByHeight(t *testing.T) {

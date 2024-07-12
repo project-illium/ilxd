@@ -144,7 +144,7 @@ func NewBlockchain(opts ...Option) (*Blockchain, error) {
 				}
 				defer dbtx.Discard(context.Background())
 				for {
-					if err := dsDeleteBlock(dbtx, b.ds, node.blockID, node.height); err != nil {
+					if err := dsDeleteBlock(dbtx, node.height); err != nil {
 						return nil, err
 					}
 					if err := dsDeleteBlockIDFromHeight(dbtx, node.height); err != nil {
@@ -365,14 +365,10 @@ func (b *Blockchain) connectBlock(dbtx datastore.Txn, blk *blocks.Block, flags B
 	}
 
 	if b.prune && blk.Header.Height >= pruneDepth {
-		blockID, err := dsFetchBlockIDFromHeightWithTx(dbtx, blk.Header.Height-pruneDepth)
-		if err != nil {
-			return err
-		}
 		if err := dsDeleteBlockIDFromHeight(dbtx, blk.Header.Height-pruneDepth); err != nil {
 			return err
 		}
-		if err := dsDeleteBlock(dbtx, b.ds, blockID, blk.Header.Height-pruneDepth); err != nil {
+		if err := dsDeleteBlock(dbtx, blk.Header.Height-pruneDepth); err != nil {
 			return err
 		}
 	}
@@ -430,6 +426,14 @@ func (b *Blockchain) connectBlock(dbtx datastore.Txn, blk *blocks.Block, flags B
 // ReindexChainState deletes all the state data from the database and rebuilds it
 // by loading all blocks from genesis to the tip and re-processing them.
 func (b *Blockchain) ReindexChainState() error {
+	pruned, err := b.IsPruned()
+	if err != nil {
+		return err
+	}
+	if pruned {
+		return errors.New("reindex of pruned blockchain")
+	}
+
 	b.stateLock.Lock()
 	defer b.stateLock.Unlock()
 

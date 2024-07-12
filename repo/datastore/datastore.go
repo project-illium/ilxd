@@ -35,6 +35,9 @@ type Txn interface {
 
 	// FetchBlockData returns the block data from the datastore
 	FetchBlockData(location blockstore.BlockLocation) ([]byte, error)
+
+	// DeleteBefore deletes all block data before the provided height
+	DeleteBefore(height uint32) error
 }
 
 type IlxdDatastore struct {

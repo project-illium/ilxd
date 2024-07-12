@@ -89,7 +89,7 @@ func populateDatabase(ds datastore.Datastore, nBlocks int) error {
 
 	prev := randomBlockHeader(0, [32]byte{})
 	prev.Timestamp = time.Now().Add(-time.Second * time.Duration(nBlocks)).Unix()
-	if err := dsPutHeader(dbtx, prev); err != nil {
+	if err := dsPutBlock(dbtx, &blocks.Block{Header: prev}); err != nil {
 		return err
 	}
 

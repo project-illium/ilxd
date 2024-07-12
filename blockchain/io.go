@@ -20,6 +20,7 @@ import (
 	"github.com/project-illium/ilxd/repo/datastore"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/blocks"
+	"github.com/project-illium/ilxd/types/transactions"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"math"
@@ -186,24 +187,24 @@ func DeserializeAccumulator(ser []byte) (*Accumulator, error) {
 	return acc, nil
 }
 
-func dsPutHeader(dbtx datastore.Txn, header *blocks.BlockHeader) error {
-	ser, err := header.Serialize()
-	if err != nil {
-		return err
-	}
-	return dbtx.Put(context.Background(), ids.NewKey(repo.BlockKeyPrefix+header.ID().String()), ser)
-}
-
 func dsFetchHeader(ds datastore.Datastore, blockID types.ID) (*blocks.BlockHeader, error) {
-	serialized, err := ds.Get(context.Background(), ids.NewKey(repo.BlockKeyPrefix+blockID.String()))
+	serializedLocation, err := ds.Get(context.Background(), ids.NewKey(repo.BlockKeyPrefix+blockID.String()))
 	if err != nil {
 		return nil, err
 	}
-	blockHeader := &blocks.BlockHeader{}
-	if err := blockHeader.Deserialize(serialized); err != nil {
+
+	loc := blockstore.DeSerializeBlockLoc(serializedLocation)
+
+	blockData, err := ds.FetchBlockData(loc)
+	if err != nil {
 		return nil, err
 	}
-	return blockHeader, nil
+
+	header := new(blocks.BlockHeader)
+	if err := proto.Unmarshal(blockData[:loc.HeaderLen], header); err != nil {
+		return nil, err
+	}
+	return header, nil
 }
 
 func dsBlockExists(ds datastore.Datastore, blockID types.ID) (bool, error) {
@@ -215,64 +216,87 @@ func dsPutBlock(dbtx datastore.Txn, blk *blocks.Block) error {
 	if err != nil {
 		return err
 	}
-	if err := dbtx.Put(context.Background(), ids.NewKey(repo.BlockKeyPrefix+blk.ID().String()), serializedHeader); err != nil {
-		return err
+
+	serializedBlock := make([]byte, 0, len(serializedHeader)+8)
+
+	var byteLen [4]byte
+	serializedBlock = append(serializedBlock, serializedHeader...)
+
+	for _, tx := range blk.Transactions {
+		ser, err := proto.Marshal(tx)
+		if err != nil {
+			return err
+		}
+
+		binary.BigEndian.PutUint32(byteLen[:], uint32(len(ser)))
+
+		serializedBlock = append(serializedBlock, byteLen[:]...)
+		serializedBlock = append(serializedBlock, ser...)
 	}
-	txns := &pb.DBTxs{
-		Transactions: blk.Transactions,
-	}
-	serializedTxs, err := proto.Marshal(txns)
+
+	location, err := dbtx.PutBlockData(blk.Header.Height, serializedBlock)
 	if err != nil {
 		return err
 	}
+	location.HeaderLen = uint32(len(serializedHeader))
 
-	location, err := dbtx.PutBlockData(blk.Header.Height, serializedTxs)
-	if err != nil {
-		return err
-	}
-
-	return dbtx.Put(context.Background(), ids.NewKey(repo.BlockTxsKeyPrefix+blk.ID().String()), blockstore.SerializeBlockLoc(location))
+	return dbtx.Put(context.Background(), ids.NewKey(repo.BlockKeyPrefix+blk.ID().String()), blockstore.SerializeBlockLoc(location))
 }
 
-func dsDeleteBlock(dbtx datastore.Txn, bs blockstore.Blockstore, blockID types.ID, height uint32) error {
-	if err := dbtx.Delete(context.Background(), ids.NewKey(repo.BlockKeyPrefix+blockID.String())); err != nil {
-		return err
-	}
-	if err := dbtx.Delete(context.Background(), ids.NewKey(repo.BlockTxsKeyPrefix+blockID.String())); err != nil {
-		return err
-	}
-	return bs.DeleteBefore(height)
+func dsDeleteBlock(dbtx datastore.Txn, height uint32) error {
+	return dbtx.DeleteBefore(height)
 }
 
 func dsFetchBlock(ds datastore.Datastore, blockID types.ID) (*blocks.Block, error) {
-	serializedHeader, err := ds.Get(context.Background(), ids.NewKey(repo.BlockKeyPrefix+blockID.String()))
-	if err != nil {
-		return nil, err
-	}
-	serializedLocation, err := ds.Get(context.Background(), ids.NewKey(repo.BlockTxsKeyPrefix+blockID.String()))
-	if err != nil {
-		return nil, err
-	}
-	var blockHeader blocks.BlockHeader
-	if err := proto.Unmarshal(serializedHeader, &blockHeader); err != nil {
-		return nil, err
-	}
-
-	location := blockstore.DeSerializeBlockLoc(serializedLocation)
-
-	blockData, err := ds.FetchBlockData(location)
+	serializedLocation, err := ds.Get(context.Background(), ids.NewKey(repo.BlockKeyPrefix+blockID.String()))
 	if err != nil {
 		return nil, err
 	}
 
-	var dsTxs pb.DBTxs
-	if err := proto.Unmarshal(blockData, &dsTxs); err != nil {
+	loc := blockstore.DeSerializeBlockLoc(serializedLocation)
+
+	blockData, err := ds.FetchBlockData(loc)
+	if err != nil {
 		return nil, err
 	}
-	return &blocks.Block{
-		Header:       &blockHeader,
-		Transactions: dsTxs.Transactions,
-	}, nil
+
+	blk := &blocks.Block{
+		Header:       new(blocks.BlockHeader),
+		Transactions: []*transactions.Transaction{},
+	}
+	if err := proto.Unmarshal(blockData[:loc.HeaderLen], blk.Header); err != nil {
+		return nil, err
+	}
+
+	txsData := blockData[loc.HeaderLen:]
+
+	for len(txsData) > 0 {
+		if len(txsData) < 4 {
+			return nil, fmt.Errorf("insufficient data for reading transaction length")
+		}
+
+		// Read the transaction length (first 4 bytes)
+		txLen := binary.BigEndian.Uint32(txsData[:4])
+		txsData = txsData[4:]
+
+		if len(txsData) < int(txLen) {
+			return nil, fmt.Errorf("insufficient data for transaction")
+		}
+
+		// Read the transaction data
+		txData := txsData[:txLen]
+		txsData = txsData[txLen:]
+
+		// Deserialize the transaction
+		tx := &transactions.Transaction{}
+		if err := proto.Unmarshal(txData, tx); err != nil {
+			return nil, err
+		}
+
+		blk.Transactions = append(blk.Transactions, tx)
+	}
+
+	return blk, nil
 }
 
 func dsPutBlockIDFromHeight(dbtx datastore.Txn, blockID types.ID, height uint32) error {
@@ -281,14 +305,6 @@ func dsPutBlockIDFromHeight(dbtx datastore.Txn, blockID types.ID, height uint32)
 
 func dsFetchBlockIDFromHeight(ds datastore.Datastore, height uint32) (types.ID, error) {
 	blockIDBytes, err := ds.Get(context.Background(), ids.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))))
-	if err != nil {
-		return types.ID{}, err
-	}
-	return types.NewID(blockIDBytes), nil
-}
-
-func dsFetchBlockIDFromHeightWithTx(dbtx datastore.Txn, height uint32) (types.ID, error) {
-	blockIDBytes, err := dbtx.Get(context.Background(), ids.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", int(height))))
 	if err != nil {
 		return types.ID{}, err
 	}
@@ -650,10 +666,6 @@ func dsFetchPrunedFlag(ds datastore.Datastore) (bool, error) {
 // a solution that doesn't impose these limits.
 func datastoreTxnLimits(blk *blocks.Block, bannedNullifiers int) (int, int, error) {
 	txn := dbTxLimitCounter{}
-	serializedHeader, err := blk.Header.Serialize()
-	if err != nil {
-		return 0, 0, err
-	}
 
 	serializedNode, err := serializeBlockNode(&blockNode{
 		blockID:   types.ID{},
@@ -677,11 +689,10 @@ func datastoreTxnLimits(blk *blocks.Block, bannedNullifiers int) (int, int, erro
 	maxU32 := math.MaxUint32
 	fourBytes := make([]byte, 4)
 	eightBytes := make([]byte, 8)
-	twelveBytes := make([]byte, 12)
+	sixteenBytes := make([]byte, 16)
 	serializedViewKey := hex.EncodeToString(make([]byte, 72))
 
-	txn.Put(ids.NewKey(repo.BlockKeyPrefix+blk.ID().String()), serializedHeader)
-	txn.Put(ids.NewKey(repo.BlockTxsKeyPrefix+blk.ID().String()), twelveBytes)
+	txn.Put(ids.NewKey(repo.BlockKeyPrefix+blk.ID().String()), sixteenBytes)
 	txn.Put(ids.NewKey(repo.BlockByHeightKeyPrefix+fmt.Sprintf("%010d", maxU32)), id[:])
 	txn.Put(ids.NewKey(repo.BlockIndexStateKey), serializedNode)
 	txn.Put(ids.NewKey(repo.TreasuryBalanceKey), fourBytes)
@@ -691,7 +702,6 @@ func datastoreTxnLimits(blk *blocks.Block, bannedNullifiers int) (int, int, erro
 	txn.Put(ids.NewKey(repo.AccumulatorCheckpointKey+fmt.Sprintf("%010d", maxU32)), serializedAccumulator)
 	txn.Delete(ids.NewKey(repo.BlockByHeightKeyPrefix + fmt.Sprintf("%010d", maxU32)))
 	txn.Delete(ids.NewKey(repo.BlockKeyPrefix + id.String()))
-	txn.Delete(ids.NewKey(repo.BlockTxsKeyPrefix + id.String()))
 	txn.Put(ids.NewKey(repo.IndexerHeightKeyPrefix+repo.TxIndexKey), fourBytes)
 	txn.Put(ids.NewKey(repo.IndexerHeightKeyPrefix+repo.WalletServerIndexKey), fourBytes)
 	for range blk.Outputs() {

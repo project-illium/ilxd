@@ -15,6 +15,11 @@ type Blockstore interface {
 	// FetchBlockData returns the block data from the datastore
 	FetchBlockData(location BlockLocation) ([]byte, error)
 
-	// DeleteBefore deletes all block data before the provided height
+	// FetchBlockRegion returns the given region inside a block from disk
+	FetchBlockRegion(location BlockLocation, offset, numBytes uint32) ([]byte, error)
+
+	// DeleteBefore will delete all block files containing heights before
+	// the provided height, but will not delete the file containing the
+	// provided height unless the height is the last block in the file.
 	DeleteBefore(height uint32) error
 }

@@ -220,9 +220,16 @@ func (s *FlatFilestore) FetchBlockData(location BlockLocation) ([]byte, error) {
 	return txData, nil
 }
 
-// DeleteBefore deletes all block data before the provided height
+// DeleteBefore will delete all block files containing heights before
+// the provided height, but will not delete the file containing the
+// provided height unless the height is the last block in the file.
 func (s *FlatFilestore) DeleteBefore(height uint32) error {
 	return s.deleteBlocks(height)
+}
+
+// FetchBlockRegion returns the given region inside a block from disk
+func (s *FlatFilestore) FetchBlockRegion(location BlockLocation, offset, numBytes uint32) ([]byte, error) {
+	return s.readBlockRegion(location, offset, numBytes)
 }
 
 // NewTransaction returns a new transaction for the Blockstore
@@ -266,6 +273,7 @@ type BlkTxn struct {
 	oldBlkFileNum uint32
 	oldBlkOffset  uint32
 	mtx           sync.Mutex
+	toDelete      uint32
 	closed        bool
 }
 
@@ -293,6 +301,17 @@ func (tx *BlkTxn) FetchBlockData(location BlockLocation) ([]byte, error) {
 	return tx.store.FetchBlockData(location)
 }
 
+// DeleteBefore will delete all block files containing heights before
+// the provided height, but will not delete the file containing the
+// provided height unless the height is the last block in the file.
+func (tx *BlkTxn) DeleteBefore(height uint32) error {
+	tx.mtx.Lock()
+	defer tx.mtx.Unlock()
+
+	tx.toDelete = height
+	return nil
+}
+
 // Commit commits the transaction to disk
 func (tx *BlkTxn) Commit(ctx context.Context) error {
 	tx.mtx.Lock()
@@ -302,6 +321,12 @@ func (tx *BlkTxn) Commit(ctx context.Context) error {
 		panic("managed transaction commit not allowed")
 	}
 	tx.closed = true
+	if tx.toDelete > 0 {
+		if err := tx.store.deleteBlocks(tx.toDelete); err != nil {
+			return err
+		}
+	}
+
 	return tx.store.syncBlocks()
 }
 
@@ -319,9 +344,10 @@ func (tx *BlkTxn) Discard(ctx context.Context) {
 
 // BlockLocation identifies a particular block file and location.
 type BlockLocation struct {
-	blockFileNum uint32
-	fileOffset   uint32
-	blockLen     uint32
+	BlockFileNum uint32
+	FileOffset   uint32
+	BlockLen     uint32
+	HeaderLen    uint32
 }
 
 // DeSerializeBlockLoc deserializes the passed serialized block location
@@ -336,10 +362,12 @@ func DeSerializeBlockLoc(serializedLoc []byte) BlockLocation {
 	//  [0:4]  Block file (4 bytes)
 	//  [4:8]  File offset (4 bytes)
 	//  [8:12] Block length (4 bytes)
+	//  [12:16] Header length (4 bytes)
 	return BlockLocation{
-		blockFileNum: byteOrder.Uint32(serializedLoc[0:4]),
-		fileOffset:   byteOrder.Uint32(serializedLoc[4:8]),
-		blockLen:     byteOrder.Uint32(serializedLoc[8:12]),
+		BlockFileNum: byteOrder.Uint32(serializedLoc[0:4]),
+		FileOffset:   byteOrder.Uint32(serializedLoc[4:8]),
+		BlockLen:     byteOrder.Uint32(serializedLoc[8:12]),
+		HeaderLen:    byteOrder.Uint32(serializedLoc[12:16]),
 	}
 }
 
@@ -351,10 +379,12 @@ func SerializeBlockLoc(loc BlockLocation) []byte {
 	//  [0:4]  Block file (4 bytes)
 	//  [4:8]  File offset (4 bytes)
 	//  [8:12] Block length (4 bytes)
-	var serializedData [12]byte
-	byteOrder.PutUint32(serializedData[0:4], loc.blockFileNum)
-	byteOrder.PutUint32(serializedData[4:8], loc.fileOffset)
-	byteOrder.PutUint32(serializedData[8:12], loc.blockLen)
+	//  [12:16] Header length (4 bytes)
+	var serializedData [16]byte
+	byteOrder.PutUint32(serializedData[0:4], loc.BlockFileNum)
+	byteOrder.PutUint32(serializedData[4:8], loc.FileOffset)
+	byteOrder.PutUint32(serializedData[8:12], loc.BlockLen)
+	byteOrder.PutUint32(serializedData[12:16], loc.HeaderLen)
 	return serializedData[:]
 }
 
@@ -640,9 +670,9 @@ func (s *FlatFilestore) writeBlock(rawBlock []byte, height uint32) (BlockLocatio
 	}
 
 	loc := BlockLocation{
-		blockFileNum: wc.curFileNum,
-		fileOffset:   origOffset,
-		blockLen:     fullLen,
+		BlockFileNum: wc.curFileNum,
+		FileOffset:   origOffset,
+		BlockLen:     fullLen,
 	}
 	return loc, nil
 }
@@ -664,17 +694,17 @@ func (s *FlatFilestore) readBlock(loc BlockLocation) ([]byte, error) {
 	// Get the referenced block file handle opening the file as needed.  The
 	// function also handles closing files as needed to avoid going over the
 	// max allowed open files.
-	blockFile, err := s.blockFile(loc.blockFileNum)
+	blockFile, err := s.blockFile(loc.BlockFileNum)
 	if err != nil {
 		return nil, err
 	}
 
-	serializedData := make([]byte, loc.blockLen)
-	n, err := blockFile.file.ReadAt(serializedData, int64(loc.fileOffset))
+	serializedData := make([]byte, loc.BlockLen)
+	n, err := blockFile.file.ReadAt(serializedData, int64(loc.FileOffset))
 	blockFile.RUnlock()
 	if err != nil {
 		str := fmt.Sprintf("failed to read block from file %d, "+
-			"offset %d: %v", loc.blockFileNum, loc.fileOffset,
+			"offset %d: %v", loc.BlockFileNum, loc.FileOffset,
 			err)
 		return nil, makeDbErr(str, err)
 	}
@@ -752,7 +782,7 @@ func (s *FlatFilestore) readBlockRegion(loc BlockLocation, offset, numBytes uint
 	// Get the referenced block file handle opening the file as needed.  The
 	// function also handles closing files as needed to avoid going over the
 	// max allowed open files.
-	blockFile, err := s.blockFile(loc.blockFileNum)
+	blockFile, err := s.blockFile(loc.BlockFileNum)
 	if err != nil {
 		return nil, err
 	}
@@ -760,13 +790,13 @@ func (s *FlatFilestore) readBlockRegion(loc BlockLocation, offset, numBytes uint
 	// Regions are offsets into the actual block, however the serialized
 	// data for a block includes an initial 4 bytes for network + 4 bytes
 	// for block length.  Thus, add 8 bytes to adjust.
-	readOffset := loc.fileOffset + 8 + offset
+	readOffset := loc.FileOffset + 8 + offset
 	serializedData := make([]byte, numBytes)
 	_, err = blockFile.file.ReadAt(serializedData, int64(readOffset))
 	blockFile.RUnlock()
 	if err != nil {
 		str := fmt.Sprintf("failed to read region from block file %d, "+
-			"offset %d, len %d: %v", loc.blockFileNum, readOffset,
+			"offset %d, len %d: %v", loc.BlockFileNum, readOffset,
 			numBytes, err)
 		return nil, makeDbErr(str, err)
 	}

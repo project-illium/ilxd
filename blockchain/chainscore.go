@@ -83,7 +83,7 @@ func (b *Blockchain) CalcChainScore(blks []*blocks.Block, flags ...BehaviorFlags
 	}
 	defer dbtx.Discard(context.Background())
 
-	if err := dsPutHeader(dbtx, tipHeader); err != nil {
+	if err := dsPutBlock(dbtx, &blocks.Block{Header: tipHeader}); err != nil {
 		return 0, err
 	}
 

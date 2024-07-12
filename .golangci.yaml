@@ -31,4 +31,3 @@ issues:
     - "Error return value of `validator.Validate` is not checked"
     - "Error return value of `batch.AddBlock` is not checked"
     - "Error return value of `b.Commit` is not checked"
-    - "readBlockRegion` is unused"

@@ -14,16 +14,16 @@ import (
 
 func TestDeSerializeBlockLoc(t *testing.T) {
 	location := BlockLocation{
-		blockFileNum: 1,
-		fileOffset:   2,
-		blockLen:     3,
+		BlockFileNum: 1,
+		FileOffset:   2,
+		BlockLen:     3,
 	}
 	ser := SerializeBlockLoc(location)
 
 	location2 := DeSerializeBlockLoc(ser)
-	assert.Equal(t, location.blockFileNum, location2.blockFileNum)
-	assert.Equal(t, location.fileOffset, location2.fileOffset)
-	assert.Equal(t, location.blockLen, location2.blockLen)
+	assert.Equal(t, location.BlockFileNum, location2.BlockFileNum)
+	assert.Equal(t, location.FileOffset, location2.FileOffset)
+	assert.Equal(t, location.BlockLen, location2.BlockLen)
 }
 
 func TestPutGetMany(t *testing.T) {
