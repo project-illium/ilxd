@@ -7,6 +7,7 @@ package transactions
 import (
 	"encoding/json"
 	"errors"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/zk"
@@ -394,7 +395,7 @@ func (tx *StandardTransaction) UnmarshalJSON(data []byte) error {
 }
 
 type coinbaseTxJSON struct {
-	Validator_ID types.HexEncodable `json:"validator_ID"`
+	Validator_ID string             `json:"validator_ID"`
 	NewCoins     types.Amount       `json:"new_coins"`
 	Outputs      []*Output          `json:"outputs"`
 	Signature    types.HexEncodable `json:"signature"`
@@ -452,8 +453,12 @@ func (tx *CoinbaseTransaction) ToCircuitParams() (zk.Parameters, error) {
 }
 
 func (tx *CoinbaseTransaction) MarshalJSON() ([]byte, error) {
+	pid, err := peer.IDFromBytes(tx.Validator_ID)
+	if err != nil {
+		return nil, err
+	}
 	c := &coinbaseTxJSON{
-		Validator_ID: tx.Validator_ID,
+		Validator_ID: pid.String(),
 		NewCoins:     types.Amount(tx.NewCoins),
 		Outputs:      tx.Outputs,
 		Signature:    tx.Signature,
@@ -467,8 +472,19 @@ func (tx *CoinbaseTransaction) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, newTx); err != nil {
 		return err
 	}
+	var pidBytes []byte
+	if newTx.Validator_ID != "" {
+		pid, err := peer.Decode(newTx.Validator_ID)
+		if err != nil {
+			return err
+		}
+		pidBytes, err = pid.Marshal()
+		if err != nil {
+			return err
+		}
+	}
 	*tx = CoinbaseTransaction{
-		Validator_ID: newTx.Validator_ID,
+		Validator_ID: pidBytes,
 		NewCoins:     uint64(newTx.NewCoins),
 		Outputs:      newTx.Outputs,
 		Signature:    newTx.Signature,
@@ -478,7 +494,7 @@ func (tx *CoinbaseTransaction) UnmarshalJSON(data []byte) error {
 }
 
 type stakeTxJSON struct {
-	Validator_ID types.HexEncodable `json:"validator_ID"`
+	Validator_ID string             `json:"validator_ID"`
 	Amount       types.Amount       `json:"amount"`
 	Nullifier    types.HexEncodable `json:"nullifier"`
 	TxoRoot      types.HexEncodable `json:"txo_root"`
@@ -540,8 +556,12 @@ func (tx *StakeTransaction) ToCircuitParams() (zk.Parameters, error) {
 }
 
 func (tx *StakeTransaction) MarshalJSON() ([]byte, error) {
+	pid, err := peer.IDFromBytes(tx.Validator_ID)
+	if err != nil {
+		return nil, err
+	}
 	s := &stakeTxJSON{
-		Validator_ID: tx.Validator_ID,
+		Validator_ID: pid.String(),
 		Amount:       types.Amount(tx.Amount),
 		Nullifier:    tx.Nullifier,
 		TxoRoot:      tx.TxoRoot,
@@ -557,8 +577,19 @@ func (tx *StakeTransaction) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, newTx); err != nil {
 		return err
 	}
+	var pidBytes []byte
+	if newTx.Validator_ID != "" {
+		pid, err := peer.Decode(newTx.Validator_ID)
+		if err != nil {
+			return err
+		}
+		pidBytes, err = pid.Marshal()
+		if err != nil {
+			return err
+		}
+	}
 	*tx = StakeTransaction{
-		Validator_ID: newTx.Validator_ID,
+		Validator_ID: pidBytes,
 		Amount:       uint64(newTx.Amount),
 		Nullifier:    newTx.Nullifier,
 		TxoRoot:      newTx.TxoRoot,

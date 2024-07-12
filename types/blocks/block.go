@@ -6,6 +6,7 @@ package blocks
 
 import (
 	"encoding/json"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/project-illium/ilxd/params/hash"
 	"github.com/project-illium/ilxd/types"
 	"github.com/project-illium/ilxd/types/transactions"
@@ -22,7 +23,7 @@ type headerJSON struct {
 	Parent      types.HexEncodable `json:"parent"`
 	Timestamp   int64              `json:"timestamp"`
 	TxRoot      types.HexEncodable `json:"tx_root"`
-	Producer_ID types.HexEncodable `json:"producer_ID"`
+	Producer_ID string             `json:"producer_ID"`
 	Signature   types.HexEncodable `json:"signature"`
 }
 
@@ -77,13 +78,19 @@ func (h *BlockHeader) SigHash() ([]byte, error) {
 
 func (h *BlockHeader) MarshalJSON() ([]byte, error) {
 	header := &headerJSON{
-		Version:     h.Version,
-		Height:      h.Height,
-		Parent:      h.Parent,
-		Timestamp:   h.Timestamp,
-		TxRoot:      h.TxRoot,
-		Producer_ID: h.Producer_ID,
-		Signature:   h.Signature,
+		Version:   h.Version,
+		Height:    h.Height,
+		Parent:    h.Parent,
+		Timestamp: h.Timestamp,
+		TxRoot:    h.TxRoot,
+		Signature: h.Signature,
+	}
+	if len(h.Producer_ID) > 0 {
+		pid, err := peer.IDFromBytes(h.Producer_ID)
+		if err != nil {
+			return nil, err
+		}
+		header.Producer_ID = pid.String()
 	}
 
 	return json.Marshal(header)
@@ -94,13 +101,24 @@ func (h *BlockHeader) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, newHeader); err != nil {
 		return err
 	}
+	var pidBytes []byte
+	if newHeader.Producer_ID != "" {
+		pid, err := peer.Decode(newHeader.Producer_ID)
+		if err != nil {
+			return err
+		}
+		pidBytes, err = pid.Marshal()
+		if err != nil {
+			return err
+		}
+	}
 	*h = BlockHeader{
 		Version:     newHeader.Version,
 		Height:      newHeader.Height,
 		Parent:      newHeader.Parent,
 		Timestamp:   newHeader.Timestamp,
 		TxRoot:      newHeader.TxRoot,
-		Producer_ID: newHeader.Producer_ID,
+		Producer_ID: pidBytes,
 		Signature:   newHeader.Signature,
 	}
 	return nil
@@ -175,6 +193,17 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &newBlock); err != nil {
 		return err
 	}
+	var pidBytes []byte
+	if newBlock.Header.Producer_ID != "" {
+		pid, err := peer.Decode(newBlock.Header.Producer_ID)
+		if err != nil {
+			return err
+		}
+		pidBytes, err = pid.Marshal()
+		if err != nil {
+			return err
+		}
+	}
 	*b = Block{
 		Header: &BlockHeader{
 			Version:     newBlock.Header.Version,
@@ -182,7 +211,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 			Parent:      newBlock.Header.Parent,
 			Timestamp:   newBlock.Header.Timestamp,
 			TxRoot:      newBlock.Header.TxRoot,
-			Producer_ID: newBlock.Header.Producer_ID,
+			Producer_ID: pidBytes,
 			Signature:   newBlock.Header.Signature,
 		},
 		Transactions: newBlock.Transactions,

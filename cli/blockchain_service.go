@@ -177,6 +177,18 @@ func (x *GetBlockInfo) Execute(args []string) error {
 		return err
 	}
 
+	if len(resp.Info.Producer_ID) > 0 {
+		pid, err := peer.IDFromBytes(resp.Info.Producer_ID)
+		if err != nil {
+			return err
+		}
+
+		value, err = sjson.Set(value, "producerID", pid.String())
+		if err != nil {
+			return err
+		}
+	}
+
 	fmt.Println(value)
 	return nil
 }
