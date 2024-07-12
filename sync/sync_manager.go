@@ -691,6 +691,7 @@ blockLoop:
 		txsChan, err := sm.chainService.GetBlockTxsStream(p, start, noProofs)
 		if err != nil {
 			sm.network.IncreaseBanscore(p, 0, 20, "failed to serve requested block txs")
+			close(processChan)
 			return fmt.Errorf("peer %s block download error %s", p, err)
 		}
 		// Ensure channel is always drained before exiting the function
@@ -709,6 +710,7 @@ blockLoop:
 			}
 			if noProofs && len(txs.Wids) != len(txs.Transactions) {
 				sm.network.IncreaseBanscore(p, 0, 20, "served block without requested wids")
+				close(processChan)
 				return fmt.Errorf("peer %s returned block without requested wids", p)
 			}
 			if noProofs {

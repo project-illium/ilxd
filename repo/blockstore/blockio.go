@@ -263,7 +263,7 @@ func (s *FlatFilestore) Close() error {
 	if s.cleanup != nil {
 		s.cleanup()
 	}
-	return nil
+	return s.syncBlocks()
 }
 
 // BlkTxn is a database transaction for the FlatFilestore
